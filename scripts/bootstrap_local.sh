@@ -32,5 +32,5 @@ echo
 echo "Library edits: work in $LIB_LINK (branch + PR there)."
 echo "Experiment edits: commit in this repo."
 echo
-echo "New colleagues should start from rl-experiments-template, not this repo:"
-echo "  https://github.com/Al-does/rl-experiments-template"
+echo "New colleagues should fork rl-experiments (entry point), not this repo:"
+echo "  https://github.com/Al-does/rl-experiments"
