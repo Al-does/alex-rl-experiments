@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "alex-rl-experiments"
+version = "0.1.0"
+description = "Alex's personal RL experiment recipes for the shared rl-harness library"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "rl-harness",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["experiments*"]
+namespaces = true
+
+[tool.uv.sources]
+# Default org layout: clone library beside this repo as ../rl-harness
+# (symlink from "RL Harness" is fine). Editable so library edits are live.
+rl-harness = { path = "../rl-harness", editable = true }
+
+[tool.pytest.ini_options]
+markers = ["slow: long-running tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+# Provisioning CLI lives in the library; install vastai here so colleagues can
+# run `uv run --group devops python -m devops.vast.provision` from this repo.
+devops = [
+    "vastai>=0.2.0",
+]
