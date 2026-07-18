@@ -1,7 +1,11 @@
 # alex-rl-experiments
 
-Personal experiment recipes for Alex, built on the shared
+Alex's personal experiment recipes for the shared
 [`rl-harness`](https://github.com/Al-does/RL-Harness) library.
+
+**Colleagues:** do not fork this repo for new work. Start from the template
+[`rl-experiments-template`](https://github.com/Al-does/rl-experiments-template)
+instead (Use this template → `./scripts/bootstrap_local.sh`).
 
 ## Layout
 
@@ -11,9 +15,8 @@ XOR/
   alex-rl-experiments/     # this repo
 ```
 
-Science lives here. Reusable `harness/`, `learners/`, `losses/`, `envs/`,
-`analysis/`, and `devops/` live in the library. Library changes are PRs to
-`rl-harness`; experiment-only work stays in this repo.
+Science lives here. Reusable code lives in the library. Library changes are
+PRs to `rl-harness`; experiment-only work stays here.
 
 ## Setup
 
@@ -24,8 +27,6 @@ Requires [uv](https://docs.astral.sh/uv/) and Python 3.13+.
 # or, if the library sibling is already present:
 uv sync --group dev
 ```
-
-This editable-installs `../rl-harness` so library edits are live.
 
 ## Run
 
@@ -39,7 +40,6 @@ uv run rl-harness \
 
 ```bash
 git -C ../rl-harness pull
-# re-run experiments as needed; no version pin yet
 ```
 
 Run manifests record both this repo's commit and the library commit.
@@ -54,8 +54,6 @@ git push -u origin HEAD
 gh pr create
 ```
 
-Keep the matching experiment changes in this repo (second commit/push).
-
 ## Tests
 
 ```bash
@@ -64,11 +62,6 @@ uv run pytest -q -m "not slow"
 
 ## vast.ai
 
-Provisioning still uses the library's `devops.vast` package. From this repo:
-
 ```bash
 uv run --group devops python -m devops.vast.provision up -n 1 --dry-run
 ```
-
-Boxes clone **this** repo (results push target) and the library as a sibling
-editable install. See `rl-harness` `devops/vast/README.md`.
