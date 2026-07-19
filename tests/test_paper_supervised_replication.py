@@ -8,6 +8,9 @@ import pytest
 import torch
 
 from harness.artifacts import RunArtifacts
+from experiments.mess3_belief_geometry_2026_07.large_batch_replication.experiment import (
+    FULL_TRAINING_CONFIG as LARGE_BATCH_CONFIG,
+)
 
 from experiments.mess3_belief_geometry_2026_07.paper_supervised_replication.analysis import (
     grouped_probe_split,
@@ -29,6 +32,18 @@ from experiments.mess3_belief_geometry_2026_07.paper_supervised_replication.trai
     exact_validation_loss,
     train,
 )
+
+
+def test_large_batch_recipe_preserves_cumulative_learning_rate_exposure():
+    paper = TrainingConfig()
+
+    assert LARGE_BATCH_CONFIG.batch_size == 16_384
+    assert LARGE_BATCH_CONFIG.learning_rate == pytest.approx(0.16)
+    assert LARGE_BATCH_CONFIG.total_steps == 62_500
+    assert (
+        LARGE_BATCH_CONFIG.total_steps * LARGE_BATCH_CONFIG.learning_rate
+        == pytest.approx(paper.total_steps * paper.learning_rate)
+    )
 
 
 def test_paper_matrices_and_path_distribution_are_exact():

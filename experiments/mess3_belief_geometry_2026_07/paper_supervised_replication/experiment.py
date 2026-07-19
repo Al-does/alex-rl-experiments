@@ -66,7 +66,7 @@ def _replication_markdown(summary: dict[str, Any]) -> str:
     probe = summary["probe"]["layers"][summary["probe"]["headline_layer"]]
     return "\n".join(
         [
-            "# MESS3 supervised replication",
+            f"# MESS3 supervised replication: {summary['variant']}",
             "",
             f"- Analyzed checkpoint: update {summary['analyzed_step']:,}",
             f"- Exact Bayesian floor: {summary['bayesian_floor_nats']:.6f} nats",
@@ -113,7 +113,13 @@ def _replication_markdown(summary: dict[str, Any]) -> str:
     )
 
 
-def run(context: RunContext):
+def run_replication(
+    context: RunContext,
+    *,
+    full_training_config: TrainingConfig,
+    smoke_training_config: TrainingConfig,
+    variant: str,
+):
     if context.seed is None:
         raise ValueError("the paper replication requires a resolved seed")
     experiment_started = time.monotonic()
@@ -132,7 +138,7 @@ def run(context: RunContext):
     probe_seed = seed_sequence_to_int(streams["probe_split"])
     plot_seed = seed_sequence_to_int(streams["plot_sampling"])
     training_config = (
-        TrainingConfig.smoke() if context.smoke else FULL_TRAINING_CONFIG
+        smoke_training_config if context.smoke else full_training_config
     )
 
     _seed_model(initialization_seed)
@@ -162,6 +168,7 @@ def run(context: RunContext):
         "resolved_recipe.json",
         {
             "paper": "arXiv:2405.15943",
+            "variant": variant,
             "objective": "ten shifted next-token cross-entropies",
             "mess3": {
                 "x": 0.05,
@@ -250,6 +257,7 @@ def run(context: RunContext):
     )
     summary = {
         **training_summary,
+        "variant": variant,
         "bayesian_floor_nats": bayesian_floor,
         "validation_gap_nats": validation_gap,
         "probe": probe,
@@ -298,3 +306,12 @@ def run(context: RunContext):
         _replication_markdown(summary)
     )
     return summary
+
+
+def run(context: RunContext):
+    return run_replication(
+        context,
+        full_training_config=FULL_TRAINING_CONFIG,
+        smoke_training_config=TrainingConfig.smoke(),
+        variant="paper-faithful",
+    )
