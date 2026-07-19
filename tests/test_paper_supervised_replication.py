@@ -27,6 +27,8 @@ from experiments.mess3_belief_geometry_2026_07.paper_supervised_replication.mode
 from experiments.mess3_belief_geometry_2026_07.paper_supervised_replication.training import (
     TrainingConfig,
     exact_validation_loss,
+    load_checkpoint,
+    save_checkpoint,
     train,
 )
 
@@ -104,7 +106,7 @@ def test_model_matches_paper_scale_and_is_causal():
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA")
-def test_cuda_compile_preserves_state_keys_and_eager_loss():
+def test_cuda_compile_preserves_loss_and_checkpoint_resume(tmp_path):
     torch.manual_seed(3)
     model = PaperTransformer().cuda()
     tokens = enumerate_paths(10, device="cuda")[:64]
@@ -124,6 +126,39 @@ def test_cuda_compile_preserves_state_keys_and_eager_loss():
     )
     torch.testing.assert_close(compiled_loss, eager_loss, atol=1e-5, rtol=1e-5)
     assert tuple(model.state_dict()) == state_keys
+
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    optimizer.zero_grad(set_to_none=True)
+    compiled_loss.backward()
+    optimizer.step()
+    expected_logits = model(tokens).detach()
+    generator = torch.Generator(device="cuda").manual_seed(17)
+    checkpoint = tmp_path / "compiled.pt"
+    save_checkpoint(
+        checkpoint,
+        model=model,
+        optimizer=optimizer,
+        generator=generator,
+        step=1,
+        history=[],
+        config=TrainingConfig(total_steps=1, analyzed_step=1),
+    )
+
+    restored = PaperTransformer().cuda()
+    restored_optimizer = torch.optim.SGD(restored.parameters(), lr=0.01)
+    restored_generator = torch.Generator(device="cuda")
+    step, history = load_checkpoint(
+        checkpoint,
+        model=restored,
+        optimizer=restored_optimizer,
+        generator=restored_generator,
+        device=torch.device("cuda"),
+    )
+    restored.compile(mode="reduce-overhead", fullgraph=True)
+    torch.testing.assert_close(restored(tokens), expected_logits)
+    assert step == 1
+    assert history == []
+    assert torch.equal(restored_generator.get_state(), generator.get_state())
 
 
 def test_exact_validation_weights_every_shifted_target():
