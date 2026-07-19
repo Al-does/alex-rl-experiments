@@ -23,6 +23,49 @@ XOR/
 uv sync --group dev
 ```
 
+### Optional: Backblaze B2 artifact backup
+
+Large run outputs (checkpoints, `.pt` weights, Tune trees) live under ignored
+`artifacts/<run-id>/`. When B2 credentials are configured, the harness uploads
+that tree at the end of each run and records `s3://…` URIs in tracked
+`results/<run-id>/`.
+
+One-time setup on this machine:
+
+```bash
+./scripts/setup_b2_env.sh
+```
+
+The script writes `~/.rl_harness_b2_env`, offers to add auto-load to
+`~/.zshrc` (default: yes — press `n` to opt out), and is the easiest way to
+get local runs and vast provisioning wired up.
+
+Useful helpers after setup:
+
+```bash
+# Run an experiment with secrets loaded (no manual export)
+./scripts/run_harness.sh \
+  experiments.mess3_belief_geometry_2026_07.reward_only.experiment \
+  --smoke
+
+# Rent a vast box and forward the same B2 vars to the remote container
+./scripts/run_vast.sh up -n 1 \
+  --run "rl-harness experiments.mess3_belief_geometry_2026_07.reward_only.experiment --seed 0 --smoke" \
+  --self-destruct --yes
+
+# Install or remove ~/.zshrc auto-load later
+./scripts/b2_shell_autoload.sh install
+./scripts/b2_shell_autoload.sh remove
+```
+
+Skip zshrc auto-load during setup with
+`./scripts/setup_b2_env.sh --no-shell-autoload`. Re-run
+`./scripts/setup_b2_env.sh --shell-autoload-only` if you skipped it the first time.
+
+For Cursor Cloud Agents, add the same `B2_*` variables as dashboard secrets.
+Full reference (bucket setup, object layout, download): `docs/artifact_storage.md`
+in your sibling `rl-harness` checkout.
+
 ## Run
 
 ```bash

@@ -29,4 +29,5 @@ experiment until reuse proves an abstraction.
 ## Results and artifacts
 
 Track compact findings under `results/`. Ignore large/raw data under
-`artifacts/` (object storage comes later).
+`artifacts/` locally; optional Backblaze B2 upload records durable URIs in
+`results/` when configured (see the library's `docs/artifact_storage.md`).
