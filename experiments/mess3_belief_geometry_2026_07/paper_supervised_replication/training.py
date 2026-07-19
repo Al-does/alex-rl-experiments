@@ -108,7 +108,7 @@ def load_checkpoint(
     if optimizer is not None:
         optimizer.load_state_dict(checkpoint["optimizer_state"])
     if generator is not None and checkpoint.get("generator_state") is not None:
-        generator.set_state(checkpoint["generator_state"])
+        generator.set_state(checkpoint["generator_state"].cpu())
     elif checkpoint.get("torch_rng_state") is not None:
         torch.set_rng_state(checkpoint["torch_rng_state"].cpu())
     return int(checkpoint["step"]), list(checkpoint.get("history", []))
