@@ -30,6 +30,18 @@
       "absolute_difference_nats": 8.249071116184892e-06
     }
   },
+  "post_run_verification": {
+    "source_commit": "aede982",
+    "cuda_compiled_eager_loss_equivalence": "passed",
+    "cuda_compiled_checkpoint_save_restore_recompile": "passed",
+    "cuda_smoke": {
+      "passed": true,
+      "compiled_training": true,
+      "completed_step": 100,
+      "final_validation_loss_nats": 0.8198728174429241
+    },
+    "local_non_slow_tests": "11 passed, 1 skipped, 1 deselected"
+  },
   "incidents": [
     {
       "instance_id": 45322541,
@@ -43,6 +55,9 @@
     },
     {
       "detail": "The automatic results push used an unqualified new branch ref and was repaired manually with HEAD:refs/heads/results."
+    },
+    {
+      "detail": "CUDA resume testing found that map_location moved generator state to CUDA; commit aede982 restores the required CPU byte tensor before Generator.set_state."
     }
   ]
 }
