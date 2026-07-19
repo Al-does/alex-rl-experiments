@@ -11,6 +11,9 @@ from harness.artifacts import RunArtifacts
 from experiments.mess3_belief_geometry_2026_07.large_batch_replication.experiment import (
     FULL_TRAINING_CONFIG as LARGE_BATCH_CONFIG,
 )
+from experiments.mess3_belief_geometry_2026_07.muon_large_batch_replication.experiment import (
+    FULL_TRAINING_CONFIG as MUON_CONFIG,
+)
 
 from experiments.mess3_belief_geometry_2026_07.paper_supervised_replication.analysis import (
     grouped_probe_split,
@@ -29,6 +32,7 @@ from experiments.mess3_belief_geometry_2026_07.paper_supervised_replication.mode
 )
 from experiments.mess3_belief_geometry_2026_07.paper_supervised_replication.training import (
     TrainingConfig,
+    _build_optimizers,
     exact_validation_loss,
     train,
 )
@@ -44,6 +48,18 @@ def test_large_batch_recipe_preserves_cumulative_learning_rate_exposure():
         LARGE_BATCH_CONFIG.total_steps * LARGE_BATCH_CONFIG.learning_rate
         == pytest.approx(paper.total_steps * paper.learning_rate)
     )
+
+
+def test_muon_recipe_uses_muon_and_adamw_parameter_groups():
+    model = PaperTransformer()
+    optimizers = _build_optimizers(model, MUON_CONFIG)
+
+    assert MUON_CONFIG.batch_size == LARGE_BATCH_CONFIG.batch_size
+    assert MUON_CONFIG.total_steps == LARGE_BATCH_CONFIG.total_steps
+    assert MUON_CONFIG.learning_rate == pytest.approx(0.02)
+    assert MUON_CONFIG.auxiliary_learning_rate == pytest.approx(3e-4)
+    assert isinstance(optimizers[0], torch.optim.Muon)
+    assert isinstance(optimizers[1], torch.optim.AdamW)
 
 
 def test_paper_matrices_and_path_distribution_are_exact():
@@ -196,6 +212,7 @@ def test_training_checkpoint_resume_matches_uninterrupted_run(tmp_path):
             batch_size=4,
             log_every=1,
             checkpoint_every=1,
+            retain_periodic_checkpoints=True,
             validation_every=total_steps,
             validation_batch_size=64,
         )
@@ -221,6 +238,7 @@ def test_training_checkpoint_resume_matches_uninterrupted_run(tmp_path):
         config=config(2),
         outputs=partial_outputs,
     )
+    assert (partial_outputs.checkpoints_dir / "step_0000001.pt").exists()
 
     torch.manual_seed(999)
     resumed = PaperTransformer()

@@ -11,6 +11,7 @@ import torch
 import torch.nn.functional as F
 
 from harness.artifacts import RunArtifacts
+from learners.optimizer import partition_muon_params
 
 from .mess3 import AliasTable
 from .model import PaperTransformer
@@ -28,10 +29,15 @@ class TrainingConfig:
     total_steps: int = 1_000_000
     analyzed_step: int = 983_140
     batch_size: int = 64
+    optimizer_name: str = "sgd"
     learning_rate: float = 0.01
     weight_decay: float = 0.0
+    momentum: float = 0.0
+    auxiliary_learning_rate: float | None = None
+    auxiliary_weight_decay: float = 0.0
     log_every: int = 1_000
     checkpoint_every: int = 10_000
+    retain_periodic_checkpoints: bool = False
     validation_every: int = 50_000
     validation_batch_size: int = 4_096
 
@@ -59,6 +65,46 @@ def _optimizer_state_to_cpu(optimizer: torch.optim.Optimizer) -> dict:
     return state
 
 
+def _build_optimizers(
+    model: PaperTransformer,
+    config: TrainingConfig,
+) -> tuple[torch.optim.Optimizer, ...]:
+    if config.optimizer_name == "sgd":
+        return (
+            torch.optim.SGD(
+                model.parameters(),
+                lr=config.learning_rate,
+                weight_decay=config.weight_decay,
+                momentum=config.momentum,
+            ),
+        )
+    if config.optimizer_name == "muon":
+        muon_params, auxiliary_params = partition_muon_params(model.parameters())
+        if not muon_params or not auxiliary_params:
+            raise ValueError(
+                "Muon training requires both 2D and non-2D model parameters"
+            )
+        auxiliary_lr = (
+            config.learning_rate
+            if config.auxiliary_learning_rate is None
+            else config.auxiliary_learning_rate
+        )
+        return (
+            torch.optim.Muon(
+                muon_params,
+                lr=config.learning_rate,
+                weight_decay=config.weight_decay,
+                momentum=config.momentum,
+            ),
+            torch.optim.AdamW(
+                auxiliary_params,
+                lr=auxiliary_lr,
+                weight_decay=config.auxiliary_weight_decay,
+            ),
+        )
+    raise ValueError(f"unsupported optimizer: {config.optimizer_name!r}")
+
+
 def _atomic_torch_save(payload: dict, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
@@ -70,7 +116,7 @@ def save_checkpoint(
     path: Path,
     *,
     model: PaperTransformer,
-    optimizer: torch.optim.Optimizer,
+    optimizers: tuple[torch.optim.Optimizer, ...],
     generator: torch.Generator | None,
     step: int,
     history: list[dict[str, Any]],
@@ -83,7 +129,10 @@ def save_checkpoint(
                 key: value.detach().cpu()
                 for key, value in model.state_dict().items()
             },
-            "optimizer_state": _optimizer_state_to_cpu(optimizer),
+            "optimizer_states": [
+                _optimizer_state_to_cpu(optimizer)
+                for optimizer in optimizers
+            ],
             "generator_state": (
                 generator.get_state() if generator is not None else None
             ),
@@ -99,14 +148,20 @@ def load_checkpoint(
     path: Path,
     *,
     model: PaperTransformer,
-    optimizer: torch.optim.Optimizer | None,
+    optimizers: tuple[torch.optim.Optimizer, ...] | None,
     generator: torch.Generator | None,
     device: torch.device,
 ) -> tuple[int, list[dict[str, Any]]]:
     checkpoint = torch.load(path, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint["model_state"])
-    if optimizer is not None:
-        optimizer.load_state_dict(checkpoint["optimizer_state"])
+    if optimizers is not None:
+        optimizer_states = checkpoint.get("optimizer_states")
+        if optimizer_states is None and checkpoint.get("optimizer_state") is not None:
+            optimizer_states = [checkpoint["optimizer_state"]]
+        if optimizer_states is None or len(optimizer_states) != len(optimizers):
+            raise ValueError("checkpoint optimizer state does not match recipe")
+        for optimizer, optimizer_state in zip(optimizers, optimizer_states):
+            optimizer.load_state_dict(optimizer_state)
     if generator is not None and checkpoint.get("generator_state") is not None:
         generator.set_state(checkpoint["generator_state"])
     elif checkpoint.get("torch_rng_state") is not None:
@@ -182,11 +237,7 @@ def train(
     resume_from: Path | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any], Path]:
     """Train with only device-native sampling/forward/loss ops in the hot loop."""
-    optimizer = torch.optim.SGD(
-        model.parameters(),
-        lr=config.learning_rate,
-        weight_decay=config.weight_decay,
-    )
+    optimizers = _build_optimizers(model, config)
     try:
         generator = torch.Generator(device=device)
         generator.manual_seed(seed)
@@ -207,7 +258,7 @@ def train(
         start_step, history = load_checkpoint(
             resume_path,
             model=model,
-            optimizer=optimizer,
+            optimizers=optimizers,
             generator=generator,
             device=device,
         )
@@ -249,7 +300,7 @@ def train(
         save_checkpoint(
             checkpoints / "step_0000000.pt",
             model=model,
-            optimizer=optimizer,
+            optimizers=optimizers,
             generator=generator,
             step=0,
             history=history,
@@ -273,9 +324,11 @@ def train(
             logits.reshape(-1, logits.shape[-1]),
             targets.reshape(-1),
         )
-        optimizer.zero_grad(set_to_none=True)
+        for optimizer in optimizers:
+            optimizer.zero_grad(set_to_none=True)
         loss.backward()
-        optimizer.step()
+        for optimizer in optimizers:
+            optimizer.step()
 
         running_loss = running_loss + loss.detach()
         running_count += 1
@@ -327,17 +380,20 @@ def train(
             save_checkpoint(
                 checkpoints / "latest.pt",
                 model=model,
-                optimizer=optimizer,
+                optimizers=optimizers,
                 generator=generator,
                 step=step,
                 history=history,
                 config=config,
             )
-        if milestone:
+        if milestone or (
+            config.retain_periodic_checkpoints
+            and step % config.checkpoint_every == 0
+        ):
             save_checkpoint(
                 checkpoints / f"step_{step:07d}.pt",
                 model=model,
-                optimizer=optimizer,
+                optimizers=optimizers,
                 generator=generator,
                 step=step,
                 history=history,

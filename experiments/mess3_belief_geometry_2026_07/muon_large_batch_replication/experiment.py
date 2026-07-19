@@ -1,4 +1,4 @@
-"""High-throughput large-batch variant of the supervised MESS3 replication."""
+"""Muon variant of the high-throughput supervised MESS3 replication."""
 
 from __future__ import annotations
 
@@ -8,15 +8,16 @@ from ..paper_supervised_replication.experiment import run_replication
 from ..paper_supervised_replication.training import TrainingConfig
 
 
-# A 256x larger batch with square-root learning-rate scaling. Reducing the
-# update budget by the same 16x factor preserves the original recipe's
-# cumulative learning-rate exposure (1_000_000 * 0.01 == 62_500 * 0.16).
 FULL_TRAINING_CONFIG = TrainingConfig(
     total_steps=62_500,
     analyzed_step=61_446,
     batch_size=16_384,
-    learning_rate=0.16,
+    optimizer_name="muon",
+    learning_rate=0.02,
     weight_decay=0.0,
+    momentum=0.95,
+    auxiliary_learning_rate=3e-4,
+    auxiliary_weight_decay=0.0,
     log_every=250,
     checkpoint_every=5_000,
     retain_periodic_checkpoints=True,
@@ -28,8 +29,12 @@ SMOKE_TRAINING_CONFIG = TrainingConfig(
     total_steps=100,
     analyzed_step=100,
     batch_size=64,
-    learning_rate=0.01,
+    optimizer_name="muon",
+    learning_rate=0.02,
     weight_decay=0.0,
+    momentum=0.95,
+    auxiliary_learning_rate=3e-4,
+    auxiliary_weight_decay=0.0,
     log_every=10,
     checkpoint_every=50,
     validation_every=50,
@@ -42,5 +47,5 @@ def run(context: RunContext):
         context,
         full_training_config=FULL_TRAINING_CONFIG,
         smoke_training_config=SMOKE_TRAINING_CONFIG,
-        variant="large-batch-sqrt-scaled",
+        variant="large-batch-muon",
     )

@@ -216,7 +216,7 @@ def run_replication(
     load_checkpoint(
         analyzed_checkpoint,
         model=analyzed_model,
-        optimizer=None,
+        optimizers=None,
         generator=None,
         device=device,
     )

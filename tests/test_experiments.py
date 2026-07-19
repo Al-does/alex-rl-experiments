@@ -40,7 +40,7 @@ def experiment_modules() -> list[str]:
 def test_all_migrated_experiment_leaves_import():
     modules = experiment_modules()
 
-    assert len(modules) == 25
+    assert len(modules) == 26
     for module_name in modules:
         module = importlib.import_module(module_name)
         assert callable(module.run)
