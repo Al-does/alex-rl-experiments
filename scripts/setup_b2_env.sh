@@ -100,8 +100,8 @@ if [[ "$SECRETS_ONLY" -eq 0 ]]; then
   echo "Or use the wrapper:"
   echo "  ./scripts/run_harness.sh experiments....experiment --smoke"
   echo
-  echo "Vast runs from this Mac automatically forward these vars to rented boxes"
-  echo "when you run devops.vast.provision (no extra wiring needed)."
+  echo "Vast runs forward these vars only when you pass --with-b2 or include"
+  echo "--upload-artifacts in --run (Vast persists create-time env in metadata)."
   echo
   echo "To remove ~/.zshrc auto-load later:"
   echo "  ./scripts/b2_shell_autoload.sh remove"
