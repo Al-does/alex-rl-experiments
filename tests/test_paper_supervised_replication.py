@@ -33,6 +33,7 @@ from experiments.mess3_belief_geometry_2026_07.paper_supervised_replication.mode
 from experiments.mess3_belief_geometry_2026_07.paper_supervised_replication.training import (
     TrainingConfig,
     _build_optimizers,
+    _optimizer_state_to_cpu,
     exact_validation_loss,
     train,
 )
@@ -60,6 +61,19 @@ def test_muon_recipe_uses_muon_and_adamw_parameter_groups():
     assert MUON_CONFIG.auxiliary_learning_rate == pytest.approx(3e-4)
     assert isinstance(optimizers[0], torch.optim.Muon)
     assert isinstance(optimizers[1], torch.optim.AdamW)
+
+
+def test_checkpoint_serialization_does_not_mutate_live_optimizer_state():
+    parameter = torch.nn.Parameter(torch.ones(2, 2))
+    optimizer = torch.optim.AdamW([parameter])
+    parameter.grad = torch.ones_like(parameter)
+    optimizer.step()
+    live_average = optimizer.state[parameter]["exp_avg"]
+
+    serialized = _optimizer_state_to_cpu(optimizer)
+
+    assert optimizer.state[parameter]["exp_avg"] is live_average
+    assert serialized["state"][0]["exp_avg"] is not live_average
 
 
 def test_paper_matrices_and_path_distribution_are_exact():

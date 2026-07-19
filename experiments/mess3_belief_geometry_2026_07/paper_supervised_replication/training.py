@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -57,7 +58,7 @@ class TrainingConfig:
 
 
 def _optimizer_state_to_cpu(optimizer: torch.optim.Optimizer) -> dict:
-    state = optimizer.state_dict()
+    state = copy.deepcopy(optimizer.state_dict())
     for values in state["state"].values():
         for key, value in values.items():
             if isinstance(value, torch.Tensor):
