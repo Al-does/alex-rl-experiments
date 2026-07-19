@@ -16,6 +16,13 @@ from .mess3 import AliasTable
 from .model import PaperTransformer
 
 
+def _synchronize(device: torch.device) -> None:
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+    elif device.type == "mps":
+        torch.mps.synchronize()
+
+
 @dataclass(frozen=True, slots=True)
 class TrainingConfig:
     total_steps: int = 1_000_000
@@ -126,7 +133,9 @@ def exact_validation_loss(
     normalization = probabilities.sum()
     for start in range(0, len(paths), batch_size):
         batch_paths = paths[start : start + batch_size]
-        logits = model(batch_paths[:, :-1])
+        # Bypass the compiled __call__ used by fixed-shape optimization. Exact
+        # validation has different batch shapes and should stay eager.
+        logits = model.forward(batch_paths[:, :-1])
         targets = batch_paths[:, 1:]
         per_token = F.cross_entropy(
             logits.reshape(-1, logits.shape[-1]),
@@ -209,6 +218,10 @@ def train(
     started_at = time.monotonic()
     running_loss = torch.zeros((), device=device)
     running_count = 0
+    active_update_seconds = 0.0
+    active_update_count = 0
+    segment_update_count = 0
+    segment_started = time.monotonic()
 
     def evaluate(step: int) -> float:
         validation_started = time.monotonic()
@@ -225,7 +238,7 @@ def train(
             "validation_wall_seconds": (
                 time.monotonic() - validation_started
             ),
-            "training_wall_seconds": time.monotonic() - started_at,
+            "end_to_end_wall_seconds": time.monotonic() - started_at,
         }
         history.append(record)
         outputs.append_result(record)
@@ -243,7 +256,11 @@ def train(
             config=config,
         )
 
+    compiled_training = device.type == "cuda"
+    if compiled_training:
+        model.compile(mode="reduce-overhead", fullgraph=True)
     model.train()
+    segment_started = time.monotonic()
     for step in range(start_step + 1, config.total_steps + 1):
         indices = alias_table.sample(
             config.batch_size,
@@ -262,29 +279,51 @@ def train(
 
         running_loss = running_loss + loss.detach()
         running_count += 1
-        if step % config.log_every == 0 or step == config.total_steps:
-            elapsed = time.monotonic() - started_at
+        segment_update_count += 1
+        log_due = step % config.log_every == 0 or step == config.total_steps
+        validation_due = step in evaluation_steps
+        milestone = step in {config.analyzed_step, config.total_steps}
+        checkpoint_due = (
+            step % config.checkpoint_every == 0 or milestone
+        )
+        maintenance_due = log_due or validation_due or checkpoint_due
+        if maintenance_due:
+            _synchronize(device)
+            active_update_seconds += time.monotonic() - segment_started
+            active_update_count += segment_update_count
+            segment_update_count = 0
+
+        if log_due:
+            end_to_end_elapsed = time.monotonic() - started_at
+            active_rate = active_update_count / max(
+                active_update_seconds,
+                1e-9,
+            )
             record = {
                 "kind": "training",
                 "step": step,
                 "training_loss_nats": float(
                     (running_loss / running_count).cpu()
                 ),
-                "updates_per_second": (
-                    (step - start_step) / max(elapsed, 1e-9)
+                "active_optimization_wall_seconds": active_update_seconds,
+                "updates_per_second_active": active_rate,
+                "sequences_per_second_active": (
+                    active_rate * config.batch_size
                 ),
-                "training_wall_seconds": elapsed,
+                "target_tokens_per_second_active": (
+                    active_rate * config.batch_size * 10
+                ),
+                "end_to_end_wall_seconds": end_to_end_elapsed,
             }
             history.append(record)
             outputs.append_result(record)
             running_loss.zero_()
             running_count = 0
 
-        if step in evaluation_steps:
+        if validation_due:
             evaluate(step)
 
-        milestone = step in {config.analyzed_step, config.total_steps}
-        if step % config.checkpoint_every == 0 or milestone:
+        if checkpoint_due:
             save_checkpoint(
                 checkpoints / "latest.pt",
                 model=model,
@@ -305,6 +344,9 @@ def train(
                 config=config,
             )
 
+        if maintenance_due:
+            segment_started = time.monotonic()
+
     analyzed_path = checkpoints / f"step_{config.analyzed_step:07d}.pt"
     if not analyzed_path.exists():
         analyzed_path = checkpoints / f"step_{config.total_steps:07d}.pt"
@@ -321,13 +363,24 @@ def train(
         for record in reversed(validation_records)
         if record["step"] == config.analyzed_step
     )
+    end_to_end_wall_seconds = time.monotonic() - started_at
+    active_rate = active_update_count / max(active_update_seconds, 1e-9)
     summary = {
         "start_step": start_step,
         "completed_step": config.total_steps,
         "analyzed_step": config.analyzed_step,
+        "compiled_training": compiled_training,
         "analyzed_checkpoint": str(analyzed_path),
         "analyzed_validation_loss_nats": analyzed_validation,
         "final_validation_loss_nats": final_validation,
-        "training_wall_seconds": time.monotonic() - started_at,
+        "active_optimization_wall_seconds": active_update_seconds,
+        "updates_per_second_active": active_rate,
+        "sequences_per_second_active": active_rate * config.batch_size,
+        "target_tokens_per_second_active": (
+            active_rate * config.batch_size * 10
+        ),
+        "end_to_end_training_wall_seconds": end_to_end_wall_seconds,
+        # Compatibility name used by the experiment summary and older readers.
+        "training_wall_seconds": end_to_end_wall_seconds,
     }
     return history, summary, analyzed_path

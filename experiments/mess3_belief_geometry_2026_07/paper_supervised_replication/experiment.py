@@ -88,8 +88,14 @@ def _replication_markdown(summary: dict[str, Any]) -> str:
                 )
             ),
             (
-                "- Training wall time: "
-                f"{summary['timing']['training_wall_seconds']:.1f}s"
+                "- Active optimization: "
+                f"{summary['timing']['active_optimization_wall_seconds']:.1f}s "
+                f"at {summary['timing']['updates_per_second_active']:.1f} "
+                "updates/s"
+            ),
+            (
+                "- End-to-end training wall time: "
+                f"{summary['timing']['end_to_end_training_wall_seconds']:.1f}s"
             ),
             (
                 "- Probe/plot wall time: "
@@ -176,6 +182,11 @@ def run(context: RunContext):
                 "seed": context.seed,
                 "device": str(device),
                 "smoke": context.smoke,
+                "compiled_training": device.type == "cuda",
+                "compile_mode": (
+                    "reduce-overhead" if device.type == "cuda" else None
+                ),
+                "compile_fullgraph": device.type == "cuda",
             },
         },
     )
@@ -251,8 +262,20 @@ def run(context: RunContext):
             "passed": checks_passed if checks_applicable else None,
         },
         "timing": {
-            "training_wall_seconds": training_summary[
-                "training_wall_seconds"
+            "active_optimization_wall_seconds": training_summary[
+                "active_optimization_wall_seconds"
+            ],
+            "end_to_end_training_wall_seconds": training_summary[
+                "end_to_end_training_wall_seconds"
+            ],
+            "updates_per_second_active": training_summary[
+                "updates_per_second_active"
+            ],
+            "sequences_per_second_active": training_summary[
+                "sequences_per_second_active"
+            ],
+            "target_tokens_per_second_active": training_summary[
+                "target_tokens_per_second_active"
             ],
             "probe_plot_wall_seconds": probe_plot_wall,
             "experiment_wall_seconds": time.monotonic() - experiment_started,

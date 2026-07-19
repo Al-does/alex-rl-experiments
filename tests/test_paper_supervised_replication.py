@@ -103,6 +103,29 @@ def test_model_matches_paper_scale_and_is_causal():
     )
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA")
+def test_cuda_compile_preserves_state_keys_and_eager_loss():
+    torch.manual_seed(3)
+    model = PaperTransformer().cuda()
+    tokens = enumerate_paths(10, device="cuda")[:64]
+    targets = tokens.roll(-1, dims=1)
+    eager_logits = model(tokens)
+    eager_loss = torch.nn.functional.cross_entropy(
+        eager_logits.reshape(-1, 3),
+        targets.reshape(-1),
+    )
+    state_keys = tuple(model.state_dict())
+
+    model.compile(mode="reduce-overhead", fullgraph=True)
+    compiled_logits = model(tokens)
+    compiled_loss = torch.nn.functional.cross_entropy(
+        compiled_logits.reshape(-1, 3),
+        targets.reshape(-1),
+    )
+    torch.testing.assert_close(compiled_loss, eager_loss, atol=1e-5, rtol=1e-5)
+    assert tuple(model.state_dict()) == state_keys
+
+
 def test_exact_validation_weights_every_shifted_target():
     model = PaperTransformer()
     for parameter in model.parameters():
