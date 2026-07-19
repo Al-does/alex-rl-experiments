@@ -48,8 +48,11 @@ if [[ "$SECRETS_ONLY" -eq 0 ]]; then
   echo
 
   read -r -p "B2 bucket name: " B2_BUCKET
-  read -r -p "B2 S3 endpoint URL [https://s3.us-west-004.backblazeb2.com]: " B2_ENDPOINT
-  B2_ENDPOINT="${B2_ENDPOINT:-https://s3.us-west-004.backblazeb2.com}"
+  read -r -p "B2 S3 endpoint [s3.us-west-004.backblazeb2.com]: " B2_ENDPOINT
+  B2_ENDPOINT="${B2_ENDPOINT:-s3.us-west-004.backblazeb2.com}"
+  if [[ "$B2_ENDPOINT" != http://* && "$B2_ENDPOINT" != https://* ]]; then
+    B2_ENDPOINT="https://${B2_ENDPOINT}"
+  fi
   read -r -p "B2 application key ID: " B2_APPLICATION_KEY_ID
   read -r -s -p "B2 application key (hidden): " B2_APPLICATION_KEY
   echo
