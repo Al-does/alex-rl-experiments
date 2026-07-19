@@ -27,9 +27,9 @@ from learners.models import TransformerModel, TransformerModelConfig
 
 TOTAL_ENV_STEPS = 10_000_000
 ACTION_LIMIT = 5.0
-TRAIN_BATCH_SIZE = 131_072
-MINIBATCH_SIZE = 16_384
-LEARNING_RATE = 6e-4
+TRAIN_BATCH_SIZE = 65_536
+MINIBATCH_SIZE = 8_192
+LEARNING_RATE = 4.2e-4
 MODEL_CONFIG = TransformerModelConfig(
     d_model=96,
     n_layers=3,
