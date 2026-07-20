@@ -18,6 +18,7 @@ to the exact Bayesian belief simplex.
 | Predictive loss | 0.9319 | 0.6734 |
 | Max entropy | 0.8558 | 0.6733 |
 | IQN value critic | 0.9760 | 0.6787 |
+| IQN value critic, 20M steps | 0.9686 | 0.6847 |
 
 The predictive loss substantially improved the linear representation of the
 Bayesian belief state without materially changing prediction accuracy. At the
@@ -25,3 +26,9 @@ tested entropy coefficient, max-entropy training produced essentially the same
 belief representation and token accuracy as reward-only training. The IQN
 critic produced the strongest belief representation and a small accuracy gain,
 although this is a single-seed result.
+
+The 20M-step IQN follow-up showed that reward had already plateaued by the first
+retained checkpoint at 0.83M steps: held-out greedy accuracy stayed near 68–69%
+through 20M steps. Belief-probe R² was 0.9902 at that first checkpoint and
+fluctuated around 0.97 thereafter, ending at 0.9686. Longer training therefore
+did not produce a continuing reward rise in this seed.
