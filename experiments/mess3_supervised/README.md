@@ -26,3 +26,8 @@ historical provenance records.
 
 The checkpoint-wise R² comparison is under
 `muon_large_batch_replication/results/20260719-sgd-muon-r2-comparison-v2/`.
+
+The checkpoint-to-initialization parameter and representation analysis is under
+`results/20260720-feature-movement-analysis/`. It finds that Muon moved the 2D
+parameters approximately 583 times farther than SGD, rejecting reduced
+parameter movement as the explanation for Muon's lower belief-probe R².
