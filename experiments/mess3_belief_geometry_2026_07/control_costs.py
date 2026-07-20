@@ -25,7 +25,7 @@ from harness.runners import run_tune
 from learners.models import TransformerModel, TransformerModelConfig
 
 
-TOTAL_ENV_STEPS = 10_000_000
+TOTAL_ENV_STEPS = 50_000_000
 ACTION_LIMIT = 5.0
 TRAIN_BATCH_SIZE = 65_536
 MINIBATCH_SIZE = 8_192
