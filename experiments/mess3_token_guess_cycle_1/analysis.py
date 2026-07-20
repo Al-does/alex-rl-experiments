@@ -128,14 +128,21 @@ def probe_checkpoint(
     *,
     checkpoint: Path,
     condition: str,
+    train_steps: int | None = None,
+    test_steps: int | None = None,
+    write_outputs: bool = True,
 ) -> ProbeResult:
     """Probe one checkpoint on independent train/test rollouts."""
 
     if context.seed is None:
         raise ValueError("belief probing requires a resolved seed")
     streams = named_seed_sequences(context.seed, _STREAM_KEYS)
-    train_steps = 512 if context.smoke else 60_000
-    test_steps = 256 if context.smoke else 30_000
+    if train_steps is None:
+        train_steps = 512 if context.smoke else 60_000
+    if test_steps is None:
+        test_steps = 256 if context.smoke else 30_000
+    if train_steps <= 0 or test_steps <= 0:
+        raise ValueError("probe step counts must be positive")
     warmup = 4 if context.smoke else 64
 
     with load_algorithm(checkpoint) as algorithm:
@@ -212,22 +219,22 @@ def probe_checkpoint(
         "n_test": len(test.beliefs),
         "target_consistency_max_abs": target_error,
     }
-    (context.results_dir / "probe_metrics.json").write_text(
-        json.dumps(metrics, indent=2) + "\n"
-    )
-
     sample_size = min(20_000, len(test.beliefs))
     sample_rng = np.random.default_rng(streams["plot_sample"])
     indices = sample_rng.choice(len(test.beliefs), sample_size, replace=False)
     target_display = test.beliefs[indices]
     decoded_display = _simplex_display(predicted[indices])
-    _plot_pair(
-        target_display,
-        decoded_display,
-        title=condition.replace("_", " "),
-        r2=r2,
-        path=context.results_dir / "belief_simplex.png",
-    )
+    if write_outputs:
+        (context.results_dir / "probe_metrics.json").write_text(
+            json.dumps(metrics, indent=2) + "\n"
+        )
+        _plot_pair(
+            target_display,
+            decoded_display,
+            title=condition.replace("_", " "),
+            r2=r2,
+            path=context.results_dir / "belief_simplex.png",
+        )
     return ProbeResult(metrics, target_display, decoded_display)
 
 
