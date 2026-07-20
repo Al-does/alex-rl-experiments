@@ -8,15 +8,15 @@ import numpy as np
 import torch
 
 from envs.hmm import HMMEnv
-from experiments.mess3_token_guess_2026_07.analysis import (
+from experiments.mess3_token_guess_cycle_1.analysis import (
     fit_reduced_rank_affine,
 )
-from experiments.mess3_token_guess_2026_07.comparison.experiment import (
+from experiments.mess3_token_guess_cycle_1.comparison.experiment import (
     ARMS,
     ENV_CONFIG,
     build_config,
 )
-from experiments.mess3_token_guess_2026_07.entropy_reward import (
+from experiments.mess3_token_guess_cycle_1.entropy_reward import (
     EntropyRewardPPOTorchLearner,
     add_categorical_entropy_reward,
 )

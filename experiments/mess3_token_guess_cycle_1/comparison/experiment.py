@@ -16,12 +16,12 @@ from ray.rllib.core.columns import Columns
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
 from envs.hmm import HMMEnv
-from experiments.mess3_token_guess_2026_07.analysis import (
+from experiments.mess3_token_guess_cycle_1.analysis import (
     ProbeResult,
     plot_comparison,
     probe_checkpoint,
 )
-from experiments.mess3_token_guess_2026_07.entropy_reward import (
+from experiments.mess3_token_guess_cycle_1.entropy_reward import (
     COEFFICIENT_KEY,
     EntropyRewardPPOTorchLearner,
 )
@@ -66,7 +66,7 @@ ENV_CONFIG = {
     },
     "task": {
         "class": (
-            "experiments.mess3_token_guess_2026_07.task:"
+            "experiments.mess3_token_guess_cycle_1.task:"
             "NextTokenGuessTask"
         ),
     },
