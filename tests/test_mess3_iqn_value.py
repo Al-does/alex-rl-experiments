@@ -7,6 +7,9 @@ from types import SimpleNamespace
 import pandas as pd
 import torch
 
+from experiments.mess3_token_guess_cycle_1.iqn_gamma_1_3m.experiment import (
+    build_config as build_gamma_one_config,
+)
 from experiments.mess3_token_guess_cycle_1.iqn_value.experiment import (
     IQN_CONFIG,
     build_config,
@@ -90,6 +93,28 @@ def test_long_iqn_recipe_preserves_the_controlled_iqn_config(tmp_path):
     assert config.rl_module_spec.module_class is IQNTransformerModel
     assert config.train_batch_size_per_learner == 2_048
     assert config.lambda_ == 0.95
+
+
+def test_gamma_one_recipe_changes_only_discount_factor(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        smoke=True,
+        hardware=PROFILES["cpu"],
+    )
+    standard = build_config(context)
+    gamma_one = build_gamma_one_config(context)
+
+    assert standard.gamma == 0.99
+    assert gamma_one.gamma == 1.0
+    assert gamma_one.lambda_ == standard.lambda_
+    assert gamma_one.learner_class is standard.learner_class
+    assert gamma_one.rl_module_spec.module_class is standard.rl_module_spec.module_class
+    assert (
+        gamma_one.train_batch_size_per_learner
+        == standard.train_batch_size_per_learner
+    )
 
 
 def test_longitudinal_records_order_checkpoints_and_compute_reward_percentage():
