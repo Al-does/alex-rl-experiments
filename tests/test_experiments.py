@@ -40,7 +40,7 @@ def experiment_modules() -> list[str]:
 def test_all_migrated_experiment_leaves_import():
     modules = experiment_modules()
 
-    assert len(modules) == 23
+    assert len(modules) == 26
     for module_name in modules:
         module = importlib.import_module(module_name)
         assert callable(module.run)
@@ -69,7 +69,37 @@ def test_all_rllib_recipes_build_fresh_smoke_configs(tmp_path):
         assert first.num_env_runners == 0
         assert first.train_batch_size_per_learner == 2048
 
-    assert built == 15
+    assert built == 18
+
+
+def test_control_cost_conditions_change_only_the_reward_cost(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        smoke=True,
+        hardware=PROFILES["cpu"],
+    )
+    task_kwargs = {}
+    for condition in ("occupancy_only", "transition_kl", "action_norm"):
+        module = importlib.import_module(f"{FAMILY}.{condition}.experiment")
+        config = module.build_config(context)
+        task_kwargs[condition] = config.env_config["task"]["kwargs"]
+
+        assert config.action_space is None
+        assert config.torch_compile_learner is False
+        assert config.train_batch_size_per_learner == 2048
+        assert config.minibatch_size == 256
+
+    assert task_kwargs["occupancy_only"] == {"action_limit": 5.0}
+    assert task_kwargs["transition_kl"] == {
+        "action_limit": 5.0,
+        "transition_kl_beta": 4.0,
+    }
+    assert task_kwargs["action_norm"] == {
+        "action_limit": 5.0,
+        "action_norm_coefficient": 0.05,
+    }
 
 
 def test_mess3_probe_uses_batched_generic_rollout_collection():
