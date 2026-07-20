@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
+import pandas as pd
 import torch
 
 from experiments.mess3_token_guess_cycle_1.iqn_value.experiment import (
@@ -13,6 +16,11 @@ from experiments.mess3_token_guess_cycle_1.iqn_value.iqn import (
     IQNTransformerModel,
     IQNValueHead,
     quantile_huber_loss,
+)
+from experiments.mess3_token_guess_cycle_1.iqn_value_20m.experiment import (
+    build_config as build_long_config,
+    checkpoint_records,
+    training_curve,
 )
 from harness.context import RunContext
 from harness.hardware import PROFILES
@@ -66,3 +74,73 @@ def test_iqn_recipe_builds_fresh_controlled_smoke_configs(tmp_path):
     assert first.learner_class is IQNPPOTorchLearner
     assert first.rl_module_spec.module_class is IQNTransformerModel
     assert first.rl_module_spec.model_config["iqn_value"] == IQN_CONFIG
+
+
+def test_long_iqn_recipe_preserves_the_controlled_iqn_config(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        smoke=True,
+        hardware=PROFILES["cpu"],
+    )
+    config = build_long_config(context)
+
+    assert config.learner_class is IQNPPOTorchLearner
+    assert config.rl_module_spec.module_class is IQNTransformerModel
+    assert config.train_batch_size_per_learner == 2_048
+    assert config.lambda_ == 0.95
+
+
+def test_longitudinal_records_order_checkpoints_and_compute_reward_percentage():
+    result = SimpleNamespace(
+        metrics_dataframe=pd.DataFrame(
+            [
+                {
+                    "training_iteration": 2,
+                    "env_runners/num_env_steps_sampled_lifetime": 200,
+                    "env_runners/episode_return_mean": 40.0,
+                    "env_runners/episode_len_mean": 100.0,
+                },
+                {
+                    "training_iteration": 1,
+                    "env_runners/num_env_steps_sampled_lifetime": 100,
+                    "env_runners/episode_return_mean": 25.0,
+                    "env_runners/episode_len_mean": 100.0,
+                },
+            ]
+        ),
+        best_checkpoints=[
+            (
+                SimpleNamespace(path="/tmp/checkpoint_000002"),
+                {
+                    "training_iteration": 2,
+                    "env_runners": {
+                        "num_env_steps_sampled_lifetime": 200,
+                        "episode_return_mean": 40.0,
+                        "episode_len_mean": 100.0,
+                    },
+                },
+            ),
+            (
+                SimpleNamespace(path="/tmp/checkpoint_000001"),
+                {
+                    "training_iteration": 1,
+                    "env_runners": {
+                        "num_env_steps_sampled_lifetime": 100,
+                        "episode_return_mean": 25.0,
+                        "episode_len_mean": 100.0,
+                    },
+                },
+            ),
+        ],
+    )
+
+    rewards = training_curve(result)
+    checkpoints = checkpoint_records(result)
+
+    assert [record["reward_percentage"] for record in rewards] == [40.0, 25.0]
+    assert [record["agent_steps"] for record in checkpoints] == [100, 200]
+    assert [
+        record["training_reward_percentage"] for record in checkpoints
+    ] == [25.0, 40.0]
