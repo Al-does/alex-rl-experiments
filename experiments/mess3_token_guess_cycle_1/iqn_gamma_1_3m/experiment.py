@@ -14,7 +14,7 @@ from experiments.mess3_token_guess_cycle_1.iqn_value_20m.experiment import (
     _metric,
     _steps,
 )
-from harness.artifacts import RunArtifacts
+from harness.artifacts import RunArtifacts, flatten_scalar_metrics
 from harness.context import RunContext
 from harness.runners import run_tune
 
@@ -76,6 +76,12 @@ def run(context: RunContext):
         condition="iqn_gamma_1_3m",
     )
     metrics = result.metrics or {}
+    flattened_metrics = flatten_scalar_metrics(metrics)
+
+    def training_metric(path: str):
+        value = _metric(metrics, path)
+        return flattened_metrics.get(path) if value is None else value
+
     sampled_steps = _steps(metrics)
     if sampled_steps is None:
         raise RuntimeError("gamma-one IQN result omitted sampled steps")
@@ -95,15 +101,14 @@ def run(context: RunContext):
                 "env_runners/episode_len_mean",
             ),
             "iqn_loss": _metric(
-                metrics,
+                flattened_metrics,
                 "learners/default_policy/iqn_value/loss",
             ),
             "mean_quantile_spread": _metric(
-                metrics,
+                flattened_metrics,
                 "learners/default_policy/iqn_value/mean_quantile_spread",
             ),
-            "value_explained_variance": _metric(
-                metrics,
+            "value_explained_variance": training_metric(
                 "learners/default_policy/vf_explained_var",
             ),
         },
