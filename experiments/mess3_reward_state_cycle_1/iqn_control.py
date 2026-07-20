@@ -18,7 +18,6 @@ from experiments.mess3_belief_geometry_2026_07.checkpoint_probe import (
 from experiments.mess3_belief_geometry_2026_07.control_costs import (
     LEARNING_RATE,
     MODEL_CONFIG as BASE_MODEL_CONFIG,
-    TOTAL_ENV_STEPS,
     TRAIN_BATCH_SIZE,
     environment_config,
 )
@@ -46,6 +45,7 @@ IQN_CONFIG = {
 IQN_LOSS_COEFFICIENT = 0.5
 IQN_HUBER_KAPPA = 1.0
 IQN_MINIBATCH_SIZE = 4_096
+TOTAL_ENV_STEPS = 10_000_000
 MODEL_CONFIG = {
     **BASE_MODEL_CONFIG,
     NAMESPACE: IQN_CONFIG,
