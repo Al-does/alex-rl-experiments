@@ -63,6 +63,34 @@ def _comparison_figure(rows: list[dict[str, Any]], path: Path) -> None:
     plt.close(figure)
 
 
+def _checkpoint_figure(rows: list[dict[str, Any]], path: Path) -> None:
+    figure, axes = plt.subplots(3, 1, figsize=(10.0, 10.0), sharex=True)
+    metrics = (
+        ("reward_percentage", "state-2 occupancy (%)", (0.0, 100.0)),
+        ("r2_global", "global transducer belief R²", (0.0, 1.0)),
+        ("r2_fine", "fine transducer belief R²", (0.0, 1.0)),
+    )
+    for row in rows:
+        checkpoints = row["checkpoint_probes"]
+        steps = [point["agent_steps"] / 1_000_000 for point in checkpoints]
+        label = f"{row['arm']}, γ={row['gamma']:g}"
+        for axis, (key, ylabel, ylim) in zip(axes, metrics):
+            axis.plot(
+                steps,
+                [point[key] for point in checkpoints],
+                marker="o",
+                label=label,
+            )
+            axis.set_ylabel(ylabel)
+            axis.set_ylim(*ylim)
+            axis.grid(alpha=0.2)
+    axes[-1].set_xlabel("environment steps (millions)")
+    axes[0].legend(ncol=2, fontsize=8)
+    figure.tight_layout()
+    figure.savefig(path, dpi=220)
+    plt.close(figure)
+
+
 def run(context: RunContext):
     if context.seed is None:
         raise ValueError("study synthesis requires a resolved seed")
@@ -86,6 +114,18 @@ def run(context: RunContext):
                 ),
                 "r2_global": float(summary["r2_global"]),
                 "r2_fine": float(summary["r2_fine"]),
+                "checkpoint_probes": [
+                    {
+                        "agent_steps": int(point["agent_steps"]),
+                        "reward_percentage": float(point["reward_percentage"]),
+                        "greedy_reward_percentage": float(
+                            point["greedy_reward_percentage"]
+                        ),
+                        "r2_global": float(point["r2_global"]),
+                        "r2_fine": float(point["r2_fine"]),
+                    }
+                    for point in summary["checkpoint_probes"]
+                ],
             }
         )
         sources[condition] = str(source.relative_to(family))
@@ -99,6 +139,10 @@ def run(context: RunContext):
     }
     outputs.write_json("comparison_summary.json", comparison)
     _comparison_figure(rows, context.results_dir / "comparison.png")
+    _checkpoint_figure(
+        rows,
+        context.results_dir / "checkpoint_comparison.png",
+    )
     lines = [
         "# MESS3 reward-state Kelly/IQN battery",
         "",

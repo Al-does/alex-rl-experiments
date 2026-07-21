@@ -29,9 +29,10 @@ transformer.
 
 ## Evaluation
 
-Each final checkpoint is evaluated on held-out trajectories. The report records
-state-2 occupancy as a reward percentage, greedy reward percentage, and global
-and token-branch-conditional affine-probe R² against the exact Bayesian belief.
-Because actions alter the transition matrix, the belief target is the
-action-aware predictive transducer belief; the probe verifies it against
-environment diagnostics before reporting.
+Checkpoints near 10, 20, and 30 million environment steps are evaluated on
+held-out trajectories. The report records state-2 occupancy as a reward
+percentage, greedy reward percentage, and global and token-branch-conditional
+affine-probe R² against the exact Bayesian belief. Because actions alter the
+transition matrix, the belief target is the action-aware predictive transducer
+belief; every probe verifies it against environment diagnostics before
+reporting.

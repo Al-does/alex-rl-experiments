@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import replace
+from numbers import Real
 from pathlib import Path
 from typing import Any
 
@@ -59,6 +61,8 @@ class KellyIQNPPOTorchLearner(PredictiveKellyLossMixin, IQNPPOTorchLearner):
 
 
 TOTAL_ENV_STEPS = 30_000_000
+CHECKPOINT_INTERVAL = 153
+CHECKPOINT_MILESTONES = (10_000_000, 20_000_000, 30_000_000)
 ACTION_LIMIT = 5.0
 TRAIN_BATCH_SIZE = 65_536
 MINIBATCH_SIZE = 4_096
@@ -208,6 +212,119 @@ def build_config(
     )
 
 
+def _metric(metrics: Mapping[str, Any], path: str) -> float | None:
+    direct = metrics.get(path)
+    if isinstance(direct, Real):
+        return float(direct)
+    value: Any = metrics
+    for part in path.split("/"):
+        if not isinstance(value, Mapping) or part not in value:
+            return None
+        value = value[part]
+    return float(value) if isinstance(value, Real) else None
+
+
+def checkpoint_records(result: Any) -> list[dict[str, Any]]:
+    """Return retained checkpoints ordered by sampled environment steps."""
+
+    records: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for checkpoint, metrics in result.best_checkpoints or []:
+        checkpoint_path = str(checkpoint.path)
+        if checkpoint_path in seen:
+            continue
+        steps = _metric(metrics, "env_runners/num_env_steps_sampled_lifetime")
+        iteration = _metric(metrics, "training_iteration")
+        if steps is None or iteration is None:
+            continue
+        seen.add(checkpoint_path)
+        records.append(
+            {
+                "checkpoint": checkpoint,
+                "checkpoint_name": Path(checkpoint_path).name,
+                "training_iteration": int(iteration),
+                "agent_steps": int(steps),
+            }
+        )
+    if not records and result.checkpoint is not None:
+        steps = _metric(
+            result.metrics or {},
+            "env_runners/num_env_steps_sampled_lifetime",
+        )
+        iteration = _metric(result.metrics or {}, "training_iteration")
+        if steps is not None and iteration is not None:
+            records.append(
+                {
+                    "checkpoint": result.checkpoint,
+                    "checkpoint_name": Path(result.checkpoint.path).name,
+                    "training_iteration": int(iteration),
+                    "agent_steps": int(steps),
+                }
+            )
+    return sorted(records, key=lambda record: record["agent_steps"])
+
+
+def _probe_checkpoints(
+    context: RunContext,
+    checkpoints: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    if not checkpoints:
+        raise RuntimeError("reward-state battery retained no checkpoints")
+    if not context.smoke:
+        if len(checkpoints) != len(CHECKPOINT_MILESTONES):
+            raise RuntimeError(
+                "reward-state battery expected checkpoints near 10M, 20M, "
+                f"and 30M steps, got {len(checkpoints)}"
+            )
+        for record, milestone in zip(checkpoints, CHECKPOINT_MILESTONES):
+            if abs(record["agent_steps"] - milestone) > TRAIN_BATCH_SIZE:
+                raise RuntimeError(
+                    f"checkpoint at {record['agent_steps']:,} steps is not "
+                    f"within one train batch of {milestone:,}"
+                )
+
+    probes: list[dict[str, Any]] = []
+    for index, record in enumerate(checkpoints):
+        is_final = index == len(checkpoints) - 1
+        probe_results_dir = (
+            context.results_dir
+            if is_final
+            else (
+                context.results_dir
+                / "checkpoint_probes"
+                / f"steps_{record['agent_steps']:09d}"
+            )
+        )
+        probe_results_dir.mkdir(parents=True, exist_ok=True)
+        probe = checkpoint_probe.run(
+            replace(
+                context,
+                results_dir=probe_results_dir,
+                resume_from=Path(record["checkpoint"].path),
+            )
+        )
+        probes.append(
+            {
+                "checkpoint_name": record["checkpoint_name"],
+                "training_iteration": record["training_iteration"],
+                "agent_steps": record["agent_steps"],
+                "reward_percentage": (
+                    100.0 * float(probe["occupancy_state_2_fraction"])
+                ),
+                "greedy_reward_percentage": (
+                    100.0 * float(probe["reward_greedy"])
+                ),
+                "r2_global": float(probe["r2_global"]),
+                "r2_fine": float(probe["r2_fine"]),
+                "target_consistency_max_abs": float(
+                    probe["target_consistency_max_abs"]
+                ),
+                "probe": probe,
+            }
+        )
+    return probes
+
+
 def run_condition(
     context: RunContext,
     *,
@@ -239,6 +356,12 @@ def run_condition(
         "iqn_config": IQN_CONFIG if use_iqn else None,
         "iqn_loss_coefficient": IQN_LOSS_COEFFICIENT if use_iqn else 0.0,
         "total_env_steps": target_steps,
+        "checkpoint_interval_iterations": (
+            1 if context.smoke else CHECKPOINT_INTERVAL
+        ),
+        "checkpoint_milestones": (
+            [target_steps] if context.smoke else list(CHECKPOINT_MILESTONES)
+        ),
         "train_batch_size": (
             2_048 if context.smoke else TRAIN_BATCH_SIZE
         ),
@@ -263,7 +386,8 @@ def run_condition(
         stop={"env_runners/num_env_steps_sampled_lifetime": target_steps},
         run_config_kwargs={
             "checkpoint_config": tune.CheckpointConfig(
-                num_to_keep=1,
+                num_to_keep=3,
+                checkpoint_frequency=1 if context.smoke else CHECKPOINT_INTERVAL,
                 checkpoint_at_end=True,
             )
         },
@@ -274,17 +398,24 @@ def run_condition(
     result = results[0]
     if result.error is not None:
         raise RuntimeError(f"{condition} training failed") from result.error
-    if result.checkpoint is None:
-        raise RuntimeError(f"{condition} produced no final checkpoint")
-
-    probe = checkpoint_probe.run(
-        replace(
-            context,
-            resume_from=Path(result.checkpoint.path),
-        )
+    checkpoints = checkpoint_records(result)
+    probes = _probe_checkpoints(context, checkpoints)
+    final = probes[-1]
+    compact_checkpoints = [
+        {
+            key: value
+            for key, value in record.items()
+            if key != "checkpoint"
+        }
+        for record in checkpoints
+    ]
+    outputs.write_json(
+        "checkpoint_probe_curve.json",
+        {
+            "condition": condition,
+            "checkpoints": probes,
+        },
     )
-    reward_percentage = 100.0 * float(probe["occupancy_state_2_fraction"])
-    greedy_reward_percentage = 100.0 * float(probe["reward_greedy"])
     summary = {
         "condition": condition,
         "seed": context.seed,
@@ -292,11 +423,13 @@ def run_condition(
         "gamma": gamma,
         "critic": recipe["critic"],
         "predictive_kelly": use_kelly,
-        "reward_percentage": reward_percentage,
-        "greedy_reward_percentage": greedy_reward_percentage,
-        "r2_global": float(probe["r2_global"]),
-        "r2_fine": float(probe["r2_fine"]),
-        "probe": probe,
+        "reward_percentage": final["reward_percentage"],
+        "greedy_reward_percentage": final["greedy_reward_percentage"],
+        "r2_global": final["r2_global"],
+        "r2_fine": final["r2_fine"],
+        "checkpoint_index": compact_checkpoints,
+        "checkpoint_probes": probes,
+        "probe": final["probe"],
     }
     outputs.write_json("condition_summary.json", summary)
     (context.results_dir / "findings.md").write_text(
@@ -304,13 +437,17 @@ def run_condition(
             [
                 f"# {condition.replace('_', ' ').title()}",
                 "",
-                f"- State-2 reward percentage: {reward_percentage:.2f}%",
+                f"- State-2 reward percentage: {final['reward_percentage']:.2f}%",
                 (
                     "- Greedy state-2 reward percentage: "
-                    f"{greedy_reward_percentage:.2f}%"
+                    f"{final['greedy_reward_percentage']:.2f}%"
                 ),
-                f"- Transducer belief global R²: {probe['r2_global']:.4f}",
-                f"- Transducer belief fine R²: {probe['r2_fine']:.4f}",
+                f"- Transducer belief global R²: {final['r2_global']:.4f}",
+                f"- Transducer belief fine R²: {final['r2_fine']:.4f}",
+                (
+                    "- Checkpoints probed at environment steps: "
+                    + ", ".join(f"{probe['agent_steps']:,}" for probe in probes)
+                ),
                 "",
             ]
         )

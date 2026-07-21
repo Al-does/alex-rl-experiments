@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+from types import SimpleNamespace
 
 import pytest
 import torch
@@ -28,6 +29,7 @@ from experiments.mess3_reward_state_kelly_iqn_2026_07.shared import (
     KellyIQNTransformerModel,
     KellyPPOTorchLearner,
     KellyTransformerModel,
+    checkpoint_records,
 )
 from harness.context import RunContext
 from harness.hardware import PROFILES
@@ -138,3 +140,47 @@ def test_vast_shots_map_one_to_one_to_eight_conditions():
     for shot, module in enumerate(CONDITION_MODULES, start=1):
         assert assigned_index(f"rllib-reward-state-{shot}-a1b2c3") == shot - 1
         assert module.endswith(f"{CONDITIONS[shot - 1][0]}.experiment")
+
+
+def test_checkpoint_records_order_retained_milestones():
+    result = SimpleNamespace(
+        checkpoint=None,
+        metrics=None,
+        best_checkpoints=[
+            (
+                SimpleNamespace(path="/tmp/checkpoint_000306"),
+                {
+                    "training_iteration": 306,
+                    "env_runners": {
+                        "num_env_steps_sampled_lifetime": 20_054_016,
+                    },
+                },
+            ),
+            (
+                SimpleNamespace(path="/tmp/checkpoint_000153"),
+                {
+                    "training_iteration": 153,
+                    "env_runners": {
+                        "num_env_steps_sampled_lifetime": 10_027_008,
+                    },
+                },
+            ),
+            (
+                SimpleNamespace(path="/tmp/checkpoint_000458"),
+                {
+                    "training_iteration": 458,
+                    "env_runners": {
+                        "num_env_steps_sampled_lifetime": 30_015_488,
+                    },
+                },
+            ),
+        ],
+    )
+
+    records = checkpoint_records(result)
+
+    assert [record["agent_steps"] for record in records] == [
+        10_027_008,
+        20_054_016,
+        30_015_488,
+    ]
