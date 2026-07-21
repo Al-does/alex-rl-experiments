@@ -33,6 +33,14 @@ uv run pytest -q -m "not slow"
 uv run rl-harness experiments.mess3_belief_geometry_2026_07.reward_only.experiment --smoke
 ```
 
+### Vast.ai from Cloud Agents
+
+The Cloud image installs `openssh-client`, and `bootstrap_local.sh` ensures a
+local `~/.ssh/id_rsa` keypair exists. Both are required by
+`devops.vast.provision` (readiness probes SSH into each box). If `ssh` is
+missing on an old snapshot, re-run `./scripts/bootstrap_local.sh` or
+`apt-get install -y openssh-client`.
+
 ### Optional secrets
 
 For Backblaze B2 artifact upload, add the same `B2_*` variables you use locally
