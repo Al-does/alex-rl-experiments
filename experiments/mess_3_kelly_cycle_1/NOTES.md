@@ -68,3 +68,19 @@ single seed (`R²=0.9490`) and captured 63.0% of the Bayes-oracle policy ceiling
 in expected log growth. Its lower unweighted token accuracy is not inconsistent
 with positive growth: correct high-confidence wagers and abstention on weak
 states matter more than accuracy under the Kelly objective.
+
+## Interpretation
+
+- `fixed_full` has no wager output and loses wealth because every error is
+  nearly all-in.
+- `policy_implied_kelly` treats PPO action probability as confidence; its poor
+  wager calibration shows those probabilities are not reliable forecasts.
+- `learned_kelly` adds a sigmoid wager head and directly backpropagates realized
+  Kelly utility through the shared transformer. It has the best belief R², but
+  that extra gradient—not Kelly reward alone—may shape the representation.
+- `bayes_oracle` supplies the exact optimal wager outside the network. It is the
+  best bettor, but the transformer only needs to select a token and therefore
+  need not linearly represent the complete belief state.
+
+Thus betting performance and belief-probe R² measure different things. These
+single-seed rankings require replication before being treated as robust.
