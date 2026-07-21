@@ -39,7 +39,6 @@ from experiments.mess3_reward_state_kelly_iqn_2026_07.kelly import (
 )
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
-from harness.hardware import PROFILES
 from harness.runners import run_tune
 from learners.models.transformer import TransformerModel, TransformerModelConfig
 
@@ -65,7 +64,7 @@ CHECKPOINT_INTERVAL = 152
 CHECKPOINT_MILESTONES = (10_000_000, 20_000_000, 30_000_000)
 ACTION_LIMIT = 5.0
 TRAIN_BATCH_SIZE = 65_536
-MINIBATCH_SIZE = 4_096
+MINIBATCH_SIZE = 2_048
 LEARNING_RATE = 4.2e-4
 TOKEN_CORRECTNESS_COEFFICIENT = 1.0
 DIRECT_KELLY_LOSS_COEFFICIENT = 1.0
@@ -154,18 +153,12 @@ def build_config(
         raise ValueError("reward-state battery requires a resolved seed")
     if gamma not in (0.0, 0.99):
         raise ValueError("reward-state battery gamma must be 0 or 0.99")
-    profile = context.hardware or PROFILES["cpu"]
     config = (
         PPOConfig()
         .environment(HMMEnv, env_config=ENV_CONFIG)
         .framework(
             "torch",
-            torch_compile_learner=(
-                not context.smoke and profile.learner_device == "cuda"
-            ),
-            torch_compile_learner_what_to_compile="forward_train",
-            torch_compile_learner_dynamo_backend="inductor",
-            torch_compile_learner_dynamo_mode="reduce-overhead",
+            torch_compile_learner=False,
             torch_compile_worker=False,
         )
         .learners(

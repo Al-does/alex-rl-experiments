@@ -79,6 +79,7 @@ def test_eight_conditions_build_controlled_configs(
     assert first.env_config["task"]["kwargs"] == {"action_limit": 5.0}
     assert first.train_batch_size_per_learner == 2_048
     assert first.minibatch_size == 256
+    assert first.torch_compile_learner is False
     assert first.vf_loss_coeff == (0.0 if use_iqn else 0.5)
     expected_model = {
         (False, False): TransformerModel,
