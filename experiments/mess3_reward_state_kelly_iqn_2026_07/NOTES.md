@@ -12,8 +12,9 @@ All eight conditions use seed 42, 30 million sampled environment steps, the
 same three-layer transformer, and the continuous occupancy-control task. State
 2 pays reward 1; states 0 and 1 pay 0. Each two-dimensional continuous action
 tilts the HMM transition matrix, with components clipped to `[-5, 5]`.
-Full runs use 2,048-item minibatches without CUDA-graph compilation so the
-largest Kelly+IQN composition remains within a 24 GiB RTX 4090.
+Full runs use 32,768-step learner batches, 2,048-item minibatches, and no
+CUDA-graph compilation so the largest Kelly+IQN composition remains within a
+24 GiB RTX 4090.
 
 The four arms at each gamma are:
 
