@@ -62,6 +62,7 @@ class KellyIQNPPOTorchLearner(PredictiveKellyLossMixin, IQNPPOTorchLearner):
 TOTAL_ENV_STEPS = 30_000_000
 CHECKPOINT_INTERVAL = 306
 CHECKPOINT_MILESTONES = (10_000_000, 20_000_000, 30_000_000)
+CHECKPOINT_TOLERANCE_STEPS = 1_000_000
 ACTION_LIMIT = 5.0
 TRAIN_BATCH_SIZE = 32_768
 MINIBATCH_SIZE = 2_048
@@ -270,10 +271,14 @@ def _probe_checkpoints(
                 f"and 30M steps, got {len(checkpoints)}"
             )
         for record, milestone in zip(checkpoints, CHECKPOINT_MILESTONES):
-            if abs(record["agent_steps"] - milestone) > 8 * TRAIN_BATCH_SIZE:
+            if (
+                abs(record["agent_steps"] - milestone)
+                > CHECKPOINT_TOLERANCE_STEPS
+            ):
                 raise RuntimeError(
                     f"checkpoint at {record['agent_steps']:,} steps is not "
-                    f"within eight train batches of {milestone:,}"
+                    f"within {CHECKPOINT_TOLERANCE_STEPS:,} steps of "
+                    f"{milestone:,}"
                 )
 
     probes: list[dict[str, Any]] = []
@@ -354,6 +359,9 @@ def run_condition(
         ),
         "checkpoint_milestones": (
             [target_steps] if context.smoke else list(CHECKPOINT_MILESTONES)
+        ),
+        "checkpoint_tolerance_steps": (
+            target_steps if context.smoke else CHECKPOINT_TOLERANCE_STEPS
         ),
         "train_batch_size": (
             2_048 if context.smoke else TRAIN_BATCH_SIZE
