@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from ray.rllib.algorithms.ppo.torch.ppo_torch_learner import PPOTorchLearner
+
 from experiments.mess3_token_guess_cycle_1.iqn_value.iqn import (
     IQNPPOTorchLearner,
     IQNTransformerModel,
@@ -53,7 +55,7 @@ def test_four_cycle_three_arms_build_controlled_gamma_099_configs(tmp_path):
             assert config.vf_loss_coeff == 0.5
 
     assert configs["ppo"].rl_module_spec.module_class is TransformerModel
-    assert configs["ppo"].learner_class is None
+    assert configs["ppo"].learner_class is PPOTorchLearner
     assert configs["iqn"].rl_module_spec.module_class is IQNTransformerModel
     assert configs["iqn"].learner_class is IQNPPOTorchLearner
     assert (
