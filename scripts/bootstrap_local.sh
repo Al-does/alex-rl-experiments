@@ -9,6 +9,32 @@ LIB_SPACED="$PARENT/RL Harness"
 LIB_CLONE="$PARENT/rl-harness-src"
 LIBRARY_URL="${RL_HARNESS_URL:-https://github.com/Al-does/RL-Harness.git}"
 
+# Vast provisioning needs a local OpenSSH client + keypair. Cursor Cloud images
+# may lag behind Dockerfile rebuilds, so repair Linux installs at bootstrap time.
+# Keys are generated per machine/session (not baked into the image) so concurrent
+# agents do not share a private key.
+ensure_local_ssh() {
+  if [ "$(uname -s)" = "Linux" ] && ! command -v ssh >/dev/null 2>&1; then
+    if command -v apt-get >/dev/null 2>&1; then
+      echo "Installing openssh-client (required for vast.ai provisioning)..."
+      apt-get update
+      apt-get install -y --no-install-recommends openssh-client
+    else
+      echo "WARNING: local ssh client missing; vast.ai provisioning will fail." >&2
+    fi
+  fi
+
+  if ! command -v ssh-keygen >/dev/null 2>&1; then
+    return 0
+  fi
+  mkdir -p "$HOME/.ssh"
+  chmod 700 "$HOME/.ssh" 2>/dev/null || true
+  if [ ! -f "$HOME/.ssh/id_rsa" ] || [ ! -f "$HOME/.ssh/id_rsa.pub" ]; then
+    echo "Generating ~/.ssh/id_rsa for vast.ai SSH registration..."
+    ssh-keygen -t rsa -b 4096 -N "" -f "$HOME/.ssh/id_rsa" -q
+  fi
+}
+
 if [ -d "$LIB_LINK/.git" ] || [ -L "$LIB_LINK" ]; then
   echo "Using existing library at $LIB_LINK"
 elif [ -d "$LIB_SPACED/.git" ]; then
@@ -22,6 +48,8 @@ else
   git clone "$LIBRARY_URL" "$LIB_CLONE"
   ln -sfn "rl-harness-src" "$LIB_LINK"
 fi
+
+ensure_local_ssh
 
 cd "$ROOT"
 uv sync --group dev
