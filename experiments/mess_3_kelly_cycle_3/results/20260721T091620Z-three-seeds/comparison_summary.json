@@ -1,0 +1,106 @@
+{
+  "gamma": 0.99,
+  "lambda": 0.95,
+  "conditions": {
+    "ppo": {
+      "critic_mode": "mean",
+      "conditional_kelly": false,
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "metrics": {
+        "r_squared": {
+          "mean": 0.8742321216658038,
+          "std": 0.04321055813312853
+        },
+        "token_accuracy_greedy": {
+          "mean": 0.6754777777777777,
+          "std": 0.004539891770070142
+        },
+        "expected_log_growth_mean": null,
+        "wager_vs_oracle_rmse": null
+      },
+      "any_wager_collapse": false
+    },
+    "iqn": {
+      "critic_mode": "iqn",
+      "conditional_kelly": false,
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "metrics": {
+        "r_squared": {
+          "mean": 0.9687941464604828,
+          "std": 0.009037160095788829
+        },
+        "token_accuracy_greedy": {
+          "mean": 0.6832222222222223,
+          "std": 0.003557915883224136
+        },
+        "expected_log_growth_mean": null,
+        "wager_vs_oracle_rmse": null
+      },
+      "any_wager_collapse": false
+    },
+    "conditional_decoupled_kelly_mean": {
+      "critic_mode": "mean",
+      "conditional_kelly": true,
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "metrics": {
+        "r_squared": {
+          "mean": 0.9717424960709741,
+          "std": 0.00399673764390444
+        },
+        "token_accuracy_greedy": {
+          "mean": 0.6819000000000001,
+          "std": 0.0028083209693100402
+        },
+        "expected_log_growth_mean": {
+          "mean": 0.27653442380394333,
+          "std": 0.0010285870418841677
+        },
+        "wager_vs_oracle_rmse": {
+          "mean": 0.11104934702365842,
+          "std": 0.0041800263130786705
+        }
+      },
+      "any_wager_collapse": false
+    },
+    "conditional_decoupled_kelly_iqn": {
+      "critic_mode": "iqn",
+      "conditional_kelly": true,
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "metrics": {
+        "r_squared": {
+          "mean": 0.9823746226491833,
+          "std": 0.0011604812183022254
+        },
+        "token_accuracy_greedy": {
+          "mean": 0.6858,
+          "std": 0.0022873241685104225
+        },
+        "expected_log_growth_mean": {
+          "mean": 0.24263732113073858,
+          "std": 0.03548756403267917
+        },
+        "wager_vs_oracle_rmse": {
+          "mean": 0.18575409420208058,
+          "std": 0.060947398869191774
+        }
+      },
+      "any_wager_collapse": false
+    }
+  }
+}

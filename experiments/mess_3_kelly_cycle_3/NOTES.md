@@ -22,3 +22,28 @@ start, and no predictive auxiliary loss.
 The probe streams are identical to cycle 2. Per-iteration training curves and
 Tune summaries are intentionally omitted from tracked results; compact recipes,
 final probes, manifests, findings, and comparison figures remain.
+
+## Three-seed results
+
+| condition | belief R² | token accuracy | expected log growth |
+|---|---:|---:|---:|
+| `ppo` | 0.8742 ± 0.0432 | 0.6755 ± 0.0045 | — |
+| `iqn` | 0.9688 ± 0.0090 | 0.6832 ± 0.0036 | — |
+| `conditional_decoupled_kelly_mean` | 0.9717 ± 0.0040 | 0.6819 ± 0.0028 | **0.2765 ± 0.0010** |
+| `conditional_decoupled_kelly_iqn` | **0.9824 ± 0.0012** | **0.6858 ± 0.0023** | 0.2426 ± 0.0355 |
+
+At `gamma=0.99`, the two representation pressures are complementary.
+Conditional Kelly with a scalar critic narrowly exceeds plain IQN in belief R²,
+and combining conditional Kelly with IQN produces the strongest and most stable
+representation. It also gives the highest token accuracy.
+
+The scalar-critic conditional Kelly arm is the better bettor: its wager RMSE is
+`0.1110` versus `0.1858` for the IQN combination, and it captures roughly 94% of
+the oracle expected-growth ceiling. The IQN combination sacrifices some wager
+calibration and growth for higher belief linearity.
+
+This contrasts with `gamma=0`, where ordinary correctness PPO dominated the
+Kelly arms. With a longer return horizon, IQN supplies distributional
+future-return pressure while the action-conditional wager loss supplies direct
+per-action confidence pressure; together they recover both task accuracy and
+near-supervised belief geometry.

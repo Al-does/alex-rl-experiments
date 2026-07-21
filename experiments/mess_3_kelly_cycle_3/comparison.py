@@ -23,7 +23,7 @@ def summarize_seeds(
         raise ValueError(f"missing cycle-3 summaries: {sorted(missing)}")
     conditions: dict[str, Any] = {}
     for arm in ARMS:
-        runs = summaries[arm.name]
+        runs = sorted(summaries[arm.name], key=lambda run: int(run["seed"]))
         if not runs:
             raise ValueError(f"{arm.name} has no completed seeds")
         metrics: dict[str, Any] = {}
