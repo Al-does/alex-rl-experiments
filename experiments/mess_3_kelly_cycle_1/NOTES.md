@@ -48,3 +48,23 @@ CPU transfers in the training hot path.
 Operational wager collapse means final mean wager below `0.01` and more than
 95% of evaluated wagers below `0.01`. Learning curves are retained so temporary
 early abstention can be distinguished from terminal collapse.
+
+## Seed-42 results
+
+| condition | belief R² | token accuracy | mean wager | expected log growth |
+|---|---:|---:|---:|---:|
+| `fixed_full` | 0.9281 | 0.6754 | 0.9999 | -2.240269 |
+| `policy_implied_kelly` | 0.8829 | 0.6489 | 0.6761 | 0.042845 |
+| `learned_kelly` | 0.9490 | 0.5210 | 0.3628 | 0.184927 |
+| `bayes_oracle` | 0.8770 | 0.6729 | 0.5108 | 0.287087 |
+
+No learned condition ended in wager collapse, so no warm start, wager floor, or
+other anti-collapse intervention was added. The learned head temporarily put
+roughly 60–67% of behavior wagers below `0.01` around 0.13–0.20M steps, then
+recovered; only 2.58% of held-out greedy wagers were below `0.01` at the end.
+
+The learned wager head produced the strongest belief representation in this
+single seed (`R²=0.9490`) and captured 63.0% of the Bayes-oracle policy ceiling
+in expected log growth. Its lower unweighted token accuracy is not inconsistent
+with positive growth: correct high-confidence wagers and abstention on weak
+states matter more than accuracy under the Kelly objective.
