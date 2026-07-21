@@ -35,12 +35,18 @@ def assigned_index(label: str) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--index", type=int, default=None)
+    parser.add_argument("--offset", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
+    if args.index is not None and args.offset != 0:
+        raise ValueError("--index and --offset cannot be combined")
     index = (
         args.index
         if args.index is not None
-        else assigned_index(os.environ.get("VAST_INSTANCE_LABEL", ""))
+        else (
+            assigned_index(os.environ.get("VAST_INSTANCE_LABEL", ""))
+            + args.offset
+        )
     )
     if not 0 <= index < len(CONDITION_MODULES):
         raise ValueError(f"condition index must be in [0, {len(CONDITION_MODULES)})")
