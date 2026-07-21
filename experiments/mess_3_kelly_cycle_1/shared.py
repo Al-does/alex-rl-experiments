@@ -2,18 +2,12 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any, Mapping
 
-import matplotlib
-import numpy as np
 from ray import tune
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
 
 from envs.hmm import HMMEnv
 from experiments.mess_3_kelly_cycle_1.analysis import probe_checkpoint
@@ -167,122 +161,6 @@ def build_config(context: RunContext, condition: str) -> PPOConfig:
     return _apply_runtime_resources(config, context)
 
 
-def _metric(metrics: Mapping[str, Any], path: str) -> float | None:
-    direct = metrics.get(path)
-    if isinstance(direct, (int, float, np.number)):
-        return float(direct)
-    value: Any = metrics
-    for part in path.split("/"):
-        if not isinstance(value, Mapping) or part not in value:
-            return None
-        value = value[part]
-    return float(value) if isinstance(value, (int, float, np.number)) else None
-
-
-def _metric_ending(metrics: Mapping[str, Any], ending: str) -> float | None:
-    direct = _metric(metrics, ending)
-    if direct is not None:
-        return direct
-    for key, value in metrics.items():
-        if str(key).endswith(ending) and isinstance(
-            value, (int, float, np.number)
-        ):
-            return float(value)
-    return None
-
-
-def training_curve(result: Any) -> list[dict[str, float | int]]:
-    """Extract token and Kelly diagnostics from every reported iteration."""
-
-    dataframe = result.metrics_dataframe
-    if dataframe is None:
-        return []
-    records: list[dict[str, float | int]] = []
-    for _, row in dataframe.iterrows():
-        values = row.to_dict()
-        steps = _metric_ending(
-            values,
-            "env_runners/num_env_steps_sampled_lifetime",
-        )
-        iteration = _metric_ending(values, "training_iteration")
-        if steps is None or iteration is None:
-            continue
-        record: dict[str, float | int] = {
-            "training_iteration": int(iteration),
-            "agent_steps": int(steps),
-        }
-        for output_name, metric_name in (
-            ("behavior_wager_mean", "kelly/behavior_wager_mean"),
-            (
-                "behavior_wager_collapse_fraction",
-                "kelly/behavior_wager_collapse_fraction",
-            ),
-            ("correct_fraction", "kelly/correct_fraction"),
-            ("learner_log_growth_mean", "kelly/log_growth_mean"),
-            ("direct_loss", "kelly/direct_loss"),
-            ("current_wager_mean", "kelly/current_wager_mean"),
-        ):
-            value = _metric_ending(values, metric_name)
-            if value is not None and np.isfinite(value):
-                record[output_name] = value
-        records.append(record)
-    return records
-
-
-def _plot_training_curve(
-    records: list[dict[str, float | int]],
-    *,
-    condition: str,
-    path: Path,
-) -> None:
-    figure, axes = plt.subplots(2, 1, figsize=(7.2, 6.4), sharex=True)
-    steps = np.asarray([record["agent_steps"] for record in records])
-    plotted = False
-    for key, label in (
-        ("behavior_wager_mean", "mean wager"),
-        ("behavior_wager_collapse_fraction", "fraction f < 0.01"),
-        ("correct_fraction", "sampled token accuracy"),
-    ):
-        points = [
-            (record["agent_steps"], record[key])
-            for record in records
-            if key in record
-        ]
-        if points:
-            x, y = zip(*points)
-            axes[0].plot(x, y, label=label)
-            plotted = True
-    growth = [
-        (record["agent_steps"], record["learner_log_growth_mean"])
-        for record in records
-        if "learner_log_growth_mean" in record
-    ]
-    if growth:
-        x, y = zip(*growth)
-        axes[1].plot(x, y, color="tab:green", label="mean log growth")
-    axes[0].set_ylim(-0.02, 1.02)
-    axes[0].set_ylabel("policy diagnostic")
-    axes[1].set_ylabel("log growth / step")
-    axes[1].set_xlabel("sampled agent steps")
-    axes[0].set_title(condition.replace("_", " "))
-    for axis in axes:
-        axis.grid(alpha=0.2)
-        if axis.lines:
-            axis.legend()
-    if not plotted and not growth:
-        axes[0].text(
-            0.5,
-            0.5,
-            "Learner-side wager metrics unavailable",
-            ha="center",
-            va="center",
-            transform=axes[0].transAxes,
-        )
-    figure.tight_layout()
-    figure.savefig(path, dpi=200)
-    plt.close(figure)
-
-
 def _findings(
     *,
     condition: str,
@@ -363,13 +241,6 @@ def run_condition(context: RunContext, condition: str):
     if result.checkpoint is None:
         raise RuntimeError(f"{condition} produced no final checkpoint")
 
-    curve = training_curve(result)
-    outputs.write_json("training_curve.json", {"iterations": curve})
-    _plot_training_curve(
-        curve,
-        condition=condition,
-        path=context.results_dir / "training_curve.png",
-    )
     probed = probe_checkpoint(
         context,
         checkpoint=Path(result.checkpoint.path),
@@ -388,7 +259,6 @@ def run_condition(context: RunContext, condition: str):
         "warm_start": False,
         "predictive_auxiliary_loss": False,
         "wager_collapse_detected": collapsed,
-        "training_curve": curve,
         "probe": probed.metrics,
     }
     outputs.write_json("condition_summary.json", summary)
