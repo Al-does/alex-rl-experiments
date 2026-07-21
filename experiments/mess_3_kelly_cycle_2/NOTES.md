@@ -32,3 +32,36 @@ IQN arms replace the scalar critic loss with 32 sampled quantiles and use the
 mean of 64 fixed quantiles as PPO's baseline. With `gamma=0`, IQN models the
 distribution of immediate correctness or Kelly growth rather than a
 long-horizon return.
+
+## Three-seed results
+
+| condition | belief R² | token accuracy | expected log growth |
+|---|---:|---:|---:|
+| `correctness_mean` | 0.9834 ± 0.0015 | 0.6830 ± 0.0027 | — |
+| `correctness_iqn` | **0.9857 ± 0.0005** | 0.6836 ± 0.0033 | — |
+| `coupled_kelly_mean` | 0.9375 ± 0.0047 | 0.6760 ± 0.0039 | **0.1254 ± 0.0061** |
+| `coupled_kelly_iqn` | 0.9467 ± 0.0060 | 0.6779 ± 0.0040 | 0.1148 ± 0.0043 |
+| `decoupled_kelly_mean` | 0.9529 ± 0.0038 | **0.6860 ± 0.0018** | 0.0333 ± 0.0186 |
+| `decoupled_kelly_iqn` | 0.9572 ± 0.0035 | 0.6856 ± 0.0025 | 0.0243 ± 0.0054 |
+| `conditional_decoupled_kelly_mean` | 0.9559 ± 0.0075 | 0.6858 ± 0.0022 | -0.0277 ± 0.0101 |
+| `conditional_decoupled_kelly_iqn` | 0.9491 ± 0.0066 | 0.6858 ± 0.0028 | -0.0443 ± 0.0079 |
+
+The main finding is that myopic correctness PPO itself produces a nearly linear
+belief representation. Moving from the prior `gamma=0.99` reward-only result
+(`R²=0.8552`) to `gamma=0` gives `R²=0.9834` without an auxiliary objective.
+IQN adds only `0.0022` mean R² on this immediate-reward task, much less than its
+gain with longer-horizon returns.
+
+Decoupling token reward from wager size restores accuracy to roughly 68.6%, so
+cycle 1's low accuracy was a credit-assignment problem rather than a necessary
+Kelly tradeoff. However, direct wager losses do not improve on the gamma-zero
+correctness representation. They also calibrate poorly: scalar decoupled wagers
+have roughly `0.38` RMSE against Bayes Kelly, while conditional wagers exceed
+`0.40` and lose expected wealth.
+
+A likely mechanism is per-sample overfitting. PPO reuses each realized binary
+outcome for six epochs, and direct Kelly loss can push the wager toward an
+extreme based on that one stochastic outcome. Action-conditional heads receive
+even sparser feedback. The scalar coupled arm remains the most profitable
+learned bettor here, but the cleanest belief representation comes from ordinary
+gamma-zero correctness PPO.

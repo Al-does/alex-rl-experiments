@@ -1,0 +1,37 @@
+{
+  "actor_mode": "decoupled_kelly",
+  "algorithm": "PPO",
+  "condition": "decoupled_kelly_mean",
+  "critic_mode": "mean",
+  "direct_kelly_loss_weight": 1.0,
+  "environment": {
+    "delay": 1,
+    "episode_length": 512,
+    "model": {
+      "factory": "envs.mess3.model:passive_model",
+      "kwargs": {
+        "alpha": 0.85
+      }
+    },
+    "observation": {
+      "action": null
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "experiments.mess_3_kelly_cycle_1.task:RawNextTokenTask"
+    }
+  },
+  "gamma": 0.0,
+  "lambda": 0.0,
+  "model": {
+    "context_len": 64,
+    "d_model": 96,
+    "max_seq_len": 32,
+    "n_heads": 4,
+    "n_layers": 3
+  },
+  "predictive_auxiliary_loss_weight": 0.0,
+  "total_env_steps": 2500000,
+  "wager_layout": "scalar",
+  "warm_start": false
+}
