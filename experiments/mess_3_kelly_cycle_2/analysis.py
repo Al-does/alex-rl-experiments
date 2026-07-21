@@ -159,7 +159,7 @@ def _policy_outputs(
         -1,
         action_tensor.unsqueeze(-1),
     ).squeeze(-1)
-    if condition.startswith("correctness_"):
+    if not hasattr(module, "wager_fraction"):
         wager = None
     elif condition.startswith("conditional_decoupled_kelly_"):
         fractions = module.wager_fraction(embeddings)
