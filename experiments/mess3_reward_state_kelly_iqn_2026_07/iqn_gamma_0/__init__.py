@@ -1,0 +1,1 @@
+"""IQN gamma-zero condition."""
