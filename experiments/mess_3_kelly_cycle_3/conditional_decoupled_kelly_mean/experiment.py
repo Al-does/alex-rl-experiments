@@ -1,0 +1,13 @@
+"""Gamma-.99 correctness PPO plus conditional Kelly shaping."""
+
+from experiments.mess_3_kelly_cycle_3.shared import build_config as _build, run_condition
+
+ARM = "conditional_decoupled_kelly_mean"
+
+
+def build_config(context):
+    return _build(context, ARM)
+
+
+def run(context):
+    return run_condition(context, ARM)
