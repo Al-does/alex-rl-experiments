@@ -1,5 +1,10 @@
 """Experiment-local IQN value head and PPO loss composition."""
 
+# Deprecated for new experiments. Preserve this module so historical recipes
+# remain reproducible; new work should compose `learners.models.IQNValueMixin`
+# with a base model, select `learners.IQNPPOTorchLearner`, and use
+# `losses.quantile_huber_loss` for standalone objective math.
+
 from __future__ import annotations
 
 from typing import Any
