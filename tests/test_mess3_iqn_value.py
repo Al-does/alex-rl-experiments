@@ -16,6 +16,11 @@ from experiments.mess3_token_guess_cycle_1.average_reward import (
 from experiments.mess3_token_guess_cycle_1.iqn_gamma_1_3m.experiment import (
     build_config as build_gamma_one_config,
 )
+from experiments.mess3_token_guess_cycle_1.iqn_generic_reproduction.experiment import (
+    GenericIQNTransformerModel,
+    IQN_CONFIG as GENERIC_IQN_CONFIG,
+    build_config as build_generic_iqn_config,
+)
 from experiments.mess3_token_guess_cycle_1.iqn_value.experiment import (
     IQN_CONFIG,
     build_config,
@@ -36,6 +41,7 @@ from experiments.mess3_token_guess_cycle_1.iqn_return_objectives.experiment impo
 )
 from harness.context import RunContext
 from harness.hardware import PROFILES
+from learners import IQNPPOTorchLearner as GenericIQNPPOTorchLearner
 
 
 def test_iqn_head_is_device_native_and_differentiable():
@@ -86,6 +92,30 @@ def test_iqn_recipe_builds_fresh_controlled_smoke_configs(tmp_path):
     assert first.learner_class is IQNPPOTorchLearner
     assert first.rl_module_spec.module_class is IQNTransformerModel
     assert first.rl_module_spec.model_config["iqn_value"] == IQN_CONFIG
+
+
+def test_generic_iqn_reproduction_uses_promoted_library_option(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        smoke=True,
+        hardware=PROFILES["cpu"],
+    )
+
+    first = build_generic_iqn_config(context)
+    second = build_generic_iqn_config(context)
+
+    assert first is not second
+    assert first.seed == 42
+    assert first.num_env_runners == 0
+    assert first.vf_loss_coeff == 0.0
+    assert first.learner_class is GenericIQNPPOTorchLearner
+    assert first.rl_module_spec.module_class is GenericIQNTransformerModel
+    assert (
+        first.rl_module_spec.model_config["iqn_value"]
+        == GENERIC_IQN_CONFIG
+    )
 
 
 def test_long_iqn_recipe_preserves_the_controlled_iqn_config(tmp_path):
