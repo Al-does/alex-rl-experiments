@@ -15,6 +15,11 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
+
 from experiments.mess3_token_guess_cycle_2.statistics import (
     compare,
     holm_adjust,
@@ -25,6 +30,13 @@ from harness.context import RunContext
 
 STUDIES = ("mess_3_kelly_cycle_2", "mess_3_kelly_cycle_3")
 METRICS = ("r_squared", "token_accuracy_greedy")
+FALLBACK_REFERENCES = {
+    "belief_r2_floor": 0.9668,
+    "belief_r2_ceiling": 0.99888,
+    "accuracy_floor": 0.6732,
+    "accuracy_ceiling": 0.6883,
+    "untrained_module_r2": 0.8733,
+}
 
 
 def _references(experiment_dir: Path) -> dict[str, float]:
@@ -33,19 +45,18 @@ def _references(experiment_dir: Path) -> dict[str, float]:
     candidates = sorted(
         (experiment_dir.parent / "references" / "results").glob("*/references.json")
     )
-    if candidates:
-        data = json.loads(candidates[-1].read_text())
-        return {
-            "belief_r2_floor": float(data["belief_r2_floor"]),
-            "belief_r2_ceiling": float(data["supervised_ceiling"]),
-            "accuracy_floor": float(data["accuracy_floor_repeat_previous_token"]),
-            "accuracy_ceiling": float(data["accuracy_ceiling_bayes"]),
-        }
+    if not candidates:
+        return dict(FALLBACK_REFERENCES)
+    data = json.loads(candidates[-1].read_text())
+    untrained = data.get("untrained_module") or {}
     return {
-        "belief_r2_floor": 0.9668,
-        "belief_r2_ceiling": 0.99888,
-        "accuracy_floor": 0.6732,
-        "accuracy_ceiling": 0.6883,
+        "belief_r2_floor": float(data["belief_r2_floor"]),
+        "belief_r2_ceiling": float(data["supervised_ceiling"]),
+        "accuracy_floor": float(data["accuracy_floor_repeat_previous_token"]),
+        "accuracy_ceiling": float(data["accuracy_ceiling_bayes"]),
+        "untrained_module_r2": float(
+            untrained.get("r_squared", FALLBACK_REFERENCES["untrained_module_r2"])
+        ),
     }
 
 
@@ -114,6 +125,82 @@ def analyse_study(
             adjusted < 0.05 and comparisons[name]["difference_ci"][0] > 0.0
         ) or bool(adjusted < 0.05 and comparisons[name]["difference_ci"][1] < 0.0)
     return {"conditions": conditions, "comparisons": comparisons}
+
+
+def plot_against_references(
+    analysis: dict[str, Any],
+    references: dict[str, float],
+    *,
+    untrained_r2: float,
+    path: Path,
+) -> None:
+    """Place every arm's interval inside the range the metric can move through."""
+
+    floor = references["belief_r2_floor"]
+    ceiling = references["belief_r2_ceiling"]
+    rows: list[tuple[str, float, float, float]] = []
+    for study, result in analysis.items():
+        label = study.replace("mess_3_", "").replace("_", " ")
+        for arm, values in sorted(
+            result["conditions"].items(),
+            key=lambda item: item[1]["r_squared_mean"],
+        ):
+            low, high = values["r_squared_ci"]
+            rows.append(
+                (f"{arm.replace('_', ' ')}\n({label})", values["r_squared_mean"], low, high)
+            )
+
+    figure, axis = plt.subplots(figsize=(9.5, 0.42 * len(rows) + 2.6))
+    positions = range(len(rows))
+    axis.axvspan(floor, ceiling, color="tab:green", alpha=0.10)
+    axis.axvline(
+        floor,
+        color="tab:green",
+        linestyle="--",
+        linewidth=1.4,
+        label=f"affine probe on raw observations ({floor:.4f})",
+    )
+    axis.axvline(
+        untrained_r2,
+        color="tab:orange",
+        linestyle=":",
+        linewidth=1.4,
+        label=f"randomly initialised transformer ({untrained_r2:.4f})",
+    )
+    axis.axvline(
+        ceiling,
+        color="tab:blue",
+        linestyle="-.",
+        linewidth=1.4,
+        label=f"supervised next-token model ({ceiling:.4f})",
+    )
+    for position, (_, mean, low, high) in zip(positions, rows):
+        cleared = low > floor
+        axis.plot(
+            [low, high],
+            [position, position],
+            color="tab:green" if cleared else "tab:red",
+            linewidth=2.0,
+            alpha=0.75,
+        )
+        axis.plot(
+            mean,
+            position,
+            "o",
+            color="tab:green" if cleared else "tab:red",
+            markersize=6,
+        )
+    axis.set_yticks(list(positions), [row[0] for row in rows], fontsize=8)
+    axis.set_xlim(0.72, 1.02)
+    axis.set_xlabel("held-out belief-probe R² (95% CI over three seeds)")
+    axis.set_title(
+        "Committed token-guess results against the range the metric can move through"
+    )
+    axis.grid(axis="x", alpha=0.2)
+    axis.legend(loc="lower left", fontsize=8, framealpha=0.9)
+    figure.tight_layout()
+    figure.savefig(path, dpi=200)
+    plt.close(figure)
 
 
 def _findings(analysis: dict[str, Any], references: dict[str, float]) -> str:
@@ -194,7 +281,18 @@ def run(context: RunContext) -> dict[str, Any]:
     analysis = {study: result for study, result in analysis.items() if result["conditions"]}
     if not analysis:
         raise RuntimeError("no committed multi-seed results were found to audit")
-    result = {"references": references, "studies": analysis}
+    figure_path = context.results_dir / "results_against_references.png"
+    plot_against_references(
+        analysis,
+        references,
+        untrained_r2=references["untrained_module_r2"],
+        path=figure_path,
+    )
+    result = {
+        "references": references,
+        "studies": analysis,
+        "figure": str(figure_path),
+    }
     outputs.write_json("audit.json", result)
     (context.results_dir / "findings.md").write_text(_findings(analysis, references))
     return result

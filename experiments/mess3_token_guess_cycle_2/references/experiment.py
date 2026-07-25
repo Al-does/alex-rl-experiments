@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
 
 from experiments.mess3_token_guess_cycle_1.comparison.experiment import (
     BASE_MODEL_CONFIG,
@@ -33,6 +39,61 @@ CYCLE_1_SCORES = {
 # Supervised next-token replication, final-LayerNorm probe, seed 0. See
 # experiments/mess3_supervised/README.md.
 SUPERVISED_CEILING = 0.99888
+
+
+def plot_landscape(references: dict[str, Any], *, path: Path) -> None:
+    """Show every published score against the references on one axis."""
+
+    floor = references["belief_r2_floor"]
+    untrained = references["untrained_module"]["r_squared"]
+    rows = [(name, value, "condition") for name, value in CYCLE_1_SCORES.items()]
+    rows.extend(
+        [
+            ("randomly initialised transformer", untrained, "reference"),
+            ("affine probe on raw observations", floor, "reference"),
+            ("supervised next-token model", SUPERVISED_CEILING, "reference"),
+        ]
+    )
+    rows.sort(key=lambda row: row[1])
+
+    figure, axis = plt.subplots(figsize=(9.5, 0.46 * len(rows) + 2.0))
+    axis.axvspan(floor, SUPERVISED_CEILING, color="tab:green", alpha=0.10)
+    for position, (name, value, kind) in enumerate(rows):
+        reference = kind == "reference"
+        colour = "black" if reference else ("tab:green" if value > floor else "tab:red")
+        axis.barh(
+            position,
+            value - 0.80,
+            left=0.80,
+            height=0.55,
+            color=colour,
+            alpha=0.35 if reference else 0.85,
+            hatch="//" if reference else None,
+        )
+        axis.text(
+            value + 0.002,
+            position,
+            f"{value:.4f}",
+            va="center",
+            fontsize=8,
+        )
+    axis.set_yticks(
+        range(len(rows)),
+        [name.replace("_", " ") for name, _, _ in rows],
+        fontsize=8,
+    )
+    axis.set_xlim(0.80, 1.03)
+    axis.set_xlabel("held-out belief-probe R²")
+    axis.set_title(
+        "The usable range of belief-probe R² is 0.967 to 0.999\n"
+        "(hatched bars are references; red bars fall below a probe on the raw "
+        "observations)",
+        fontsize=10,
+    )
+    axis.grid(axis="x", alpha=0.2)
+    figure.tight_layout()
+    figure.savefig(path, dpi=200)
+    plt.close(figure)
 
 
 def _findings(references: dict[str, Any]) -> str:
@@ -133,6 +194,9 @@ def run(context: RunContext) -> dict[str, Any]:
         )
         for condition, value in CYCLE_1_SCORES.items()
     }
+    figure_path = context.results_dir / "belief_r2_landscape.png"
+    plot_landscape(references, path=figure_path)
+    references["figure"] = str(figure_path)
     outputs.write_json("references.json", references)
     (context.results_dir / "findings.md").write_text(_findings(references))
     return references
