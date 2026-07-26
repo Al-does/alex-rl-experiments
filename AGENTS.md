@@ -44,8 +44,8 @@ missing on an old snapshot, re-run `./scripts/bootstrap_local.sh` or
 ### RunPod Pods from Cloud Agents
 
 The sibling harness also provides `devops/runpod/pods/` for on-demand,
-non-interruptible Community Cloud Pods. It uses RunPod APIs and does not need
-SSH. Run a dry run first, then launch from this experiment checkout:
+non-interruptible Community Cloud Pods. Batch runs use RunPod APIs and do not
+need SSH. Run a dry run first, then launch from this experiment checkout:
 
 ```bash
 uv run python -m devops.runpod.pods.provision up \
@@ -57,6 +57,11 @@ RunPod jobs clone this repository and the harness at explicitly recorded refs.
 Configure `RUNPOD_API_KEY` and `GH_TOKEN` as Cursor Runtime Secrets. Configure
 the existing `B2_*` settings too when checkpoints must survive Pod teardown;
 RunPod network volumes are unavailable on Community Cloud.
+
+For opt-in terminal profiling, `--interactive` injects only this Cloud Agent's
+generated SSH public key; the private key remains on the VM. Use the harness
+`logs POD_ID --follow` and `ssh POD_ID` subcommands, then explicitly destroy the
+Pod. The provider hard ceiling remains active.
 
 ### Optional secrets
 
