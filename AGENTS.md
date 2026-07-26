@@ -41,6 +41,23 @@ local `~/.ssh/id_rsa` keypair exists. Both are required by
 missing on an old snapshot, re-run `./scripts/bootstrap_local.sh` or
 `apt-get install -y openssh-client`.
 
+### RunPod Pods from Cloud Agents
+
+The sibling harness also provides `devops/runpod/pods/` for on-demand,
+non-interruptible Community Cloud Pods. It uses RunPod APIs and does not need
+SSH. Run a dry run first, then launch from this experiment checkout:
+
+```bash
+uv run python -m devops.runpod.pods.provision up \
+  --run "rl-harness experiments.study.condition.experiment --upload-artifacts" \
+  --forward-b2 --self-destruct --dry-run
+```
+
+RunPod jobs clone this repository and the harness at explicitly recorded refs.
+Configure `RUNPOD_API_KEY` and `GH_TOKEN` as Cursor Runtime Secrets. Configure
+the existing `B2_*` settings too when checkpoints must survive Pod teardown;
+RunPod network volumes are unavailable on Community Cloud.
+
 ### Optional secrets
 
 For Backblaze B2 artifact upload, add the same `B2_*` variables you use locally
