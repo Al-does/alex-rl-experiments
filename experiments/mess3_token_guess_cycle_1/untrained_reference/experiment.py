@@ -27,6 +27,7 @@ from experiments.mess3_belief_geometry_2026_07.probe import (
 from experiments.mess3_token_guess_cycle_1.analysis import (
     PROBE_RANK,
     fit_reduced_rank_affine,
+    probe_device,
 )
 from experiments.mess3_token_guess_cycle_1.baselines import calibrate
 from experiments.mess3_token_guess_cycle_1.comparison.experiment import (
@@ -43,9 +44,11 @@ INITIALISATIONS = (0, 1, 2)
 _STREAM_KEYS = {"probe_train": (100,), "probe_test": (101,)}
 
 
-def _probe_environment_config() -> dict[str, Any]:
+def probe_environment_config(
+    env_config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     return {
-        **ENV_CONFIG,
+        **(ENV_CONFIG if env_config is None else env_config),
         "diagnostics": {
             "state": True,
             "belief": True,
@@ -59,12 +62,13 @@ def probe_untrained_module(
     context: RunContext,
     *,
     initialisation: int,
+    env_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Score one freshly initialised transformer with the study's own probe."""
 
     if context.seed is None:
         raise ValueError("the untrained reference requires a resolved seed")
-    config = _probe_environment_config()
+    config = probe_environment_config(env_config)
 
     def make_environment():
         return HMMEnv(config)
@@ -93,7 +97,7 @@ def probe_untrained_module(
         "module": module,
         "env_factory": make_environment,
         "policy_mode": "greedy",
-        "device": "cpu",
+        "device": probe_device(context),
         "warmup": 4 if context.smoke else 64,
         "initial_belief": initial_belief,
         "action_outcome_operator": outcome_operator,

@@ -85,7 +85,62 @@ binary correctness reward only constrains the argmax cell of the predictive
 distribution, so a reward-only optimum never requires a faithful belief.
 
 `delay` is not a usable difficulty knob here: at `delay=0` the graded token is
-already visible and echoing it scores 1.0000. Widening the two axes instead
-needs a noisier emission channel and a stickier chain; at `p_stay=0.93`,
-`alpha=0.65` the accuracy range grows from 0.016 to 0.053 and the two-token
-probe floor drops from 0.93 to 0.65.
+already visible and echoing it scores 1.0000.
+
+## Operating point
+
+`process_design` scores a candidate process as a measuring instrument before
+anything is trained, and `operating_point_validation` then trains matched PPO
+and IQN arms at two points with the recipe, architecture, budget, seeds, and
+probe all held fixed.
+
+| | shipped | proposed |
+|---|---:|---:|
+| `stay`, `alpha` | 0.90, 0.85 | 0.96, 0.55 |
+| Bayes accuracy | 0.6893 | 0.4561 |
+| echo-to-Bayes range | 0.0167 | 0.0568 |
+| probe floor, last token | 0.805 | 0.235 |
+| probe floor, last two tokens | 0.930 | 0.405 |
+| probe floor, 8-token window | 0.964 | 0.802 |
+| probe floor, argmax cell | 0.882 | 0.824 |
+| probe floor, untrained network | 0.883 | 0.832 |
+| usable band | **0.036** | **0.168** |
+
+The shipped point puts its binding floor at 0.964, so the whole interpretable
+range is 0.036 wide and the IQN-minus-PPO gap of 0.129 is 3.6 times wider than
+it. That is an off-scale reading, not a large effect. At the proposed point the
+three floors land within 0.03 of each other, which is what `stay` and `alpha`
+were chosen to do, and the same gap is 0.81 of the band.
+
+Three seeds, 2.5M steps, γ=0.99:
+
+| point | arm | belief R² | clears floor | share of accuracy range |
+|---|---|---:|:--:|---:|
+| shipped | ppo | 0.8461 ± 0.0065 | no | −0% ± 0% |
+| shipped | iqn | 0.9756 ± 0.0032 | yes | 47% ± 2% |
+| proposed | ppo | 0.8281 ± 0.0548 | no | 52% ± 22% |
+| proposed | iqn | 0.9646 ± 0.0056 | yes | 91% ± 1% |
+
+The largest change is that the task becomes learnable. At the shipped point
+plain PPO sat at the echo policy on all three seeds to within 0.2% of the
+range, so its low belief R² was measuring an agent that never did the task. At
+the proposed point it captures 52% of the range and IQN reaches 91%. Gradient
+signal-to-noise for the beyond-echo improvement, `headroom / sqrt(A(1-A))`,
+rises from 0.034 to 0.114.
+
+Two honest costs. PPO's seed spread grows sharply (R² ±0.0065 to ±0.0548, and
+52% ± 22% on accuracy) because it now sometimes learns and sometimes does not,
+which is the γ=0.99 variance problem rather than a property of the process, so
+this point needs more seeds or γ=0. And the mixed-state distribution stops
+being the sparse Cantor-like fractal that makes the α=0.85 picture recognisable
+and becomes a dense triangle; that is why the token-window floors collapse, but
+it does change the figure.
+
+The conclusion about reward-only PPO survives the change: it fails to clear the
+untrained-network floor at both points. That is worth more than it looks,
+because it means the original finding was not an artifact of a badly chosen
+process.
+
+Within-branch residual R² at depth two is the most discriminating readout and
+is what future cycles should lead with. At the proposed point it separates
+untrained 0.72, PPO 0.71 ± 0.09, and IQN 0.94 ± 0.01.

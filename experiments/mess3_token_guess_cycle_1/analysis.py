@@ -74,7 +74,7 @@ def fit_reduced_rank_affine(
     return weight, bias
 
 
-def _device(context: RunContext) -> str:
+def probe_device(context: RunContext) -> str:
     profile = context.hardware or PROFILES["cpu"]
     if profile.learner_device == "cuda" and torch.cuda.is_available():
         return "cuda"
@@ -175,7 +175,7 @@ def probe_checkpoint(
             "module": module,
             "env_factory": make_environment,
             "policy_mode": "greedy",
-            "device": _device(context),
+            "device": probe_device(context),
             "warmup": warmup,
             "initial_belief": initial_belief,
             "action_outcome_operator": outcome_operator,
