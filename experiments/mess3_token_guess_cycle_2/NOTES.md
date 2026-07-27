@@ -14,6 +14,9 @@ What is here now is the measurement work that has to precede the re-run:
   headline metrics are measured against. Cycle 1 reported bare numbers, and both
   metrics turn out to have task-imposed ranges narrow enough that the bare
   numbers mislead.
+- `operating_point.py` and `task_parameters/` — how the metric's range and
+  precision vary with the MESS3 transition and emission parameters, so the
+  process can be chosen to make the metric sensitive rather than degenerate.
 - `statistics.py` and `audit/` — seed-level aggregation with intervals, paired
   comparison, multiplicity correction, and power planning, plus a re-analysis of
   the results already committed.
@@ -39,10 +42,24 @@ pairing across shared seeds, none of the 34 published pairwise orderings survive
 a Holm correction. The reported `±` values were population standard deviations of
 three samples, roughly a third of the width of a confidence interval.
 
-Regenerate both with:
+## What the operating-point analysis says
+
+Cycle 1's parameters are close to the worst choice in the symmetric MESS3 family
+for metric sensitivity. Slowing the chain to a self-transition of 0.995 at
+`alpha=0.70` roughly triples the belief-probe range and multiplies the accuracy
+range by ten, at the cost of a probe interval that widens from ±0.0006 to
+±0.0046 because the rollout decorrelates far more slowly.
+
+It also shows that belief-probe R² declines with continued *supervised* training
+while cross-entropy stays at the Bayes floor. The decline cycle 1 saw over 20M
+PPO steps is therefore not a property of reinforcement learning, and optimiser
+and learning rate move the headline metric more than most of the arms do.
+
+Regenerate all three with:
 
 ```bash
 uv run rl-harness experiments.mess3_token_guess_cycle_2.references.experiment
+uv run rl-harness experiments.mess3_token_guess_cycle_2.task_parameters.experiment
 uv run rl-harness experiments.mess3_token_guess_cycle_2.audit.experiment
 ```
 

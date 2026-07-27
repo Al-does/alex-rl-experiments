@@ -23,6 +23,41 @@ iqn_value.iqn`, `mess3_reward_state_cycle_1.iqn`, and the library's
 The library's `IQNValueMixin` should be the only one. Anything else that is a
 reusable RL concept goes to `rl-harness`; Kelly wagering stays here.
 
+## 1b. Move the operating point, and pay for it in probe size
+
+Cycle 1 ran at `alpha=0.85` with a self-transition of 0.9, which is close to the
+worst choice in this family for metric sensitivity: a fast-mixing chain lets the
+belief be approximated by an exponentially weighted average of recent one-hot
+observations, which is exactly what an affine probe computes. Slowing the chain
+breaks that approximation.
+
+| point | α | p | R² floor | R² range | accuracy range | probe ±95% at 30k steps |
+|---|---:|---:|---:|---:|---:|---:|
+| cycle 1 | 0.85 | 0.900 | 0.9671 | 0.033 | 0.015 | 0.0006 |
+| candidate A | 0.70 | 0.990 | 0.8967 | 0.103 | 0.134 | 0.0037 |
+| candidate B | 0.60 | 0.995 | 0.8782 | 0.122 | 0.136 | 0.0061 |
+| candidate C | 0.70 | 0.995 | 0.9061 | 0.094 | 0.145 | 0.0046 |
+
+Candidate C is my recommendation: about three times the belief-probe range and
+ten times the accuracy range, while keeping the task clearly learnable at a
+Bayes-optimal accuracy of 0.68.
+
+The trade is precision. Slowing the chain raises the state correlation time from
+7 steps to 133, so a 30,000-step probe rollout collected the way
+`collect_probe_data` collects one — sixteen parallel trajectories — contains
+roughly 100 independent samples rather than 2,300. The honest block-bootstrap
+interval on belief R² widens from ±0.0006 to ±0.0046, and on greedy accuracy to
+about ±0.09.
+
+That is fixable and cheap, but only if it is noticed: **raise the probe to around
+500,000 test steps**. Rollouts cost seconds, so this is the least expensive fix in
+the plan and the easiest one to leave out.
+
+Two consequences follow. Episode length should rise from 512 so that the reset
+back to a uniform belief is a smaller fraction of each trajectory. And at
+γ = 0.99 the effective horizon of about 100 steps is now shorter than the state's
+persistence, which is worth stating when γ is discussed.
+
 ## 2. Report metrics against their range, always
 
 Never present a bare R². Every table gets the four reference rows from
@@ -47,18 +82,18 @@ report three things instead, and let the audience pick:
 - **Position in the usable range**, as `references.experiment` already computes,
   for the one summary slide.
 
-## 3. Fix the checkpoint protocol
+## 3. Treat training duration as an axis, not a hyperparameter
 
 Log-spaced checkpoints for every arm, following `rl-harness/docs/
-checkpoint_strategy.md`, with the probe run at each. Then either:
+checkpoint_strategy.md`, with the probe run at each.
 
-- pre-register "the final checkpoint" and additionally report the curve, so the
-  reader can see the metric is decaying; or
-- pre-register "the mean over the last k checkpoints", which removes the
-  ±0.0035 within-run fluctuation from the comparison for free.
-
-I prefer the second for the primary metric and the first in an appendix, but
-this is a real choice and it must be made before the runs, not after.
+Duration should not be tuned, because belief-probe R² is not monotonic in it and
+the decline is now known to be optimiser drift rather than anything about the
+objective. Picking the step budget after seeing the results would be choosing the
+ranking. So: pre-register the budget, pre-register whether the primary statistic
+is the final checkpoint or the mean over the last k, and report the whole curve
+either way. I prefer the mean over the last k, which removes the ±0.0035
+within-run fluctuation for free.
 
 The step budget must be identical across every arm. 2.5M is defensible; so is
 5M. What is not defensible is the current mixture of 828K, 2.5M, 3M and 20M.
@@ -89,23 +124,41 @@ Note the planning numbers are computed from effects observed at n=3 and are
 therefore optimistic — the observed gap in a small sample is biased upward. Ten
 is already padded for that; I would not go below eight.
 
-## 5. Sweep the coefficients, in two stages
+## 5. Sweep the optimiser and the coefficients, in two stages
 
-Every intervention currently has exactly one tested strength, so no "X does not
-help" claim is available. Proposed grid:
+Only four things are worth sweeping, and the first one matters more than the
+arms do. See `task_parameters/` for the evidence.
 
-| arm | swept coefficient | values |
+| priority | swept | values |
 |---|---|---|
-| all | learning rate | 1e-4, 3e-4, 1e-3 |
-| predictive aux | loss weight λ | 0.03, 0.1, 0.3, 1.0 |
-| max entropy | reward coefficient α | 0.01, 0.05, 0.2, 0.5 |
-| IQN | loss coefficient | 0.125, 0.5, 2.0 |
-| Kelly | direct-loss weight | 0.25, 1.0, 4.0 |
+| 1 | optimiser | AdamW, Muon |
+| 1 | learning rate | 1e-4, 3e-4, 1e-3 |
+| 2 | predictive aux weight λ | 0.03, 0.1, 0.3, 1.0 |
+| 2 | max-entropy reward coefficient α | 0.01, 0.05, 0.2, 0.5 |
+| 2 | IQN loss coefficient | 0.125, 0.5, 2.0 |
+| 2 | Kelly direct-loss weight | 0.25, 1.0, 4.0 |
 
-Sweeping the learning rate per arm is not optional. Arms differ in parameter
-count and in how much auxiliary gradient enters the shared trunk while the
-learning rate is pinned at 3e-4, so an arm can currently lose by being
-mis-tuned rather than by being a worse idea.
+**Optimiser and learning rate move the headline metric more than the arms do.**
+Training the study architecture on next-token prediction and probing it as it
+goes, belief-probe R² *falls* with continued training while cross-entropy sits at
+the Bayes floor — 0.9567 to 0.9318 over 6,000 AdamW steps at the cycle-1
+parameters, and 0.9487 to 0.9367 at the slower candidate. That is supervised
+training, so the decline over 20M PPO steps in cycle 1 is not an artefact of
+reinforcement learning. `mess3_supervised` independently found SGD at 0.9979
+against Muon at 0.9843 with identical next-token accuracy, a 0.014 swing from the
+optimiser alone that is larger than most of the between-arm gaps cycle 2 is
+trying to resolve. An arm comparison run at one fixed optimiser and learning rate
+is partly measuring optimiser drift.
+
+Sweeping the learning rate per arm is separately necessary because arms differ in
+parameter count and in how much auxiliary gradient enters the shared trunk, so an
+arm can lose by being mis-tuned rather than by being a worse idea.
+
+**Do not sweep:** context length (64 already suffices at every candidate operating
+point — the belief saturates by 32 observations), GAE λ (irrelevant at γ = 0, low
+leverage at γ = 0.99), batch size, minibatch size, epoch count, clip parameter,
+`d_model`, or `n_layers`. Fix these and record them. γ is a scientific factor,
+not a nuisance hyperparameter; keep it in the design rather than tuning it away.
 
 **Two stages, with disjoint seeds.** Stage 1 sweeps on seeds 0–2 and selects one
 configuration per arm. Stage 2 re-runs the selected configurations on ten
@@ -159,13 +212,13 @@ RTX 4090, median about 6.5. Adding eight checkpoint probes puts it near 12.
 
 | stage | runs | GPU-hours | cost at $0.35/hr |
 |---|---:|---:|---:|
-| stage 1 sweep (7 arms × 12 configs × 3 seeds) | 252 | 50 | ~$18 |
+| stage 1 sweep (7 arms × 6 optimiser/lr × 3 coefficient × 3 seeds) | 378 | 76 | ~$27 |
 | stage 2 confirmation (16 conditions × 10 seeds) | 160 | 32 | ~$11 |
-| references and audit | — | <1 | — |
-| **total** | **412** | **82** | **~$30** |
+| references, operating point, audit | — | <1 | — |
+| **total** | **538** | **108** | **~$38** |
 
-Roughly ten wall-clock hours across eight Vast boxes. The entire committed
-history of these four studies is 19.4 GPU-hours, so this is about four times all
+Roughly fourteen wall-clock hours across eight Vast boxes. The entire committed
+history of these four studies is 19.4 GPU-hours, so this is about five times all
 prior work on the question, for the price of lunch.
 
 `devops.vast.provision up -n N --run "..."` gives one command per box, so the
