@@ -89,58 +89,71 @@ already visible and echoing it scores 1.0000.
 
 ## Operating point
 
+Recommended: **`stay = 0.95`, `alpha = 0.75`** (`CANTOR` in
+`operating_points.py`).
+
 `process_design` scores a candidate process as a measuring instrument before
-anything is trained, and `operating_point_validation` then trains matched PPO
-and IQN arms at two points with the recipe, architecture, budget, seeds, and
-probe all held fixed.
+anything is trained. `operating_point_validation` and
+`fractal_preserving_validation` then train matched PPO and IQN arms at four
+points with recipe, architecture, budget, seeds, and probe all held fixed.
 
-| | shipped | proposed |
-|---|---:|---:|
-| `stay`, `alpha` | 0.90, 0.85 | 0.96, 0.55 |
-| Bayes accuracy | 0.6893 | 0.4561 |
-| echo-to-Bayes range | 0.0167 | 0.0568 |
-| probe floor, last token | 0.805 | 0.235 |
-| probe floor, last two tokens | 0.930 | 0.405 |
-| probe floor, 8-token window | 0.964 | 0.802 |
-| probe floor, argmax cell | 0.882 | 0.824 |
-| probe floor, untrained network | 0.883 | 0.832 |
-| usable band | **0.036** | **0.168** |
+### Visible gaps and the global-R² floor are the same number
 
-The shipped point puts its binding floor at 0.964, so the whole interpretable
-range is 0.036 wide and the IQN-minus-PPO gap of 0.129 is 3.6 times wider than
-it. That is an off-scale reading, not a large effect. At the proposed point the
-three floors land within 0.03 of each other, which is what `stay` and `alpha`
-were chosen to do, and the same gap is 0.81 of the band.
+The mixed-state set is the attractor of an iterated function system with one
+contractive map per token. Disjoint first-level images need a contraction ratio
+below `1/sqrt(3)`, which puts at least two thirds of belief variance *between*
+the branches — and between-branch variance is exactly what a probe on the last
+token reads. So a sparse Cantor picture forces a last-token floor above 0.667:
 
-Three seeds, 2.5M steps, γ=0.99:
+| `alpha` (at `stay=0.95`) | 0.85 | 0.80 | 0.75 | 0.70 | 0.55 |
+|---|---:|---:|---:|---:|---:|
+| box dimension | 0.85 | 1.01 | 1.22 | 1.38 | 1.82 |
+| last-token floor | 0.730 | 0.633 | 0.543 | 0.461 | 0.264 |
 
-| point | arm | belief R² | clears floor | share of accuracy range |
-|---|---|---:|:--:|---:|
-| shipped | ppo | 0.8461 ± 0.0065 | no | −0% ± 0% |
-| shipped | iqn | 0.9756 ± 0.0032 | yes | 47% ± 2% |
-| proposed | ppo | 0.8281 ± 0.0548 | no | 52% ± 22% |
-| proposed | iqn | 0.9646 ± 0.0056 | yes | 91% ± 1% |
+`stay` carries no such cost. At fixed `alpha` it moves the accuracy axis while
+leaving the geometry alone, which is most of the free lunch here.
 
-The largest change is that the task becomes learnable. At the shipped point
-plain PPO sat at the echo policy on all three seeds to within 0.2% of the
-range, so its low belief R² was measuring an agent that never did the task. At
-the proposed point it captures 52% of the range and IQN reaches 91%. Gradient
-signal-to-noise for the beyond-echo improvement, `headroom / sqrt(A(1-A))`,
-rises from 0.034 to 0.114.
+### Four points, three seeds, 2.5M steps, γ=0.99
 
-Two honest costs. PPO's seed spread grows sharply (R² ±0.0065 to ±0.0548, and
-52% ± 22% on accuracy) because it now sometimes learns and sometimes does not,
-which is the γ=0.99 variance problem rather than a property of the process, so
-this point needs more seeds or γ=0. And the mixed-state distribution stops
-being the sparse Cantor-like fractal that makes the α=0.85 picture recognisable
-and becomes a dense triangle; that is why the token-window floors collapse, but
-it does change the figure.
+| point | `stay`/`alpha` | floor | band | arm | belief R² | within-branch R² | share of accuracy range |
+|---|---|---:|---:|---|---:|---:|---:|
+| shipped | 0.90 / 0.85 | 0.964 | 0.036 | untrained | 0.883 | −0.717 | — |
+| | | | | ppo | 0.8461 ± 0.0065 | −1.252 ± 0.091 | −0% ± 0% |
+| | | | | iqn | 0.9756 ± 0.0032 | +0.642 ± 0.048 | 47% ± 2% |
+| cantor_sharp | 0.95 / 0.85 | 0.944 | 0.056 | untrained | 0.866 | −0.089 | — |
+| | | | | ppo | 0.9138 ± 0.0356 | +0.300 ± 0.290 | 41% ± 31% |
+| | | | | iqn | 0.9793 ± 0.0015 | +0.832 ± 0.011 | 90% ± 1% |
+| **cantor** | **0.95 / 0.75** | 0.915 | 0.085 | untrained | 0.823 | +0.300 | — |
+| | | | | ppo | 0.8990 ± 0.0188 | +0.601 ± 0.076 | 63% ± 13% |
+| | | | | iqn | 0.9737 ± 0.0012 | +0.896 ± 0.005 | 92% ± 1% |
+| proposed | 0.96 / 0.55 | 0.832 | 0.168 | untrained | 0.833 | +0.715 | — |
+| | | | | ppo | 0.8281 ± 0.0548 | +0.708 ± 0.093 | 52% ± 22% |
+| | | | | iqn | 0.9646 ± 0.0056 | +0.940 ± 0.010 | 91% ± 1% |
 
-The conclusion about reward-only PPO survives the change: it fails to clear the
-untrained-network floor at both points. That is worth more than it looks,
-because it means the original finding was not an artifact of a badly chosen
-process.
+`cantor` is recommended because it is the only point where the three
+conditions order cleanly with non-overlapping error bars on the metric that has
+a floor of zero by construction: untrained 0.300 < PPO 0.601 ± 0.076 < IQN
+0.896 ± 0.005. It also has the lowest IQN seed spread of any point, keeps
+visible level-one gaps, and takes 2.4× the global-R² band and 4.1× the accuracy
+resolution of the shipped point.
 
-Within-branch residual R² at depth two is the most discriminating readout and
-is what future cycles should lead with. At the proposed point it separates
-untrained 0.72, PPO 0.71 ± 0.09, and IQN 0.94 ± 0.01.
+The largest single change at any of these points is that the task becomes
+learnable. At the shipped point plain PPO sat at the echo policy on all three
+seeds to within 0.2% of the range, so its low belief R² was measuring an agent
+that never attempted the task. Gradient signal-to-noise for the beyond-echo
+improvement, `headroom / sqrt(A(1-A))`, is 0.034 shipped and 0.121 at `cantor`.
+
+### Report within-branch residual R², not global R²
+
+Nearly all of a Cantor-structured belief's variance is which cluster you are
+in, which the last token already gives away. `conditional_residual_r2` at depth
+two discards exactly that term, so any depth-two token model scores zero there
+by construction at *every* operating point. That is why the sparser points
+still discriminate well on it while their global-R² bands look hopeless.
+
+`proposed` remains the widest global-R² band, but its mixed-state set is a
+dense triangle rather than a fractal, PPO's seed spread there is the worst of
+the four, and on the within-branch metric it is the most compressed.
+
+Reward-only PPO fails to clear the global-R² floor at all four points, so that
+finding is not an artifact of a badly chosen process.

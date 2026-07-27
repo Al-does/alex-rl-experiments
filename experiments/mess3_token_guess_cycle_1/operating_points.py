@@ -112,7 +112,9 @@ CANTOR = OperatingPoint(
 )
 POINTS = (SHIPPED, PROPOSED)
 FRACTAL_POINTS = (CANTOR_SHARP, CANTOR)
-ALL_POINTS = POINTS + FRACTAL_POINTS
+# Ordered by how dense the mixed-state set becomes, which is the axis every
+# comparison in this study trades along.
+ALL_POINTS = (SHIPPED, CANTOR_SHARP, CANTOR, PROPOSED)
 
 
 def point_by_name(name: str) -> OperatingPoint:
