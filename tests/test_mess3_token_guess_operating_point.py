@@ -12,6 +12,9 @@ from experiments.mess3_token_guess_cycle_1.operating_point_validation.experiment
     build_config,
 )
 from experiments.mess3_token_guess_cycle_1.operating_points import (
+    ALL_POINTS,
+    CANTOR,
+    CANTOR_SHARP,
     POINTS,
     PROPOSED,
     SHIPPED,
@@ -59,7 +62,35 @@ def test_a_full_rank_channel_lets_the_predictive_distribution_span_the_belief():
     assert design["probe_r2_sufficient"] == pytest.approx(1.0, abs=1e-6)
 
 
-def test_the_proposed_point_widens_both_axes_against_the_shipped_one():
+def test_visible_gaps_and_a_low_last_token_floor_are_the_same_quantity():
+    """The mixed-state set is an IFS attractor with one map per token.
+
+    Disjoint first-level images need a contraction ratio below 1/sqrt(3), so
+    between-branch variance is at least 2/3 -- and between-branch variance is
+    exactly what a probe on the last token reads. Box dimension therefore has
+    to fall as the last-token floor rises.
+    """
+    ordered = [CANTOR_SHARP, CANTOR, PROPOSED]
+    floors = [_design(point)["probe_r2_window1"] for point in ordered]
+    assert floors == sorted(floors, reverse=True)
+    assert floors[0] > 2.0 / 3.0 > floors[-1]
+
+
+def test_stickiness_buys_accuracy_without_closing_the_gaps():
+    """stay moves the accuracy axis; alpha is what closes the fractal."""
+    shipped = _design(SHIPPED)
+    sharp = _design(CANTOR_SHARP)
+
+    assert SHIPPED.alpha == CANTOR_SHARP.alpha
+    assert CANTOR_SHARP.stay > SHIPPED.stay
+    assert (
+        sharp["accuracy_headroom_sigma"]
+        > 2.5 * shipped["accuracy_headroom_sigma"]
+    )
+    assert sharp["probe_r2_window1"] > 2.0 / 3.0
+    assert sharp["probe_band"] > shipped["probe_band"]
+
+
     shipped = _design(SHIPPED)
     proposed = _design(PROPOSED)
 
@@ -71,14 +102,14 @@ def test_the_proposed_point_widens_both_axes_against_the_shipped_one():
 
 def test_the_chain_outlasts_the_channel_at_every_named_point():
     """Below stay > alpha the Bayes guess is always the last token."""
-    for point in POINTS:
+    for point in ALL_POINTS:
         assert point.stay > point.alpha
         design = _design(point)
         assert design["accuracy_headroom"] > 0.0
 
 
 def test_named_points_build_environments_the_harness_accepts():
-    for point in POINTS:
+    for point in ALL_POINTS:
         assert point_by_name(point.name) is point
         environment = HMMEnv(point.env_config(belief=True, tokens=True))
         try:
@@ -109,7 +140,7 @@ def test_validation_cells_differ_only_in_the_environment(tmp_path):
     )
     configs = {
         (point.name, arm.name): build_config(context, point, arm.name)
-        for point in POINTS
+        for point in ALL_POINTS
         for arm in ARMS
     }
     for config in configs.values():

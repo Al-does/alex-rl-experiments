@@ -28,6 +28,26 @@ reward what the one-step predictive distribution distinguishes, and that
 distribution determines the belief only when the emission matrix has full rank.
 Shrinking the alphabet to two lowers every window floor but caps the probe at
 0.60, which is a worse instrument despite the lower floors.
+
+Widening the global-R2 band this way costs the Cantor picture, and that cost is
+not incidental. The mixed-state set is the attractor of one contractive map per
+token, so disjoint first-level images need a contraction ratio below
+``1/sqrt(3)``. Between-branch variance is then at least ``2/3``, and
+between-branch variance is exactly what a probe on the last token reads. Visible
+gaps and a low last-token floor are the same quantity with opposite signs: box
+dimension runs 0.93, 1.11, 1.22, 1.38, 1.68 as ``alpha`` falls 0.85, 0.80, 0.75,
+0.70, 0.55, while the last-token floor runs 0.80, 0.72, 0.54, 0.46, 0.26.
+
+``stay`` carries no such cost. Raising it from 0.90 to 0.95 at fixed ``alpha``
+leaves the box dimension at 0.93 to 0.85 while accuracy resolution goes from 6
+to 21 sigma, so ``CANTOR_SHARP`` and ``CANTOR`` keep the picture and take the
+accuracy axis anyway.
+
+The deeper answer is that global R2 is the wrong readout for a Cantor-structured
+belief: nearly all of its variance is which cluster you are in, which the last
+token already gives away. Within-branch residual R2 discards exactly that term,
+so any depth-two token model scores zero by construction at every operating
+point.
 """
 
 from __future__ import annotations
@@ -76,13 +96,27 @@ PROPOSED = OperatingPoint(
     name="proposed",
     stay=0.96,
     alpha=0.55,
-    note="where the window, argmax-cell, and untrained-network floors cross",
+    note="floors cross here, but the mixed-state set is dense, not Cantor",
+)
+CANTOR_SHARP = OperatingPoint(
+    name="cantor_sharp",
+    stay=0.95,
+    alpha=0.85,
+    note="alpha unchanged, so the gaps are as crisp as the shipped point",
+)
+CANTOR = OperatingPoint(
+    name="cantor",
+    stay=0.95,
+    alpha=0.75,
+    note="widest global-R2 band that still shows visible level-one gaps",
 )
 POINTS = (SHIPPED, PROPOSED)
+FRACTAL_POINTS = (CANTOR_SHARP, CANTOR)
+ALL_POINTS = POINTS + FRACTAL_POINTS
 
 
 def point_by_name(name: str) -> OperatingPoint:
     try:
-        return next(point for point in POINTS if point.name == name)
+        return next(point for point in ALL_POINTS if point.name == name)
     except StopIteration as error:
         raise ValueError(f"unknown operating point {name!r}") from error
