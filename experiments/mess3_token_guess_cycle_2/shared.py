@@ -70,6 +70,7 @@ SMOKE_BATCH_SIZE = 2_048
 MINIBATCH_SIZE = 4_096
 SMOKE_MINIBATCH_SIZE = 256
 CHECKPOINT_FREQUENCY = 10
+VALIDATION_ENV_STEPS = 131_072
 PREDICTIVE_LOSS_WEIGHT = 0.1
 DIRECT_KELLY_LOSS_WEIGHT = 1.0
 IQN_LOSS_COEFFICIENT = 0.5
@@ -335,9 +336,17 @@ def _probe_at(
         replace(context, results_dir=probe_dir, resume_from=checkpoint),
         checkpoint=checkpoint,
         condition=condition,
+        agent_steps=agent_steps,
     )
     point = {
         "agent_steps": agent_steps,
+        "mse": float(result.metrics["mse"]),
+        "target_variance": float(result.metrics["target_variance"]),
+        "global_mse_ratio": float(result.metrics["global_mse_ratio"]),
+        "fine_mse_ratio": float(result.metrics["fine_mse_ratio"]),
+        "branch_baseline_mse": float(
+            result.metrics["branch_baseline_mse"]
+        ),
         "r_squared": float(result.metrics["r_squared"]),
         "token_accuracy_greedy": float(
             result.metrics["token_accuracy_greedy"]
@@ -351,6 +360,8 @@ def _probe_at(
 def run_condition(
     context: RunContext,
     condition_name: str,
+    *,
+    target_steps_override: int | None = None,
 ) -> dict[str, Any]:
     """Train one condition and probe init plus every retained checkpoint."""
 
@@ -359,8 +370,18 @@ def run_condition(
     condition = condition_by_name(condition_name)
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
-    target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
-    checkpoint_frequency = 1 if context.smoke else CHECKPOINT_FREQUENCY
+    target_steps = (
+        target_steps_override
+        if target_steps_override is not None
+        else (SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS)
+    )
+    if target_steps <= 0:
+        raise ValueError("target steps must be positive")
+    checkpoint_frequency = (
+        1
+        if context.smoke or target_steps_override is not None
+        else CHECKPOINT_FREQUENCY
+    )
     recipe = {
         "condition": condition.name,
         "algorithm": condition.algorithm,
@@ -370,6 +391,7 @@ def run_condition(
         "environment": ENV_CONFIG,
         "model": _model_config(condition),
         "total_env_steps": target_steps,
+        "validation_budget": target_steps_override is not None,
         "checkpoint_frequency_iterations": checkpoint_frequency,
         "predictive_loss_weight": (
             PREDICTIVE_LOSS_WEIGHT
@@ -475,6 +497,24 @@ def run_condition(
         "bayesian_optimal_accuracy_context_10": BAYESIAN_OPTIMAL_ACCURACY,
         "initial_probe": initial_probe.metrics,
         "final_probe": final_probe.metrics,
+        "training_change": {
+            "mse_delta": (
+                float(final_probe.metrics["mse"])
+                - float(initial_probe.metrics["mse"])
+            ),
+            "global_mse_ratio_delta": (
+                float(final_probe.metrics["global_mse_ratio"])
+                - float(initial_probe.metrics["global_mse_ratio"])
+            ),
+            "task_success_delta": (
+                float(final_probe.metrics["token_accuracy_greedy"])
+                - float(initial_probe.metrics["token_accuracy_greedy"])
+            ),
+            "task_success_improved": (
+                float(final_probe.metrics["token_accuracy_greedy"])
+                > float(initial_probe.metrics["token_accuracy_greedy"])
+            ),
+        },
         "checkpoint_probes": trajectory,
         "figures": {
             "init": str(context.results_dir / "belief_simplex_init.png"),

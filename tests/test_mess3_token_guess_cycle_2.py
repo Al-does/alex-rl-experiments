@@ -13,8 +13,11 @@ from ray.rllib.core.columns import Columns
 from envs.hmm import HMMEnv
 from experiments.mess3_token_guess_cycle_2.analysis import (
     BAYESIAN_OPTIMAL_ACCURACY,
+    _episode_clusters,
+    _permutation_null_metrics,
     bayesian_optimal_accuracy,
 )
+from experiments.mess3_belief_geometry_2026_07.probe import ProbeData
 from experiments.mess3_token_guess_cycle_2.learning import (
     KELLY_LOSS_COEFFICIENT_KEY,
     A2CTorchLearner,
@@ -35,6 +38,7 @@ from experiments.mess3_token_guess_cycle_2.shared import (
     KellyModel,
     PredictiveLearner,
     PredictiveModel,
+    VALIDATION_ENV_STEPS,
     build_config,
     checkpoint_records,
     next_emission_targets,
@@ -162,6 +166,70 @@ def test_bayesian_optimum_is_exact_finite_context_ceiling():
     )
 
 
+def _probe_data(
+    activations: np.ndarray,
+    beliefs: np.ndarray,
+    *,
+    env_indices: np.ndarray | None = None,
+    episode_steps: np.ndarray | None = None,
+) -> ProbeData:
+    count = len(beliefs)
+    zeros = np.zeros(count, dtype=np.int64)
+    return ProbeData(
+        activations=activations,
+        beliefs=beliefs,
+        diagnostic_beliefs=beliefs,
+        tokens=zeros,
+        previous_tokens=zeros,
+        env_indices=zeros if env_indices is None else env_indices,
+        episode_steps=(
+            np.arange(count, dtype=np.int64)
+            if episode_steps is None
+            else episode_steps
+        ),
+        states=zeros,
+        actions=zeros.astype(np.float64),
+        rewards=zeros.astype(np.float64),
+    )
+
+
+def test_episode_clusters_preserve_environment_episode_dependence():
+    data = _probe_data(
+        np.zeros((8, 2)),
+        np.zeros((8, 3)),
+        env_indices=np.array([0, 1, 0, 1, 0, 1, 0, 1]),
+        episode_steps=np.array([4, 4, 5, 5, 0, 6, 1, 0]),
+    )
+    clusters = _episode_clusters(data)
+    assert clusters[0] == clusters[2]
+    assert clusters[4] == clusters[6]
+    assert clusters[0] != clusters[4]
+    assert clusters[1] == clusters[3] == clusters[5]
+    assert clusters[1] != clusters[7]
+
+
+def test_permutation_null_reports_readme_metrics():
+    rng = np.random.default_rng(7)
+    train_x = rng.normal(size=(120, 4))
+    test_x = rng.normal(size=(80, 4))
+    weight = rng.normal(size=(4, 3))
+    train_y = train_x @ weight
+    test_y = test_x @ weight
+    metrics = _permutation_null_metrics(
+        _probe_data(train_x, train_y),
+        _probe_data(test_x, test_y),
+        n_permutations=20,
+        sample_seed=11,
+        permutation_seed=12,
+    )
+    assert metrics["permutation_real_mse"] < 1e-10
+    assert metrics["permutation_null_mse_p05"] > 0.1
+    assert metrics["permutation_null_n"] == 20
+    assert metrics["permutation_null_p_value_lower_tail"] == pytest.approx(
+        1 / 21
+    )
+
+
 def test_a2c_objective_matches_masked_manual_calculation_and_backpropagates():
     logp = torch.tensor([[0.2, -0.3, 4.0]], requires_grad=True)
     advantages = torch.tensor([[2.0, -1.0, 99.0]])
@@ -241,6 +309,7 @@ def test_five_conditions_build_fresh_gamma_zero_configs(tmp_path):
     assert configs["iqn"].learner_class is IQNPPOTorchLearner
     assert configs["iqn"].rl_module_spec.module_class is IQNModel
     assert configs["iqn"].rl_module_spec.model_config["iqn_value"] == IQN_CONFIG
+    assert VALIDATION_ENV_STEPS == 131_072
 
 
 def test_checkpoint_records_include_every_unique_retained_checkpoint():

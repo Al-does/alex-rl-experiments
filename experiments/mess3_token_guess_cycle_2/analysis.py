@@ -16,23 +16,44 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from analysis.checkpoints import load_algorithm
 from analysis.plots import simplex_scatter
-from analysis.probes import r2_score
+from analysis.probes import (
+    cluster_bootstrap_statistics,
+    conditional_mse_metrics,
+    fit_affine_probe,
+    global_mse_metrics,
+    held_out_permutation_null,
+    mean_squared_error,
+    percentile_interval,
+    probe_predict,
+    r2_score,
+)
 from envs.mess3.model import passive_model
 from experiments.mess3_belief_geometry_2026_07.probe import (
+    ProbeData,
+    branch_keys,
     collect_probe_data,
     make_transducer_target,
 )
 from harness.context import RunContext
 from harness.hardware import PROFILES
-from harness.seeding import named_seed_sequences
+from harness.seeding import named_seed_sequences, seed_sequence_to_int
 
 
 PROBE_RANK = 2
+PROBE_RIDGE = 1e-6
+MIN_GROUP_SIZE = 50
+N_ENVS = 16
+FULL_RESAMPLES = 1_000
+SMOKE_RESAMPLES = 100
+PERMUTATION_SAMPLE_CAP = 4_096
 CONTEXT_LENGTH = 10
 _STREAM_KEYS = {
     "probe_train": (200,),
     "probe_test": (201,),
     "plot_sample": (202,),
+    "bootstrap": (203,),
+    "permutation": (204,),
+    "permutation_sample": (205,),
 }
 
 
@@ -112,6 +133,86 @@ def _simplex_display(points: np.ndarray) -> np.ndarray:
     return clipped / np.maximum(clipped.sum(axis=1, keepdims=True), 1e-12)
 
 
+def _episode_clusters(data: ProbeData) -> np.ndarray:
+    """Build cluster IDs without treating correlated timesteps as independent."""
+
+    clusters = np.empty(len(data.episode_steps), dtype=np.int64)
+    next_cluster = 0
+    for env_index in np.unique(data.env_indices):
+        members = np.flatnonzero(data.env_indices == env_index)
+        current_cluster = next_cluster
+        first = True
+        for index in members:
+            if not first and data.episode_steps[index] == 0:
+                current_cluster += 1
+            clusters[index] = current_cluster
+            first = False
+        next_cluster = current_cluster + 1
+    return clusters
+
+
+def _permutation_null_metrics(
+    train: ProbeData,
+    test: ProbeData,
+    *,
+    n_permutations: int,
+    sample_seed: int,
+    permutation_seed: int,
+) -> dict[str, float | int]:
+    """Evaluate a held-out shuffled-label null on fixed random subsets."""
+
+    sample_rng = np.random.default_rng(sample_seed)
+    n_train = min(PERMUTATION_SAMPLE_CAP, len(train.beliefs))
+    n_test = min(PERMUTATION_SAMPLE_CAP, len(test.beliefs))
+    train_indices = sample_rng.choice(
+        len(train.beliefs),
+        n_train,
+        replace=False,
+    )
+    test_indices = sample_rng.choice(
+        len(test.beliefs),
+        n_test,
+        replace=False,
+    )
+    train_features = train.activations[train_indices]
+    train_targets = train.beliefs[train_indices]
+    test_features = test.activations[test_indices]
+    test_targets = test.beliefs[test_indices]
+
+    def fit_predict(permuted_targets: np.ndarray) -> np.ndarray:
+        weight, bias = fit_affine_probe(
+            train_features,
+            permuted_targets,
+            ridge=PROBE_RIDGE,
+        )
+        return probe_predict(weight, bias, test_features)
+
+    null = held_out_permutation_null(
+        train_targets,
+        fit_predict,
+        test_targets,
+        n_permutations=n_permutations,
+        seed=permutation_seed,
+    )
+    real_subset_mse = mean_squared_error(
+        fit_predict(train_targets),
+        test_targets,
+    )
+    quantiles = np.quantile(null, [0.05, 0.5, 0.95])
+    return {
+        "permutation_real_mse": real_subset_mse,
+        "permutation_null_mse_p05": float(quantiles[0]),
+        "permutation_null_mse_p50": float(quantiles[1]),
+        "permutation_null_mse_p95": float(quantiles[2]),
+        "permutation_null_p_value_lower_tail": float(
+            (1 + np.count_nonzero(null <= real_subset_mse)) / (len(null) + 1)
+        ),
+        "permutation_null_n": int(n_permutations),
+        "permutation_null_n_fit": int(n_train),
+        "permutation_null_n_test": int(n_test),
+    }
+
+
 def _draw_probe_pair(
     axes: np.ndarray,
     result: ProbeResult,
@@ -123,8 +224,8 @@ def _draw_probe_pair(
         axes[0],
         result.target_display,
         colors=colors,
-        s=0.6,
-        alpha=0.35,
+        s=0.25,
+        alpha=0.18,
         title=f"{title}: exact Bayesian target",
         labels=("s0", "s1", "s2"),
     )
@@ -132,11 +233,12 @@ def _draw_probe_pair(
         axes[1],
         result.decoded_display,
         colors=colors,
-        s=0.6,
-        alpha=0.35,
+        s=0.25,
+        alpha=0.18,
         title=(
-            f"{title}: rank-2 decoded residual stream\n"
-            f"held-out R²={result.metrics['r_squared']:.4f}"
+            f"{title}: affine-decoded residual stream\n"
+            f"MSE={result.metrics['mse']:.5f}, "
+            f"global ratio={result.metrics['global_mse_ratio']:.3f}"
         ),
         labels=("s0", "s1", "s2"),
     )
@@ -178,14 +280,14 @@ def plot_probe_trajectory(
     condition: str,
     path: Path,
 ) -> None:
-    """Plot probe R² and held-out task success for every checkpoint."""
+    """Plot normalized probe MSE and task success for every checkpoint."""
 
     steps = np.asarray(
         [point["agent_steps"] for point in checkpoints],
         dtype=np.float64,
     )
-    r_squared = np.asarray(
-        [point["r_squared"] for point in checkpoints],
+    mse_ratio = np.asarray(
+        [point["global_mse_ratio"] for point in checkpoints],
         dtype=np.float64,
     )
     success = 100.0 * np.asarray(
@@ -196,10 +298,10 @@ def plot_probe_trajectory(
     right = left.twinx()
     left.plot(
         steps,
-        r_squared,
+        mse_ratio,
         marker="o",
         color="#355c9a",
-        label="Held-out belief probe R²",
+        label="Held-out global MSE / target variance",
     )
     right.plot(
         steps,
@@ -219,7 +321,7 @@ def plot_probe_trajectory(
         ),
     )
     left.set_xlabel("Environment steps")
-    left.set_ylabel("Held-out probe R²", color="#355c9a")
+    left.set_ylabel("Normalized probe MSE (lower is better)", color="#355c9a")
     right.set_ylabel("Task success (%)", color="#c45135")
     left.set_title(condition.replace("_", " "))
     handles_left, labels_left = left.get_legend_handles_labels()
@@ -241,18 +343,20 @@ def probe_checkpoint(
     *,
     checkpoint: Path,
     condition: str,
+    agent_steps: int | None = None,
     train_steps: int | None = None,
     test_steps: int | None = None,
 ) -> ProbeResult:
-    """Fit and evaluate a rank-2 belief probe on disjoint rollout seeds."""
+    """Fit and evaluate the README-standard probe on disjoint rollouts."""
 
     if context.seed is None:
         raise ValueError("belief probing requires a resolved seed")
     context.results_dir.mkdir(parents=True, exist_ok=True)
     streams = named_seed_sequences(context.seed, _STREAM_KEYS)
-    train_steps = train_steps or (512 if context.smoke else 60_000)
-    test_steps = test_steps or (256 if context.smoke else 30_000)
+    train_steps = train_steps or (4_096 if context.smoke else 60_000)
+    test_steps = test_steps or (4_096 if context.smoke else 30_000)
     warmup = 4 if context.smoke else 64
+    n_resamples = SMOKE_RESAMPLES if context.smoke else FULL_RESAMPLES
     with load_algorithm(checkpoint) as algorithm:
         module = algorithm.get_module()
         if module is None:
@@ -282,6 +386,7 @@ def probe_checkpoint(
             "policy_mode": "greedy",
             "device": _device(context),
             "warmup": warmup,
+            "n_envs": N_ENVS,
             "initial_belief": initial_belief,
             "action_outcome_operator": outcome_operator,
             "initial_outcome_operator": initial_operator,
@@ -306,27 +411,80 @@ def probe_checkpoint(
             "Bayesian target is misaligned with environment diagnostics: "
             f"{target_error:.3e}"
         )
-    weight, bias = fit_reduced_rank_affine(
+    weight, bias = fit_affine_probe(
         train.activations,
         train.beliefs,
-        rank=PROBE_RANK,
+        ridge=PROBE_RIDGE,
     )
-    predicted = test.activations @ weight + bias
+    predicted = probe_predict(weight, bias, test.activations)
+    global_metrics = global_mse_metrics(predicted, test.beliefs)
+    fine_metrics = conditional_mse_metrics(
+        predicted,
+        test.beliefs,
+        branch_keys(test, depth=2),
+        min_group_size=MIN_GROUP_SIZE,
+    )
+    clusters = _episode_clusters(test)
+    bootstrap = cluster_bootstrap_statistics(
+        clusters,
+        lambda indices: mean_squared_error(
+            predicted[indices],
+            test.beliefs[indices],
+        ),
+        n_resamples=n_resamples,
+        seed=seed_sequence_to_int(streams["bootstrap"], bits=32),
+    )
+    mse_ci_low, mse_ci_high = percentile_interval(bootstrap)
+    permutation_metrics = _permutation_null_metrics(
+        train,
+        test,
+        n_permutations=n_resamples,
+        sample_seed=seed_sequence_to_int(
+            streams["permutation_sample"],
+            bits=32,
+        ),
+        permutation_seed=seed_sequence_to_int(
+            streams["permutation"],
+            bits=32,
+        ),
+    )
     r_squared = r2_score(predicted, test.beliefs)
     metrics = {
         "condition": condition,
+        "checkpoint_step": agent_steps,
+        "is_untrained": agent_steps == 0,
         "target": "exact_predictive_bayesian_belief",
-        "probe": "held_out_reduced_rank_affine_least_squares",
-        "probe_rank": PROBE_RANK,
+        "probe": "held_out_affine_least_squares",
+        "probe_ridge": PROBE_RIDGE,
+        "representation": "post_final_layer_norm",
+        "sampling_distribution": "process_weighted_rollout",
+        "policy_mode": "greedy",
+        "warmup": warmup,
+        "n_envs": N_ENVS,
+        "train_steps": train_steps,
+        "test_steps": test_steps,
+        "branch_depth": 2,
+        "min_group_size": MIN_GROUP_SIZE,
+        **global_metrics,
+        **fine_metrics,
         "r_squared": r_squared,
-        "mse": float(np.square(predicted - test.beliefs).mean()),
+        "mse_ci_95_low": mse_ci_low,
+        "mse_ci_95_high": mse_ci_high,
+        "bootstrap_n": n_resamples,
+        "bootstrap_cluster": "environment_episode",
+        **permutation_metrics,
         "token_accuracy_greedy": float(test.rewards.mean()),
         "bayesian_optimal_accuracy_context_10": BAYESIAN_OPTIMAL_ACCURACY,
         "n_fit": len(train.beliefs),
         "n_test": len(test.beliefs),
         "target_consistency_max_abs": target_error,
+        "interpretation": (
+            "Affine decodability does not establish causal policy use."
+        ),
     }
-    sample_size = min(20_000, len(test.beliefs))
+    if agent_steps == 0:
+        metrics["untrained_mse"] = metrics["mse"]
+    sample_size = min(50_000, len(test.beliefs))
     sample_rng = np.random.default_rng(streams["plot_sample"])
     indices = sample_rng.choice(len(test.beliefs), sample_size, replace=False)
     result = ProbeResult(
