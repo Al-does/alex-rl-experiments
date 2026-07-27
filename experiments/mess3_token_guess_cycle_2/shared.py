@@ -204,9 +204,9 @@ def _apply_runtime_resources(config: PPOConfig, context: RunContext) -> PPOConfi
         num_envs_per_env_runner=(
             1 if context.smoke else profile.num_envs_per_env_runner
         ),
-        num_gpus_per_env_runner=(
-            0 if context.smoke else profile.num_gpus_per_env_runner
-        ),
+        # Keep rollout inference on CPU so one-GPU workers reserve the device
+        # for the learner's forward/backward hot path.
+        num_gpus_per_env_runner=0,
         sample_timeout_s=600.0,
     ).learners(
         num_gpus_per_learner=1 if profile.learner_device == "cuda" else 0,

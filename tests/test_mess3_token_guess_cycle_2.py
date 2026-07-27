@@ -312,6 +312,20 @@ def test_five_conditions_build_fresh_gamma_zero_configs(tmp_path):
     assert VALIDATION_ENV_STEPS == 131_072
 
 
+def test_single_gpu_profile_reserves_cuda_for_learner(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cuda4090_gpuinfer"],
+    )
+    config = build_config(context, "ppo")
+    assert config.num_gpus_per_learner == 1
+    assert config.num_gpus_per_env_runner == 0
+
+
 def test_checkpoint_records_include_every_unique_retained_checkpoint():
     result = SimpleNamespace(
         checkpoint=SimpleNamespace(path="/tmp/checkpoint_000002"),
