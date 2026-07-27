@@ -1,0 +1,64 @@
+{
+  "algorithm": "PPO",
+  "arms": [
+    "ppo",
+    "iqn"
+  ],
+  "gamma": 0.99,
+  "model": {
+    "context_len": 64,
+    "d_model": 96,
+    "max_seq_len": 32,
+    "n_heads": 4,
+    "n_layers": 3
+  },
+  "operating_points": [
+    {
+      "alpha": 0.85,
+      "environment": {
+        "delay": 1,
+        "episode_length": 512,
+        "model": {
+          "factory": "envs.mess3.model:symmetric_model",
+          "kwargs": {
+            "alpha": 0.85,
+            "stay": 0.9
+          }
+        },
+        "observation": {
+          "action": null
+        },
+        "randomize_first_episode_length": true,
+        "task": {
+          "class": "experiments.mess3_token_guess_cycle_1.task:NextTokenGuessTask"
+        }
+      },
+      "name": "shipped",
+      "stay": 0.9
+    },
+    {
+      "alpha": 0.55,
+      "environment": {
+        "delay": 1,
+        "episode_length": 512,
+        "model": {
+          "factory": "envs.mess3.model:symmetric_model",
+          "kwargs": {
+            "alpha": 0.55,
+            "stay": 0.96
+          }
+        },
+        "observation": {
+          "action": null
+        },
+        "randomize_first_episode_length": true,
+        "task": {
+          "class": "experiments.mess3_token_guess_cycle_1.task:NextTokenGuessTask"
+        }
+      },
+      "name": "proposed",
+      "stay": 0.96
+    }
+  ],
+  "total_env_steps": 2500000
+}

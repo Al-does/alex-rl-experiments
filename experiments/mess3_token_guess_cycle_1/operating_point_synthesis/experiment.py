@@ -79,6 +79,15 @@ def summarise(cells: list[dict[str, Any]]) -> dict[str, Any]:
             else None
         )
         reference = probe_floor(point.name, measured)
+        if untrained:
+            reference["untrained_within_branch_r2"] = float(
+                np.mean(
+                    [
+                        probe["r_squared_within_branch_depth2"]
+                        for probe in untrained
+                    ]
+                )
+            )
         arms: dict[str, Any] = {}
         for arm in TRAINED_ARMS:
             probes = grouped.get((point.name, arm))
@@ -91,10 +100,15 @@ def summarise(cells: list[dict[str, Any]]) -> dict[str, Any]:
             accuracy = np.array(
                 [probe["expected_accuracy_agent"] for probe in probes]
             )
+            within = np.array(
+                [probe["r_squared_within_branch_depth2"] for probe in probes]
+            )
             arms[arm] = {
                 "seeds": len(probes),
                 "r_squared_mean": float(r_squared.mean()),
                 "r_squared_std": float(r_squared.std(ddof=0)),
+                "within_branch_r2_mean": float(within.mean()),
+                "within_branch_r2_std": float(within.std(ddof=0)),
                 "probe_position": float(
                     (r_squared.mean() - reference["floor"])
                     / max(reference["band"], 1e-9)
@@ -131,66 +145,99 @@ def summarise(cells: list[dict[str, Any]]) -> dict[str, Any]:
     return {"operating_points": points}
 
 
-def _plot(summary: dict[str, Any], *, path: Path) -> None:
-    names = [name for name in summary["operating_points"]]
-    figure, axes = plt.subplots(1, 2, figsize=(11.0, 4.8))
+ARM_COLOURS = {"ppo": "#b4413c", "iqn": "#2a7f5f"}
 
-    axis = axes[0]
+
+def _grouped_bars(axis, names, summary, mean_key, std_key, width=0.34):
     positions = np.arange(len(names))
-    width = 0.34
-    for offset, arm, colour in (
-        (-width / 2, "ppo", "#b4413c"),
-        (width / 2, "iqn", "#2a7f5f"),
-    ):
+    for index, (arm, colour) in enumerate(ARM_COLOURS.items()):
+        offset = (index - 0.5) * width
         values, errors = [], []
         for name in names:
             arms = summary["operating_points"][name]["arms"]
-            values.append(arms.get(arm, {}).get("r_squared_mean", np.nan))
-            errors.append(arms.get(arm, {}).get("r_squared_std", 0.0))
+            values.append(arms.get(arm, {}).get(mean_key, np.nan))
+            errors.append(arms.get(arm, {}).get(std_key, 0.0))
         axis.bar(
             positions + offset, values, width, yerr=errors, capsize=4,
-            label=arm.upper(), color=colour,
+            label=arm.upper(), color=colour, zorder=3,
         )
+    axis.grid(axis="y", alpha=0.2)
+    return positions
+
+
+def _plot(summary: dict[str, Any], *, path: Path) -> None:
+    names = list(summary["operating_points"])
+    figure, axes = plt.subplots(1, 3, figsize=(15.5, 5.2))
+
+    axis = axes[0]
+    positions = _grouped_bars(
+        axis, names, summary, "r_squared_mean", "r_squared_std"
+    )
     for index, name in enumerate(names):
         entry = summary["operating_points"][name]
-        axis.plot(
-            [index - 0.5, index + 0.5], [entry["floor"]] * 2,
-            color="black", lw=2.0,
+        axis.add_patch(
+            plt.Rectangle(
+                (index - 0.5, entry["floor"]), 1.0, 1.0 - entry["floor"],
+                color="#2a7f5f", alpha=0.13, zorder=0,
+            )
         )
+        for key, style in (
+            ("floor_window8", ":"),
+            ("floor_argmax_cell", "--"),
+            ("floor_untrained_network", "-"),
+        ):
+            if key in entry:
+                axis.plot(
+                    [index - 0.5, index + 0.5], [entry[key]] * 2,
+                    color="black", lw=1.6, ls=style, zorder=4,
+                )
         axis.text(
-            index, entry["floor"] + 0.004,
-            f"floor {entry['floor']:.3f}",
-            ha="center", fontsize=9,
+            index + 0.47, 1.0 - (1.0 - entry["floor"]) / 2.0,
+            f"band\n{entry['band']:.3f}",
+            ha="right", va="center", fontsize=9, style="italic", zorder=5,
         )
     axis.set_xticks(positions, [
         f"{name}\nstay={summary['operating_points'][name]['stay']},"
         f" alpha={summary['operating_points'][name]['alpha']}"
         for name in names
     ])
-    axis.set_ylim(0.6, 1.02)
+    axis.set_ylim(0.6, 1.03)
     axis.set_ylabel("held-out belief-probe R²")
-    axis.set_title("Belief probe against the no-learning floor")
-    axis.grid(axis="y", alpha=0.2)
-    axis.legend()
+    axis.set_title(
+        "Belief probe\nshaded = band above every no-learning floor", fontsize=11
+    )
+    axis.legend(loc="lower left")
 
     axis = axes[1]
-    for offset, arm, colour in (
-        (-width / 2, "ppo", "#b4413c"),
-        (width / 2, "iqn", "#2a7f5f"),
-    ):
-        values, errors = [], []
-        for name in names:
-            arms = summary["operating_points"][name]["arms"]
-            values.append(
-                arms.get(arm, {}).get("accuracy_fraction_of_range_mean", np.nan)
+    positions = _grouped_bars(
+        axis, names, summary, "within_branch_r2_mean", "within_branch_r2_std"
+    )
+    for index, name in enumerate(names):
+        entry = summary["operating_points"][name]
+        if "untrained_within_branch_r2" in entry:
+            axis.plot(
+                [index - 0.5, index + 0.5],
+                [entry["untrained_within_branch_r2"]] * 2,
+                color="black", lw=1.8, zorder=4,
             )
-            errors.append(
-                arms.get(arm, {}).get("accuracy_fraction_of_range_std", 0.0)
-            )
-        axis.bar(
-            positions + offset, values, width, yerr=errors, capsize=4,
-            label=arm.upper(), color=colour,
-        )
+    axis.axhline(0.0, color="black", lw=1.0, alpha=0.5)
+    axis.set_ylim(-1.6, 1.15)
+    axis.set_xticks(positions, names)
+    axis.set_ylabel("R² within last-two-token branches")
+    axis.set_title(
+        "Belief detail the token window cannot supply\nblack = untrained network",
+        fontsize=11,
+    )
+    axis.legend(loc="lower left")
+
+    axis = axes[2]
+    positions = _grouped_bars(
+        axis,
+        names,
+        summary,
+        "accuracy_fraction_of_range_mean",
+        "accuracy_fraction_of_range_std",
+    )
     axis.axhline(0.0, color="black", lw=1.5)
     axis.axhline(1.0, color="#2a7f5f", lw=1.5, ls="--")
     axis.set_xticks(positions, [
@@ -198,12 +245,15 @@ def _plot(summary: dict[str, Any], *, path: Path) -> None:
         for name in names
     ])
     axis.set_ylabel("share of the echo-to-Bayes accuracy range")
-    axis.set_title("Accuracy, normalised by the range that exists")
-    axis.grid(axis="y", alpha=0.2)
-    axis.legend()
+    axis.set_title(
+        "Accuracy, normalised by the range that exists\n"
+        "0 = echo the last token, 1 = Bayes optimal",
+        fontsize=11,
+    )
+    axis.legend(loc="upper left")
 
     figure.tight_layout()
-    figure.savefig(path, dpi=200)
+    figure.savefig(path, dpi=190)
     plt.close(figure)
 
 
@@ -235,12 +285,22 @@ def _findings(summary: dict[str, Any]) -> str:
                 f"- `{name}`: IQN beats PPO by "
                 f"{entry['iqn_minus_ppo_r_squared']:.4f} belief R², which is "
                 f"{entry['iqn_minus_ppo_share_of_band'] * 100:.0f}% of the "
-                f"usable band and "
-                f"{entry['iqn_minus_ppo_in_seed_sigma']:.1f} seed sigma, and by "
+                "usable band, and by "
                 f"{entry['iqn_minus_ppo_accuracy_share'] * 100:.0f} points of "
                 "the accuracy range."
             )
-    lines.append("")
+    lines.extend(
+        [
+            "",
+            "A gap wider than the band is not a larger effect, it is an "
+            "off-scale reading: the arms differ by more than the range in "
+            "which a difference is interpretable. Seed spread is not "
+            "comparable across points either, because an arm pinned at a "
+            "non-learning fixed point has almost no variance while an arm that "
+            "sometimes learns has a lot.",
+            "",
+        ]
+    )
     return "\n".join(lines)
 
 
