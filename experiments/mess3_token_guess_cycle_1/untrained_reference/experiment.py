@@ -43,9 +43,11 @@ INITIALISATIONS = (0, 1, 2)
 _STREAM_KEYS = {"probe_train": (100,), "probe_test": (101,)}
 
 
-def _probe_environment_config() -> dict[str, Any]:
+def probe_environment_config(
+    env_config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     return {
-        **ENV_CONFIG,
+        **(ENV_CONFIG if env_config is None else env_config),
         "diagnostics": {
             "state": True,
             "belief": True,
@@ -59,12 +61,13 @@ def probe_untrained_module(
     context: RunContext,
     *,
     initialisation: int,
+    env_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Score one freshly initialised transformer with the study's own probe."""
 
     if context.seed is None:
         raise ValueError("the untrained reference requires a resolved seed")
-    config = _probe_environment_config()
+    config = probe_environment_config(env_config)
 
     def make_environment():
         return HMMEnv(config)
