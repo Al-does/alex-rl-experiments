@@ -173,6 +173,54 @@ def context_requirement(
     return scores
 
 
+def receptive_field(*, n_layers: int, context_len: int) -> int:
+    """Observations the model can actually reach back to.
+
+    ``CausalTransformerEncoder`` applies a causal band of ``context_len`` at every
+    layer, so stacking them multiplies the reach. The study's ``context_len=64``
+    over three layers is a 192-observation receptive field, not 64.
+    """
+
+    if n_layers <= 0 or context_len <= 0:
+        raise ValueError("n_layers and context_len must be positive")
+    return n_layers * context_len
+
+
+def smallest_sufficient_context_len(
+    point: OperatingPoint,
+    test: TokenStream,
+    *,
+    n_layers: int = 3,
+    tolerance: float = 1e-3,
+    candidates: tuple[int, ...] = (4, 8, 12, 16, 20),
+) -> int:
+    """Smallest ``context_len`` that still reaches the architecture ceiling.
+
+    Compute in both the learner and the rollout path scales with the receptive
+    field, so anything beyond what the belief needs is paid for and discarded.
+
+    Only candidates whose receptive field fits inside the observation window
+    recorded on ``test`` can be checked, so widen that window before widening
+    these candidates.
+    """
+
+    testable = [
+        context_len
+        for context_len in sorted(candidates)
+        if receptive_field(n_layers=n_layers, context_len=context_len)
+        <= test.windows.shape[1]
+    ]
+    if not testable:
+        raise ValueError("no candidate fits inside the recorded observation window")
+    for context_len in testable:
+        field = receptive_field(n_layers=n_layers, context_len=context_len)
+        if context_requirement(point, test, context_lengths=(field,))[field] >= (
+            1.0 - tolerance
+        ):
+            return context_len
+    return testable[-1]
+
+
 def integrated_autocorrelation(point: OperatingPoint, *, n_steps: int, seed: int) -> float:
     """Sum the belief autocorrelation along a single chain.
 
@@ -242,6 +290,60 @@ def block_bootstrap_interval(
     return float(low), float(high)
 
 
+def replicate_probe_r2(
+    point: OperatingPoint,
+    *,
+    fit_steps: int,
+    test_steps: int,
+    replicates: int,
+    seed: int,
+    window: int = 32,
+) -> np.ndarray:
+    """Re-run the whole probe on fresh rollouts and return every answer.
+
+    This measures the metric's precision by direct replication rather than by
+    resampling one rollout, so it needs no assumption about the correlation
+    structure and can be used to check that a bootstrap is not lying.
+    """
+
+    scores = []
+    for index in range(replicates):
+        offset = seed + 1_000 * index
+        fit = simulate_parallel(
+            point, n_steps=fit_steps, seed=offset, n_chains=PROBE_CHAINS
+        )
+        test = simulate_parallel(
+            point, n_steps=test_steps, seed=offset + 500_000, n_chains=PROBE_CHAINS
+        )
+        score, _ = _probe_r2(
+            _one_hot(fit.windows, window),
+            fit.beliefs,
+            _one_hot(test.windows, window),
+            test.beliefs,
+        )
+        scores.append(float(score))
+    return np.array(scores)
+
+
+def probe_steps_for_spread(
+    measured_spread: float,
+    *,
+    measured_steps: int,
+    target_spread: float,
+) -> int:
+    """Probe steps needed for a target spread, assuming the usual 1/sqrt(n).
+
+    Verified against replication at 30k, 120k and 500k steps, where the observed
+    spread does fall as the square root of the step count.
+    """
+
+    if measured_spread <= 0.0 or target_spread <= 0.0:
+        raise ValueError("spreads must be positive")
+    if target_spread >= measured_spread:
+        return measured_steps
+    return int(np.ceil(measured_steps * (measured_spread / target_spread) ** 2))
+
+
 def evaluate(
     point: OperatingPoint,
     *,
@@ -265,6 +367,7 @@ def evaluate(
         point, n_steps=test_steps, seed=seed + 5, n_chains=PROBE_CHAINS
     )
     low, high = block_bootstrap_interval(probe_fit, probe_test, window=32, seed=seed + 3)
+    smallest_context = smallest_sufficient_context_len(point, test)
     return {
         "alpha": point.alpha,
         "self_transition": point.self_transition,
@@ -275,6 +378,10 @@ def evaluate(
         "accuracy_ceiling": accuracy_ceiling,
         "accuracy_range": accuracy_ceiling - accuracy_floor,
         "context_requirement": context_requirement(point, test),
+        "smallest_sufficient_context_len": smallest_context,
+        "smallest_sufficient_receptive_field": receptive_field(
+            n_layers=3, context_len=smallest_context
+        ),
         "integrated_autocorrelation": tau,
         "effective_sample_size": test_steps / tau,
         "probe_block_bootstrap_ci": [low, high],

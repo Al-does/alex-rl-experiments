@@ -13,7 +13,11 @@ from experiments.mess3_token_guess_cycle_2.operating_point import (
     block_bootstrap_interval,
     context_requirement,
     integrated_autocorrelation,
+    probe_steps_for_spread,
+    receptive_field,
+    replicate_probe_r2,
     simulate_parallel,
+    smallest_sufficient_context_len,
 )
 
 CYCLE_1 = OperatingPoint(alpha=0.85, self_transition=0.90)
@@ -69,6 +73,58 @@ def test_a_64_observation_context_suffices_at_every_candidate():
         scores = context_requirement(point, test, context_lengths=(8, 32, 64))
         assert scores[64] > 0.999, point
         assert scores[64] >= scores[32] >= scores[8]
+
+
+def test_receptive_field_multiplies_the_band_by_the_layer_count():
+    # CausalTransformerEncoder applies the band at every layer, so the study's
+    # context_len of 64 over three layers reaches 192 observations.
+    assert receptive_field(n_layers=3, context_len=64) == 192
+    assert receptive_field(n_layers=3, context_len=16) == 48
+    assert receptive_field(n_layers=1, context_len=16) == 16
+    for bad in ({"n_layers": 0, "context_len": 8}, {"n_layers": 3, "context_len": 0}):
+        with pytest.raises(ValueError):
+            receptive_field(**bad)
+
+
+def test_the_study_context_len_is_far_larger_than_the_belief_needs():
+    for point in (CYCLE_1, SLOW):
+        _, test = _streams(point)
+        smallest = smallest_sufficient_context_len(point, test)
+        assert smallest <= 16, point
+        # Well inside the 192-observation reach the study currently pays for.
+        assert receptive_field(n_layers=3, context_len=smallest) <= 48
+
+
+def test_smallest_sufficient_context_len_needs_a_wide_enough_window():
+    _, test = _streams(SLOW)
+    narrow = simulate_parallel(SLOW, n_steps=2_000, seed=3, window=8)
+    assert smallest_sufficient_context_len(SLOW, test) >= 4
+    with pytest.raises(ValueError):
+        smallest_sufficient_context_len(SLOW, narrow, candidates=(16, 20))
+
+
+def test_replication_confirms_the_slow_chain_is_the_noisier_probe():
+    fast = replicate_probe_r2(
+        CYCLE_1, fit_steps=20_000, test_steps=10_000, replicates=8, seed=1
+    )
+    slow = replicate_probe_r2(
+        SLOW, fit_steps=20_000, test_steps=10_000, replicates=8, seed=1
+    )
+    assert slow.std(ddof=1) > 3.0 * fast.std(ddof=1)
+
+
+def test_probe_steps_for_spread_follows_the_square_root_law():
+    # Measured by replication: +/-0.0025 at 30,000 steps on the slow chain.
+    assert probe_steps_for_spread(
+        0.0025, measured_steps=30_000, target_spread=0.0005
+    ) == pytest.approx(750_000, rel=0.01)
+    # Never asks for fewer steps than were already run.
+    assert (
+        probe_steps_for_spread(0.0005, measured_steps=30_000, target_spread=0.002)
+        == 30_000
+    )
+    with pytest.raises(ValueError):
+        probe_steps_for_spread(0.001, measured_steps=30_000, target_spread=0.0)
 
 
 def test_slowing_the_chain_costs_independent_probe_samples():

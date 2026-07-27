@@ -42,16 +42,42 @@ Candidate C is my recommendation: about three times the belief-probe range and
 ten times the accuracy range, while keeping the task clearly learnable at a
 Bayes-optimal accuracy of 0.68.
 
-The trade is precision. Slowing the chain raises the state correlation time from
-7 steps to 133, so a 30,000-step probe rollout collected the way
-`collect_probe_data` collects one — sixteen parallel trajectories — contains
-roughly 100 independent samples rather than 2,300. The honest block-bootstrap
-interval on belief R² widens from ±0.0006 to ±0.0046, and on greedy accuracy to
-about ±0.09.
+The trade is precision, and it is worth being concrete about why.
 
-That is fixable and cheap, but only if it is noticed: **raise the probe to around
-500,000 test steps**. Rollouts cost seconds, so this is the least expensive fix in
-the plan and the easiest one to leave out.
+The probe number is an estimate, computed from a finite rollout. Two rollouts of
+the same checkpoint give two slightly different answers, and the spread between
+them is the metric's measurement error. That error depends on how many
+*independent* samples the rollout holds, which is not the same as how many steps
+it has. On a slow chain the hidden state sits still for hundreds of steps, so
+consecutive samples are near-duplicates and a long rollout can carry very little
+new information.
+
+Measured by direct replication — running the identical probe 60 times on fresh
+rollouts and taking the standard deviation of the answers:
+
+| operating point | 30k steps | 120k steps | 500k steps |
+|---|---:|---:|---:|
+| cycle 1 | 0.0004 | 0.0002 | 0.0001 |
+| candidate C | 0.0025 | 0.0012 | 0.0005 |
+
+At 30,000 steps the slow chain's measurement error is 0.0025, which is the same
+size as the smallest seed-to-seed spreads observed in the Kelly cycles. Probe
+noise would then be indistinguishable from seed variance, and adding seeds would
+not fix it.
+
+**Raise the probe to around 500,000 test steps**, where the measurement error
+falls to 0.0005 and is safely below anything the design needs to resolve. Probe
+rollouts are inference only and cost seconds, so this is the cheapest fix in the
+plan and the easiest one to omit by accident.
+
+Two notes on method. The i.i.d. bootstrap used in `REVIEW.md` understates this
+error, because resampling individual steps pretends they are independent; a
+moving-block bootstrap predicted ±0.0046 at 30k on candidate C and replication
+measured ±0.0047. And the simulation behind these numbers does not include the
+512-step episode resets the real environment applies, which partially
+decorrelate the rollout, so treat 0.0025 as an upper bound and confirm it once
+against the real probe by running it repeatedly on a single fixed checkpoint
+with different probe seeds.
 
 Two consequences follow. Episode length should rise from 512 so that the reset
 back to a uniform belief is a smaller fraction of each trajectory. And at
@@ -154,11 +180,46 @@ Sweeping the learning rate per arm is separately necessary because arms differ i
 parameter count and in how much auxiliary gradient enters the shared trunk, so an
 arm can lose by being mis-tuned rather than by being a worse idea.
 
-**Do not sweep:** context length (64 already suffices at every candidate operating
-point — the belief saturates by 32 observations), GAE λ (irrelevant at γ = 0, low
-leverage at γ = 0.99), batch size, minibatch size, epoch count, clip parameter,
-`d_model`, or `n_layers`. Fix these and record them. γ is a scientific factor,
-not a nuisance hyperparameter; keep it in the design rather than tuning it away.
+**Do not sweep:** context length (see below — shrink it once and fix it), GAE λ
+(irrelevant at γ = 0, low leverage at γ = 0.99), batch size, minibatch size, epoch
+count, clip parameter, `d_model`, or `n_layers`. Fix these and record them. γ is a
+scientific factor, not a nuisance hyperparameter; keep it in the design rather
+than tuning it away.
+
+## 5b. Shrink the context length once, then leave it alone
+
+`CausalTransformerEncoder` applies its causal band at *every layer*, so the
+receptive field is `n_layers × context_len`. Confirmed by perturbing inputs at
+increasing distance and watching when the output stops changing: three layers at
+`context_len=64` reach exactly 192 observations. The belief needs about 32.
+
+The cost is paid twice, because the learner recomputes over
+`lookback + max_seq_len = 192 + 32 = 224` positions to produce 32 useful
+embeddings, and the cached rollout path attends over the same band.
+
+| context_len | receptive field | learner step | rollout step | belief R² available |
+|---:|---:|---:|---:|---:|
+| 64 | 192 | 305 ms | 15.9 ms | 1.00000 |
+| 32 | 96 | 146 ms (2.1x) | 6.9 ms (2.3x) | 1.00000 |
+| 16 | 48 | 82 ms (3.7x) | 4.7 ms (3.4x) | 1.00000 |
+| 12 | 36 | 70 ms (4.3x) | 4.6 ms (3.5x) | 0.99997 |
+| 8 | 24 | 57 ms (5.4x) | 3.9 ms (4.0x) | 0.99966 |
+
+Belief R² is at candidate C; candidate B needs more, reaching 0.99983 only at a
+receptive field of 48.
+
+**Use `context_len=16`.** It costs nothing measurable in available belief R² at
+any candidate operating point, leaves a 50% margin over what the belief needs,
+and keeps the choice valid if α or p move later. `context_len=12` is defensible
+if candidate C is locked in, but the extra saving is small.
+
+`context_len` affects compute only, not capacity — positions are encoded with
+RoPE, so the parameter count does not change.
+
+End-to-end this is worth **1.6x**, measured with a real PPO loop at matched
+environment steps. It is less than the 3.4–3.7x component figures because
+environment stepping is pure NumPy and unaffected. The split differs on a 4090
+with 16 env runners, so measure it once there before re-budgeting.
 
 **Two stages, with disjoint seeds.** Stage 1 sweeps on seeds 0–2 and selects one
 configuration per arm. Stage 2 re-runs the selected configurations on ten
@@ -210,15 +271,18 @@ critic diagnostics.
 Measured from the committed manifests: a 2.5M-step arm costs 6–14 minutes on an
 RTX 4090, median about 6.5. Adding eight checkpoint probes puts it near 12.
 
+At `context_len=16` a run costs about 1.6x less than the measured 6–14 minutes,
+so budget roughly 7 minutes per run including checkpoint probes.
+
 | stage | runs | GPU-hours | cost at $0.35/hr |
 |---|---:|---:|---:|
-| stage 1 sweep (7 arms × 6 optimiser/lr × 3 coefficient × 3 seeds) | 378 | 76 | ~$27 |
-| stage 2 confirmation (16 conditions × 10 seeds) | 160 | 32 | ~$11 |
+| stage 1 sweep (7 arms × 6 optimiser/lr × 3 coefficient × 3 seeds) | 378 | 47 | ~$17 |
+| stage 2 confirmation (16 conditions × 10 seeds) | 160 | 20 | ~$7 |
 | references, operating point, audit | — | <1 | — |
-| **total** | **538** | **108** | **~$38** |
+| **total** | **538** | **67** | **~$24** |
 
-Roughly fourteen wall-clock hours across eight Vast boxes. The entire committed
-history of these four studies is 19.4 GPU-hours, so this is about five times all
+Roughly nine wall-clock hours across eight Vast boxes. The entire committed
+history of these four studies is 19.4 GPU-hours, so this is about three times all
 prior work on the question, for the price of lunch.
 
 `devops.vast.provision up -n N --run "..."` gives one command per box, so the

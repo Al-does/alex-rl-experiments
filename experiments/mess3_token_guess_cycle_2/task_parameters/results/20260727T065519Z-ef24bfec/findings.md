@@ -22,7 +22,16 @@ Best belief R² available to a model that can see only the last k observations. 
 | `candidate_b` | 0.7623 | 0.9431 | 0.9965 | 1.0000 |
 | `candidate_c` | 0.9232 | 0.9951 | 1.0000 | 1.0000 |
 
-The study's context length of 64 is sufficient at every candidate, so it does not need sweeping. The belief converges much faster than the hidden state does, because each observation is informative enough to wash out the prior well before the state decorrelates.
+`CausalTransformerEncoder` applies its causal band at every layer, so the receptive field is `n_layers * context_len`. The study's `context_len=64` over three layers reaches 192 observations, roughly six times what the belief needs. Compute in both the learner and the cached rollout path scales with that reach.
+
+| point | smallest sufficient context_len | receptive field |
+|---|---:|---:|
+| `cycle_1` | 4 | 12 |
+| `candidate_a` | 8 | 24 |
+| `candidate_b` | 16 | 48 |
+| `candidate_c` | 8 | 24 |
+
+Measured on this repository's model: dropping `context_len` from 64 to 16 makes a learner step 3.7x faster and a cached rollout step 3.4x faster, for an end-to-end PPO speed-up of 1.6x once environment stepping, which does not change, is included.
 
 ## Supervised ceiling
 

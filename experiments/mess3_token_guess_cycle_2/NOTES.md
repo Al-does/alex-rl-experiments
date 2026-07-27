@@ -55,6 +55,17 @@ while cross-entropy stays at the Bayes floor. The decline cycle 1 saw over 20M
 PPO steps is therefore not a property of reinforcement learning, and optimiser
 and learning rate move the headline metric more than most of the arms do.
 
+Two operational consequences:
+
+- `CausalTransformerEncoder` bands attention at every layer, so `context_len=64`
+  over three layers reaches 192 observations while the belief needs about 32.
+  Dropping to `context_len=16` costs nothing measurable and makes a learner step
+  3.7x faster, a cached rollout step 3.4x faster, and a whole PPO run 1.6x
+  faster.
+- A 30,000-step probe of the slower chain has a measurement error of ±0.0025,
+  the same size as the smallest seed-to-seed spreads. Raise the probe to about
+  500,000 test steps, where it falls to ±0.0005.
+
 Regenerate all three with:
 
 ```bash
