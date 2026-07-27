@@ -24,7 +24,7 @@ from experiments.mess3_token_guess_cycle_1.operating_point_validation.experiment
     load_cells,
 )
 from experiments.mess3_token_guess_cycle_1.operating_points import (
-    POINTS,
+    ALL_POINTS,
     point_by_name,
 )
 from experiments.mess3_token_guess_cycle_1.process_design import evaluate
@@ -35,9 +35,11 @@ from harness.context import RunContext
 TRAINED_ARMS = ("ppo", "iqn")
 
 
-def _validation_results_root() -> Path:
+def _validation_results_roots() -> tuple[Path, ...]:
+    family = Path(__file__).parents[1]
     return (
-        Path(__file__).parents[1] / "operating_point_validation" / "results"
+        family / "operating_point_validation" / "results",
+        family / "fractal_preserving_validation" / "results",
     )
 
 
@@ -71,7 +73,9 @@ def summarise(cells: list[dict[str, Any]]) -> dict[str, Any]:
         grouped[(cell["operating_point"], cell["arm"])].append(cell["probe"])
 
     points: dict[str, Any] = {}
-    for point in POINTS:
+    for point in ALL_POINTS:
+        if not any(name == point.name for name, _ in grouped):
+            continue
         untrained = grouped.get((point.name, "untrained"))
         measured = (
             float(np.mean([probe["r_squared"] for probe in untrained]))
@@ -196,11 +200,15 @@ def _plot(summary: dict[str, Any], *, path: Path) -> None:
             f"band\n{entry['band']:.3f}",
             ha="right", va="center", fontsize=9, style="italic", zorder=5,
         )
-    axis.set_xticks(positions, [
-        f"{name}\nstay={summary['operating_points'][name]['stay']},"
-        f" alpha={summary['operating_points'][name]['alpha']}"
-        for name in names
-    ])
+    axis.set_xticks(
+        positions,
+        [
+            f"{name}\n{summary['operating_points'][name]['stay']}"
+            f" / {summary['operating_points'][name]['alpha']}"
+            for name in names
+        ],
+        fontsize=8.5,
+    )
     axis.set_ylim(0.6, 1.03)
     axis.set_ylabel("held-out belief-probe R²")
     axis.set_title(
@@ -222,7 +230,7 @@ def _plot(summary: dict[str, Any], *, path: Path) -> None:
             )
     axis.axhline(0.0, color="black", lw=1.0, alpha=0.5)
     axis.set_ylim(-1.6, 1.15)
-    axis.set_xticks(positions, names)
+    axis.set_xticks(positions, names, fontsize=8.5)
     axis.set_ylabel("R² within last-two-token branches")
     axis.set_title(
         "Belief detail the token window cannot supply\nblack = untrained network",
@@ -240,10 +248,15 @@ def _plot(summary: dict[str, Any], *, path: Path) -> None:
     )
     axis.axhline(0.0, color="black", lw=1.5)
     axis.axhline(1.0, color="#2a7f5f", lw=1.5, ls="--")
-    axis.set_xticks(positions, [
-        f"{name}\nrange={summary['operating_points'][name]['accuracy_range']:.4f}"
-        for name in names
-    ])
+    axis.set_xticks(
+        positions,
+        [
+            f"{name}\nrange"
+            f" {summary['operating_points'][name]['accuracy_range']:.4f}"
+            for name in names
+        ],
+        fontsize=8.5,
+    )
     axis.set_ylabel("share of the echo-to-Bayes accuracy range")
     axis.set_title(
         "Accuracy, normalised by the range that exists\n"
@@ -307,7 +320,7 @@ def _findings(summary: dict[str, Any]) -> str:
 def run(context: RunContext):
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
-    cells = load_cells(_validation_results_root())
+    cells = load_cells(*_validation_results_roots())
     if not cells:
         raise FileNotFoundError(
             "no operating-point validation cells found; run the validation first"

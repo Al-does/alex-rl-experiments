@@ -212,7 +212,9 @@ def _untrained_cell(
     return summary
 
 
-def run(context: RunContext):
+def run_points(context: RunContext, points: tuple[OperatingPoint, ...]):
+    """Train and probe every arm at each supplied operating point."""
+
     if context.seed is None:
         raise ValueError("the operating-point validation requires a seed")
     outputs = RunArtifacts.from_context(context)
@@ -227,7 +229,7 @@ def run(context: RunContext):
                     "alpha": point.alpha,
                     "environment": point.env_config(),
                 }
-                for point in POINTS
+                for point in points
             ],
             "arms": [arm.name for arm in ARMS],
             "model": BASE_MODEL_CONFIG,
@@ -240,7 +242,7 @@ def run(context: RunContext):
     )
 
     cells = []
-    for point in POINTS:
+    for point in points:
         cells.append(
             _untrained_cell(_cell_context(context, point, "untrained"), point)
         )
@@ -256,10 +258,15 @@ def run(context: RunContext):
     return {"seed": context.seed, "cells": cells}
 
 
-def load_cells(results_root: Path) -> list[dict[str, Any]]:
+def run(context: RunContext):
+    return run_points(context, POINTS)
+
+
+def load_cells(*results_roots: Path) -> list[dict[str, Any]]:
     """Collect every finished cell across seeds, tolerating partial runs."""
 
     return [
         json.loads(path.read_text())
-        for path in sorted(results_root.glob("*/*/*/condition_summary.json"))
+        for root in results_roots
+        for path in sorted(root.glob("*/*/*/condition_summary.json"))
     ]
