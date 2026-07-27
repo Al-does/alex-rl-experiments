@@ -133,7 +133,13 @@ def test_next_emission_target_is_the_token_scored_by_delay_one_task():
     torch.testing.assert_close(targets, torch.tensor([[1, 2, 0]]))
     assert valid.all()
 
-    environment = HMMEnv({**ENV_CONFIG, "episode_length": 2})
+    environment = HMMEnv(
+        {
+            **ENV_CONFIG,
+            "episode_length": 2,
+            "diagnostics": {"tokens": True, "transitions": True},
+        }
+    )
     try:
         _, info = environment.reset(seed=5)
         expected = info["raw_token_current"]
@@ -173,10 +179,10 @@ def test_a2c_objective_matches_masked_manual_calculation_and_backpropagates():
         vf_loss_coeff=0.5,
         entropy_coeff=0.01,
     )
-    assert policy == pytest.approx(-0.35)
-    assert value == pytest.approx(0.3125)
-    assert mean_entropy == pytest.approx(0.6)
-    assert total == pytest.approx(-0.35 + 0.5 * 0.3125 - 0.01 * 0.6)
+    assert policy.item() == pytest.approx(-0.35)
+    assert value.item() == pytest.approx(0.3125)
+    assert mean_entropy.item() == pytest.approx(0.6)
+    assert total.item() == pytest.approx(-0.35 + 0.5 * 0.3125 - 0.01 * 0.6)
     total.backward()
     assert logp.grad is not None
     assert values.grad is not None
@@ -192,7 +198,7 @@ def test_direct_kelly_math_stays_differentiable_and_action_conditional():
     )
     torch.testing.assert_close(
         growth,
-        torch.tensor([np.log(2.0), np.log(0.75)]),
+        torch.tensor([np.log(2.0), np.log(0.75)], dtype=wagers.dtype),
     )
     (-growth.mean()).backward()
     assert wagers.grad is not None
