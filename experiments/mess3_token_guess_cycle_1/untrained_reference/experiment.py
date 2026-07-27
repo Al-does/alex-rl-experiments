@@ -27,6 +27,7 @@ from experiments.mess3_belief_geometry_2026_07.probe import (
 from experiments.mess3_token_guess_cycle_1.analysis import (
     PROBE_RANK,
     fit_reduced_rank_affine,
+    probe_device,
 )
 from experiments.mess3_token_guess_cycle_1.baselines import calibrate
 from experiments.mess3_token_guess_cycle_1.comparison.experiment import (
@@ -96,7 +97,7 @@ def probe_untrained_module(
         "module": module,
         "env_factory": make_environment,
         "policy_mode": "greedy",
-        "device": "cpu",
+        "device": probe_device(context),
         "warmup": 4 if context.smoke else 64,
         "initial_belief": initial_belief,
         "action_outcome_operator": outcome_operator,
