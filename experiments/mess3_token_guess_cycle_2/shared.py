@@ -71,7 +71,7 @@ MINIBATCH_SIZE = 4_096
 SMOKE_MINIBATCH_SIZE = 256
 CHECKPOINT_FREQUENCY = 10
 VALIDATION_ENV_STEPS = 131_072
-PREDICTIVE_LOSS_WEIGHT = 0.1
+PREDICTIVE_LOSS_WEIGHT = 1.0
 DIRECT_KELLY_LOSS_WEIGHT = 1.0
 IQN_LOSS_COEFFICIENT = 0.5
 IQN_HUBER_KAPPA = 1.0
@@ -237,7 +237,7 @@ def build_config(
             torch_compile_worker=False,
         )
         .training(
-            lr=3e-4,
+            lr=1e-4,
             gamma=0.0,
             lambda_=0.0,
             clip_param=0.2,
@@ -386,6 +386,7 @@ def run_condition(
         "condition": condition.name,
         "algorithm": condition.algorithm,
         "objective": condition.objective,
+        "lr": 1e-4,
         "gamma": 0.0,
         "lambda": 0.0,
         "environment": ENV_CONFIG,
