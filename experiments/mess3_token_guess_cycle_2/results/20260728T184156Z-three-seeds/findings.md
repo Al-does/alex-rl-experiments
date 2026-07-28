@@ -61,3 +61,14 @@ At this checkpoint, decoupled Kelly edges predictive loss (mean paired
 PPO-family arms beat A2C by ~3.2–3.3e-03 MSE (paired |t| > 26, p ≤ 0.001).
 
 Full pairwise table: [`paired_third_checkpoint.md`](paired_third_checkpoint.md).
+
+### PPO vs decoupled Kelly (focused paired test)
+
+On third-checkpoint MSE, paired diffs `kelly − ppo` are
+`−1.278e-04`, `−3.755e-05`, `−6.314e-05` (mean `−7.617e-05`).
+
+Shapiro–Wilk on those diffs: W = 0.941, p = 0.532 → normality passes at
+α = 0.05, so a paired t-test is applicable:
+`ttest_rel(kelly, ppo)` → **t = −2.836, p = 0.105** (df = 2; not significant).
+
+Details: [`ppo_vs_kelly_paired_ttest.md`](ppo_vs_kelly_paired_ttest.md).

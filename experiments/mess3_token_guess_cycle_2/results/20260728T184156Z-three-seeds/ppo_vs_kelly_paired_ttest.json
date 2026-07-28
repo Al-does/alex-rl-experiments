@@ -1,0 +1,41 @@
+{
+  "control": "ppo",
+  "candidate": "decoupled_kelly",
+  "metric": "held_out_affine_probe_mse",
+  "checkpoint_index": 2,
+  "approx_agent_steps": 662054,
+  "seeds": [42, 43, 44],
+  "control_values": {
+    "42": 0.00048465683568620256,
+    "43": 0.00027752441165710247,
+    "44": 0.00038354156904448617
+  },
+  "candidate_values": {
+    "42": 0.00035684716294787403,
+    "43": 0.00023997383382708086,
+    "44": 0.0003204058502979135
+  },
+  "paired_differences_candidate_minus_control": {
+    "42": -0.00012780967273832853,
+    "43": -0.00003755057783002161,
+    "44": -0.00006313571874657267
+  },
+  "mean_paired_difference": -0.00007616532310497427,
+  "sd_paired_difference": 0.000046518856346,
+  "shapiro_wilk": {
+    "statistic_W": 0.941161,
+    "p_value": 0.532062,
+    "alpha": 0.05,
+    "normality_passes": true
+  },
+  "paired_t_test": {
+    "method": "scipy.stats.ttest_rel(candidate, control)",
+    "applicable": true,
+    "reason": "Shapiro–Wilk on paired differences passed at alpha=0.05",
+    "t_statistic": -2.835887,
+    "p_value": 0.105103,
+    "df": 2,
+    "significant_at_0.05": false
+  },
+  "interpretation": "Kelly MSE is lower on all three seeds (mean paired delta=-7.617e-05), but the paired t-test does not reject H0 at alpha=0.05."
+}
