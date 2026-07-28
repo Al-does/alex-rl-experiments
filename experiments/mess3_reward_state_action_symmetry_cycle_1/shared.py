@@ -27,7 +27,7 @@ from harness.runners import run_tune
 from learners.models.transformer import TransformerModel, TransformerModelConfig
 
 
-TOTAL_ENV_STEPS = 5_000_000
+TOTAL_ENV_STEPS = 10_000_000
 SMOKE_ENV_STEPS = 4_096
 TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 2_048
