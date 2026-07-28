@@ -39,3 +39,25 @@ resamples clustered by environment episode. The condition-level figure instead
 shows individual trained-model seeds and mean ± SD. See
 [`bootstrap_assessment.md`](mse_over_training/bootstrap_assessment.md) for why
 no additional three-seed bootstrap is used.
+
+## Paired same-seed summary (through third checkpoint)
+
+Because PPO-family MSE rises after ~0.66M steps, arm comparisons below use only
+the third checkpoint (index 2, ~0.66M). For each arm pair, the primary number is
+the **mean paired ΔMSE** on the same three seeds (A − B; negative ⇒ A better).
+
+Single arm score = mean over opponents and seeds of `(other_mse − arm_mse)`:
+
+| rank | condition | mean paired MSE advantage |
+|---:|---|---:|
+| 1 | decoupled_kelly | +8.87e-04 |
+| 2 | predictive_loss | +8.59e-04 |
+| 3 | ppo | +7.92e-04 |
+| 4 | iqn | +7.52e-04 |
+| 5 | a2c | −3.29e-03 |
+
+At this checkpoint, decoupled Kelly edges predictive loss (mean paired
+ΔMSE = +2.25e-05 for predictive − kelly; not significant at n=3). All
+PPO-family arms beat A2C by ~3.2–3.3e-03 MSE (paired |t| > 26, p ≤ 0.001).
+
+Full pairwise table: [`paired_third_checkpoint.md`](paired_third_checkpoint.md).
