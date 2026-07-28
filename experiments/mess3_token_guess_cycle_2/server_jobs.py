@@ -26,7 +26,9 @@ from pathlib import Path
 from typing import Any, Sequence
 
 CONDITIONS = (
-    "a2c",
+    # Launch the corrected frequent-fresh-update A2C pilot. Legacy ``a2c`` is
+    # update-starved and intentionally unavailable through this batch launcher.
+    "a2c_frequent_updates",
     "ppo",
     "predictive_loss",
     "decoupled_kelly",

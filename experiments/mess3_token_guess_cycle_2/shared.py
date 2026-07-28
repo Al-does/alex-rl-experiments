@@ -56,20 +56,35 @@ class Condition:
     objective: str
 
 
+LEGACY_A2C_CONDITION = Condition(
+    "a2c",
+    "A2C",
+    "on_policy_advantage_actor_critic_update_starved",
+)
 CONDITIONS = (
-    Condition("a2c", "A2C", "on_policy_advantage_actor_critic"),
+    Condition(
+        "a2c_frequent_updates",
+        "A2C",
+        "on_policy_advantage_actor_critic_frequent_fresh_updates",
+    ),
     Condition("ppo", "PPO", "clipped_correctness"),
     Condition("predictive_loss", "PPO", "correctness_plus_next_token_ce"),
     Condition("decoupled_kelly", "PPO", "correctness_plus_direct_kelly"),
     Condition("iqn", "PPO-IQN", "clipped_correctness_distributional_value"),
 )
 TOTAL_ENV_STEPS = 2_500_000
+A2C_FREQUENT_UPDATES_ENV_STEPS = 1_000_000
 SMOKE_ENV_STEPS = 4_096
 TRAIN_BATCH_SIZE = 32_768
+A2C_FREQUENT_UPDATES_BATCH_SIZE = 128
 SMOKE_BATCH_SIZE = 2_048
 MINIBATCH_SIZE = 4_096
 SMOKE_MINIBATCH_SIZE = 256
 CHECKPOINT_FREQUENCY = 10
+# At batch size 128, checkpointing every ten iterations would retain hundreds
+# of full Algorithm checkpoints. This keeps roughly eight checkpoints over the
+# 1M-step pilot while preserving dense smoke checkpoints.
+A2C_FREQUENT_UPDATES_CHECKPOINT_FREQUENCY = 1_000
 VALIDATION_ENV_STEPS = 131_072
 PREDICTIVE_LOSS_WEIGHT = 1.0
 DIRECT_KELLY_LOSS_WEIGHT = 1.0
@@ -143,7 +158,11 @@ def next_emission_targets(
 
 def condition_by_name(name: str) -> Condition:
     try:
-        return next(condition for condition in CONDITIONS if condition.name == name)
+        return next(
+            condition
+            for condition in (LEGACY_A2C_CONDITION, *CONDITIONS)
+            if condition.name == name
+        )
     except StopIteration as error:
         raise ValueError(f"unknown token-guess condition {name!r}") from error
 
@@ -159,7 +178,7 @@ def _module_class(condition: Condition):
 
 
 def _learner_class(condition: Condition):
-    if condition.name == "a2c":
+    if condition.name in {"a2c", "a2c_frequent_updates"}:
         return A2CTorchLearner
     if condition.name == "predictive_loss":
         return PredictiveLearner
@@ -221,8 +240,15 @@ def build_config(
 
     condition = condition_by_name(condition_name)
     profile = context.hardware or PROFILES["cpu"]
-    is_a2c = condition.name == "a2c"
-    batch_size = SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
+    is_a2c = condition.name in {"a2c", "a2c_frequent_updates"}
+    if condition.name == "a2c_frequent_updates":
+        # The legacy A2C arm used one Adam step per 32,768 fresh samples and
+        # received only ~76 updates over 2.5M steps. Batch 128 is the validated
+        # intervention: still strictly on-policy, but with frequent fresh-data
+        # updates (996 updates by ~131k sampled steps in the diagnostic run).
+        batch_size = A2C_FREQUENT_UPDATES_BATCH_SIZE
+    else:
+        batch_size = SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
     config = (
         PPOConfig()
         .environment(HMMEnv, env_config=ENV_CONFIG)
@@ -370,18 +396,23 @@ def run_condition(
     condition = condition_by_name(condition_name)
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
-    target_steps = (
-        target_steps_override
-        if target_steps_override is not None
-        else (SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS)
-    )
+    if target_steps_override is not None:
+        target_steps = target_steps_override
+    elif context.smoke:
+        target_steps = SMOKE_ENV_STEPS
+    elif condition.name == "a2c_frequent_updates":
+        target_steps = A2C_FREQUENT_UPDATES_ENV_STEPS
+    else:
+        target_steps = TOTAL_ENV_STEPS
     if target_steps <= 0:
         raise ValueError("target steps must be positive")
-    checkpoint_frequency = (
-        1
-        if context.smoke or target_steps_override is not None
-        else CHECKPOINT_FREQUENCY
-    )
+    if context.smoke or target_steps_override is not None:
+        checkpoint_frequency = 1
+    elif condition.name == "a2c_frequent_updates":
+        checkpoint_frequency = A2C_FREQUENT_UPDATES_CHECKPOINT_FREQUENCY
+    else:
+        checkpoint_frequency = CHECKPOINT_FREQUENCY
+    config = build_config(context, condition.name)
     recipe = {
         "condition": condition.name,
         "algorithm": condition.algorithm,
@@ -392,6 +423,9 @@ def run_condition(
         "environment": ENV_CONFIG,
         "model": _model_config(condition),
         "total_env_steps": target_steps,
+        "train_batch_size_per_learner": config.train_batch_size_per_learner,
+        "minibatch_size": config.minibatch_size,
+        "num_epochs": config.num_epochs,
         "validation_budget": target_steps_override is not None,
         "checkpoint_frequency_iterations": checkpoint_frequency,
         "predictive_loss_weight": (
@@ -412,7 +446,6 @@ def run_condition(
         "bayesian_optimal_accuracy_context_10": BAYESIAN_OPTIMAL_ACCURACY,
     }
     outputs.write_json("resolved_recipe.json", recipe)
-    config = build_config(context, condition.name)
     initial_checkpoint = _save_initial_checkpoint(
         config,
         context.artifacts_dir / "initial_checkpoint",
@@ -536,6 +569,9 @@ def run_battery(context: RunContext) -> dict[str, Any]:
     """Run each controlled condition once; intended for smoke validation."""
 
     summaries = {}
+    # Deliberately excludes legacy ``a2c``. The battery now runs the corrected
+    # 128-sample fresh-update recipe instead of the update-starved 32,768-sample
+    # arm retained only for audit/reproduction.
     for condition in CONDITIONS:
         condition_context = replace(
             context,
