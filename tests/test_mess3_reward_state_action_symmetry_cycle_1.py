@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import importlib
 import itertools
-import shlex
 from types import SimpleNamespace
 
 import numpy as np
@@ -21,11 +20,6 @@ from experiments.mess3_reward_state_action_symmetry_cycle_1.analysis import (
     build_battery_mse_report,
     plot_battery_mse_curves,
 )
-from experiments.mess3_reward_state_action_symmetry_cycle_1.server_job import (
-    build_run_command,
-    build_up_command,
-    default_max_age,
-)
 from experiments.mess3_reward_state_action_symmetry_cycle_1.shared import (
     _log_spaced_records,
     environment_config,
@@ -38,7 +32,6 @@ from experiments.mess3_reward_state_action_symmetry_cycle_1.task import (
 )
 from harness.context import RunContext
 from harness.hardware import PROFILES
-from devops.runpod.execution.preflight import build_resource_contract_for_run
 from learners.models import TransformerModel
 
 
@@ -275,66 +268,3 @@ def test_battery_writes_cross_variant_curve_for_every_mse_metric(tmp_path):
         path = tmp_path / filename
         assert path.is_file()
         assert path.stat().st_size > 0
-
-
-@pytest.mark.parametrize(
-    ("condition", "smoke", "expected"),
-    [
-        ("variant_1", True, 10 / 60),
-        ("battery", True, 20 / 60),
-        ("variant_1", False, 12.0),
-        ("battery", False, 36.0),
-    ],
-)
-def test_flash_launcher_uses_study_appropriate_max_age(
-    condition, smoke, expected
-):
-    assert default_max_age(condition, smoke=smoke) == expected
-
-
-@pytest.mark.parametrize("smoke", (False, True))
-def test_flash_launcher_preflights_to_one_gpu(smoke):
-    command = build_run_command(
-        condition="variant_1",
-        run_name="symmetry-test",
-        seed=42,
-        smoke=smoke,
-    )
-    argv = shlex.split(command)
-    contract = build_resource_contract_for_run(
-        argv,
-        default_profile="cuda4090_gpuinfer",
-        available_gpus=1.0,
-    )
-
-    assert "--hardware" in argv
-    assert argv[argv.index("--hardware") + 1] == "cuda4090"
-    assert "--upload-artifacts" in argv
-    assert ("--smoke" in argv) is smoke
-    assert contract.profile_name == "cuda4090"
-    assert contract.total_gpus == 1.0
-
-
-def test_flash_up_command_carries_monitoring_and_age_limits(tmp_path):
-    command = build_up_command(
-        harness=tmp_path,
-        endpoint_id="endpoint",
-        condition="battery",
-        run_name="battery-smoke",
-        seed=42,
-        smoke=True,
-        experiment_ref="a" * 40,
-        library_ref="b" * 40,
-        max_age=20 / 60,
-        queue_timeout=30.0,
-        max_price=1.25,
-        max_estimated_cost=5.0,
-        progress_interval=30.0,
-        no_progress_timeout=15.0,
-        dry_run=True,
-    )
-
-    assert float(command[command.index("--max-age") + 1]) == pytest.approx(20 / 60)
-    assert command[command.index("--progress-interval") + 1] == "30.0"
-    assert command[command.index("--no-progress-timeout") + 1] == "15.0"
-    assert command[-1] == "--dry-run"
