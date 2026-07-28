@@ -23,6 +23,7 @@ from experiments.mess3_reward_state_action_symmetry_cycle_1.analysis import (
 )
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
+from harness.hardware import PROFILES
 from harness.runners import run_tune
 from learners.models.transformer import TransformerModel, TransformerModelConfig
 
@@ -40,6 +41,19 @@ BASE_MODEL_CONFIG = TransformerModelConfig(
     n_heads=4,
     context_len=64,
 ).to_dict()
+
+
+def _single_gpu_context(context: RunContext) -> RunContext:
+    """Use cuda4090 on 1-GPU boxes; gpuinfer needs 1.8 GPUs to schedule."""
+
+    profile = context.hardware
+    if (
+        not context.smoke
+        and profile is not None
+        and profile.name == "cuda4090_gpuinfer"
+    ):
+        return replace(context, hardware=PROFILES["cuda4090"])
+    return context
 
 
 def environment_config(variant: int) -> dict[str, Any]:
@@ -103,7 +117,7 @@ def build_config(context: RunContext, variant: int) -> PPOConfig:
     )
     return apply_runtime_resources(
         config,
-        context,
+        _single_gpu_context(context),
         default_env_runners=16,
     )
 
