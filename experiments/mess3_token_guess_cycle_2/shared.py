@@ -66,10 +66,14 @@ CONDITIONS = (
 TOTAL_ENV_STEPS = 2_500_000
 SMOKE_ENV_STEPS = 4_096
 TRAIN_BATCH_SIZE = 32_768
+A2C_TRAIN_BATCH_SIZE = 672
 SMOKE_BATCH_SIZE = 2_048
 MINIBATCH_SIZE = 4_096
 SMOKE_MINIBATCH_SIZE = 256
 CHECKPOINT_FREQUENCY = 10
+# Batch 672 gives A2C approximately the same number of Adam updates as PPO's
+# six passes over 4,096-sample minibatches. This retains roughly eight
+# checkpoints over the 1M-step A2C run.
 VALIDATION_ENV_STEPS = 131_072
 PREDICTIVE_LOSS_WEIGHT = 1.0
 DIRECT_KELLY_LOSS_WEIGHT = 1.0
@@ -222,7 +226,13 @@ def build_config(
     condition = condition_by_name(condition_name)
     profile = context.hardware or PROFILES["cpu"]
     is_a2c = condition.name == "a2c"
-    batch_size = SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
+    if is_a2c:
+        # PPO makes about 50 Adam updates per ~33.5k sampled steps. One fresh
+        # A2C update per 672 samples matches that optimizer-update cadence while
+        # retaining A2C's one-pass, strictly on-policy data use.
+        batch_size = A2C_TRAIN_BATCH_SIZE
+    else:
+        batch_size = SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
     config = (
         PPOConfig()
         .environment(HMMEnv, env_config=ENV_CONFIG)
@@ -242,7 +252,11 @@ def build_config(
             lambda_=0.0,
             clip_param=0.2,
             use_kl_loss=False,
-            vf_loss_coeff=0.0 if condition.name == "iqn" else 0.5,
+            vf_loss_coeff=(
+                0.0
+                if condition.name == "iqn"
+                else (1.0 if is_a2c else 0.5)
+            ),
             entropy_coeff=0.0,
             train_batch_size_per_learner=batch_size,
             minibatch_size=(
@@ -357,6 +371,29 @@ def _probe_at(
     return result, point
 
 
+def _run_schedule(
+    context: RunContext,
+    condition: Condition,
+    target_steps_override: int | None,
+) -> tuple[int, int]:
+    """Return sampled-step budget and Tune checkpoint frequency."""
+
+    if target_steps_override is not None:
+        target_steps = target_steps_override
+    elif context.smoke:
+        target_steps = SMOKE_ENV_STEPS
+    else:
+        target_steps = TOTAL_ENV_STEPS
+    if target_steps <= 0:
+        raise ValueError("target steps must be positive")
+
+    if context.smoke or target_steps_override is not None:
+        checkpoint_frequency = 1
+    else:
+        checkpoint_frequency = CHECKPOINT_FREQUENCY
+    return target_steps, checkpoint_frequency
+
+
 def run_condition(
     context: RunContext,
     condition_name: str,
@@ -370,18 +407,12 @@ def run_condition(
     condition = condition_by_name(condition_name)
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
-    target_steps = (
-        target_steps_override
-        if target_steps_override is not None
-        else (SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS)
+    target_steps, checkpoint_frequency = _run_schedule(
+        context,
+        condition,
+        target_steps_override,
     )
-    if target_steps <= 0:
-        raise ValueError("target steps must be positive")
-    checkpoint_frequency = (
-        1
-        if context.smoke or target_steps_override is not None
-        else CHECKPOINT_FREQUENCY
-    )
+    config = build_config(context, condition.name)
     recipe = {
         "condition": condition.name,
         "algorithm": condition.algorithm,
@@ -392,6 +423,10 @@ def run_condition(
         "environment": ENV_CONFIG,
         "model": _model_config(condition),
         "total_env_steps": target_steps,
+        "train_batch_size_per_learner": config.train_batch_size_per_learner,
+        "minibatch_size": config.minibatch_size,
+        "num_epochs": config.num_epochs,
+        "vf_loss_coeff": config.vf_loss_coeff,
         "validation_budget": target_steps_override is not None,
         "checkpoint_frequency_iterations": checkpoint_frequency,
         "predictive_loss_weight": (
@@ -412,7 +447,6 @@ def run_condition(
         "bayesian_optimal_accuracy_context_10": BAYESIAN_OPTIMAL_ACCURACY,
     }
     outputs.write_json("resolved_recipe.json", recipe)
-    config = build_config(context, condition.name)
     initial_checkpoint = _save_initial_checkpoint(
         config,
         context.artifacts_dir / "initial_checkpoint",
@@ -536,6 +570,7 @@ def run_battery(context: RunContext) -> dict[str, Any]:
     """Run each controlled condition once; intended for smoke validation."""
 
     summaries = {}
+    # ``a2c`` is the corrected 672-sample, update-matched recipe.
     for condition in CONDITIONS:
         condition_context = replace(
             context,

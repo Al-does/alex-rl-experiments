@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from types import SimpleNamespace
 
 import numpy as np
@@ -32,6 +33,8 @@ from experiments.mess3_token_guess_cycle_2.model import (
     PaperResidualEncoder,
 )
 from experiments.mess3_token_guess_cycle_2.shared import (
+    A2C_ENV_STEPS,
+    A2C_TRAIN_BATCH_SIZE,
     BASE_MODEL_CONFIG,
     CONDITIONS,
     ENV_CONFIG,
@@ -41,8 +44,10 @@ from experiments.mess3_token_guess_cycle_2.shared import (
     PredictiveLearner,
     PredictiveModel,
     VALIDATION_ENV_STEPS,
+    _run_schedule,
     build_config,
     checkpoint_records,
+    condition_by_name,
     next_emission_targets,
 )
 from harness.context import RunContext
@@ -277,7 +282,7 @@ def test_direct_kelly_math_stays_differentiable_and_action_conditional():
     assert torch.count_nonzero(wagers.grad) == 2
 
 
-def test_five_conditions_build_fresh_gamma_zero_configs(tmp_path):
+def test_battery_uses_update_matched_a2c_with_fresh_gamma_zero_configs(tmp_path):
     context = _context(tmp_path)
     configs = {
         condition.name: build_config(context, condition.name)
@@ -293,12 +298,21 @@ def test_five_conditions_build_fresh_gamma_zero_configs(tmp_path):
     for config in configs.values():
         assert config.gamma == 0.0
         assert config.lambda_ == 0.0
-        assert config.train_batch_size_per_learner == 2_048
         assert config.env_config == ENV_CONFIG
         assert config.num_env_runners == 0
-    assert configs["a2c"].learner_class is A2CTorchLearner
-    assert configs["a2c"].num_epochs == 1
-    assert configs["a2c"].minibatch_size is None
+    a2c = configs["a2c"]
+    assert a2c.learner_class is A2CTorchLearner
+    assert a2c.train_batch_size_per_learner == A2C_TRAIN_BATCH_SIZE
+    assert a2c.num_epochs == 1
+    assert a2c.minibatch_size is None
+    # A2C defines value loss as half-MSE, while PPO uses raw MSE. These numeric
+    # coefficients therefore give both objectives the same critic gradient.
+    assert a2c.vf_loss_coeff == 1.0
+    assert configs["ppo"].vf_loss_coeff == 0.5
+    assert A2C_ENV_STEPS == 1_000_000
+    for name, config in configs.items():
+        if name != "a2c":
+            assert config.train_batch_size_per_learner == 2_048
     assert configs["ppo"].learner_class is PPOTorchLearner
     assert configs["predictive_loss"].learner_class is PredictiveLearner
     assert configs["predictive_loss"].rl_module_spec.module_class is PredictiveModel
@@ -314,6 +328,10 @@ def test_five_conditions_build_fresh_gamma_zero_configs(tmp_path):
     assert configs["iqn"].rl_module_spec.module_class is IQNModel
     assert configs["iqn"].rl_module_spec.model_config["iqn_value"] == IQN_CONFIG
     assert VALIDATION_ENV_STEPS == 131_072
+
+
+def test_a2c_has_one_million_step_checkpoint_schedule(tmp_path):
+    pass
 
 
 def test_single_gpu_profile_reserves_cuda_for_learner(tmp_path):
