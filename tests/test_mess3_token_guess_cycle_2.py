@@ -362,6 +362,11 @@ def test_hyperparameter_sweeps_are_four_point_rllib_grids(tmp_path):
         context,
         "kelly_loss_coefficient",
     ).to_dict()
+    predictive_1p0_config = build_sweep_config(
+        context,
+        "predictive_loss_coefficient",
+        values=(1.0,),
+    ).to_dict()
     assert lr_config["lr"] == {
         "grid_search": list(SWEEP_SPECS["learning_rate"].values)
     }
@@ -377,6 +382,9 @@ def test_hyperparameter_sweeps_are_four_point_rllib_grids(tmp_path):
     ] == {
         "grid_search": list(SWEEP_SPECS["kelly_loss_coefficient"].values)
     }
+    assert predictive_1p0_config["learner_config_dict"][
+        PREDICTIVE_LOSS_COEFFICIENT_KEY
+    ] == {"grid_search": [1.0]}
     assert _nested_metric(
         {
             "learners": {

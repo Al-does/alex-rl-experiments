@@ -68,12 +68,20 @@ def sweep_spec(name: str) -> SweepSpec:
         raise ValueError(f"unknown token-guess sweep {name!r}") from error
 
 
-def build_sweep_config(context: RunContext, name: str):
+def build_sweep_config(
+    context: RunContext,
+    name: str,
+    *,
+    values: tuple[float, ...] | None = None,
+):
     """Build an RLlib config containing exactly one Tune grid search."""
 
     spec = sweep_spec(name)
+    resolved_values = spec.values if values is None else values
+    if not resolved_values or any(value <= 0.0 for value in resolved_values):
+        raise ValueError("sweep values must be non-empty and positive")
     config = build_config(context, spec.condition)
-    search = tune.grid_search(list(spec.values))
+    search = tune.grid_search(list(resolved_values))
     if spec.learner_config_key is None:
         return config.training(lr=search)
     learner_config = dict(config.learner_config_dict)
@@ -158,12 +166,18 @@ def _trial_summary(result: Any, spec: SweepSpec) -> dict[str, Any]:
     return summary
 
 
-def run_sweep(context: RunContext, name: str) -> dict[str, Any]:
-    """Run one four-point grid and select by final-window token accuracy."""
+def run_sweep(
+    context: RunContext,
+    name: str,
+    *,
+    values: tuple[float, ...] | None = None,
+) -> dict[str, Any]:
+    """Run one Tune grid and select by final-window token accuracy."""
 
     if context.seed is None:
         raise ValueError("token-guess sweeps require a resolved seed")
     spec = sweep_spec(name)
+    resolved_values = spec.values if values is None else values
     target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
@@ -173,17 +187,18 @@ def run_sweep(context: RunContext, name: str) -> dict[str, Any]:
             "sweep": spec.name,
             "condition": spec.condition,
             "parameter": spec.parameter,
-            "values": list(spec.values),
-            "num_trials": len(spec.values),
+            "values": list(resolved_values),
+            "num_trials": len(resolved_values),
             "sampling": "RLlib Tune grid_search",
             "one_factor_at_a_time": True,
+            "extends_default_grid": resolved_values != spec.values,
             "total_env_steps_per_trial": target_steps,
             "seed_per_trial": context.seed,
             "selection_metric": "final_window_token_accuracy",
         },
     )
     result_grid = run_tune(
-        build_sweep_config(context, name),
+        build_sweep_config(context, name, values=resolved_values),
         context,
         stop={"env_runners/num_env_steps_sampled_lifetime": target_steps},
         run_config_kwargs={
@@ -193,9 +208,9 @@ def run_sweep(context: RunContext, name: str) -> dict[str, Any]:
         },
     )
     results = list(result_grid)
-    if len(results) != len(spec.values):
+    if len(results) != len(resolved_values):
         raise RuntimeError(
-            f"{name} expected {len(spec.values)} trials, got {len(results)}"
+            f"{name} expected {len(resolved_values)} trials, got {len(results)}"
         )
     failures = [result for result in results if result.error is not None]
     if failures:
@@ -211,6 +226,7 @@ def run_sweep(context: RunContext, name: str) -> dict[str, Any]:
         "sweep": spec.name,
         "condition": spec.condition,
         "parameter": spec.parameter,
+        "values": list(resolved_values),
         "seed": context.seed,
         "smoke": context.smoke,
         "selection_metric": "final_window_token_accuracy",
