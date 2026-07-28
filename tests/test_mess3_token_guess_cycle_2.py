@@ -48,6 +48,7 @@ from experiments.mess3_token_guess_cycle_2.shared import (
 from experiments.mess3_token_guess_cycle_2.sweeps import (
     PREDICTIVE_LOSS_COEFFICIENT_KEY,
     SWEEP_SPECS,
+    _nested_metric,
     build_sweep_config,
 )
 from harness.context import RunContext
@@ -376,6 +377,16 @@ def test_hyperparameter_sweeps_are_four_point_rllib_grids(tmp_path):
     ] == {
         "grid_search": list(SWEEP_SPECS["kelly_loss_coefficient"].values)
     }
+    assert _nested_metric(
+        {
+            "learners": {
+                "default_policy": {
+                    "token_guess_kelly/log_growth_mean": 0.25,
+                }
+            }
+        },
+        "learners/default_policy/token_guess_kelly/log_growth_mean",
+    ) == pytest.approx(0.25)
 
 
 def test_checkpoint_records_include_every_unique_retained_checkpoint():

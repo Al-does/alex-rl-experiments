@@ -83,8 +83,15 @@ def build_sweep_config(context: RunContext, name: str):
 
 def _nested_metric(metrics: Mapping[str, Any], path: str) -> float | None:
     value: Any = metrics
-    for part in path.split("/"):
-        if not isinstance(value, Mapping) or part not in value:
+    parts = path.split("/")
+    for index, part in enumerate(parts):
+        if not isinstance(value, Mapping):
+            return None
+        remainder = "/".join(parts[index:])
+        direct = value.get(remainder)
+        if isinstance(direct, Real):
+            return float(direct)
+        if part not in value:
             return None
         value = value[part]
     return float(value) if isinstance(value, Real) else None
@@ -130,12 +137,24 @@ def _trial_summary(result: Any, spec: SweepSpec) -> dict[str, Any]:
     )
     if predictive_accuracy is not None:
         summary["predictive_accuracy"] = predictive_accuracy
+    predictive_ce = _nested_metric(
+        metrics,
+        "learners/default_policy/next_token_aux/ce",
+    )
+    if predictive_ce is not None:
+        summary["predictive_cross_entropy"] = predictive_ce
     kelly_log_growth = _nested_metric(
         metrics,
         "learners/default_policy/token_guess_kelly/log_growth_mean",
     )
     if kelly_log_growth is not None:
         summary["kelly_log_growth_mean"] = kelly_log_growth
+    kelly_wager = _nested_metric(
+        metrics,
+        "learners/default_policy/token_guess_kelly/wager_mean",
+    )
+    if kelly_wager is not None:
+        summary["kelly_wager_mean"] = kelly_wager
     return summary
 
 
