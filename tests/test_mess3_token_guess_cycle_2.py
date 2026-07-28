@@ -13,6 +13,8 @@ from ray.rllib.core.columns import Columns
 from envs.hmm import HMMEnv
 from experiments.mess3_token_guess_cycle_2.analysis import (
     BAYESIAN_OPTIMAL_ACCURACY,
+    FULL_TEST_STEPS,
+    PLOT_SAMPLE_SIZE,
     _episode_clusters,
     _permutation_null_metrics,
     bayesian_optimal_accuracy,
@@ -164,6 +166,8 @@ def test_bayesian_optimum_is_exact_finite_context_ceiling():
         0.6895773959227975,
         abs=1e-15,
     )
+    assert FULL_TEST_STEPS == 80_000
+    assert PLOT_SAMPLE_SIZE == 80_000
 
 
 def _probe_data(

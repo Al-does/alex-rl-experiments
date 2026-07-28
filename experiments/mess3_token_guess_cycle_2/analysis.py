@@ -46,6 +46,8 @@ N_ENVS = 16
 FULL_RESAMPLES = 1_000
 SMOKE_RESAMPLES = 100
 PERMUTATION_SAMPLE_CAP = 4_096
+FULL_TEST_STEPS = 80_000
+PLOT_SAMPLE_SIZE = 80_000
 CONTEXT_LENGTH = 10
 _STREAM_KEYS = {
     "probe_train": (200,),
@@ -354,7 +356,9 @@ def probe_checkpoint(
     context.results_dir.mkdir(parents=True, exist_ok=True)
     streams = named_seed_sequences(context.seed, _STREAM_KEYS)
     train_steps = train_steps or (4_096 if context.smoke else 60_000)
-    test_steps = test_steps or (4_096 if context.smoke else 30_000)
+    test_steps = test_steps or (
+        4_096 if context.smoke else FULL_TEST_STEPS
+    )
     warmup = 4 if context.smoke else 64
     n_resamples = SMOKE_RESAMPLES if context.smoke else FULL_RESAMPLES
     with load_algorithm(checkpoint) as algorithm:
@@ -484,7 +488,7 @@ def probe_checkpoint(
     }
     if agent_steps == 0:
         metrics["untrained_mse"] = metrics["mse"]
-    sample_size = min(50_000, len(test.beliefs))
+    sample_size = min(PLOT_SAMPLE_SIZE, len(test.beliefs))
     sample_rng = np.random.default_rng(streams["plot_sample"])
     indices = sample_rng.choice(len(test.beliefs), sample_size, replace=False)
     result = ProbeResult(
