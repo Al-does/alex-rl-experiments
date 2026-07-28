@@ -33,8 +33,8 @@ from experiments.mess3_token_guess_cycle_2.model import (
     PaperResidualEncoder,
 )
 from experiments.mess3_token_guess_cycle_2.shared import (
-    A2C_FREQUENT_UPDATES_BATCH_SIZE,
-    A2C_FREQUENT_UPDATES_ENV_STEPS,
+    A2C_ENV_STEPS,
+    A2C_TRAIN_BATCH_SIZE,
     BASE_MODEL_CONFIG,
     CONDITIONS,
     ENV_CONFIG,
@@ -282,14 +282,14 @@ def test_direct_kelly_math_stays_differentiable_and_action_conditional():
     assert torch.count_nonzero(wagers.grad) == 2
 
 
-def test_battery_uses_frequent_update_a2c_with_fresh_gamma_zero_configs(tmp_path):
+def test_battery_uses_update_matched_a2c_with_fresh_gamma_zero_configs(tmp_path):
     context = _context(tmp_path)
     configs = {
         condition.name: build_config(context, condition.name)
         for condition in CONDITIONS
     }
     assert set(configs) == {
-        "a2c_frequent_updates",
+        "a2c",
         "ppo",
         "predictive_loss",
         "decoupled_kelly",
@@ -300,18 +300,18 @@ def test_battery_uses_frequent_update_a2c_with_fresh_gamma_zero_configs(tmp_path
         assert config.lambda_ == 0.0
         assert config.env_config == ENV_CONFIG
         assert config.num_env_runners == 0
-    a2c = configs["a2c_frequent_updates"]
+    a2c = configs["a2c"]
     assert a2c.learner_class is A2CTorchLearner
-    assert a2c.train_batch_size_per_learner == A2C_FREQUENT_UPDATES_BATCH_SIZE
+    assert a2c.train_batch_size_per_learner == A2C_TRAIN_BATCH_SIZE
     assert a2c.num_epochs == 1
     assert a2c.minibatch_size is None
     # A2C defines value loss as half-MSE, while PPO uses raw MSE. These numeric
     # coefficients therefore give both objectives the same critic gradient.
     assert a2c.vf_loss_coeff == 1.0
     assert configs["ppo"].vf_loss_coeff == 0.5
-    assert A2C_FREQUENT_UPDATES_ENV_STEPS == 1_000_000
+    assert A2C_ENV_STEPS == 1_000_000
     for name, config in configs.items():
-        if name != "a2c_frequent_updates":
+        if name != "a2c":
             assert config.train_batch_size_per_learner == 2_048
     assert configs["ppo"].learner_class is PPOTorchLearner
     assert configs["predictive_loss"].learner_class is PredictiveLearner
@@ -330,29 +330,13 @@ def test_battery_uses_frequent_update_a2c_with_fresh_gamma_zero_configs(tmp_path
     assert VALIDATION_ENV_STEPS == 131_072
 
 
-def test_legacy_a2c_remains_runnable_but_is_not_in_battery(tmp_path):
-    assert condition_by_name("a2c").name == "a2c"
-    assert "a2c" not in {condition.name for condition in CONDITIONS}
-    config = build_config(_context(tmp_path), "a2c")
-    assert config.learner_class is A2CTorchLearner
-    assert config.train_batch_size_per_learner == 2_048
-    assert config.num_epochs == 1
-    assert config.minibatch_size is None
-    assert config.vf_loss_coeff == 0.5
-
-
-def test_frequent_update_a2c_has_one_million_step_checkpoint_schedule(tmp_path):
+def test_a2c_has_one_million_step_checkpoint_schedule(tmp_path):
     smoke_context = _context(tmp_path)
-    condition = condition_by_name("a2c_frequent_updates")
+    condition = condition_by_name("a2c")
     assert _run_schedule(smoke_context, condition, None) == (4_096, 1)
     full_context = replace(smoke_context, smoke=False)
-    assert _run_schedule(full_context, condition, None) == (1_000_000, 1_000)
+    assert _run_schedule(full_context, condition, None) == (1_000_000, 200)
     assert _run_schedule(full_context, condition, 131_072) == (131_072, 1)
-    assert _run_schedule(
-        full_context,
-        condition_by_name("a2c"),
-        None,
-    ) == (2_500_000, 10)
 
 
 def test_single_gpu_profile_reserves_cuda_for_learner(tmp_path):

@@ -1,11 +1,8 @@
-"""Legacy update-starved A2C condition, retained only for audit.
+"""One-million-step, update-matched gamma-zero A2C condition.
 
-SCIENTIFIC WARNING: this recipe is wrong for arm comparisons. It performs one
-Adam update per 32,768 fresh samples, yielding only about 76 optimizer updates
-over 2.5M environment steps. Use ``a2c_frequent_updates`` instead.
-
-The A2C objective itself is valid; the invalid part is this recipe's update
-cadence.
+Batch 672 gives A2C approximately the same Adam-update count as PPO while
+preserving fresh-data, one-pass A2C training. ``vf_loss_coeff=1.0`` makes
+A2C's half-MSE critic gradient match PPO's raw-MSE coefficient of 0.5.
 """
 
 from harness.context import RunContext
@@ -14,5 +11,4 @@ from experiments.mess3_token_guess_cycle_2.shared import run_condition
 
 
 def run(context: RunContext):
-    # Do not add this legacy arm back to the battery.
     return run_condition(context, "a2c")

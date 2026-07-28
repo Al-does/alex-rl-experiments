@@ -56,35 +56,26 @@ class Condition:
     objective: str
 
 
-LEGACY_A2C_CONDITION = Condition(
-    "a2c",
-    "A2C",
-    "on_policy_advantage_actor_critic_update_starved",
-)
 CONDITIONS = (
-    Condition(
-        "a2c_frequent_updates",
-        "A2C",
-        "on_policy_advantage_actor_critic_frequent_fresh_updates",
-    ),
+    Condition("a2c", "A2C", "on_policy_advantage_actor_critic"),
     Condition("ppo", "PPO", "clipped_correctness"),
     Condition("predictive_loss", "PPO", "correctness_plus_next_token_ce"),
     Condition("decoupled_kelly", "PPO", "correctness_plus_direct_kelly"),
     Condition("iqn", "PPO-IQN", "clipped_correctness_distributional_value"),
 )
 TOTAL_ENV_STEPS = 2_500_000
-A2C_FREQUENT_UPDATES_ENV_STEPS = 1_000_000
+A2C_ENV_STEPS = 1_000_000
 SMOKE_ENV_STEPS = 4_096
 TRAIN_BATCH_SIZE = 32_768
-A2C_FREQUENT_UPDATES_BATCH_SIZE = 128
+A2C_TRAIN_BATCH_SIZE = 672
 SMOKE_BATCH_SIZE = 2_048
 MINIBATCH_SIZE = 4_096
 SMOKE_MINIBATCH_SIZE = 256
 CHECKPOINT_FREQUENCY = 10
-# At batch size 128, checkpointing every ten iterations would retain hundreds
-# of full Algorithm checkpoints. This keeps roughly eight checkpoints over the
-# 1M-step pilot while preserving dense smoke checkpoints.
-A2C_FREQUENT_UPDATES_CHECKPOINT_FREQUENCY = 1_000
+# Batch 672 gives A2C approximately the same number of Adam updates as PPO's
+# six passes over 4,096-sample minibatches. This retains roughly eight
+# checkpoints over the 1M-step A2C run.
+A2C_CHECKPOINT_FREQUENCY = 200
 VALIDATION_ENV_STEPS = 131_072
 PREDICTIVE_LOSS_WEIGHT = 1.0
 DIRECT_KELLY_LOSS_WEIGHT = 1.0
@@ -158,11 +149,7 @@ def next_emission_targets(
 
 def condition_by_name(name: str) -> Condition:
     try:
-        return next(
-            condition
-            for condition in (LEGACY_A2C_CONDITION, *CONDITIONS)
-            if condition.name == name
-        )
+        return next(condition for condition in CONDITIONS if condition.name == name)
     except StopIteration as error:
         raise ValueError(f"unknown token-guess condition {name!r}") from error
 
@@ -178,7 +165,7 @@ def _module_class(condition: Condition):
 
 
 def _learner_class(condition: Condition):
-    if condition.name in {"a2c", "a2c_frequent_updates"}:
+    if condition.name == "a2c":
         return A2CTorchLearner
     if condition.name == "predictive_loss":
         return PredictiveLearner
@@ -240,13 +227,12 @@ def build_config(
 
     condition = condition_by_name(condition_name)
     profile = context.hardware or PROFILES["cpu"]
-    is_a2c = condition.name in {"a2c", "a2c_frequent_updates"}
-    if condition.name == "a2c_frequent_updates":
-        # The legacy A2C arm used one Adam step per 32,768 fresh samples and
-        # received only ~76 updates over 2.5M steps. Batch 128 is the validated
-        # intervention: still strictly on-policy, but with frequent fresh-data
-        # updates (996 updates by ~131k sampled steps in the diagnostic run).
-        batch_size = A2C_FREQUENT_UPDATES_BATCH_SIZE
+    is_a2c = condition.name == "a2c"
+    if is_a2c:
+        # PPO makes about 50 Adam updates per ~33.5k sampled steps. One fresh
+        # A2C update per 672 samples matches that optimizer-update cadence while
+        # retaining A2C's one-pass, strictly on-policy data use.
+        batch_size = A2C_TRAIN_BATCH_SIZE
     else:
         batch_size = SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
     config = (
@@ -271,7 +257,7 @@ def build_config(
             vf_loss_coeff=(
                 0.0
                 if condition.name == "iqn"
-                else (1.0 if condition.name == "a2c_frequent_updates" else 0.5)
+                else (1.0 if is_a2c else 0.5)
             ),
             entropy_coeff=0.0,
             train_batch_size_per_learner=batch_size,
@@ -398,8 +384,8 @@ def _run_schedule(
         target_steps = target_steps_override
     elif context.smoke:
         target_steps = SMOKE_ENV_STEPS
-    elif condition.name == "a2c_frequent_updates":
-        target_steps = A2C_FREQUENT_UPDATES_ENV_STEPS
+    elif condition.name == "a2c":
+        target_steps = A2C_ENV_STEPS
     else:
         target_steps = TOTAL_ENV_STEPS
     if target_steps <= 0:
@@ -407,8 +393,8 @@ def _run_schedule(
 
     if context.smoke or target_steps_override is not None:
         checkpoint_frequency = 1
-    elif condition.name == "a2c_frequent_updates":
-        checkpoint_frequency = A2C_FREQUENT_UPDATES_CHECKPOINT_FREQUENCY
+    elif condition.name == "a2c":
+        checkpoint_frequency = A2C_CHECKPOINT_FREQUENCY
     else:
         checkpoint_frequency = CHECKPOINT_FREQUENCY
     return target_steps, checkpoint_frequency
@@ -590,9 +576,7 @@ def run_battery(context: RunContext) -> dict[str, Any]:
     """Run each controlled condition once; intended for smoke validation."""
 
     summaries = {}
-    # Deliberately excludes legacy ``a2c``. The battery now runs the corrected
-    # 128-sample fresh-update recipe instead of the update-starved 32,768-sample
-    # arm retained only for audit/reproduction.
+    # ``a2c`` is the corrected 672-sample, update-matched recipe.
     for condition in CONDITIONS:
         condition_context = replace(
             context,
