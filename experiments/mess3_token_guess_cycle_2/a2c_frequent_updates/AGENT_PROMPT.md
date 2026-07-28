@@ -13,6 +13,7 @@ Scientific recipe:
 - exactly 1,000,000 sampled environment steps per seed;
 - `train_batch_size_per_learner=128`;
 - one epoch over each fresh batch, no minibatching or replay;
+- `vf_loss_coeff=1.0`, matching PPO's effective critic-gradient scale;
 - LR `1e-4`, gamma/lambda `0`, and the existing A2C objective/model;
 - do not run the legacy `a2c` leaf—it is update-starved and retained only for
   reproduction.
@@ -50,7 +51,7 @@ Procedure:
    infrastructure rented directly through Vast when finished.
 6. Verify every `resolved_recipe.json` records:
    `total_env_steps=1000000`, `train_batch_size_per_learner=128`,
-   `num_epochs=1`, and `minibatch_size=null`.
+   `num_epochs=1`, `minibatch_size=null`, and `vf_loss_coeff=1.0`.
 7. Verify all three runs have successful Tune trials and final checkpoints.
    Collect compact `condition_summary.json` and `checkpoint_probe_curve.json`
    outputs. Report per-seed optimizer-update count, final belief MSE/R², token

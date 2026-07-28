@@ -305,6 +305,10 @@ def test_battery_uses_frequent_update_a2c_with_fresh_gamma_zero_configs(tmp_path
     assert a2c.train_batch_size_per_learner == A2C_FREQUENT_UPDATES_BATCH_SIZE
     assert a2c.num_epochs == 1
     assert a2c.minibatch_size is None
+    # A2C defines value loss as half-MSE, while PPO uses raw MSE. These numeric
+    # coefficients therefore give both objectives the same critic gradient.
+    assert a2c.vf_loss_coeff == 1.0
+    assert configs["ppo"].vf_loss_coeff == 0.5
     assert A2C_FREQUENT_UPDATES_ENV_STEPS == 1_000_000
     for name, config in configs.items():
         if name != "a2c_frequent_updates":
@@ -334,6 +338,7 @@ def test_legacy_a2c_remains_runnable_but_is_not_in_battery(tmp_path):
     assert config.train_batch_size_per_learner == 2_048
     assert config.num_epochs == 1
     assert config.minibatch_size is None
+    assert config.vf_loss_coeff == 0.5
 
 
 def test_frequent_update_a2c_has_one_million_step_checkpoint_schedule(tmp_path):

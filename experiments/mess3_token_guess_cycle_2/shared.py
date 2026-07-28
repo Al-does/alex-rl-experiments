@@ -268,7 +268,11 @@ def build_config(
             lambda_=0.0,
             clip_param=0.2,
             use_kl_loss=False,
-            vf_loss_coeff=0.0 if condition.name == "iqn" else 0.5,
+            vf_loss_coeff=(
+                0.0
+                if condition.name == "iqn"
+                else (1.0 if condition.name == "a2c_frequent_updates" else 0.5)
+            ),
             entropy_coeff=0.0,
             train_batch_size_per_learner=batch_size,
             minibatch_size=(
@@ -442,6 +446,7 @@ def run_condition(
         "train_batch_size_per_learner": config.train_batch_size_per_learner,
         "minibatch_size": config.minibatch_size,
         "num_epochs": config.num_epochs,
+        "vf_loss_coeff": config.vf_loss_coeff,
         "validation_budget": target_steps_override is not None,
         "checkpoint_frequency_iterations": checkpoint_frequency,
         "predictive_loss_weight": (
