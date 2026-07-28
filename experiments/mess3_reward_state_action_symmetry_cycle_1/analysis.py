@@ -14,6 +14,7 @@ import torch
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.ticker import NullFormatter  # noqa: E402
 
 from analysis.checkpoints import load_algorithm
 from analysis.plots import simplex_scatter
@@ -505,6 +506,7 @@ def plot_battery_mse_curves(
             )
         axis.set_xscale("log")
         axis.set_xticks(tick_positions, tick_labels)
+        axis.xaxis.set_minor_formatter(NullFormatter())
         if positive_steps:
             axis.set_xlim(init_x / 1.4, positive_steps[-1] * 1.15)
         if config.get("yscale") == "log":
