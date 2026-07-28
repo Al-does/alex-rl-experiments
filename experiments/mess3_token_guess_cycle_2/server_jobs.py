@@ -140,10 +140,11 @@ def deploy_flash(
 
 
 def build_run_command(job: JobSpec) -> str:
+    # Use --hardware so Flash/Serverless preflight and the experiment CLI agree.
     return (
         f"rl-harness {job.module} "
         f"--seed {job.seed} "
-        f"--hardware-profile cuda4090 "
+        f"--hardware cuda4090 "
         f"--upload-artifacts "
         f"--run-id {job.run_name}"
     )
