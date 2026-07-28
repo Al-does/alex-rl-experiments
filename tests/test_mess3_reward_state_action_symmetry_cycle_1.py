@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import itertools
 from types import SimpleNamespace
 
 import numpy as np
@@ -42,6 +43,11 @@ EXPECTED_DIRECTIONS = {
         POSITIVE_ACTION: (1, -1, -1),
         NEGATIVE_ACTION: (-1, 1, -1),
     },
+}
+EXPECTED_ORACLE_POLICIES = {
+    1: (POSITIVE_ACTION, POSITIVE_ACTION, POSITIVE_ACTION),
+    2: (POSITIVE_ACTION, POSITIVE_ACTION, NOOP_ACTION),
+    3: (POSITIVE_ACTION, NEGATIVE_ACTION, NOOP_ACTION),
 }
 
 
@@ -97,6 +103,31 @@ def test_task_rewards_pre_transition_state_two_and_encodes_actions():
     )
     with pytest.raises(ValueError, match="outside the action space"):
         task.transition_matrix_for_action(3)
+
+
+@pytest.mark.parametrize("variant", (1, 2, 3))
+def test_described_oracle_policy_uniquely_maximizes_state_two_occupancy(variant):
+    task = ActionSymmetryTask(model=control_model(), variant=variant)
+    occupancies = {}
+    for policy in itertools.product(range(3), repeat=3):
+        transition = np.stack(
+            [
+                task.transition_matrix_for_action(policy[state])[state]
+                for state in range(3)
+            ]
+        )
+        system = transition.T - np.eye(3)
+        system[-1] = 1.0
+        stationary = np.linalg.solve(
+            system,
+            np.array([0.0, 0.0, 1.0]),
+        )
+        occupancies[policy] = stationary[2]
+
+    ranked = sorted(occupancies, key=occupancies.get, reverse=True)
+
+    assert ranked[0] == EXPECTED_ORACLE_POLICIES[variant]
+    assert occupancies[ranked[0]] > occupancies[ranked[1]]
 
 
 @pytest.mark.parametrize("variant", (1, 2, 3))
