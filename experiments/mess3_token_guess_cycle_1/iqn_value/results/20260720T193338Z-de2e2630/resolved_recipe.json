@@ -1,0 +1,39 @@
+{
+  "algorithm": "PPO",
+  "comparison_source": "/root/work/alex-rl-experiments/experiments/mess3_token_guess_cycle_1/comparison/results/20260720T060607Z-ef3c5957/comparison_summary.json",
+  "condition": "iqn_value",
+  "distributional_value_target": "sampled on-policy GAE lambda-return",
+  "environment": {
+    "delay": 1,
+    "episode_length": 512,
+    "model": {
+      "factory": "envs.mess3.model:passive_model",
+      "kwargs": {
+        "alpha": 0.85
+      }
+    },
+    "observation": {
+      "action": null
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "experiments.mess3_token_guess_cycle_1.task:NextTokenGuessTask"
+    }
+  },
+  "iqn_huber_kappa": 1.0,
+  "iqn_loss": "quantile Huber",
+  "iqn_loss_coefficient": 0.5,
+  "model": {
+    "context_len": 64,
+    "d_model": 96,
+    "iqn_value": {
+      "n_cosines": 64,
+      "train_quantiles": 32,
+      "value_quantiles": 64
+    },
+    "max_seq_len": 32,
+    "n_heads": 4,
+    "n_layers": 3
+  },
+  "total_env_steps": 2500000
+}

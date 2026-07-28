@@ -1,0 +1,58 @@
+{
+  "algorithm": "PPO",
+  "belief_probe_target": "predictive_transducer_belief",
+  "checkpoint_interval_iterations": 306,
+  "checkpoint_milestones": [
+    10000000,
+    20000000,
+    30000000
+  ],
+  "checkpoint_tolerance_steps": 1000000,
+  "condition": "iqn_gamma_0",
+  "critic": "implicit_quantile_network",
+  "direct_kelly_loss_coefficient": 0.0,
+  "environment": {
+    "delay": 1,
+    "episode_length": 1024,
+    "model": {
+      "factory": "envs.mess3.model:control_model",
+      "kwargs": {
+        "alpha": 0.85
+      }
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "envs.mess3.tasks.occupancy_control:OccupancyControlTask",
+      "kwargs": {
+        "action_limit": 5.0
+      }
+    }
+  },
+  "gamma": 0.0,
+  "iqn_config": {
+    "n_cosines": 64,
+    "train_quantiles": 32,
+    "value_quantiles": 64
+  },
+  "iqn_loss_coefficient": 0.5,
+  "kelly_net_win_odds": null,
+  "lambda": 0.95,
+  "learning_rate": 0.00042,
+  "minibatch_size": 2048,
+  "model_config": {
+    "context_len": 64,
+    "d_model": 96,
+    "iqn_value": {
+      "n_cosines": 64,
+      "train_quantiles": 32,
+      "value_quantiles": 64
+    },
+    "max_seq_len": 32,
+    "n_heads": 4,
+    "n_layers": 3
+  },
+  "predictive_kelly": false,
+  "token_correctness_coefficient": 0.0,
+  "total_env_steps": 30000000,
+  "train_batch_size": 32768
+}

@@ -60,6 +60,7 @@ def run(context: RunContext):
         module = algorithm.get_module()
         if module is None:
             raise KeyError("checkpoint has no default RLModule")
+        action_high = np.asarray(module.action_space.high, dtype=np.float64)
         environment_class = algorithm.config.env
         environment_config = dict(algorithm.config.env_config)
         environment_config["diagnostics"] = {
@@ -135,6 +136,23 @@ def run(context: RunContext):
         target_consistency_max_abs=target_error,
         reward_mean=float(test.rewards.mean()),
         reward_greedy=float(greedy.rewards.mean()),
+        occupancy_state_2_fraction=float(np.mean(test.states == 2)),
+        action_l2_mean=float(
+            np.linalg.norm(test.actions, axis=-1).mean()
+        ),
+        action_boundary_fraction=float(
+            np.mean(
+                np.any(
+                    np.isclose(
+                        np.abs(test.actions),
+                        action_high,
+                        rtol=0.0,
+                        atol=1e-3,
+                    ),
+                    axis=-1,
+                )
+            )
+        ),
         within_branch_action_variance_fraction=(
             within_branch_action_variance_fraction(test)
         ),

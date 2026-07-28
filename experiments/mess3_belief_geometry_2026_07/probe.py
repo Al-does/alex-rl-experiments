@@ -30,6 +30,8 @@ class ProbeData:
     diagnostic_beliefs: np.ndarray
     tokens: np.ndarray
     previous_tokens: np.ndarray
+    env_indices: np.ndarray
+    episode_steps: np.ndarray
     states: np.ndarray
     actions: np.ndarray
     rewards: np.ndarray
@@ -323,6 +325,8 @@ def collect_probe_data(
             "diagnostic_beliefs": diagnostic_beliefs,
             "tokens": tokens,
             "previous_tokens": previous,
+            "env_indices": np.arange(n_envs, dtype=np.int64),
+            "episode_steps": np.asarray(episode_steps, dtype=np.int64),
             "states": np.asarray(
                 [info["state_current"] for info in infos],
                 dtype=np.int64,
@@ -362,6 +366,14 @@ def collect_probe_data(
         ),
         previous_tokens=np.asarray(
             collected.targets["previous_tokens"],
+            dtype=np.int64,
+        ),
+        env_indices=np.asarray(
+            collected.targets["env_indices"],
+            dtype=np.int64,
+        ),
+        episode_steps=np.asarray(
+            collected.targets["episode_steps"],
             dtype=np.int64,
         ),
         states=np.asarray(
