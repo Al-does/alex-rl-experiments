@@ -495,19 +495,41 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise
             summary = None
 
-    if summary is None and prefer_vast:
-        print("Falling back to vast.ai", flush=True)
-        summary = run_vast_queue(
-            harness=harness,
-            jobs=jobs,
-            experiment_ref=experiment_ref,
-            library_ref=library_ref,
-            max_workers=max_workers,
-            max_age=args.max_age,
-            max_price=args.max_price,
-            dry_run=args.dry_run,
-            yes=args.yes,
-        )
+    # Retry only the failed (or never-run) jobs on vast when requested.
+    if prefer_vast:
+        flash_results = (summary or {}).get("results", {})
+        failed_jobs = [
+            job
+            for job in jobs
+            if flash_results.get(job.run_name, 1) != 0
+        ]
+        if summary is None or failed_jobs:
+            print(
+                f"Falling back to vast.ai for {len(failed_jobs) or len(jobs)} job(s)",
+                flush=True,
+            )
+            vast_summary = run_vast_queue(
+                harness=harness,
+                jobs=failed_jobs or list(jobs),
+                experiment_ref=experiment_ref,
+                library_ref=library_ref,
+                max_workers=max_workers,
+                max_age=args.max_age,
+                max_price=args.max_price,
+                dry_run=args.dry_run,
+                yes=args.yes,
+            )
+            merged = dict(flash_results)
+            merged.update(vast_summary["results"])
+            summary = {
+                "backend": (
+                    "vast"
+                    if summary is None
+                    else "flash-then-vast"
+                ),
+                "results": merged,
+                "vast_retry": [job.run_name for job in (failed_jobs or jobs)],
+            }
 
     assert summary is not None
     state["summary"] = summary
