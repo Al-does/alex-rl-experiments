@@ -69,6 +69,7 @@ MSE_METRICS = {
         "ylabel": "Global MSE ratio (lower is better)",
         "definition": "mse / target_variance",
         "reference": 1.0,
+        "yscale": "log",
     },
     "fine_evaluation_mse": {
         "title": "Held-out MSE on sufficiently populated branches",
@@ -85,6 +86,7 @@ MSE_METRICS = {
         "ylabel": "Fine MSE ratio (lower is better)",
         "definition": "fine_evaluation_mse / branch_baseline_mse",
         "reference": 1.0,
+        "yscale": "log",
     },
     "fine_mse_improvement": {
         "title": "Improvement over within-branch baseline",
@@ -435,6 +437,35 @@ def plot_battery_mse_curves(
     results_dir.mkdir(parents=True, exist_ok=True)
     figures = {}
     colors = ("#355c9a", "#c45135", "#3a7d44")
+    checkpoint_steps = sorted(
+        {
+            int(point["agent_steps"])
+            for points in variants.values()
+            for point in points
+        }
+    )
+    positive_steps = [step for step in checkpoint_steps if step > 0]
+    init_x = positive_steps[0] / 4.0 if positive_steps else 1.0
+    tick_positions = [
+        init_x if step == 0 else float(step)
+        for step in checkpoint_steps
+    ]
+    tick_labels = [
+        (
+            "init"
+            if step == 0
+            else (
+                f"{step / 1_000_000:g}M"
+                if step >= 1_000_000
+                else (
+                    f"{step / 1_000:g}k"
+                    if step >= 1_000
+                    else str(step)
+                )
+            )
+        )
+        for step in checkpoint_steps
+    ]
     for metric, config in MSE_METRICS.items():
         figure, axis = plt.subplots(figsize=(8.2, 4.8))
         for color, (variant, points) in zip(
@@ -446,12 +477,13 @@ def plot_battery_mse_curves(
                 [point["agent_steps"] for point in points],
                 dtype=np.float64,
             )
+            plot_steps = np.where(steps == 0.0, init_x, steps)
             values = np.asarray(
                 [point[metric] for point in points],
                 dtype=np.float64,
             )
             axis.plot(
-                steps,
+                plot_steps,
                 values,
                 marker="o",
                 linewidth=1.8,
@@ -471,7 +503,12 @@ def plot_battery_mse_curves(
                     else "no improvement"
                 ),
             )
-        axis.set_xscale("symlog", linthresh=1.0)
+        axis.set_xscale("log")
+        axis.set_xticks(tick_positions, tick_labels)
+        if positive_steps:
+            axis.set_xlim(init_x / 1.4, positive_steps[-1] * 1.15)
+        if config.get("yscale") == "log":
+            axis.set_yscale("log")
         axis.set_xlabel("Environment steps (step 0 is untrained)")
         axis.set_ylabel(config["ylabel"])
         axis.set_title(config["title"])
