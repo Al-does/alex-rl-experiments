@@ -280,8 +280,8 @@ def test_battery_writes_cross_variant_curve_for_every_mse_metric(tmp_path):
 @pytest.mark.parametrize(
     ("condition", "smoke", "expected"),
     [
-        ("variant_1", True, 1.0),
-        ("battery", True, 3.0),
+        ("variant_1", True, 10 / 60),
+        ("battery", True, 20 / 60),
         ("variant_1", False, 12.0),
         ("battery", False, 36.0),
     ],
@@ -325,7 +325,7 @@ def test_flash_up_command_carries_monitoring_and_age_limits(tmp_path):
         smoke=True,
         experiment_ref="a" * 40,
         library_ref="b" * 40,
-        max_age=3.0,
+        max_age=20 / 60,
         queue_timeout=30.0,
         max_price=1.25,
         max_estimated_cost=5.0,
@@ -334,7 +334,7 @@ def test_flash_up_command_carries_monitoring_and_age_limits(tmp_path):
         dry_run=True,
     )
 
-    assert command[command.index("--max-age") + 1] == "3.0"
+    assert float(command[command.index("--max-age") + 1]) == pytest.approx(20 / 60)
     assert command[command.index("--progress-interval") + 1] == "30.0"
     assert command[command.index("--no-progress-timeout") + 1] == "15.0"
     assert command[-1] == "--dry-run"

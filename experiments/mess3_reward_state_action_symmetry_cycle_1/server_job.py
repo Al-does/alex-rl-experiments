@@ -1,9 +1,8 @@
 """Launch one action-symmetry experiment on RunPod Flash.
 
-This study requires an explicit ``cuda4090`` profile during remote preflight:
-the default ``cuda4090_gpuinfer`` profile reserves 1.8 GPUs. Smoke runs also
-need more than the generic 30-minute launcher default because checkpoint probes
-run after PPO training.
+This study requires an explicit ``cuda4090`` resource profile during remote
+preflight: the default ``cuda4090_gpuinfer`` profile reserves 1.8 GPUs. The
+profile describes a one-GPU layout, not an exact GPU model.
 
 Examples:
 
@@ -48,7 +47,10 @@ def _git_sha(repository: Path) -> str:
 def default_max_age(condition: str, *, smoke: bool) -> float:
     """Return a conservative execution ceiling in hours."""
     if smoke:
-        return 3.0 if condition == "battery" else 1.0
+        # A local CPU variant smoke completes in under one minute. Allow extra
+        # time for remote bootstrap, probes, and B2 upload without permitting a
+        # stalled smoke to occupy a GPU for hours.
+        return 20 / 60 if condition == "battery" else 10 / 60
     return 36.0 if condition == "battery" else 12.0
 
 
