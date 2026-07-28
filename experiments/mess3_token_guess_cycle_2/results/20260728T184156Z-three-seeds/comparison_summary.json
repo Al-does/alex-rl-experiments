@@ -1,0 +1,189 @@
+{
+  "gamma": 0.0,
+  "lambda": 0.0,
+  "lr": 0.0001,
+  "predictive_loss_weight": 1.0,
+  "direct_kelly_loss_weight": 1.0,
+  "conditions": {
+    "a2c": {
+      "algorithm": "A2C",
+      "objective": "on_policy_advantage_actor_critic",
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "metrics": {
+        "r_squared": {
+          "mean": 0.9695813525150768,
+          "std": 0.0009421246581766047
+        },
+        "token_accuracy_greedy": {
+          "mean": 0.6735458333333334,
+          "std": 0.00249262105467763
+        },
+        "mse": {
+          "mean": 0.0036433867818533275,
+          "std": 0.00010612518014695004
+        },
+        "global_mse_ratio": {
+          "mean": 0.030418647484923195,
+          "std": 0.0009421246581766319
+        },
+        "fine_mse_ratio": {
+          "mean": 0.4444863341697442,
+          "std": 0.01149132508256809
+        }
+      },
+      "task_success_improved": [
+        true,
+        true,
+        true
+      ]
+    },
+    "ppo": {
+      "algorithm": "PPO",
+      "objective": "clipped_correctness",
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "metrics": {
+        "r_squared": {
+          "mean": 0.9948044189166683,
+          "std": 0.0012347497351091843
+        },
+        "token_accuracy_greedy": {
+          "mean": 0.6745625000000001,
+          "std": 0.009437464127967136
+        },
+        "mse": {
+          "mean": 0.0006220314285460337,
+          "std": 0.0001464938763019246
+        },
+        "global_mse_ratio": {
+          "mean": 0.0051955810833317975,
+          "std": 0.0012347497351091776
+        },
+        "fine_mse_ratio": {
+          "mean": 0.07579720967397748,
+          "std": 0.017380204511871316
+        }
+      },
+      "task_success_improved": [
+        true,
+        true,
+        true
+      ]
+    },
+    "predictive_loss": {
+      "algorithm": "PPO",
+      "objective": "correctness_plus_next_token_ce",
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "metrics": {
+        "r_squared": {
+          "mean": 0.9896035288852515,
+          "std": 0.004247932882355434
+        },
+        "token_accuracy_greedy": {
+          "mean": 0.6862666666666666,
+          "std": 0.0021145905172291492
+        },
+        "mse": {
+          "mean": 0.001245549834358359,
+          "std": 0.0005099960062033312
+        },
+        "global_mse_ratio": {
+          "mean": 0.010396471114748548,
+          "std": 0.004247932882355457
+        },
+        "fine_mse_ratio": {
+          "mean": 0.1522595068619793,
+          "std": 0.06324787374184411
+        }
+      },
+      "task_success_improved": [
+        true,
+        true,
+        true
+      ]
+    },
+    "decoupled_kelly": {
+      "algorithm": "PPO",
+      "objective": "correctness_plus_direct_kelly",
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "metrics": {
+        "r_squared": {
+          "mean": 0.99533115114107,
+          "std": 0.0010767861830595256
+        },
+        "token_accuracy_greedy": {
+          "mean": 0.6852916666666666,
+          "std": 0.0032326513456020028
+        },
+        "mse": {
+          "mean": 0.0005594292867384493,
+          "std": 0.00012987170301006606
+        },
+        "global_mse_ratio": {
+          "mean": 0.0046688488589300735,
+          "std": 0.0010767861830594974
+        },
+        "fine_mse_ratio": {
+          "mean": 0.06829398925905383,
+          "std": 0.016007497649696292
+        }
+      },
+      "task_success_improved": [
+        true,
+        true,
+        true
+      ]
+    },
+    "iqn": {
+      "algorithm": "PPO-IQN",
+      "objective": "clipped_correctness_distributional_value",
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "metrics": {
+        "r_squared": {
+          "mean": 0.9941319890957185,
+          "std": 0.0006865159705168933
+        },
+        "token_accuracy_greedy": {
+          "mean": 0.6840333333333333,
+          "std": 0.0008073447563188825
+        },
+        "mse": {
+          "mean": 0.0007027312973936551,
+          "std": 8.088269542230155e-05
+        },
+        "global_mse_ratio": {
+          "mean": 0.005868010904281447,
+          "std": 0.0006865159705169054
+        },
+        "fine_mse_ratio": {
+          "mean": 0.08566807789849244,
+          "std": 0.009214338325734078
+        }
+      },
+      "task_success_improved": [
+        true,
+        true,
+        true
+      ]
+    }
+  }
+}
