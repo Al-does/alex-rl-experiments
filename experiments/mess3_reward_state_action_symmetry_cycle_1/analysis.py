@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 from pathlib import Path
+from collections.abc import Mapping
 from typing import Any
 
 import matplotlib
@@ -13,6 +14,7 @@ import torch
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.ticker import NullFormatter  # noqa: E402
 
 from analysis.checkpoints import load_algorithm
 from analysis.plots import simplex_scatter
@@ -51,6 +53,48 @@ _STREAM_KEYS = {
     "permutation": (303,),
     "permutation_sample": (304,),
     "plot_sample": (305,),
+}
+MSE_METRICS = {
+    "mse": {
+        "title": "Held-out affine-probe MSE",
+        "ylabel": "MSE (lower is better)",
+        "definition": "mean((decoded_belief - exact_belief)^2)",
+    },
+    "target_variance": {
+        "title": "Global-mean baseline MSE",
+        "ylabel": "Target variance",
+        "definition": "mean((exact_belief - global_mean_belief)^2)",
+    },
+    "global_mse_ratio": {
+        "title": "Probe MSE / global-mean baseline",
+        "ylabel": "Global MSE ratio (lower is better)",
+        "definition": "mse / target_variance",
+        "reference": 1.0,
+        "yscale": "log",
+    },
+    "fine_evaluation_mse": {
+        "title": "Held-out MSE on sufficiently populated branches",
+        "ylabel": "Fine evaluation MSE (lower is better)",
+        "definition": "probe MSE restricted to evaluated token branches",
+    },
+    "branch_baseline_mse": {
+        "title": "Within-branch centroid baseline MSE",
+        "ylabel": "Branch baseline MSE",
+        "definition": "mean((exact_belief - branch_centroid)^2)",
+    },
+    "fine_mse_ratio": {
+        "title": "Probe MSE / within-branch baseline",
+        "ylabel": "Fine MSE ratio (lower is better)",
+        "definition": "fine_evaluation_mse / branch_baseline_mse",
+        "reference": 1.0,
+        "yscale": "log",
+    },
+    "fine_mse_improvement": {
+        "title": "Improvement over within-branch baseline",
+        "ylabel": "Fine MSE improvement (higher is better)",
+        "definition": "branch_baseline_mse - fine_evaluation_mse",
+        "reference": 0.0,
+    },
 }
 
 
@@ -323,3 +367,158 @@ def plot_probe(result: ProbeResult, *, title: str, path: Path) -> None:
     figure.tight_layout()
     figure.savefig(path, dpi=200)
     plt.close(figure)
+
+
+def build_battery_mse_report(
+    summaries: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Collect every README MSE metric into one cross-variant report."""
+
+    if not summaries:
+        raise ValueError("battery MSE reporting requires at least one variant")
+    variants: dict[str, list[dict[str, Any]]] = {}
+    metadata: dict[str, str] | None = None
+    for variant, summary in sorted(summaries.items()):
+        source_points = summary.get("checkpoint_probes")
+        if not isinstance(source_points, list) or not source_points:
+            raise ValueError(f"{variant} has no checkpoint probe points")
+        points = []
+        previous_steps = -1
+        for source in source_points:
+            probe = source.get("probe")
+            if not isinstance(probe, Mapping):
+                raise ValueError(f"{variant} probe point has no metrics")
+            steps = int(source["agent_steps"])
+            if steps <= previous_steps:
+                raise ValueError(f"{variant} probe steps must increase")
+            previous_steps = steps
+            point = {"agent_steps": steps}
+            for metric in MSE_METRICS:
+                if metric not in probe:
+                    raise ValueError(f"{variant} probe is missing {metric}")
+                point[metric] = float(probe[metric])
+            points.append(point)
+            point_metadata = {
+                "target": str(probe["target"]),
+                "sampling_distribution": str(
+                    probe["sampling_distribution"]
+                ),
+                "representation": str(probe["representation"]),
+                "probe": str(probe["probe"]),
+            }
+            if metadata is None:
+                metadata = point_metadata
+            elif metadata != point_metadata:
+                raise ValueError(
+                    "battery variants must use one probe specification"
+                )
+        variants[variant] = points
+    assert metadata is not None
+    return {
+        "schema_version": 1,
+        **metadata,
+        "metric_definitions": {
+            metric: config["definition"]
+            for metric, config in MSE_METRICS.items()
+        },
+        "variants": variants,
+    }
+
+
+def plot_battery_mse_curves(
+    report: Mapping[str, Any],
+    *,
+    results_dir: Path,
+) -> dict[str, str]:
+    """Write one checkpoint curve per MSE metric with every variant."""
+
+    variants = report.get("variants")
+    if not isinstance(variants, Mapping) or not variants:
+        raise ValueError("battery MSE report has no variants")
+    results_dir.mkdir(parents=True, exist_ok=True)
+    figures = {}
+    colors = ("#355c9a", "#c45135", "#3a7d44")
+    checkpoint_steps = sorted(
+        {
+            int(point["agent_steps"])
+            for points in variants.values()
+            for point in points
+        }
+    )
+    positive_steps = [step for step in checkpoint_steps if step > 0]
+    init_x = positive_steps[0] / 4.0 if positive_steps else 1.0
+    tick_positions = [
+        init_x if step == 0 else float(step)
+        for step in checkpoint_steps
+    ]
+    tick_labels = [
+        (
+            "init"
+            if step == 0
+            else (
+                f"{step / 1_000_000:g}M"
+                if step >= 1_000_000
+                else (
+                    f"{step / 1_000:g}k"
+                    if step >= 1_000
+                    else str(step)
+                )
+            )
+        )
+        for step in checkpoint_steps
+    ]
+    for metric, config in MSE_METRICS.items():
+        figure, axis = plt.subplots(figsize=(8.2, 4.8))
+        for color, (variant, points) in zip(
+            colors,
+            sorted(variants.items()),
+            strict=False,
+        ):
+            steps = np.asarray(
+                [point["agent_steps"] for point in points],
+                dtype=np.float64,
+            )
+            plot_steps = np.where(steps == 0.0, init_x, steps)
+            values = np.asarray(
+                [point[metric] for point in points],
+                dtype=np.float64,
+            )
+            axis.plot(
+                plot_steps,
+                values,
+                marker="o",
+                linewidth=1.8,
+                color=color,
+                label=variant.replace("_", " "),
+            )
+        reference = config.get("reference")
+        if reference is not None:
+            axis.axhline(
+                float(reference),
+                color="#333333",
+                linestyle="--",
+                linewidth=1.2,
+                label=(
+                    "baseline parity"
+                    if reference == 1.0
+                    else "no improvement"
+                ),
+            )
+        axis.set_xscale("log")
+        axis.set_xticks(tick_positions, tick_labels)
+        axis.xaxis.set_minor_formatter(NullFormatter())
+        if positive_steps:
+            axis.set_xlim(init_x / 1.4, positive_steps[-1] * 1.15)
+        if config.get("yscale") == "log":
+            axis.set_yscale("log")
+        axis.set_xlabel("Environment steps (step 0 is untrained)")
+        axis.set_ylabel(config["ylabel"])
+        axis.set_title(config["title"])
+        axis.grid(alpha=0.2)
+        axis.legend()
+        figure.tight_layout()
+        filename = f"battery_{metric}_curve.png"
+        figure.savefig(results_dir / filename, dpi=200)
+        plt.close(figure)
+        figures[metric] = filename
+    return figures

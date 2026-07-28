@@ -15,6 +15,11 @@ from experiments.mess3_belief_geometry_2026_07.probe import (
     collect_probe_data,
     make_transducer_target,
 )
+from experiments.mess3_reward_state_action_symmetry_cycle_1.analysis import (
+    MSE_METRICS,
+    build_battery_mse_report,
+    plot_battery_mse_curves,
+)
 from experiments.mess3_reward_state_action_symmetry_cycle_1.shared import (
     _log_spaced_records,
     environment_config,
@@ -229,3 +234,37 @@ def test_probe_schedule_selects_init_powers_of_two_and_final():
     selected = _log_spaced_records(records)
 
     assert [record["training_iteration"] for record in selected] == [1, 2, 4, 6]
+
+
+def test_battery_writes_cross_variant_curve_for_every_mse_metric(tmp_path):
+    summaries = {}
+    for variant in (1, 2, 3):
+        points = []
+        for index, steps in enumerate((0, 2_048, 4_096)):
+            scale = variant + index
+            probe = {
+                "target": "exact_predictive_bayesian_belief",
+                "sampling_distribution": "process_weighted_rollout",
+                "representation": "post_final_layer_norm",
+                "probe": "held_out_affine_least_squares",
+                "mse": 0.001 * scale,
+                "target_variance": 0.03 * scale,
+                "global_mse_ratio": 0.1 * scale,
+                "fine_evaluation_mse": 0.002 * scale,
+                "branch_baseline_mse": 0.004 * scale,
+                "fine_mse_ratio": 0.5 * scale,
+                "fine_mse_improvement": 0.002 * scale,
+            }
+            points.append({"agent_steps": steps, "probe": probe})
+        summaries[f"variant_{variant}"] = {"checkpoint_probes": points}
+
+    report = build_battery_mse_report(summaries)
+    figures = plot_battery_mse_curves(report, results_dir=tmp_path)
+
+    assert set(report["metric_definitions"]) == set(MSE_METRICS)
+    assert set(report["variants"]) == {"variant_1", "variant_2", "variant_3"}
+    assert set(figures) == set(MSE_METRICS)
+    for filename in figures.values():
+        path = tmp_path / filename
+        assert path.is_file()
+        assert path.stat().st_size > 0
