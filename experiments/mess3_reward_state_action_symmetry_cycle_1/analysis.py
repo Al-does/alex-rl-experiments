@@ -35,6 +35,9 @@ from experiments.mess3_belief_geometry_2026_07.probe import (
     collect_probe_data,
     make_transducer_target,
 )
+from experiments.mess3_reward_state_action_symmetry_cycle_1.task import (
+    REWARD_STATE,
+)
 from harness.context import RunContext
 from harness.hardware import PROFILES
 from harness.seeding import named_seed_sequences, seed_sequence_to_int
@@ -266,7 +269,9 @@ def probe_checkpoint(
             n_actions = int(environment.action_space.n)
             transition_to_reward = np.stack(
                 [
-                    environment.task.transition_matrix_for_action(action)[:, 2]
+                    environment.task.transition_matrix_for_action(action)[
+                        :, REWARD_STATE
+                    ]
                     for action in range(n_actions)
                 ]
             )
@@ -303,7 +308,7 @@ def probe_checkpoint(
 
     target_error = max(
         float(np.max(np.abs(data.beliefs - data.diagnostic_beliefs)))
-        for data in (train, test)
+        for data in (train, test, policy_test)
     )
     if target_error > 1e-10:
         raise AssertionError(

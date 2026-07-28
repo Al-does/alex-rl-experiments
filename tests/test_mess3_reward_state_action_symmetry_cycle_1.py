@@ -136,6 +136,33 @@ def test_described_oracle_policy_uniquely_maximizes_state_two_occupancy(variant)
     assert occupancies[ranked[0]] > occupancies[ranked[1]]
 
 
+def test_delay_one_cannot_reach_variant_two_noop_decision_region():
+    model = control_model(alpha=0.85)
+    task = ActionSymmetryTask(model=model, variant=2)
+    noop_reward_probability = task.transition_matrix_for_action(NOOP_ACTION)[
+        :, 2
+    ]
+    positive_reward_probability = task.transition_matrix_for_action(
+        POSITIVE_ACTION
+    )[:, 2]
+    advantage = positive_reward_probability - noop_reward_probability
+    noop_threshold = advantage[0] / (advantage[0] - advantage[2])
+
+    max_delayed_reward_belief = max(
+        task.transition_matrix_for_action(action)[:, 2].max()
+        for action in range(3)
+    )
+    assert max_delayed_reward_belief < noop_threshold
+
+    positive_transition = task.transition_matrix_for_action(POSITIVE_ACTION)
+    system = positive_transition.T - np.eye(3)
+    system[-1] = 1.0
+    stationary = np.linalg.solve(system, np.array([0.0, 0.0, 1.0]))
+    token_two_posterior = stationary * model.emission_matrix[:, 2]
+    token_two_posterior /= token_two_posterior.sum()
+    assert token_two_posterior[2] > noop_threshold
+
+
 @pytest.mark.parametrize("variant", (1, 2, 3))
 def test_ppo_variant_recipes_build_fresh_discrete_configs(tmp_path, variant):
     context = RunContext(
