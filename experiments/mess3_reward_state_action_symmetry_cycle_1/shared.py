@@ -23,23 +23,45 @@ from experiments.mess3_reward_state_action_symmetry_cycle_1.analysis import (
 )
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
+from harness.hardware import PROFILES
 from harness.runners import run_tune
 from learners.models.transformer import TransformerModel, TransformerModelConfig
 
 
-TOTAL_ENV_STEPS = 5_000_000
+TOTAL_ENV_STEPS = 10_000_000
 SMOKE_ENV_STEPS = 4_096
 TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 2_048
 MINIBATCH_SIZE = 2_048
 SMOKE_MINIBATCH_SIZE = 256
 EFFECT_SIZE = 1.5
+ENTROPY_ANNEAL_START = 0.5
+ENTROPY_ANNEAL_END = 0.0
+ENTROPY_ANNEAL_STEPS = 5_000_000
+ENTROPY_ANNEAL_SCHEDULE = [
+    [0, ENTROPY_ANNEAL_START],
+    [ENTROPY_ANNEAL_STEPS, ENTROPY_ANNEAL_END],
+]
+DEFAULT_ENTROPY_COEFF = 0.003
 BASE_MODEL_CONFIG = TransformerModelConfig(
     d_model=96,
     n_layers=3,
     n_heads=4,
     context_len=64,
 ).to_dict()
+
+
+def _single_gpu_context(context: RunContext) -> RunContext:
+    """Use cuda4090 on 1-GPU boxes; gpuinfer needs 1.8 GPUs to schedule."""
+
+    profile = context.hardware
+    if (
+        not context.smoke
+        and profile is not None
+        and profile.name == "cuda4090_gpuinfer"
+    ):
+        return replace(context, hardware=PROFILES["cuda4090"])
+    return context
 
 
 def environment_config(variant: int) -> dict[str, Any]:
@@ -68,10 +90,18 @@ def environment_config(variant: int) -> dict[str, Any]:
     }
 
 
-def build_config(context: RunContext, variant: int) -> PPOConfig:
+def build_config(
+    context: RunContext,
+    variant: int,
+    *,
+    entropy_coeff: float | list[list[float | int]] = DEFAULT_ENTROPY_COEFF,
+) -> PPOConfig:
     """Build one fresh transformer PPO configuration."""
 
     batch_size = SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
+    resolved_entropy = (
+        DEFAULT_ENTROPY_COEFF if context.smoke else entropy_coeff
+    )
     config = (
         PPOConfig()
         .environment(HMMEnv, env_config=environment_config(variant))
@@ -86,7 +116,7 @@ def build_config(context: RunContext, variant: int) -> PPOConfig:
             lambda_=0.95,
             clip_param=0.2,
             vf_loss_coeff=0.5,
-            entropy_coeff=0.003,
+            entropy_coeff=resolved_entropy,
             train_batch_size_per_learner=batch_size,
             minibatch_size=(
                 SMOKE_MINIBATCH_SIZE if context.smoke else MINIBATCH_SIZE
@@ -103,7 +133,7 @@ def build_config(context: RunContext, variant: int) -> PPOConfig:
     )
     return apply_runtime_resources(
         config,
-        context,
+        _single_gpu_context(context),
         default_env_runners=16,
     )
 
@@ -212,7 +242,12 @@ def _probe_at(
     return result, point
 
 
-def run_condition(context: RunContext, variant: int) -> dict[str, Any]:
+def run_condition(
+    context: RunContext,
+    variant: int,
+    *,
+    entropy_coeff: float | list[list[float | int]] = DEFAULT_ENTROPY_COEFF,
+) -> dict[str, Any]:
     """Train one PPO variant and probe init plus log-spaced checkpoints."""
 
     if context.seed is None:
@@ -221,11 +256,15 @@ def run_condition(context: RunContext, variant: int) -> dict[str, Any]:
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
+    resolved_entropy = (
+        DEFAULT_ENTROPY_COEFF if context.smoke else entropy_coeff
+    )
     recipe = {
         "condition": condition,
         "algorithm": "PPO",
         "gamma": 0.99,
         "lambda": 0.95,
+        "entropy_coeff": resolved_entropy,
         "environment": environment_config(variant),
         "total_env_steps": target_steps,
         "checkpoint_schedule": "init_then_iterations_1_2_4_8_and_final",
@@ -237,7 +276,11 @@ def run_condition(context: RunContext, variant: int) -> dict[str, Any]:
         "probe_sampling_distribution": "process_weighted_rollout",
     }
     outputs.write_json("resolved_recipe.json", recipe)
-    config = build_config(context, variant)
+    config = build_config(
+        context,
+        variant,
+        entropy_coeff=entropy_coeff,
+    )
     initial_checkpoint = _save_initial_checkpoint(
         config,
         context.artifacts_dir / "initial_checkpoint",
