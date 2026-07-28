@@ -45,6 +45,11 @@ from experiments.mess3_token_guess_cycle_2.shared import (
     checkpoint_records,
     next_emission_targets,
 )
+from experiments.mess3_token_guess_cycle_2.sweeps import (
+    PREDICTIVE_LOSS_COEFFICIENT_KEY,
+    SWEEP_SPECS,
+    build_sweep_config,
+)
 from harness.context import RunContext
 from harness.hardware import PROFILES
 from learners import IQNPPOTorchLearner
@@ -328,6 +333,49 @@ def test_single_gpu_profile_reserves_cuda_for_learner(tmp_path):
     config = build_config(context, "ppo")
     assert config.num_gpus_per_learner == 1
     assert config.num_gpus_per_env_runner == 0
+
+
+def test_hyperparameter_sweeps_are_four_point_rllib_grids(tmp_path):
+    context = _context(tmp_path)
+    assert set(SWEEP_SPECS) == {
+        "learning_rate",
+        "predictive_loss_coefficient",
+        "kelly_loss_coefficient",
+    }
+    assert len(SWEEP_SPECS["learning_rate"].values) == 4
+    assert (
+        max(SWEEP_SPECS["learning_rate"].values)
+        / min(SWEEP_SPECS["learning_rate"].values)
+        >= 10
+    )
+    for spec in SWEEP_SPECS.values():
+        assert len(spec.values) == 4
+        assert tuple(sorted(spec.values)) == spec.values
+
+    lr_config = build_sweep_config(context, "learning_rate").to_dict()
+    predictive_config = build_sweep_config(
+        context,
+        "predictive_loss_coefficient",
+    ).to_dict()
+    kelly_config = build_sweep_config(
+        context,
+        "kelly_loss_coefficient",
+    ).to_dict()
+    assert lr_config["lr"] == {
+        "grid_search": list(SWEEP_SPECS["learning_rate"].values)
+    }
+    assert predictive_config["learner_config_dict"][
+        PREDICTIVE_LOSS_COEFFICIENT_KEY
+    ] == {
+        "grid_search": list(
+            SWEEP_SPECS["predictive_loss_coefficient"].values
+        )
+    }
+    assert kelly_config["learner_config_dict"][
+        KELLY_LOSS_COEFFICIENT_KEY
+    ] == {
+        "grid_search": list(SWEEP_SPECS["kelly_loss_coefficient"].values)
+    }
 
 
 def test_checkpoint_records_include_every_unique_retained_checkpoint():
