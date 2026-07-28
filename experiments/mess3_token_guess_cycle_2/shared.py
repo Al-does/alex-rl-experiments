@@ -64,7 +64,6 @@ CONDITIONS = (
     Condition("iqn", "PPO-IQN", "clipped_correctness_distributional_value"),
 )
 TOTAL_ENV_STEPS = 2_500_000
-A2C_ENV_STEPS = 1_000_000
 SMOKE_ENV_STEPS = 4_096
 TRAIN_BATCH_SIZE = 32_768
 A2C_TRAIN_BATCH_SIZE = 672
@@ -75,7 +74,6 @@ CHECKPOINT_FREQUENCY = 10
 # Batch 672 gives A2C approximately the same number of Adam updates as PPO's
 # six passes over 4,096-sample minibatches. This retains roughly eight
 # checkpoints over the 1M-step A2C run.
-A2C_CHECKPOINT_FREQUENCY = 200
 VALIDATION_ENV_STEPS = 131_072
 PREDICTIVE_LOSS_WEIGHT = 1.0
 DIRECT_KELLY_LOSS_WEIGHT = 1.0
@@ -384,8 +382,6 @@ def _run_schedule(
         target_steps = target_steps_override
     elif context.smoke:
         target_steps = SMOKE_ENV_STEPS
-    elif condition.name == "a2c":
-        target_steps = A2C_ENV_STEPS
     else:
         target_steps = TOTAL_ENV_STEPS
     if target_steps <= 0:
@@ -393,8 +389,6 @@ def _run_schedule(
 
     if context.smoke or target_steps_override is not None:
         checkpoint_frequency = 1
-    elif condition.name == "a2c":
-        checkpoint_frequency = A2C_CHECKPOINT_FREQUENCY
     else:
         checkpoint_frequency = CHECKPOINT_FREQUENCY
     return target_steps, checkpoint_frequency
