@@ -383,6 +383,33 @@ def _probe_at(
     return result, point
 
 
+def _run_schedule(
+    context: RunContext,
+    condition: Condition,
+    target_steps_override: int | None,
+) -> tuple[int, int]:
+    """Return sampled-step budget and Tune checkpoint frequency."""
+
+    if target_steps_override is not None:
+        target_steps = target_steps_override
+    elif context.smoke:
+        target_steps = SMOKE_ENV_STEPS
+    elif condition.name == "a2c_frequent_updates":
+        target_steps = A2C_FREQUENT_UPDATES_ENV_STEPS
+    else:
+        target_steps = TOTAL_ENV_STEPS
+    if target_steps <= 0:
+        raise ValueError("target steps must be positive")
+
+    if context.smoke or target_steps_override is not None:
+        checkpoint_frequency = 1
+    elif condition.name == "a2c_frequent_updates":
+        checkpoint_frequency = A2C_FREQUENT_UPDATES_CHECKPOINT_FREQUENCY
+    else:
+        checkpoint_frequency = CHECKPOINT_FREQUENCY
+    return target_steps, checkpoint_frequency
+
+
 def run_condition(
     context: RunContext,
     condition_name: str,
@@ -396,22 +423,11 @@ def run_condition(
     condition = condition_by_name(condition_name)
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
-    if target_steps_override is not None:
-        target_steps = target_steps_override
-    elif context.smoke:
-        target_steps = SMOKE_ENV_STEPS
-    elif condition.name == "a2c_frequent_updates":
-        target_steps = A2C_FREQUENT_UPDATES_ENV_STEPS
-    else:
-        target_steps = TOTAL_ENV_STEPS
-    if target_steps <= 0:
-        raise ValueError("target steps must be positive")
-    if context.smoke or target_steps_override is not None:
-        checkpoint_frequency = 1
-    elif condition.name == "a2c_frequent_updates":
-        checkpoint_frequency = A2C_FREQUENT_UPDATES_CHECKPOINT_FREQUENCY
-    else:
-        checkpoint_frequency = CHECKPOINT_FREQUENCY
+    target_steps, checkpoint_frequency = _run_schedule(
+        context,
+        condition,
+        target_steps_override,
+    )
     config = build_config(context, condition.name)
     recipe = {
         "condition": condition.name,

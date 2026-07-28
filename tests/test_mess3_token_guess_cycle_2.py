@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from types import SimpleNamespace
 
 import numpy as np
@@ -43,6 +44,7 @@ from experiments.mess3_token_guess_cycle_2.shared import (
     PredictiveLearner,
     PredictiveModel,
     VALIDATION_ENV_STEPS,
+    _run_schedule,
     build_config,
     checkpoint_records,
     condition_by_name,
@@ -332,6 +334,20 @@ def test_legacy_a2c_remains_runnable_but_is_not_in_battery(tmp_path):
     assert config.train_batch_size_per_learner == 2_048
     assert config.num_epochs == 1
     assert config.minibatch_size is None
+
+
+def test_frequent_update_a2c_has_one_million_step_checkpoint_schedule(tmp_path):
+    smoke_context = _context(tmp_path)
+    condition = condition_by_name("a2c_frequent_updates")
+    assert _run_schedule(smoke_context, condition, None) == (4_096, 1)
+    full_context = replace(smoke_context, smoke=False)
+    assert _run_schedule(full_context, condition, None) == (1_000_000, 1_000)
+    assert _run_schedule(full_context, condition, 131_072) == (131_072, 1)
+    assert _run_schedule(
+        full_context,
+        condition_by_name("a2c"),
+        None,
+    ) == (2_500_000, 10)
 
 
 def test_single_gpu_profile_reserves_cuda_for_learner(tmp_path):
