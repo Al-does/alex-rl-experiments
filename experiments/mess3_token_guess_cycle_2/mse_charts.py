@@ -236,6 +236,8 @@ def _plot_all_runs(
             title=condition.replace("_", " "),
             labels=labels,
         )
+        axis.set_xlabel("")
+        axis.set_ylabel("")
     axes.flat[-1].axis("off")
     handles, legend_labels = axes[0, 0].get_legend_handles_labels()
     figure.legend(
@@ -249,6 +251,8 @@ def _plot_all_runs(
         "MESS3 token-guess cycle 2: MSE over training (all 15 runs)",
         fontsize=15,
     )
+    figure.supxlabel("Environment steps (millions)")
+    figure.supylabel("Held-out affine-probe MSE", x=0.01)
     figure.text(
         0.74,
         0.15,
@@ -259,7 +263,7 @@ def _plot_all_runs(
         fontsize=9,
         color="#444444",
     )
-    figure.tight_layout(rect=(0.0, 0.0, 1.0, 0.96))
+    figure.tight_layout(rect=(0.04, 0.0, 1.0, 0.96))
     figure.savefig(path, dpi=220)
     plt.close(figure)
 
@@ -306,10 +310,15 @@ def _plot_condition_means(
             )
     _style_axis(
         axis,
-        title="MSE over training by condition (mean ± SD across 3 model seeds)",
+        title="",
         labels=labels,
     )
-    axis.legend(ncol=3, fontsize=8, frameon=False)
+    axis.legend(
+        loc="upper left",
+        bbox_to_anchor=(1.01, 1.0),
+        fontsize=8,
+        frameon=False,
+    )
     axis.text(
         0.99,
         0.98,
@@ -320,9 +329,40 @@ def _plot_condition_means(
         fontsize=8,
         color="#444444",
     )
-    figure.tight_layout()
+    figure.suptitle(
+        "MSE over training by condition (mean ± SD across 3 model seeds)",
+        fontsize=13,
+    )
+    figure.tight_layout(rect=(0.0, 0.0, 0.87, 0.95))
     figure.savefig(path, dpi=220)
     plt.close(figure)
+
+
+def _bootstrap_assessment() -> str:
+    return """# Bootstrap assessment
+
+The checkpoint results already contain the bootstrap calculation recommended by
+`analysis/probes/README.md`: each MSE uses 1,000 percentile-bootstrap resamples
+clustered by complete environment episode. The per-run charts use those 95%
+intervals directly. The fitted probe remains fixed, so these intervals estimate
+evaluation-rollout sampling uncertainty, not probe-fit uncertainty.
+
+No additional bootstrap should be applied to individual timesteps or training
+checkpoints: timesteps are correlated within episodes, and checkpoints are
+repeated measurements of one trained model.
+
+The combined condition chart keeps independently trained model-seed variability
+separate. It shows all three seed values and mean ± population SD. A bootstrap
+over only three model seeds would be coarse and potentially misleading, so it is
+not used. If inferential condition comparisons become important, run more model
+seeds and then use paired seed differences (the same seed set is shared by every
+condition); a hierarchical seed-then-episode bootstrap would be appropriate only
+with enough model seeds and retained per-episode probe errors.
+
+The existing held-out permutation nulls answer a different question—whether the
+activation/target association generalizes—and should not be used as MSE error
+bars.
+"""
 
 
 def write_mse_bar_charts(
@@ -385,6 +425,7 @@ def write_mse_bar_charts(
     (output_dir / "mse_over_training_summary.json").write_text(
         json.dumps(summary, indent=2) + "\n"
     )
+    (output_dir / "bootstrap_assessment.md").write_text(_bootstrap_assessment())
     return summary
 
 

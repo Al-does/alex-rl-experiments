@@ -68,5 +68,8 @@ def test_load_and_write_all_mse_charts(tmp_path: Path):
     assert len(list((output_dir / "by_run").glob("*.png"))) == 15
     assert (output_dir / "mse_over_training_all_runs.png").is_file()
     assert (output_dir / "mse_over_training_condition_means.png").is_file()
+    assessment = (output_dir / "bootstrap_assessment.md").read_text()
+    assert "1,000 percentile-bootstrap resamples" in assessment
+    assert "only three model seeds" in assessment
     assert summary["per_checkpoint_uncertainty"]["n_resamples"] == 1_000
     assert summary["model_seed_summary"]["bootstrap_used"] is False

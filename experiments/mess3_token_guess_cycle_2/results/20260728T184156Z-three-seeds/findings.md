@@ -19,3 +19,23 @@ By held-out belief R²: **decoupled_kelly ≈ ppo ≈ iqn > predictive_loss > a2
 By greedy token accuracy: **predictive_loss ≈ decoupled_kelly ≈ iqn > ppo ≈ a2c** (bayesian optimal context-10 accuracy is ~0.686–0.69 in this study).
 
 Decoupled Kelly has the best joint profile (top belief geometry and near-oracle token accuracy with lowest MSE). Predictive loss wins token accuracy slightly but with weaker / noisier belief R². A2C lags on both axes.
+
+## MSE over training
+
+Paper-style checkpoint bars are under [`mse_over_training/`](mse_over_training/):
+15 per-run charts, one all-runs figure, one condition-level figure, and the
+compact plotted values.
+
+All four PPO-family conditions reach their best mean MSE near 0.66M environment
+steps, then drift upward to varying degrees. Decoupled Kelly has the lowest
+checkpoint mean (0.000306) and the best final mean (0.000559). Predictive loss
+has a similarly low early minimum (0.000328), but degrades most by the final
+checkpoint (0.001246), driven especially by seed 43. A2C does not show the same
+representation transition: its final mean MSE improves only 2.3% from true
+initialization, versus 66.6–85.0% for the PPO-family conditions.
+
+Every per-run error bar is the existing 95% interval from 1,000 bootstrap
+resamples clustered by environment episode. The condition-level figure instead
+shows individual trained-model seeds and mean ± SD. See
+[`bootstrap_assessment.md`](mse_over_training/bootstrap_assessment.md) for why
+no additional three-seed bootstrap is used.
