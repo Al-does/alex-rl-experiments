@@ -35,6 +35,14 @@ SMOKE_BATCH_SIZE = 2_048
 MINIBATCH_SIZE = 2_048
 SMOKE_MINIBATCH_SIZE = 256
 EFFECT_SIZE = 1.5
+ENTROPY_ANNEAL_START = 0.5
+ENTROPY_ANNEAL_END = 0.0
+ENTROPY_ANNEAL_STEPS = 5_000_000
+ENTROPY_ANNEAL_SCHEDULE = [
+    [0, ENTROPY_ANNEAL_START],
+    [ENTROPY_ANNEAL_STEPS, ENTROPY_ANNEAL_END],
+]
+DEFAULT_ENTROPY_COEFF = 0.003
 BASE_MODEL_CONFIG = TransformerModelConfig(
     d_model=96,
     n_layers=3,
@@ -82,10 +90,18 @@ def environment_config(variant: int) -> dict[str, Any]:
     }
 
 
-def build_config(context: RunContext, variant: int) -> PPOConfig:
+def build_config(
+    context: RunContext,
+    variant: int,
+    *,
+    entropy_coeff: float | list[list[float | int]] = DEFAULT_ENTROPY_COEFF,
+) -> PPOConfig:
     """Build one fresh transformer PPO configuration."""
 
     batch_size = SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
+    resolved_entropy = (
+        DEFAULT_ENTROPY_COEFF if context.smoke else entropy_coeff
+    )
     config = (
         PPOConfig()
         .environment(HMMEnv, env_config=environment_config(variant))
@@ -100,7 +116,7 @@ def build_config(context: RunContext, variant: int) -> PPOConfig:
             lambda_=0.95,
             clip_param=0.2,
             vf_loss_coeff=0.5,
-            entropy_coeff=0.003,
+            entropy_coeff=resolved_entropy,
             train_batch_size_per_learner=batch_size,
             minibatch_size=(
                 SMOKE_MINIBATCH_SIZE if context.smoke else MINIBATCH_SIZE
@@ -226,7 +242,12 @@ def _probe_at(
     return result, point
 
 
-def run_condition(context: RunContext, variant: int) -> dict[str, Any]:
+def run_condition(
+    context: RunContext,
+    variant: int,
+    *,
+    entropy_coeff: float | list[list[float | int]] = DEFAULT_ENTROPY_COEFF,
+) -> dict[str, Any]:
     """Train one PPO variant and probe init plus log-spaced checkpoints."""
 
     if context.seed is None:
@@ -235,11 +256,15 @@ def run_condition(context: RunContext, variant: int) -> dict[str, Any]:
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
+    resolved_entropy = (
+        DEFAULT_ENTROPY_COEFF if context.smoke else entropy_coeff
+    )
     recipe = {
         "condition": condition,
         "algorithm": "PPO",
         "gamma": 0.99,
         "lambda": 0.95,
+        "entropy_coeff": resolved_entropy,
         "environment": environment_config(variant),
         "total_env_steps": target_steps,
         "checkpoint_schedule": "init_then_iterations_1_2_4_8_and_final",
@@ -251,7 +276,11 @@ def run_condition(context: RunContext, variant: int) -> dict[str, Any]:
         "probe_sampling_distribution": "process_weighted_rollout",
     }
     outputs.write_json("resolved_recipe.json", recipe)
-    config = build_config(context, variant)
+    config = build_config(
+        context,
+        variant,
+        entropy_coeff=entropy_coeff,
+    )
     initial_checkpoint = _save_initial_checkpoint(
         config,
         context.artifacts_dir / "initial_checkpoint",
