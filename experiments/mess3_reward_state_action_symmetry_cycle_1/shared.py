@@ -42,11 +42,13 @@ BASE_MODEL_CONFIG = TransformerModelConfig(
 ).to_dict()
 
 
-def environment_config(variant: int) -> dict[str, Any]:
+def environment_config(variant: int, *, delay: int = 1) -> dict[str, Any]:
     """Build isolated HMM configuration for one action-effect variant."""
 
     if variant not in (1, 2, 3):
         raise ValueError("variant must be one of 1, 2, or 3")
+    if delay not in (0, 1):
+        raise ValueError("delay must be zero or one")
     return {
         "model": {
             "factory": "envs.mess3.model:control_model",
@@ -62,19 +64,24 @@ def environment_config(variant: int) -> dict[str, Any]:
                 "effect_size": EFFECT_SIZE,
             },
         },
-        "delay": 1,
+        "delay": delay,
         "episode_length": 1024,
         "randomize_first_episode_length": True,
     }
 
 
-def build_config(context: RunContext, variant: int) -> PPOConfig:
+def build_config(
+    context: RunContext,
+    variant: int,
+    *,
+    delay: int = 1,
+) -> PPOConfig:
     """Build one fresh transformer PPO configuration."""
 
     batch_size = SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
     config = (
         PPOConfig()
-        .environment(HMMEnv, env_config=environment_config(variant))
+        .environment(HMMEnv, env_config=environment_config(variant, delay=delay))
         .framework(
             "torch",
             torch_compile_learner=False,
@@ -212,21 +219,28 @@ def _probe_at(
     return result, point
 
 
-def run_condition(context: RunContext, variant: int) -> dict[str, Any]:
+def run_condition(
+    context: RunContext,
+    variant: int,
+    *,
+    condition: str | None = None,
+    delay: int = 1,
+    total_env_steps: int = TOTAL_ENV_STEPS,
+) -> dict[str, Any]:
     """Train one PPO variant and probe init plus log-spaced checkpoints."""
 
     if context.seed is None:
         raise ValueError("action-symmetry cycle requires a resolved seed")
-    condition = f"variant_{variant}"
+    condition = condition or f"variant_{variant}"
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
-    target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
+    target_steps = SMOKE_ENV_STEPS if context.smoke else total_env_steps
     recipe = {
         "condition": condition,
         "algorithm": "PPO",
         "gamma": 0.99,
         "lambda": 0.95,
-        "environment": environment_config(variant),
+        "environment": environment_config(variant, delay=delay),
         "total_env_steps": target_steps,
         "checkpoint_schedule": "init_then_iterations_1_2_4_8_and_final",
         "checkpoint_storage": (
@@ -237,7 +251,7 @@ def run_condition(context: RunContext, variant: int) -> dict[str, Any]:
         "probe_sampling_distribution": "process_weighted_rollout",
     }
     outputs.write_json("resolved_recipe.json", recipe)
-    config = build_config(context, variant)
+    config = build_config(context, variant, delay=delay)
     initial_checkpoint = _save_initial_checkpoint(
         config,
         context.artifacts_dir / "initial_checkpoint",

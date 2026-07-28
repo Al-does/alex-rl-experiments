@@ -53,6 +53,7 @@ _STREAM_KEYS = {
     "permutation": (303,),
     "permutation_sample": (304,),
     "plot_sample": (305,),
+    "policy_test": (306,),
 }
 MSE_METRICS = {
     "mse": {
@@ -103,6 +104,51 @@ class ProbeResult:
     metrics: dict[str, Any]
     targets: np.ndarray
     predictions: np.ndarray
+
+
+def _action_behavior_metrics(
+    data: ProbeData,
+    *,
+    prefix: str,
+    transition_to_reward: np.ndarray,
+) -> dict[str, Any]:
+    """Summarize actions by latent state and one-step belief oracle."""
+
+    transitions = np.asarray(transition_to_reward, dtype=np.float64)
+    if transitions.ndim != 2:
+        raise ValueError("transition_to_reward must have shape (actions, states)")
+    n_actions, n_states = transitions.shape
+    beliefs = np.asarray(data.beliefs, dtype=np.float64)
+    actions = np.asarray(data.actions, dtype=np.int64).reshape(-1)
+    states = np.asarray(data.states, dtype=np.int64).reshape(-1)
+    if beliefs.shape != (len(actions), n_states) or len(states) != len(actions):
+        raise ValueError("behavior arrays do not share action/state dimensions")
+
+    def fractions(mask: np.ndarray) -> list[float]:
+        counts = np.bincount(actions[mask], minlength=n_actions)
+        return (counts / max(int(counts.sum()), 1)).tolist()
+
+    myopic_actions = np.argmax(beliefs @ transitions.T, axis=1)
+    belief_classes = np.argmax(beliefs, axis=1)
+    return {
+        f"{prefix}_action_fractions": fractions(
+            np.ones(len(actions), dtype=bool)
+        ),
+        f"{prefix}_action_fractions_by_hidden_state": [
+            fractions(states == state) for state in range(n_states)
+        ],
+        f"{prefix}_action_fractions_by_belief_argmax": [
+            fractions(belief_classes == state) for state in range(n_states)
+        ],
+        f"{prefix}_myopic_oracle_action_fractions": (
+            np.bincount(myopic_actions, minlength=n_actions)
+            / max(len(myopic_actions), 1)
+        ).tolist(),
+        f"{prefix}_myopic_oracle_agreement": float(
+            np.mean(actions == myopic_actions)
+        ),
+        f"{prefix}_reward_state_2_fraction": float(data.rewards.mean()),
+    }
 
 
 def _device(context: RunContext) -> str:
@@ -217,12 +263,18 @@ def probe_checkpoint(
         environment = make_environment()
         try:
             transducer_target = make_transducer_target(environment)
+            n_actions = int(environment.action_space.n)
+            transition_to_reward = np.stack(
+                [
+                    environment.task.transition_matrix_for_action(action)[:, 2]
+                    for action in range(n_actions)
+                ]
+            )
         finally:
             environment.close()
         common = {
             "module": module,
             "env_factory": make_environment,
-            "policy_mode": "greedy",
             "device": _device(context),
             "warmup": warmup,
             "n_envs": N_ENVS,
@@ -233,11 +285,19 @@ def probe_checkpoint(
         train = collect_probe_data(
             n_steps=train_steps,
             seed=streams["probe_train"],
+            policy_mode="greedy",
             **common,
         )
         test = collect_probe_data(
             n_steps=test_steps,
             seed=streams["probe_test"],
+            policy_mode="greedy",
+            **common,
+        )
+        policy_test = collect_probe_data(
+            n_steps=test_steps,
+            seed=streams["policy_test"],
+            policy_mode="policy",
             **common,
         )
 
@@ -266,8 +326,16 @@ def probe_checkpoint(
         seed=seed_sequence_to_int(streams["bootstrap"], bits=32),
     )
     mse_ci_low, mse_ci_high = percentile_interval(bootstrap)
-    discrete_actions = np.asarray(test.actions, dtype=np.int64).reshape(-1)
-    action_counts = np.bincount(discrete_actions, minlength=3)
+    greedy_behavior = _action_behavior_metrics(
+        test,
+        prefix="greedy",
+        transition_to_reward=transition_to_reward,
+    )
+    policy_behavior = _action_behavior_metrics(
+        policy_test,
+        prefix="policy",
+        transition_to_reward=transition_to_reward,
+    )
     metrics = {
         "condition": condition,
         "checkpoint_step": agent_steps,
@@ -310,9 +378,8 @@ def probe_checkpoint(
             ),
         ),
         "reward_state_2_fraction_greedy": float(test.rewards.mean()),
-        "greedy_action_fractions": (
-            action_counts / max(action_counts.sum(), 1)
-        ).tolist(),
+        **greedy_behavior,
+        **policy_behavior,
         "n_fit": len(train.beliefs),
         "n_test": len(test.beliefs),
         "target_consistency_max_abs": target_error,

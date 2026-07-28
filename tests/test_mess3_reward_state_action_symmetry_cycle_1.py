@@ -17,6 +17,7 @@ from experiments.mess3_belief_geometry_2026_07.probe import (
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_1.analysis import (
     MSE_METRICS,
+    _action_behavior_metrics,
     build_battery_mse_report,
     plot_battery_mse_curves,
 )
@@ -164,6 +165,76 @@ def test_ppo_variant_recipes_build_fresh_discrete_configs(tmp_path, variant):
         assert environment.observation_space.shape == (6,)
     finally:
         environment.close()
+
+
+def test_no_delay_intervention_exposes_current_token_and_uses_short_budget(
+    tmp_path,
+):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+    module = importlib.import_module(
+        "experiments.mess3_reward_state_action_symmetry_cycle_1."
+        "variant_2_no_delay.experiment"
+    )
+
+    config = module.build_config(context)
+
+    assert config.env_config["delay"] == 0
+    environment = HMMEnv(config.env_config)
+    try:
+        observation, _ = environment.reset(seed=42)
+        assert observation[:3].sum() == pytest.approx(1.0)
+    finally:
+        environment.close()
+
+
+def test_action_metrics_report_conditioning_and_reachable_oracle():
+    data = SimpleNamespace(
+        beliefs=np.array(
+            [
+                [0.8, 0.1, 0.1],
+                [0.1, 0.1, 0.8],
+                [0.1, 0.8, 0.1],
+                [0.1, 0.1, 0.8],
+            ]
+        ),
+        states=np.array([0, 2, 1, 2]),
+        actions=np.array([[1], [0], [1], [1]]),
+        rewards=np.array([0.0, 1.0, 0.0, 1.0]),
+    )
+    transition_to_reward = np.array(
+        [
+            [0.1, 0.1, 0.1],
+            [0.4, 0.4, 0.0],
+            [0.0, 0.0, 0.0],
+        ]
+    )
+
+    metrics = _action_behavior_metrics(
+        data,
+        prefix="greedy",
+        transition_to_reward=transition_to_reward,
+    )
+
+    assert metrics["greedy_action_fractions"] == [0.25, 0.75, 0.0]
+    assert metrics["greedy_action_fractions_by_hidden_state"] == [
+        [0.0, 1.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.5, 0.5, 0.0],
+    ]
+    assert metrics["greedy_myopic_oracle_action_fractions"] == [
+        0.5,
+        0.5,
+        0.0,
+    ]
+    assert metrics["greedy_myopic_oracle_agreement"] == pytest.approx(0.75)
+    assert metrics["greedy_reward_state_2_fraction"] == pytest.approx(0.5)
 
 
 def test_discrete_action_probe_target_matches_environment_diagnostics():
