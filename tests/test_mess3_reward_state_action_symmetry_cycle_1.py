@@ -175,8 +175,8 @@ def test_discrete_action_probe_target_matches_environment_diagnostics():
         initial_outcome_operator=target[2],
     )
 
-    assert data.actions.shape == (11,)
-    assert set(data.actions.astype(int)) <= {0, 1, 2}
+    assert data.actions.shape == (11, 1)
+    assert set(data.actions.astype(int).reshape(-1)) <= {0, 1, 2}
     np.testing.assert_allclose(
         data.beliefs,
         data.diagnostic_beliefs,

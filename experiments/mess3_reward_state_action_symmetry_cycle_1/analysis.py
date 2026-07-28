@@ -222,7 +222,8 @@ def probe_checkpoint(
         seed=seed_sequence_to_int(streams["bootstrap"], bits=32),
     )
     mse_ci_low, mse_ci_high = percentile_interval(bootstrap)
-    action_counts = np.bincount(test.actions.astype(np.int64), minlength=3)
+    discrete_actions = np.asarray(test.actions, dtype=np.int64).reshape(-1)
+    action_counts = np.bincount(discrete_actions, minlength=3)
     metrics = {
         "condition": condition,
         "checkpoint_step": agent_steps,
