@@ -9,7 +9,7 @@ Compact results live on the `results` branch under
 Seed 42 also completed a full B2 durability upload; seeds 43–46 had compact
 results recovered before slow CN egress finished hashing/uploading checkpoints.
 
-## Final probe MSE (lower is better)
+## Final probe MSE (all seeds)
 
 | seed | variant_1 | variant_2 | variant_3 |
 |-----:|----------:|----------:|----------:|
@@ -20,14 +20,39 @@ results recovered before slow CN egress finished hashing/uploading checkpoints.
 | 46 | 0.003018 | 0.005538 | 0.003780 |
 | **mean±std** | **0.00256±0.00104** | **0.00495±0.00054** | **0.00128±0.00141** |
 
+## Filtered comparison (non-collapsed / non-outlier runs)
+
+Keep policies that did not hard-collapse to a single action (plus all v1):
+**v1 all seeds**, **v2 seed 45 only**, **v3 seeds 42–45**.
+
+| arm | n | mean final MSE | range |
+|-----|--:|---------------:|------|
+| v3 (42–45) | 4 | **0.00065 ± 0.00017** | 0.00044–0.00086 |
+| v1 (all) | 5 | **0.00256 ± 0.00104** | 0.00073–0.00331 |
+| v2 (45) | 1 | **0.00439** | — |
+
+Roughly: **v3 ≈ 4× better than v1**, and **v1 ≈ 1.7× better than mixed v2**.
+
+## Final-checkpoint greedy action mix
+
+`greedy_action_fractions` = `[noop, pos, neg]` from final probes:
+
+| variant | typical mix | notes |
+|---------|-------------|-------|
+| 1 | ~0 / 100 / 0 | always hard-argmax **positive** (5/5) |
+| 2 | ~6 / 94 / 0 | almost always **positive**; seed 45 ~27/73/0 |
+| 3 | ~21 / 42 / 38 | mixed ~26/37/37 on seeds 42–45; seed 46 ~0/61/39 |
+
+So v1/v2 mostly collapse to “always positive”; only v3 keeps a real action mix
+(on the retained seeds). Oracle policies differ by variant
+(`v1: +++`, `v2: ++noop`, `v3: +−noop`).
+
 ## Takeaways
 
-1. **Variant 3 is best on average** (lowest mean final MSE), but seed 46 is an
-   outlier that collapses the gap (`0.00378` vs ~`0.0004–0.0009` for seeds 42–45).
-2. **Variant 2 is consistently worst** across all five seeds (tight stdev).
-3. **Variant 1 is intermediate** with one strong seed (44) and otherwise similar
-   to the mid-`0.003` band.
-4. Relative to cycle 1’s delayed setting, this zero-delay / 0.7M-step battery
-   still shows a clear action-effect ranking on most seeds: `3 < 1 < 2`.
+1. On the filtered set, **variant 3 remains clearly best** for belief MSE.
+2. **Variant 2 is worst**, and when it does not fully collapse (seed 45) MSE is
+   still ~0.0044.
+3. **Variant 1** sits in between and is always action-collapsed to positive.
+4. Ranking on retained runs: **3 ≪ 1 < 2**.
 
 See `multi_seed_summary.json` for machine-readable aggregates and run IDs.
