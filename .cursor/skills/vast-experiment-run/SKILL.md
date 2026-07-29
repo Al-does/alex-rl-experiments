@@ -56,8 +56,8 @@ assigned seed. Pass the agreed experiment-repo ref with `--branch` or
 
 ## 3. Trigger the confirmed experiment
 
-1. Run the agreed dry run and review the candidate count, price, GPU type, and
-   launch command against the launch contract.
+1. Run the agreed `--dry-run` and review the candidate count, price, GPU type,
+   and launch command against the launch contract.
 2. Rent exactly the agreed number of boxes with the confirmed commands and
    options.
 3. Record only this session's returned instance IDs, aliases, and seed
