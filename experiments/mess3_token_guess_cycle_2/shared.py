@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from numbers import Real
@@ -65,6 +66,9 @@ CONDITIONS = (
 )
 TOTAL_ENV_STEPS = 2_500_000
 SMOKE_ENV_STEPS = 4_096
+# Stop just past training_iteration 20 (checkpoint index 2 ≈ 0.66M steps in
+# prior full runs). Keeps the standard every-10-iteration cadence.
+THIRD_CHECKPOINT_ENV_STEPS = 700_000
 TRAIN_BATCH_SIZE = 32_768
 A2C_TRAIN_BATCH_SIZE = 672
 SMOKE_BATCH_SIZE = 2_048
@@ -375,6 +379,8 @@ def _run_schedule(
     context: RunContext,
     condition: Condition,
     target_steps_override: int | None,
+    *,
+    preserve_checkpoint_cadence: bool = False,
 ) -> tuple[int, int]:
     """Return sampled-step budget and Tune checkpoint frequency."""
 
@@ -387,7 +393,9 @@ def _run_schedule(
     if target_steps <= 0:
         raise ValueError("target steps must be positive")
 
-    if context.smoke or target_steps_override is not None:
+    if preserve_checkpoint_cadence:
+        checkpoint_frequency = CHECKPOINT_FREQUENCY
+    elif context.smoke or target_steps_override is not None:
         checkpoint_frequency = 1
     else:
         checkpoint_frequency = CHECKPOINT_FREQUENCY
@@ -399,11 +407,18 @@ def run_condition(
     condition_name: str,
     *,
     target_steps_override: int | None = None,
+    preserve_checkpoint_cadence: bool = False,
 ) -> dict[str, Any]:
     """Train one condition and probe init plus every retained checkpoint."""
 
     if context.seed is None:
         raise ValueError("token-guess cycle 2 requires a resolved seed")
+    # Vast / arm-queue truncation: keep the every-10-iteration cadence so
+    # checkpoint index 2 lands near 0.66M steps as in the full 2.5M runs.
+    env_budget = os.environ.get("MESS3_TG_C2_MAX_ENV_STEPS")
+    if target_steps_override is None and env_budget:
+        target_steps_override = int(env_budget)
+        preserve_checkpoint_cadence = True
     condition = condition_by_name(condition_name)
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
@@ -411,6 +426,7 @@ def run_condition(
         context,
         condition,
         target_steps_override,
+        preserve_checkpoint_cadence=preserve_checkpoint_cadence,
     )
     config = build_config(context, condition.name)
     recipe = {
