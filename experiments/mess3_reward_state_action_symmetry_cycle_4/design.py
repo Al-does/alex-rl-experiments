@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 
-from envs.mess3.model import sticky_control_model
+from envs.mess3.model import control_model
 from experiments.mess3_reward_state_action_symmetry_cycle_4.task import (
     NEGATIVE_ACTION,
     NOOP_ACTION,
@@ -17,6 +17,11 @@ from experiments.mess3_reward_state_action_symmetry_cycle_4.task import (
 
 
 EFFECT_SIZE = 1.5
+CYCLE_4_TRANSITION_MATRIX = (
+    (0.75, 0.15, 0.10),
+    (0.15, 0.75, 0.10),
+    (0.30, 0.30, 0.40),
+)
 EXPECTED_ORACLE_POLICIES = {
     1: (POSITIVE_ACTION, POSITIVE_ACTION, POSITIVE_ACTION),
     2: (POSITIVE_ACTION, POSITIVE_ACTION, NOOP_ACTION),
@@ -56,7 +61,10 @@ def _rank_policies(task: ActionSymmetryTask) -> list[tuple[float, tuple[int, ...
 def analytic_design_summary() -> dict[str, Any]:
     """Return exact transition and full-state occupancy design values."""
 
-    model = sticky_control_model(alpha=0.85)
+    model = control_model(
+        alpha=0.85,
+        transition_matrix=CYCLE_4_TRANSITION_MATRIX,
+    )
     variants = {}
     tasks = {
         variant: ActionSymmetryTask(

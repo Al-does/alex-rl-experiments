@@ -10,15 +10,13 @@ import numpy as np
 import pytest
 
 from envs.hmm import HMMEnv
-from envs.mess3.model import (
-    STICKY_CONTROL_TRANSITION_MATRIX,
-    sticky_control_model,
-)
+from envs.mess3.model import control_model
 from experiments.mess3_belief_geometry_2026_07.probe import (
     collect_probe_data,
     make_transducer_target,
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_4.design import (
+    CYCLE_4_TRANSITION_MATRIX,
     EXPECTED_ORACLE_POLICIES,
     analytic_design_summary,
 )
@@ -70,24 +68,31 @@ def _stationary_state_two(transition: np.ndarray) -> float:
     return float(np.linalg.solve(system, np.array([0.0, 0.0, 1.0]))[2])
 
 
+def _cycle_4_model():
+    return control_model(transition_matrix=CYCLE_4_TRANSITION_MATRIX)
+
+
 def test_cycle_4_selects_the_sticky_baseline_and_preserves_cycle_2_controls():
     config = environment_config(2)
 
-    assert config["model"]["factory"] == "envs.mess3.model:sticky_control_model"
-    assert config["model"]["kwargs"] == {"alpha": 0.85}
+    assert config["model"]["factory"] == "envs.mess3.model:control_model"
+    assert config["model"]["kwargs"] == {
+        "alpha": 0.85,
+        "transition_matrix": [list(row) for row in CYCLE_4_TRANSITION_MATRIX],
+    }
     assert config["delay"] == 0
     assert config["episode_length"] == 1024
     assert config["task"]["kwargs"] == {"variant": 2, "effect_size": 1.5}
     assert TOTAL_ENV_STEPS == 700_000
     np.testing.assert_array_equal(
-        sticky_control_model().transition_matrix,
-        STICKY_CONTROL_TRANSITION_MATRIX,
+        _cycle_4_model().transition_matrix,
+        CYCLE_4_TRANSITION_MATRIX,
     )
 
 
 @pytest.mark.parametrize("variant", (1, 2, 3))
 def test_actions_apply_requested_effects_to_sticky_baseline(variant):
-    model = sticky_control_model()
+    model = _cycle_4_model()
     task = ActionSymmetryTask(model=model, variant=variant)
     base = model.transition_matrix
 
@@ -115,7 +120,7 @@ def test_actions_apply_requested_effects_to_sticky_baseline(variant):
 
 @pytest.mark.parametrize("variant", (1, 2, 3))
 def test_oracle_policy_and_gap_match_cycle_4_design(variant):
-    task = ActionSymmetryTask(model=sticky_control_model(), variant=variant)
+    task = ActionSymmetryTask(model=_cycle_4_model(), variant=variant)
     occupancies = {}
     for policy in itertools.product(range(3), repeat=3):
         transition = np.stack(
@@ -186,7 +191,7 @@ def test_ppo_variant_recipes_build_fresh_discrete_configs(tmp_path, variant):
         assert environment.observation_space.shape == (6,)
         np.testing.assert_array_equal(
             environment.model.transition_matrix,
-            STICKY_CONTROL_TRANSITION_MATRIX,
+            CYCLE_4_TRANSITION_MATRIX,
         )
     finally:
         environment.close()

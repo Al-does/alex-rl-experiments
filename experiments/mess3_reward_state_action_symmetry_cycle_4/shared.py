@@ -22,6 +22,7 @@ from experiments.mess3_reward_state_action_symmetry_cycle_4.analysis import (
     probe_checkpoint,
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_4.design import (
+    CYCLE_4_TRANSITION_MATRIX,
     EFFECT_SIZE,
     analytic_design_summary,
 )
@@ -67,8 +68,13 @@ def environment_config(variant: int) -> dict[str, Any]:
         raise ValueError("variant must be one of 1, 2, or 3")
     return {
         "model": {
-            "factory": "envs.mess3.model:sticky_control_model",
-            "kwargs": {"alpha": 0.85},
+            "factory": "envs.mess3.model:control_model",
+            "kwargs": {
+                "alpha": 0.85,
+                "transition_matrix": [
+                    list(row) for row in CYCLE_4_TRANSITION_MATRIX
+                ],
+            },
         },
         "task": {
             "class": (
