@@ -18,20 +18,23 @@ export MESS3_TG_C2_MAX_ENV_STEPS="${MESS3_TG_C2_MAX_ENV_STEPS:-700000}"
 
 # Push compact experiments/ results onto origin/results without replaying the
 # feature-branch commit history (which conflicts with the orphaned results tip).
+# Always restore the training code commit afterward so later seeds still see
+# MESS3_TG_C2_MAX_ENV_STEPS / early-stop shared.py.
 push_one() {
   local run_name="$1"
-  python - "$run_name" <<'PY'
+  local train_ref
+  train_ref="$(git -C "${VAST_EXPERIMENT_DIR:-.}" rev-parse HEAD)"
+  python - "$run_name" "$train_ref" <<'PY'
 import os
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 
 run_name = sys.argv[1]
+train_ref = sys.argv[2]
 repo = Path(os.environ.get("VAST_EXPERIMENT_DIR", Path.cwd()))
 branch = os.environ.get("VAST_RESULTS_BRANCH", "results")
-token = os.environ.get("GITHUB_TOKEN", "")
 
 
 def run(args: list[str]) -> subprocess.CompletedProcess[str]:
@@ -47,6 +50,18 @@ def log(msg: str) -> None:
     print(f"[push_one] {msg}", flush=True)
 
 
+def restore_training_ref() -> None:
+    """Return the worktree to the campaign code after a results checkout."""
+    restored = run(["git", "checkout", "--detach", train_ref])
+    if restored.returncode != 0:
+        log(
+            f"WARNING: could not restore training ref {train_ref}: "
+            f"{restored.stderr.strip()}"
+        )
+    else:
+        log(f"restored training ref {train_ref[:12]}")
+
+
 # Clear any failed rebase from a previous push attempt.
 run(["git", "rebase", "--abort"])
 run(["git", "merge", "--abort"])
@@ -55,12 +70,14 @@ run(["git", "merge", "--abort"])
 add = run(["git", "add", "-A", "--", "experiments/"])
 if add.returncode != 0:
     log(f"git add failed: {add.stderr.strip()}")
+    restore_training_ref()
     raise SystemExit(2)
 
 staged = run(["git", "diff", "--cached", "--name-only"])
 names = [line for line in staged.stdout.splitlines() if line.strip()]
 if not names:
     log("no new compact experiment results to push")
+    restore_training_ref()
     raise SystemExit(0)
 
 # Snapshot staged blob contents, then rebuild a commit on top of origin/results.
@@ -73,6 +90,7 @@ for name in names:
     )
     if show.returncode != 0:
         log(f"could not read staged {name}: {show.stderr.decode()}")
+        restore_training_ref()
         raise SystemExit(2)
     snapshots[name] = show.stdout
 
@@ -82,11 +100,13 @@ run(["git", "reset", "--hard", "HEAD"])
 fetched = run(["git", "fetch", "--depth", "1", "origin", branch])
 if fetched.returncode != 0:
     log(f"fetch {branch} failed: {fetched.stderr.strip()}")
+    restore_training_ref()
     raise SystemExit(2)
 
 checkout = run(["git", "checkout", "-B", branch, "FETCH_HEAD"])
 if checkout.returncode != 0:
     log(f"checkout {branch} failed: {checkout.stderr.strip()}")
+    restore_training_ref()
     raise SystemExit(2)
 
 for name, data in snapshots.items():
@@ -97,6 +117,7 @@ for name, data in snapshots.items():
 add2 = run(["git", "add", "-A", "--", "experiments/"])
 if add2.returncode != 0:
     log(f"re-add failed: {add2.stderr.strip()}")
+    restore_training_ref()
     raise SystemExit(2)
 
 instance = None
@@ -113,22 +134,25 @@ if commit.returncode != 0:
     # Nothing new relative to results tip.
     if "nothing to commit" in (commit.stdout + commit.stderr).lower():
         log("results tip already has these files")
+        restore_training_ref()
         raise SystemExit(0)
     log(f"commit failed: {(commit.stderr or commit.stdout).strip()}")
+    restore_training_ref()
     raise SystemExit(2)
 
 delay = 1.0
+pushed_ok = False
 for attempt in range(1, 7):
     pushed = run(["git", "push", "origin", f"HEAD:refs/heads/{branch}"])
     if pushed.returncode == 0:
         log(f"pushed {run_name} to {branch}")
-        raise SystemExit(0)
+        pushed_ok = True
+        break
     log(f"push rejected (attempt {attempt}/6): {pushed.stderr.strip()}")
     # Concurrent boxes: refetch and retry with our tree on the new tip.
     fetched = run(["git", "fetch", "--depth", "1", "origin", branch])
     if fetched.returncode == 0:
         run(["git", "reset", "--soft", "FETCH_HEAD"])
-        # Restage our snapshots on the new tip.
         for name, data in snapshots.items():
             path = repo / name
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -138,8 +162,11 @@ for attempt in range(1, 7):
     time.sleep(delay)
     delay = min(delay * 2, 30.0)
 
-log(f"push failed after retries for {run_name}")
-raise SystemExit(2)
+restore_training_ref()
+if not pushed_ok:
+    log(f"push failed after retries for {run_name}")
+    raise SystemExit(2)
+raise SystemExit(0)
 PY
 }
 
