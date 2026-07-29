@@ -91,4 +91,3 @@ IDs, seed assignments, observed progress, and configured max-age, then finish.
 “Finish” means the requested early health monitoring is complete; leave healthy
 training boxes running unless the confirmed launch contract requested
 self-destruction or the user asks to stop them.
-
