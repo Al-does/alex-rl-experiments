@@ -27,6 +27,7 @@
   "kelly_reward_decoupled_from_ppo": true,
   "lambda": 0.0,
   "lr": 0.0001,
+  "minibatch_size": 4096,
   "model": {
     "activation": "relu",
     "context_length": 10,
@@ -39,8 +40,11 @@
     "normalization": "layer_norm",
     "positional_embedding": "learned_absolute"
   },
+  "num_epochs": 6,
   "objective": "correctness_plus_direct_kelly",
   "predictive_loss_weight": 0.0,
-  "total_env_steps": 2500000,
-  "validation_budget": false
+  "total_env_steps": 700000,
+  "train_batch_size_per_learner": 32768,
+  "validation_budget": true,
+  "vf_loss_coeff": 0.5
 }
