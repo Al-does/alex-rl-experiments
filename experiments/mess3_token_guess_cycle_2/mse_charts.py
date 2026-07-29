@@ -39,8 +39,14 @@ SEED_COLORS = {
 }
 
 
-def _curve_path(results_root: Path, condition: str, seed: int) -> Path:
-    run_name = f"mess3_token_guess_cycle_2-{condition}-seed{seed}"
+def _curve_path(
+    results_root: Path,
+    condition: str,
+    seed: int,
+    *,
+    run_suffix: str = "",
+) -> Path:
+    run_name = f"mess3_token_guess_cycle_2-{condition}-seed{seed}{run_suffix}"
     return (
         results_root
         / condition
@@ -107,6 +113,7 @@ def load_mse_curves(
     *,
     conditions: Sequence[str] = CONDITIONS,
     seeds: Sequence[int] = SEEDS,
+    run_suffix: str = "",
 ) -> dict[str, dict[int, list[dict[str, Any]]]]:
     """Load and validate every compact checkpoint-probe curve."""
 
@@ -115,7 +122,9 @@ def load_mse_curves(
     for condition in conditions:
         condition_curves: dict[int, list[dict[str, Any]]] = {}
         for seed in seeds:
-            path = _curve_path(results_root, condition, seed)
+            path = _curve_path(
+                results_root, condition, seed, run_suffix=run_suffix
+            )
             try:
                 payload = json.loads(path.read_text())
             except (OSError, json.JSONDecodeError) as error:
@@ -167,7 +176,9 @@ def _plot_one_run(
 ) -> None:
     x = np.arange(len(points))
     mse = np.asarray([float(point["mse"]) for point in points])
-    colors = ["#b5b5b5"] + [CONDITION_COLORS[condition]] * (len(points) - 1)
+    colors = ["#b5b5b5"] + [
+        CONDITION_COLORS.get(condition, "#4c78a8")
+    ] * (len(points) - 1)
     figure, axis = plt.subplots(figsize=(8.8, 4.8))
     axis.bar(
         x,
@@ -203,31 +214,39 @@ def _plot_all_runs(
     curves: Mapping[str, Mapping[int, Sequence[Mapping[str, Any]]]],
     *,
     path: Path,
+    conditions: Sequence[str],
+    seeds: Sequence[int],
 ) -> None:
+    n_conditions = len(conditions)
+    nrows = int(np.ceil(n_conditions / 2))
     figure, axes = plt.subplots(
-        3,
+        nrows,
         2,
-        figsize=(15.0, 11.0),
+        figsize=(15.0, 3.6 * nrows + 0.8),
         sharex=True,
         sharey=True,
         squeeze=False,
     )
-    width = 0.24
-    reference = curves[CONDITIONS[0]][SEEDS[0]]
+    width = min(0.24, 0.8 / max(len(seeds), 1))
+    reference = curves[conditions[0]][seeds[0]]
     x = np.arange(len(reference))
     labels = _step_labels(reference)
-    for axis, condition in zip(axes.flat, CONDITIONS, strict=False):
-        for seed_index, seed in enumerate(SEEDS):
+    seed_palette = [
+        SEED_COLORS.get(seed, f"C{index % 10}")
+        for index, seed in enumerate(seeds)
+    ]
+    for axis, condition in zip(axes.flat, conditions, strict=False):
+        for seed_index, seed in enumerate(seeds):
             points = curves[condition][seed]
             mse = np.asarray([float(point["mse"]) for point in points])
-            offset = (seed_index - 1) * width
+            offset = (seed_index - (len(seeds) - 1) / 2) * width
             axis.bar(
                 x + offset,
                 mse,
                 width=width,
                 yerr=_asymmetric_ci(points),
-                color=SEED_COLORS[seed],
-                label=f"seed {seed}",
+                color=seed_palette[seed_index],
+                label=f"seed {seed}" if seed_index < 8 else None,
                 capsize=1.2,
                 error_kw={"elinewidth": 0.55, "capthick": 0.55},
             )
@@ -238,31 +257,25 @@ def _plot_all_runs(
         )
         axis.set_xlabel("")
         axis.set_ylabel("")
-    axes.flat[-1].axis("off")
+    for axis in axes.flat[n_conditions:]:
+        axis.axis("off")
     handles, legend_labels = axes[0, 0].get_legend_handles_labels()
-    figure.legend(
-        handles,
-        legend_labels,
-        loc="lower right",
-        bbox_to_anchor=(0.96, 0.08),
-        frameon=False,
-    )
+    if handles:
+        figure.legend(
+            handles,
+            legend_labels,
+            loc="lower right",
+            bbox_to_anchor=(0.96, 0.02),
+            frameon=False,
+            fontsize=8,
+        )
+    n_runs = n_conditions * len(seeds)
     figure.suptitle(
-        "MESS3 token-guess cycle 2: MSE over training (all 15 runs)",
+        f"MESS3 token-guess cycle 2: MSE over training (all {n_runs} runs)",
         fontsize=15,
     )
     figure.supxlabel("Environment steps (millions)")
     figure.supylabel("Held-out affine-probe MSE", x=0.01)
-    figure.text(
-        0.74,
-        0.15,
-        "Error bars: 95% episode-cluster bootstrap CI\n"
-        "Held-out fit/test rollouts · post-final-LayerNorm",
-        ha="center",
-        va="center",
-        fontsize=9,
-        color="#444444",
-    )
     figure.tight_layout(rect=(0.04, 0.0, 1.0, 0.96))
     figure.savefig(path, dpi=220)
     plt.close(figure)
@@ -272,34 +285,38 @@ def _plot_condition_means(
     curves: Mapping[str, Mapping[int, Sequence[Mapping[str, Any]]]],
     *,
     path: Path,
+    conditions: Sequence[str],
+    seeds: Sequence[int],
 ) -> None:
     """Plot model-seed means; error bars are seed SD, not bootstrap CIs."""
 
-    reference = curves[CONDITIONS[0]][SEEDS[0]]
+    reference = curves[conditions[0]][seeds[0]]
     x = np.arange(len(reference))
     labels = _step_labels(reference)
-    width = 0.16
+    width = min(0.16, 0.8 / max(len(conditions), 1))
     figure, axis = plt.subplots(figsize=(14.0, 6.0))
-    for condition_index, condition in enumerate(CONDITIONS):
+    for condition_index, condition in enumerate(conditions):
         values = np.asarray(
             [
                 [float(point["mse"]) for point in curves[condition][seed]]
-                for seed in SEEDS
+                for seed in seeds
             ]
         )
-        offset = (condition_index - (len(CONDITIONS) - 1) / 2) * width
+        offset = (condition_index - (len(conditions) - 1) / 2) * width
         centers = x + offset
         axis.bar(
             centers,
             values.mean(axis=0),
             width=width,
             yerr=values.std(axis=0),
-            color=CONDITION_COLORS[condition],
+            color=CONDITION_COLORS.get(condition, f"C{condition_index}"),
             label=condition.replace("_", " "),
             capsize=2,
             error_kw={"elinewidth": 0.7, "capthick": 0.7},
         )
-        for row in values:
+        # Avoid overplotting when n_seeds is large; show a light sample.
+        sample = values if len(seeds) <= 8 else values[:: max(1, len(seeds) // 8)]
+        for row in sample:
             axis.scatter(
                 centers,
                 row,
@@ -322,7 +339,7 @@ def _plot_condition_means(
     axis.text(
         0.99,
         0.98,
-        "Black points: individual model seeds",
+        "Black points: individual model seeds (subsampled if n>8)",
         transform=axis.transAxes,
         ha="right",
         va="top",
@@ -330,7 +347,8 @@ def _plot_condition_means(
         color="#444444",
     )
     figure.suptitle(
-        "MSE over training by condition (mean ± SD across 3 model seeds)",
+        f"MSE over training by condition "
+        f"(mean ± SD across {len(seeds)} model seeds)",
         fontsize=13,
     )
     figure.tight_layout(rect=(0.0, 0.0, 0.87, 0.95))
@@ -369,15 +387,28 @@ def write_mse_bar_charts(
     curves: Mapping[str, Mapping[int, Sequence[Mapping[str, Any]]]],
     *,
     output_dir: Path,
+    conditions: Sequence[str] | None = None,
+    seeds: Sequence[int] | None = None,
 ) -> dict[str, Any]:
-    """Write 15 per-run charts, two combined charts, and compact source data."""
+    """Write per-run charts, two combined charts, and compact source data."""
 
+    resolved_conditions = list(conditions or curves.keys())
+    resolved_seeds = list(
+        seeds
+        or sorted(
+            {
+                seed
+                for condition in resolved_conditions
+                for seed in curves[condition]
+            }
+        )
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     by_run_dir = output_dir / "by_run"
     by_run_dir.mkdir(parents=True, exist_ok=True)
     run_files: dict[str, str] = {}
-    for condition in CONDITIONS:
-        for seed in SEEDS:
+    for condition in resolved_conditions:
+        for seed in resolved_seeds:
             filename = f"{condition}_seed{seed}_mse_over_training.png"
             _plot_one_run(
                 condition=condition,
@@ -389,8 +420,18 @@ def write_mse_bar_charts(
 
     all_runs_path = output_dir / "mse_over_training_all_runs.png"
     means_path = output_dir / "mse_over_training_condition_means.png"
-    _plot_all_runs(curves, path=all_runs_path)
-    _plot_condition_means(curves, path=means_path)
+    _plot_all_runs(
+        curves,
+        path=all_runs_path,
+        conditions=resolved_conditions,
+        seeds=resolved_seeds,
+    )
+    _plot_condition_means(
+        curves,
+        path=means_path,
+        conditions=resolved_conditions,
+        seeds=resolved_seeds,
+    )
 
     summary = {
         "metric": "held_out_affine_probe_mse",
@@ -404,7 +445,7 @@ def write_mse_bar_charts(
             "probe_refit": False,
         },
         "model_seed_summary": {
-            "seeds": list(SEEDS),
+            "seeds": list(resolved_seeds),
             "error_bar": "population_standard_deviation",
             "individual_values_shown": True,
             "bootstrap_used": False,
@@ -417,9 +458,9 @@ def write_mse_bar_charts(
         "curves": {
             condition: {
                 str(seed): list(curves[condition][seed])
-                for seed in SEEDS
+                for seed in resolved_seeds
             }
-            for condition in CONDITIONS
+            for condition in resolved_conditions
         },
     }
     (output_dir / "mse_over_training_summary.json").write_text(
@@ -440,13 +481,28 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path ending at experiments/mess3_token_guess_cycle_2",
     )
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--conditions", nargs="+", default=None)
+    parser.add_argument("--seeds", nargs="+", type=int, default=None)
+    parser.add_argument("--run-suffix", default="")
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    curves = load_mse_curves(args.results_root)
-    write_mse_bar_charts(curves, output_dir=args.output_dir)
+    conditions = args.conditions or list(CONDITIONS)
+    seeds = args.seeds or list(SEEDS)
+    curves = load_mse_curves(
+        args.results_root,
+        conditions=conditions,
+        seeds=seeds,
+        run_suffix=args.run_suffix,
+    )
+    write_mse_bar_charts(
+        curves,
+        output_dir=args.output_dir,
+        conditions=conditions,
+        seeds=seeds,
+    )
     return 0
 
 
