@@ -2,10 +2,8 @@
 
 Dry-run first, then live:
 
-  uv run --directory /rl-harness --group devops \\
-    python experiments/mess3_token_guess_cycle_2/launch_vast_arms.py --dry-run
-
-  # same with --yes
+  uv run python experiments/mess3_token_guess_cycle_2/launch_vast_arms.py --dry-run
+  uv run python experiments/mess3_token_guess_cycle_2/launch_vast_arms.py --yes
 """
 
 from __future__ import annotations
@@ -13,7 +11,6 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
-import sys
 import time
 from collections.abc import Sequence
 from pathlib import Path
@@ -23,7 +20,6 @@ DEFAULT_SEEDS = tuple(range(42, 57))
 STUDY = "mess3_token_guess_cycle_2"
 EXPERIMENT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_HARNESS = Path("/rl-harness")
-# 15 seeds × ~1h with headroom for slow hosts / probe time / sync.
 DEFAULT_MAX_AGE_HOURS = 30.0
 
 
@@ -53,12 +49,7 @@ def _vast_cmd(harness: Path, *args: str) -> list[str]:
 def build_run_command(condition: str, seeds: Sequence[int]) -> str:
     seed_args = " ".join(str(seed) for seed in seeds)
     return (
-        f"python experiments/{STUDY}/arm_queue.py "
-        f"--condition {condition} "
-        f"--seeds {seed_args} "
-        f"--max-env-steps 700000 "
-        f"--upload-artifacts "
-        f"--push-each"
+        f"bash experiments/{STUDY}/run_arm.sh {condition} {seed_args}"
     )
 
 
@@ -98,7 +89,6 @@ def provision_arm(
         str(max_price),
         "--forward-b2",
         "--self-destruct",
-        "--teardown-on-error",
         "--regions",
         "US,CA",
         "--no-open",
@@ -121,8 +111,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Launch three vast boxes for the 15-seed 0.66M campaign."
     )
-    parser.add_argument("--conditions", nargs="+", default=list(ARMS), choices=list(ARMS))
-    parser.add_argument("--seeds", nargs="+", type=int, default=list(DEFAULT_SEEDS))
+    parser.add_argument(
+        "--conditions", nargs="+", default=list(ARMS), choices=list(ARMS)
+    )
+    parser.add_argument(
+        "--seeds", nargs="+", type=int, default=list(DEFAULT_SEEDS)
+    )
     parser.add_argument("--harness", type=Path, default=DEFAULT_HARNESS)
     parser.add_argument("--experiment-repo", type=Path, default=EXPERIMENT_ROOT)
     parser.add_argument("--experiment-ref", default=None)
@@ -168,6 +162,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "experiment_ref": experiment_ref,
         "library_ref": library_ref,
         "max_age_hours": args.max_age,
+        "exclude_machines": list(args.exclude_machine),
         "run_commands": {
             condition: build_run_command(condition, args.seeds)
             for condition in args.conditions
