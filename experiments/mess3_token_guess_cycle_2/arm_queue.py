@@ -7,7 +7,7 @@ failure still lands completed runs on the ``results`` branch.
 Example (on a provisioned box, already in the activated .venv):
 
   python experiments/mess3_token_guess_cycle_2/arm_queue.py \\
-    --condition decoupled_kelly --seeds 42 43 44 ... 56
+    --condition decoupled_kelly --seeds 45 46 47 ... 59
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from harness.cli import execute_experiment, load_experiment, make_run_context
 
 STUDY = "mess3_token_guess_cycle_2"
 ARMS = ("ppo", "predictive_loss", "decoupled_kelly")
-DEFAULT_SEEDS = tuple(range(42, 57))  # 15 seeds: 42..56
+DEFAULT_SEEDS = tuple(range(45, 60))  # 15 seeds: 45..59 (42–44 already used)
 
 
 def _instance_id() -> str | None:

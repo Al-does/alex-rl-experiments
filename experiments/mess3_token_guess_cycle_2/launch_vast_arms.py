@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 ARMS = ("decoupled_kelly", "predictive_loss", "ppo")
-DEFAULT_SEEDS = tuple(range(42, 57))
+DEFAULT_SEEDS = tuple(range(45, 60))  # 15 seeds: 45..59 (42–44 already used)
 STUDY = "mess3_token_guess_cycle_2"
 EXPERIMENT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_HARNESS = Path("/rl-harness")
