@@ -74,6 +74,7 @@ def provision_arm(
     max_price: float,
     dry_run: bool,
     yes: bool,
+    exclude_machines: Sequence[int] = (),
 ) -> int:
     run_name = f"{STUDY}-{condition}-15seed-0p66m"
     argv = _vast_cmd(
@@ -102,6 +103,9 @@ def provision_arm(
         "US,CA",
         "--no-open",
     )
+    if exclude_machines:
+        argv.append("--exclude-machine")
+        argv.extend(str(int(mid)) for mid in exclude_machines)
     if dry_run:
         argv.append("--dry-run")
     elif yes:
@@ -127,6 +131,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-price", type=float, default=1.0)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--yes", action="store_true")
+    parser.add_argument(
+        "--exclude-machine",
+        type=int,
+        nargs="+",
+        default=[],
+        help="vast machine_ids to skip (bad SSH / prior readiness failures)",
+    )
     parser.add_argument(
         "--state-out",
         type=Path,
@@ -177,6 +188,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             max_price=args.max_price,
             dry_run=args.dry_run,
             yes=args.yes,
+            exclude_machines=args.exclude_machine,
         )
         results[condition] = code
         if code != 0:
