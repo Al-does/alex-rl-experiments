@@ -50,8 +50,17 @@ are from the recovered Vast runs; no re-probe or retrain was needed.
 | 45 | 0.002916 |
 | 46 | 0.002676 |
 
-Variant 1 full checkpoint curves (init through final) are plotted in
-`variant_1/figures/variant_1_mse_curve_with_init.png`.
+Variant checkpoint curves (init through final) are plotted in:
+
+- `variant_1/figures/variant_1_mse_curve_with_init.png`
+- `variant_2/figures/variant_2_mse_curve_with_init.png`
+- `variant_3/figures/variant_3_mse_curve_with_init.png`
+
+Regenerate all three with:
+
+```bash
+uv run python experiments/mess3_reward_state_action_asymmetry_cycle_5/plot_variant_mse_curves.py --all-variants
+```
 
 ## Final probe MSE
 
