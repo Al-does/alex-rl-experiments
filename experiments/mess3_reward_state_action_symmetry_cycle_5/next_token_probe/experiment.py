@@ -6,7 +6,6 @@ import csv
 from dataclasses import asdict, dataclass
 import json
 from pathlib import Path
-import sys
 import tempfile
 from typing import Any
 
@@ -22,9 +21,6 @@ from experiments.mess3_belief_geometry_2026_07.probe import (
     ProbeData,
     collect_probe_data,
     make_transducer_target,
-)
-from experiments.mess3_reward_state_action_symmetry_cycle_5 import (
-    task as current_task,
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_5.next_token_probe.probe import (
     ProbeTrainingConfig,
@@ -184,19 +180,6 @@ def _source_checkpoints(root: Path) -> list[SourceCheckpoint]:
     return records
 
 
-def _install_legacy_checkpoint_alias() -> None:
-    """Allow RLlib to resolve the task path recorded before the study rename."""
-
-    package_name = (
-        "experiments.mess3_reward_state_action_asymmetry_cycle_5"
-    )
-    current_package = sys.modules[
-        "experiments.mess3_reward_state_action_symmetry_cycle_5"
-    ]
-    sys.modules.setdefault(package_name, current_package)
-    sys.modules.setdefault(f"{package_name}.task", current_task)
-
-
 def _collect_checkpoint_data(
     checkpoint: Path,
     context: RunContext,
@@ -303,7 +286,6 @@ def run(context: RunContext) -> dict[str, Any]:
         raise ValueError(f"seed must be one of {SEEDS}")
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
-    _install_legacy_checkpoint_alias()
     streams = named_seed_sequences(context.seed, _STREAM_KEYS)
     training_config = (
         ProbeTrainingConfig(

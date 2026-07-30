@@ -5,10 +5,16 @@ import json
 import numpy as np
 import torch
 
+from experiments.mess3_reward_state_action_asymmetry_cycle_5.task import (
+    ActionSymmetryTask as LegacyActionSymmetryTask,
+)
 from experiments.mess3_belief_geometry_2026_07.probe import ProbeData
 from experiments.mess3_reward_state_action_symmetry_cycle_5.compare_next_token_probe import (
     load_joined_rows,
     summarize,
+)
+from experiments.mess3_reward_state_action_symmetry_cycle_5.task import (
+    ActionSymmetryTask,
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_5.next_token_probe.probe import (
     NextTokenTransformerProbe,
@@ -32,6 +38,10 @@ def _probe_data() -> ProbeData:
         actions=np.array([[0], [1], [0], [1], [0], [1], [2], [1], [2], [1]]),
         rewards=np.zeros(n),
     )
+
+
+def test_legacy_checkpoint_task_path_resolves_to_current_class():
+    assert LegacyActionSymmetryTask is ActionSymmetryTask
 
 
 def test_exact_next_token_probabilities_condition_on_action():
