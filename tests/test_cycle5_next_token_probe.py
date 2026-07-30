@@ -19,8 +19,11 @@ from experiments.mess3_reward_state_action_symmetry_cycle_5.task import (
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_5.next_token_probe.probe import (
     NextTokenTransformerProbe,
+    ProbeTrainingConfig,
+    SequenceDataset,
     build_sequence_dataset,
     exact_next_token_probabilities,
+    fit_probe,
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_5.next_token_probe import (
     experiment as probe_experiment,
@@ -155,6 +158,45 @@ def test_transformer_probe_detaches_trunk_and_blind_mode_ignores_action():
 
     assert embeddings.grad is None
     assert any(parameter.grad is not None for parameter in probe.parameters())
+
+
+def test_fit_probe_runs_soft_target_training_end_to_end():
+    rng = np.random.default_rng(11)
+
+    def dataset(n: int) -> SequenceDataset:
+        embeddings = rng.normal(size=(n, 2, 4)).astype(np.float32)
+        labels = (embeddings[:, -1, 0] > 0.0).astype(np.int64)
+        probabilities = np.full((n, 3), 0.05, dtype=np.float32)
+        probabilities[np.arange(n), labels] = 0.9
+        return SequenceDataset(
+            embeddings=embeddings,
+            actions=np.arange(n, dtype=np.int64) % 3,
+            target_probabilities=probabilities,
+            target_tokens=labels,
+        )
+
+    metrics = fit_probe(
+        dataset(64),
+        dataset(32),
+        dataset(32),
+        condition_on_action=True,
+        device="cpu",
+        seed=17,
+        config=ProbeTrainingConfig(
+            d_model=8,
+            n_heads=2,
+            n_layers=1,
+            batch_size=16,
+            max_epochs=3,
+            patience=2,
+        ),
+    )
+
+    assert metrics["stop_gradient"] is True
+    assert metrics["n_train"] == 64
+    assert metrics["n_validation"] == 32
+    assert metrics["n_test"] == 32
+    assert np.isfinite(metrics["soft_kl_nats"])
 
 
 def test_comparison_joins_only_checkpoints_with_belief_mse(tmp_path):
