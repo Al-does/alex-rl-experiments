@@ -6,10 +6,8 @@ import csv
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 import json
-import os
 from pathlib import Path
 import tempfile
-import time
 from typing import Any, Iterator
 
 import numpy as np
@@ -36,7 +34,7 @@ from experiments.mess3_reward_state_action_symmetry_cycle_5.shared import (
 )
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
-from harness.hardware import PROFILES, available_cpus
+from harness.hardware import PROFILES
 from harness.seeding import (
     named_seed_sequences,
     seed_sequence_to_int,
@@ -63,30 +61,6 @@ _MODULE_COMPONENTS = (
     "rl_module",
     "default_policy",
 )
-
-
-# region agent log
-def _agent_log(
-    hypothesis_id: str,
-    location: str,
-    message: str,
-    data: dict[str, Any],
-) -> None:
-    with open("/opt/cursor/logs/debug.log", "a") as handle:
-        handle.write(
-            json.dumps(
-                {
-                    "hypothesisId": hypothesis_id,
-                    "location": location,
-                    "message": message,
-                    "data": data,
-                    "timestamp": int(time.time() * 1000),
-                },
-                default=str,
-            )
-            + "\n"
-        )
-# endregion
 
 
 @dataclass(frozen=True, slots=True)
@@ -302,53 +276,12 @@ def _collect_checkpoint_data(
     np.ndarray,
     float,
 ]:
-    # region agent log
-    _agent_log(
-        "A,C,E",
-        "next_token_probe/experiment.py:_collect_checkpoint_data",
-        "checkpoint collection entered",
-        {"checkpoint": checkpoint.name, "exists": checkpoint.is_dir()},
-    )
-    # endregion
     train_steps = 1_024 if context.smoke else 60_000
     validation_steps = 512 if context.smoke else 20_000
     test_steps = 1_024 if context.smoke else 80_000
     warmup = 4 if context.smoke else 64
     n_envs = 4 if context.smoke else 16
-    # region agent log
-    _agent_log(
-        "A,B,E",
-        "next_token_probe/experiment.py:before_load_algorithm",
-        "starting RLlib checkpoint restore",
-        {
-            "checkpoint": checkpoint.name,
-            "available_cpus": available_cpus(),
-            "os_cpu_count": os.cpu_count(),
-            "cuda_available": torch.cuda.is_available(),
-        },
-    )
-    # endregion
     with _load_local_inference_checkpoint(checkpoint) as algorithm:
-        # region agent log
-        _agent_log(
-            "A,B,E",
-            "next_token_probe/experiment.py:after_load_algorithm",
-            "RLlib checkpoint restore returned",
-            {
-                "num_env_runners": algorithm.config.num_env_runners,
-                "num_cpus_per_env_runner": (
-                    algorithm.config.num_cpus_per_env_runner
-                ),
-                "num_gpus_per_env_runner": (
-                    algorithm.config.num_gpus_per_env_runner
-                ),
-                "num_learners": algorithm.config.num_learners,
-                "num_gpus_per_learner": (
-                    algorithm.config.num_gpus_per_learner
-                ),
-            },
-        )
-        # endregion
         module = algorithm.get_module()
         if module is None:
             raise KeyError("checkpoint has no default RLModule")
@@ -437,18 +370,6 @@ def run(context: RunContext) -> dict[str, Any]:
 
     if context.seed not in SEEDS:
         raise ValueError(f"seed must be one of {SEEDS}")
-    # region agent log
-    _agent_log(
-        "A,B,C,D,E",
-        "next_token_probe/experiment.py:run",
-        "probe run entered",
-        {
-            "seed": context.seed,
-            "smoke": context.smoke,
-            "hardware": getattr(context.hardware, "name", None),
-        },
-    )
-    # endregion
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     streams = named_seed_sequences(context.seed, _STREAM_KEYS)
@@ -499,54 +420,9 @@ def run(context: RunContext) -> dict[str, Any]:
             context.seed,
             source_root,
         )
-        # region agent log
-        _agent_log(
-            "D",
-            "next_token_probe/experiment.py:after_download",
-            "source artifact download returned",
-            {
-                "file_count": source_artifacts["file_count"],
-                "total_bytes": source_artifacts["total_bytes"],
-            },
-        )
-        # endregion
         checkpoints = _source_checkpoints(source_root)
         if context.smoke:
             checkpoints = checkpoints[:1]
-        config_paths = list(source_root.rglob("params.json"))
-        resource_keys = (
-            "num_env_runners",
-            "num_envs_per_env_runner",
-            "num_cpus_per_env_runner",
-            "num_gpus_per_env_runner",
-            "num_learners",
-            "num_gpus_per_learner",
-        )
-        source_config = (
-            json.loads(config_paths[0].read_text())
-            if len(config_paths) == 1
-            else {}
-        )
-        # region agent log
-        _agent_log(
-            "A,B,C,E",
-            "next_token_probe/experiment.py:checkpoint_selection",
-            "source checkpoints selected",
-            {
-                "checkpoint_count": len(checkpoints),
-                "checkpoint_names": [item.name for item in checkpoints],
-                "params_file_count": len(config_paths),
-                "resource_config": {
-                    key: source_config.get(key) for key in resource_keys
-                },
-                "task_class": (
-                    source_config.get("env_config", {})
-                    .get("task", {})
-                    .get("class")
-                ),
-            },
-        )
-        # endregion
 
         points: list[dict[str, Any]] = []
         for checkpoint_index, checkpoint in enumerate(checkpoints):
