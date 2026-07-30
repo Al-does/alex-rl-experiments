@@ -36,6 +36,32 @@ Percentages are `[noop, positive, negative]` from final checkpoint probes.
 | variant_2 | 33.2% | 66.8% | 0.0% |
 | variant_3 | 31.9% | 34.0% | 34.1% |
 
+## Untrained init probe MSE (step 0, before training)
+
+Each run saves a fresh checkpoint and probes it at `agent_steps=0`
+(`is_untrained=true`, full protocol: 60k fit / 80k test steps). Values below
+are from the recovered Vast runs; no re-probe or retrain was needed.
+
+| seed | variant_1 init MSE |
+|-----:|-------------------:|
+| 42 | 0.004222 |
+| 43 | 0.003523 |
+| 44 | 0.003423 |
+| 45 | 0.002916 |
+| 46 | 0.002676 |
+
+Variant checkpoint curves (init through final) are plotted in:
+
+- `variant_1/figures/variant_1_mse_curve_with_init.png`
+- `variant_2/figures/variant_2_mse_curve_with_init.png`
+- `variant_3/figures/variant_3_mse_curve_with_init.png`
+
+Regenerate all three with:
+
+```bash
+uv run python experiments/mess3_reward_state_action_asymmetry_cycle_5/plot_variant_mse_curves.py --all-variants
+```
+
 ## Final probe MSE
 
 | seed | variant_1 | variant_2 | variant_3 |
