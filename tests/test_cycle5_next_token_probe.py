@@ -5,6 +5,7 @@ import json
 import numpy as np
 import torch
 
+from envs.hmm import HMMEnv
 from experiments.mess3_reward_state_action_asymmetry_cycle_5.task import (
     ActionSymmetryTask as LegacyActionSymmetryTask,
 )
@@ -21,6 +22,14 @@ from experiments.mess3_reward_state_action_symmetry_cycle_5.next_token_probe.pro
     build_sequence_dataset,
     exact_next_token_probabilities,
 )
+from experiments.mess3_reward_state_action_symmetry_cycle_5.next_token_probe import (
+    experiment as probe_experiment,
+)
+from experiments.mess3_reward_state_action_symmetry_cycle_5.shared import (
+    BASE_MODEL_CONFIG,
+    environment_config,
+)
+from learners.models.transformer import TransformerModel
 
 
 def _probe_data() -> ProbeData:
@@ -42,6 +51,44 @@ def _probe_data() -> ProbeData:
 
 def test_legacy_checkpoint_task_path_resolves_to_current_class():
     assert LegacyActionSymmetryTask is ActionSymmetryTask
+
+
+def test_checkpoint_loads_only_local_inference_module(tmp_path, monkeypatch):
+    environment = HMMEnv(environment_config(1))
+    try:
+        module = TransformerModel(
+            observation_space=environment.observation_space,
+            action_space=environment.action_space,
+            inference_only=False,
+            model_config=dict(BASE_MODEL_CONFIG),
+        )
+    finally:
+        environment.close()
+    with torch.no_grad():
+        for index, parameter in enumerate(module.parameters()):
+            parameter.fill_(index / 100.0)
+    expected_state = {
+        name: value.detach().clone() for name, value in module.state_dict().items()
+    }
+    module_path = tmp_path.joinpath(*probe_experiment._MODULE_COMPONENTS)
+    module.save_to_path(module_path)
+
+    from ray.rllib.algorithms.algorithm import Algorithm
+    from ray.rllib.core.rl_module.rl_module import RLModule
+
+    def fail_algorithm_restore(*args, **kwargs):
+        raise AssertionError("checkpoint constructors must not run")
+
+    monkeypatch.setattr(Algorithm, "from_checkpoint", fail_algorithm_restore)
+    monkeypatch.setattr(RLModule, "from_checkpoint", fail_algorithm_restore)
+    with probe_experiment._load_local_inference_checkpoint(tmp_path) as restored:
+        assert isinstance(restored.module, TransformerModel)
+        assert restored.module.inference_only is True
+        assert restored.config.env is HMMEnv
+        assert restored.config.num_env_runners == 0
+        assert restored.config.num_learners == 0
+        for name, value in restored.module.state_dict().items():
+            torch.testing.assert_close(value, expected_state[name])
 
 
 def test_exact_next_token_probabilities_condition_on_action():
