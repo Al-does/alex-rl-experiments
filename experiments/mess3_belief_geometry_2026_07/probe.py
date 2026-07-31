@@ -163,8 +163,14 @@ def collect_probe_data(
     initial_belief: np.ndarray | None = None,
     action_outcome_operator: ActionOutcomeOperator | None = None,
     initial_outcome_operator: ActionOutcomeOperator | None = None,
+    observation_transform: Callable[[np.ndarray], np.ndarray] | None = None,
 ) -> ProbeData:
-    """Collect aligned activations and public MESS3 diagnostics."""
+    """Collect aligned activations and public MESS3 diagnostics.
+
+    ``observation_transform`` alters only policy-visible features. Environment
+    diagnostics and exact transducer targets continue to follow the actions
+    actually executed, which supports causal input-ablation evaluations.
+    """
     if policy_mode not in {"policy", "random", "greedy"}:
         raise ValueError(f"unsupported policy mode {policy_mode!r}")
     if (initial_belief is None) != (action_outcome_operator is None):
@@ -207,6 +213,8 @@ def collect_probe_data(
 
     def step_adapter(observations, state, randomness, action_spaces):
         nonlocal policy_generator
+        if observation_transform is not None:
+            observations = np.asarray(observation_transform(observations))
         observation_tensor = torch.from_numpy(observations).float().to(device)
         if stateful:
             embedding, state = module.encode_step(
