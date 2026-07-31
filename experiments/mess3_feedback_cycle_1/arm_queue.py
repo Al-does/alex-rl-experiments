@@ -9,8 +9,8 @@ import time
 
 import experiments.mess3_feedback_cycle_1.aggregate as aggregate_module
 from experiments.mess3_feedback_cycle_1.aggregate import write_summary
+from experiments.mess3_feedback_cycle_1.publish import publish_results
 from experiments.mess3_feedback_cycle_1.shared import DEFAULT_SEEDS
-from experiments.mess3_token_guess_cycle_2.arm_queue import _push_results
 from harness.cli import execute_experiment, load_experiment, make_run_context
 
 
@@ -46,13 +46,13 @@ def _run_one(seed: int, *, upload_artifacts: bool, push_each: bool) -> int:
     except Exception as error:  # noqa: BLE001 - preserve completed seed outputs
         print(f"[feedback_queue] FAILED seed={seed}: {error}", flush=True)
         if push_each:
-            _push_results(f"{run_id}-failed")
+            publish_results(f"{run_id}-failed")
         return 1
     print(
         f"[feedback_queue] done seed={seed} elapsed_s={time.time() - started:.1f}",
         flush=True,
     )
-    if push_each and not _push_results(run_id):
+    if push_each and not publish_results(run_id):
         print(f"[feedback_queue] result push failed seed={seed}", flush=True)
         return 2
     return 0
@@ -102,7 +102,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             Path(aggregate_module.__file__).resolve().parent / "ppo" / "results"
         )
         print(f"[feedback_queue] wrote aggregate {summary_dir}", flush=True)
-        if args.push_each and not _push_results(
+        if args.push_each and not publish_results(
             "mess3-feedback-c1-five-seed-summary"
         ):
             failed.append(-1)
