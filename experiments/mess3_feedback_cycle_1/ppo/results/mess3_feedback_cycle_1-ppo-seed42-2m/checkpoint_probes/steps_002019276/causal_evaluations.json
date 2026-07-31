@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "action_input_ablation": {
+    "baseline": {
+      "token_accuracy": 0.69925,
+      "mse": 0.00029453164992993393,
+      "target_variance": 0.12491649657941656,
+      "global_mse_ratio": 0.0023578282932605566,
+      "fine_evaluation_mse": 0.00029453164992993393,
+      "branch_baseline_mse": 0.0135003133562882,
+      "fine_mse_ratio": 0.02181665285515365,
+      "fine_mse_improvement": 0.013205781706358267,
+      "n_evaluated": 80000,
+      "r_squared": 0.9976421717067394
+    },
+    "corruptions": {
+      "mask": {
+        "token_accuracy": 0.6905,
+        "mse": 0.013077256094519147,
+        "target_variance": 0.12361369248985081,
+        "global_mse_ratio": 0.1057913232030735,
+        "fine_evaluation_mse": 0.013077256094519147,
+        "branch_baseline_mse": 0.012334610478059362,
+        "fine_mse_ratio": 1.0602082747388573,
+        "fine_mse_improvement": -0.0007426456164597844,
+        "n_evaluated": 80000,
+        "r_squared": 0.8942086767969265,
+        "delta_token_accuracy": -0.008750000000000036,
+        "mse_inflation": 44.40017260498181
+      },
+      "shuffle": {
+        "token_accuracy": 0.6867125,
+        "mse": 0.015018327676665487,
+        "target_variance": 0.1238067366171299,
+        "global_mse_ratio": 0.12130460819033939,
+        "fine_evaluation_mse": 0.015018327676665487,
+        "branch_baseline_mse": 0.012105531762236384,
+        "fine_mse_ratio": 1.2406169321297944,
+        "fine_mse_improvement": -0.002912795914429103,
+        "n_evaluated": 80000,
+        "r_squared": 0.8786953918096606,
+        "delta_token_accuracy": -0.01253750000000009,
+        "mse_inflation": 50.99053931975798
+      }
+    },
+    "policy_mode": "greedy_closed_loop",
+    "interpretation": "Masking or shuffling changes only policy-visible previous-action features; transitions use executed actions."
+  },
+  "counterfactual_belief_shift": {
+    "schema_version": 1,
+    "intervention": "replace the previous executed action in the current observation while holding the preceding token/action context fixed",
+    "target": "exact_delay_one_action_conditioned_bayesian_belief_shift",
+    "representation": "post_final_layer_norm",
+    "alternatives": "all_other_actions",
+    "shift_mse": 0.0036562046019860185,
+    "shift_cosine_mean": 0.9728970083515249,
+    "shift_norm_ratio_mean": 1.3779590852539951,
+    "exact_shift_rms": 0.0816496580927726,
+    "decoded_shift_rms": 0.12162688520993697,
+    "n_evaluated": 156154,
+    "n_nonzero": 156154,
+    "by_factual_action": {
+      "0": {
+        "shift_mse": 0.0039249235066901615,
+        "shift_cosine_mean": 0.9547142011326385,
+        "shift_norm_ratio_mean": 1.3526033198663538,
+        "exact_shift_rms": 0.08164965809277258,
+        "decoded_shift_rms": 0.11998112818312853,
+        "n_evaluated": 51356,
+        "n_nonzero": 51356
+      },
+      "1": {
+        "shift_mse": 0.004675394905334129,
+        "shift_cosine_mean": 0.9868072021354459,
+        "shift_norm_ratio_mean": 1.607489278307726,
+        "exact_shift_rms": 0.08164965809277258,
+        "decoded_shift_rms": 0.1383435012428136,
+        "n_evaluated": 52198,
+        "n_nonzero": 52198
+      },
+      "2": {
+        "shift_mse": 0.0023824398962036864,
+        "shift_cosine_mean": 0.9768459047849856,
+        "shift_norm_ratio_mean": 1.1749391930530262,
+        "exact_shift_rms": 0.0816496580927726,
+        "decoded_shift_rms": 0.10425311276850514,
+        "n_evaluated": 52600,
+        "n_nonzero": 52600
+      }
+    },
+    "activation_reconstruction_max_abs": 1.1205673217773438e-05,
+    "target_reconstruction_max_abs": 4.440892098500626e-16,
+    "interpretation": "Tests whether local representational sensitivity agrees with the Bayesian effect of the previous action."
+  }
+}
