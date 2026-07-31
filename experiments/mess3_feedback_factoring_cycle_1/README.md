@@ -191,9 +191,16 @@ Only the generator changes.
 
 The two blind arms are the decisive controls. They share dynamics with their
 sighted partners, so any difference in action awareness comes from the guess
-being readable rather than from the process being different. They also bracket
-the design: hiding the guess should barely matter at `eps = 0`, where the
-register announces itself, and should be fatal at `eps = 1`, where it does not.
+being readable rather than from the process being different.
+
+> **Correction from the campaign.** The original rationale claimed hiding the
+> guess should barely matter at `eps = 0` "where the register announces itself."
+> That is wrong under `delay = 1`: the observed report describes `phi` at `t - 1`,
+> while the guess must anticipate `phi_t = phi_{t-1} + a_{t-1}`. The report is
+> always one step stale, so it never substitutes for knowing the guess — it only
+> bounds how far back the agent must remember. The measured accuracy cost of
+> blinding is the same at both endpoints (0.107 at `eps = 0`, 0.099 at
+> `eps = 1`); only the representational cost differs, by 4.7 times.
 
 ## Running
 
@@ -230,3 +237,36 @@ cheaper campaigns while keeping the every-ten-iteration checkpoint cadence.
    checkpoint curves.
 6. `marginal_belief_mse` stays well above zero wherever `kappa > 0`, matching
    the network-free finding that the loop is not one stacked HMM.
+
+## Outcomes
+
+The eight-arm, five-seed campaign is written up in
+[`results/20260731T190000Z-eight-arms-five-seeds/findings.md`](results/20260731T190000Z-eight-arms-five-seeds/findings.md).
+Headline scoreboard:
+
+| prediction | verdict |
+| --- | --- |
+| 1 — sighted arms drive `action_awareness_ratio` below one | **untestable**; a perfectly factored representation scores 1.58, so predictions 1 and 4 are mutually incompatible at `eps = 0` |
+| 2 — hiding the guess costs little at `eps = 0` | **half confirmed**; representational cost differs 4.7x, accuracy cost does not differ at all |
+| 3 — success tracks each arm's own ceiling | **confirmed**; 98–99% of ceiling sighted, 81–83% blind |
+| 4 — `factor_subspace_overlap` falls in `factoring_free` | **falsified as stated**, but the metric sits at ~0.5 everywhere and needs a null baseline |
+| 5 — factor targets degrade as `epsilon` rises | **confirmed**; a clean monotone ladder to full undecodability |
+| 6 — `marginal_belief_mse` above zero wherever `kappa > 0` | **confirmed**; exactly zero at `kappa = 0`, 31–90% of target variance elsewhere |
+
+The finding that survives is not on the list. Every arm learns the
+reward-sufficient composite belief to R² = 0.93–0.98 regardless of `epsilon`,
+and in the arms where the composite is *not* sufficient for the joint it is the
+only target that improves — the register factor decodes *better* at
+initialization (R² = 0.983) than after 2.5M steps (R² = 0.738). Read alongside
+the sibling study, the sign of the change in belief decodability is predicted in
+all seven cases by whether the world belief exceeds the reward-sufficient
+statistic.
+
+Two reported numbers were artifacts: raw cross-arm MSE is invalid because target
+variance differs threefold (the ranking inverts under normalization), and
+`action_awareness_ratio` penalizes exactly the structure the study set out to
+detect. Use `campaign_analysis.py` for both corrections:
+
+```bash
+uv run python -m experiments.mess3_feedback_factoring_cycle_1.campaign_analysis
+```
