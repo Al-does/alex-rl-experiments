@@ -18,7 +18,13 @@ STUDY = "mess3_feedback_cycle_1"
 MODULE = f"experiments.{STUDY}.ppo.experiment"
 
 
-def _run_one(seed: int, *, upload_artifacts: bool, push_each: bool) -> int:
+def _run_one(
+    seed: int,
+    *,
+    upload_artifacts: bool,
+    push_each: bool,
+    preserve_published_results: bool,
+) -> int:
     run_id = f"{STUDY}-ppo-seed{seed}-2m"
     experiment = load_experiment(MODULE)
     context = make_run_context(
@@ -46,13 +52,19 @@ def _run_one(seed: int, *, upload_artifacts: bool, push_each: bool) -> int:
     except Exception as error:  # noqa: BLE001 - preserve completed seed outputs
         print(f"[feedback_queue] FAILED seed={seed}: {error}", flush=True)
         if push_each:
-            publish_results(f"{run_id}-failed")
+            publish_results(
+                f"{run_id}-failed",
+                preserve_worktree=preserve_published_results,
+            )
         return 1
     print(
         f"[feedback_queue] done seed={seed} elapsed_s={time.time() - started:.1f}",
         flush=True,
     )
-    if push_each and not publish_results(run_id):
+    if push_each and not publish_results(
+        run_id,
+        preserve_worktree=preserve_published_results,
+    ):
         print(f"[feedback_queue] result push failed seed={seed}", flush=True)
         return 2
     return 0
@@ -78,6 +90,15 @@ def build_parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=True,
     )
+    parser.add_argument(
+        "--preserve-published-results",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "restore published result files for sequential aggregation; disable "
+            "when one seed runs per self-destructing box"
+        ),
+    )
     parser.add_argument("--fail-fast", action="store_true")
     return parser
 
@@ -90,13 +111,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             int(seed),
             upload_artifacts=bool(args.upload_artifacts),
             push_each=bool(args.push_each),
+            preserve_published_results=bool(args.preserve_published_results),
         )
         codes[int(seed)] = code
         if code and args.fail_fast:
             break
 
     failed = [seed for seed, code in codes.items() if code]
-    expected_complete = list(args.seeds) == list(DEFAULT_SEEDS) and not failed
+    expected_complete = (
+        list(args.seeds) == list(DEFAULT_SEEDS)
+        and not failed
+        and args.preserve_published_results
+    )
     if expected_complete:
         summary_dir = write_summary(
             Path(aggregate_module.__file__).resolve().parent / "ppo" / "results"

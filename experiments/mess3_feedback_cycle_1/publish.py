@@ -18,7 +18,11 @@ def _run(repo: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
     )
 
 
-def publish_results(run_name: str) -> bool:
+def publish_results(
+    run_name: str,
+    *,
+    preserve_worktree: bool = True,
+) -> bool:
     """Snapshot experiment outputs onto the results branch, then restore them."""
 
     repo = Path(os.environ.get("VAST_EXPERIMENT_DIR", Path.cwd()))
@@ -43,10 +47,11 @@ def publish_results(run_name: str) -> bool:
                 flush=True,
             )
             return
-        for name, data in snapshots.items():
-            path = repo / name
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(data)
+        if preserve_worktree:
+            for name, data in snapshots.items():
+                path = repo / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(data)
         print(f"[publish] restored training ref {train_ref[:12]}", flush=True)
 
     _run(repo, ["git", "rebase", "--abort"])
