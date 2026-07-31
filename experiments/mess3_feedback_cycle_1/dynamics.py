@@ -38,7 +38,6 @@ from envs.mess3.model import (
     N_STATES,
     N_TOKENS,
     PASSIVE_TRANSITION_MATRIX,
-    emission_matrix,
 )
 
 
@@ -213,30 +212,9 @@ def product_state(chain: np.ndarray, register: np.ndarray) -> np.ndarray:
     )
 
 
-def cyclic_convolution(chain: np.ndarray, register: np.ndarray) -> np.ndarray:
-    """Return the executed-state belief implied by a product state."""
-
-    return np.asarray(product_state(chain, register)) @ lumping_matrix(
-        np.asarray(chain).shape[-1]
-    )
-
-
 def executed_state_belief(joint: np.ndarray) -> np.ndarray:
     """Aggregate a joint ``(m, Phi)`` belief down to the executed state."""
 
     values = np.asarray(joint, dtype=np.float64)
     size = int(round(np.sqrt(values.shape[-1])))
     return values @ lumping_matrix(size)
-
-
-def base_model_matrices(
-    *,
-    alpha: float = 0.85,
-    base: np.ndarray = PASSIVE_TRANSITION_MATRIX,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Return the validated circulant transition and emission pair."""
-
-    return (
-        require_circulant(base, name="base transition matrix"),
-        require_circulant(emission_matrix(alpha), name="emission matrix"),
-    )

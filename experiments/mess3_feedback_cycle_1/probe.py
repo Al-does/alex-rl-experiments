@@ -38,9 +38,6 @@ from experiments.mess3_feedback_cycle_1.dynamics import (
 from harness.seeding import seed_sequence_to_int
 
 
-TARGET_NAMES = ("executed", "blind", "marginal", "joint", "factor_m", "factor_phi")
-
-
 @dataclass(frozen=True, slots=True)
 class FeedbackProbeData:
     """Aligned activations and every Bayesian target of the feedback loop."""

@@ -81,7 +81,9 @@ def _choose_actions(
         return _sample_categorical(rng, predictive)
     if policy == "uniform":
         return rng.integers(0, n_actions, size=len(predictive)).astype(np.int64)
-    raise ValueError(f"unsupported closed-loop policy {policy!r}")
+    raise ValueError(
+        f"closed-loop policy must be one of {POLICIES}, got {policy!r}"
+    )
 
 
 def simulate_closed_loop(
