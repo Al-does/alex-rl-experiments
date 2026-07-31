@@ -33,7 +33,6 @@ from experiments.mess3_token_guess_cycle_2.model import (
     PaperResidualEncoder,
 )
 from experiments.mess3_token_guess_cycle_2.shared import (
-    A2C_ENV_STEPS,
     A2C_TRAIN_BATCH_SIZE,
     BASE_MODEL_CONFIG,
     CONDITIONS,
@@ -43,6 +42,7 @@ from experiments.mess3_token_guess_cycle_2.shared import (
     KellyModel,
     PredictiveLearner,
     PredictiveModel,
+    TOTAL_ENV_STEPS,
     VALIDATION_ENV_STEPS,
     _run_schedule,
     build_config,
@@ -309,7 +309,7 @@ def test_battery_uses_update_matched_a2c_with_fresh_gamma_zero_configs(tmp_path)
     # coefficients therefore give both objectives the same critic gradient.
     assert a2c.vf_loss_coeff == 1.0
     assert configs["ppo"].vf_loss_coeff == 0.5
-    assert A2C_ENV_STEPS == 1_000_000
+    assert TOTAL_ENV_STEPS == 2_500_000
     for name, config in configs.items():
         if name != "a2c":
             assert config.train_batch_size_per_learner == 2_048
@@ -328,10 +328,6 @@ def test_battery_uses_update_matched_a2c_with_fresh_gamma_zero_configs(tmp_path)
     assert configs["iqn"].rl_module_spec.module_class is IQNModel
     assert configs["iqn"].rl_module_spec.model_config["iqn_value"] == IQN_CONFIG
     assert VALIDATION_ENV_STEPS == 131_072
-
-
-def test_a2c_has_one_million_step_checkpoint_schedule(tmp_path):
-    pass
 
 
 def test_single_gpu_profile_reserves_cuda_for_learner(tmp_path):
