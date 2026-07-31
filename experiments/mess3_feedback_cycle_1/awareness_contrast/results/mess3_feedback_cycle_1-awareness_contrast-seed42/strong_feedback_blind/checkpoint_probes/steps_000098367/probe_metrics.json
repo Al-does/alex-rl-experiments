@@ -1,0 +1,134 @@
+{
+  "condition": "strong_feedback_blind",
+  "feedback_strength": 0.7,
+  "checkpoint_step": 98367,
+  "is_untrained": false,
+  "target": "exact_action_conditioned_predictive_belief",
+  "probe": "held_out_affine_least_squares",
+  "probe_ridge": 1e-06,
+  "representation": "post_final_layer_norm",
+  "sampling_distribution": "process_weighted_rollout",
+  "policy_mode": "greedy",
+  "warmup": 64,
+  "n_envs": 16,
+  "train_steps": 16384,
+  "test_steps": 16384,
+  "calibration_steps": 4096,
+  "branch_depth": 2,
+  "min_group_size": 50,
+  "mse": 0.025889148449384947,
+  "target_variance": 0.07519926489839984,
+  "global_mse_ratio": 0.34427395645905895,
+  "r_squared": 0.6557260435409411,
+  "fine_evaluation_mse": 0.025889148449384947,
+  "branch_baseline_mse": 0.007464954462114836,
+  "fine_mse_ratio": 3.4680919462769904,
+  "fine_mse_improvement": -0.01842419398727011,
+  "n_evaluated": 16384,
+  "mse_ci_95_low": 0.02532652267911097,
+  "mse_ci_95_high": 0.026501795543746414,
+  "bootstrap_n": 200,
+  "bootstrap_cluster": "environment_episode",
+  "permutation_real_mse": 0.02605338681153263,
+  "permutation_null_mse_p05": 0.07505675840220519,
+  "permutation_null_mse_p50": 0.0775828464833378,
+  "permutation_null_mse_p95": 0.07998026993233033,
+  "permutation_null_p_value_lower_tail": 0.004975124378109453,
+  "permutation_null_n": 200,
+  "targets": {
+    "executed": {
+      "target": "executed",
+      "status": "fitted",
+      "mse": 0.025889148449384947,
+      "target_variance": 0.07519926489839984,
+      "global_mse_ratio": 0.34427395645905895,
+      "r_squared": 0.6557260435409411
+    },
+    "blind": {
+      "target": "blind",
+      "status": "fitted",
+      "mse": 0.004753236699541254,
+      "target_variance": 0.09493605524490378,
+      "global_mse_ratio": 0.05006777127277374,
+      "r_squared": 0.9499322287272263
+    },
+    "marginal": {
+      "target": "marginal",
+      "status": "fitted",
+      "mse": 0.00018001536502687519,
+      "target_variance": 0.027407120884248525,
+      "global_mse_ratio": 0.006568196848809974,
+      "r_squared": 0.9934318031511901
+    },
+    "joint": {
+      "target": "joint",
+      "status": "fitted",
+      "mse": 0.002876679705913657,
+      "target_variance": 0.0083555803932866,
+      "global_mse_ratio": 0.3442824520275052,
+      "r_squared": 0.6557175479724948
+    },
+    "factor_m": {
+      "target": "factor_m",
+      "status": "degenerate",
+      "target_variance": 4.1646443568342743e-07,
+      "reason": "the target is constant, so affine decoding is vacuous"
+    },
+    "factor_phi": {
+      "target": "factor_phi",
+      "status": "degenerate",
+      "target_variance": 3.402486689343789e-07,
+      "reason": "the target is constant, so affine decoding is vacuous"
+    }
+  },
+  "geometry": {
+    "effective_dimension": 2.0,
+    "top_two_variance": 0.9683170811324273,
+    "variance_fraction": 0.95,
+    "factor_subspace_overlap": NaN
+  },
+  "action_awareness_ratio": 6.876159008225538,
+  "action_blind_belief_mse": 0.0692531640665432,
+  "marginal_belief_mse": 0.044349534034319044,
+  "guess_given_state": [
+    [
+      0.7339550191991223,
+      0.15907844212835984,
+      0.10696653867251783
+    ],
+    [
+      0.3098188751191611,
+      0.4632983794089609,
+      0.22688274547187798
+    ],
+    [
+      0.4420113544201135,
+      0.2911597729115977,
+      0.26682887266828875
+    ]
+  ],
+  "marginal_transition": [
+    [
+      0.7417032364234779,
+      0.14465167306637408,
+      0.11364509051014812
+    ],
+    [
+      0.1849952335557674,
+      0.48934223069590094,
+      0.32566253574833176
+    ],
+    [
+      0.22324006488240067,
+      0.20876317923763182,
+      0.5679967558799676
+    ]
+  ],
+  "joint_product_mse": 0.009158541279120299,
+  "executed_product_mse": 0.08242665667322874,
+  "token_accuracy_greedy": 0.49151611328125,
+  "n_fit": 16384,
+  "n_test": 16384,
+  "target_consistency_max_abs": 3.3306690738754696e-16,
+  "interpretation": "Affine decodability does not establish causal policy use."
+}

@@ -124,9 +124,10 @@ def plot_sweep(rows: list[dict[str, Any]], *, path: Path) -> None:
     axes[1].set_title("Can one stacked HMM reproduce the loop?")
 
     reference = THEORY_POLICIES[0]
+    losses = [row["policies"][reference]["executed_product_mse"] for row in rows]
     axes[2].plot(
         strengths,
-        [row["policies"][reference]["executed_product_mse"] for row in rows],
+        losses,
         marker="o",
         color="#355c9a",
         label="Product-state error on executed belief",
@@ -149,10 +150,21 @@ def plot_sweep(rows: list[dict[str, Any]], *, path: Path) -> None:
     axes[2].set_ylabel("Factorization loss", color="#355c9a")
     register.set_ylabel("Register entropy (nats)", color="#c45135")
     axes[2].set_title("Both endpoints factor; the interior does not")
+    axes[2].set_ylim(-0.01, max(losses) * 1.9)
+    register.set_ylim(-0.06, np.log(3.0) * 1.9)
+    handles, labels = axes[2].get_legend_handles_labels()
+    extra_handles, extra_labels = register.get_legend_handles_labels()
+    axes[2].legend(
+        handles + extra_handles,
+        labels + extra_labels,
+        fontsize=7,
+        loc="upper center",
+    )
 
+    for axis in axes[:2]:
+        axis.legend(fontsize=7, loc="best")
     for axis in axes:
         axis.grid(alpha=0.2)
-        axis.legend(fontsize=7, loc="best")
     figure.tight_layout()
     figure.savefig(path, dpi=200)
     plt.close(figure)

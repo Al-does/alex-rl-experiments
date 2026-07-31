@@ -690,12 +690,15 @@ def plot_probe_trajectory(
     left.set_ylabel("Held-out probe MSE / target variance", color="#355c9a")
     right.set_ylabel("Task success (%)", color="#c45135")
     left.set_title(condition.replace("_", " "))
+    # Reserve headroom so the combined legend never sits on top of a curve.
+    left.set_ylim(top=left.get_ylim()[1] * 1.45)
+    right.set_ylim(top=max(right.get_ylim()[1], 100.0 * ceiling) * 1.2)
     handles_left, labels_left = left.get_legend_handles_labels()
     handles_right, labels_right = right.get_legend_handles_labels()
     left.legend(
         handles_left + handles_right,
         labels_left + labels_right,
-        loc="best",
+        loc="upper left",
         fontsize=8,
     )
     left.grid(alpha=0.2)

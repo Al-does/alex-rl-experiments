@@ -162,9 +162,13 @@ training-driven quantities are the change from the initial checkpoint
 conditions on the two most recent `(token, guess)` pairs and therefore measures
 integration beyond what the newest inputs hand over for free.
 
-Degenerate targets are reported, not silently fitted: for `0 < kappa < 1` the
-factor marginals are constant, so `_fit_target` marks them `"degenerate"`
-rather than reporting a meaningless ratio.
+Degenerate targets are reported, not silently fitted. At `kappa = 0` the
+register belief is a constant delta and `_fit_target` marks it `"degenerate"`
+rather than reporting a meaningless ratio. For `0 < kappa < 1` the factor
+marginals are constant only in the stationary regime; each episode reset puts
+the register back at a known zero, so the post-reset transient leaves enough
+variance for a fit. Those fits come back at a ratio near or above one, which is
+the honest reading: there is nothing there to decode.
 
 ## Arms
 
@@ -199,6 +203,36 @@ uv run rl-harness experiments.mess3_feedback_cycle_1.awareness_contrast.experime
 
 `MESS3_FEEDBACK_C1_MAX_ENV_STEPS` truncates the 2.5M-step budget for remote
 campaigns while keeping the every-ten-iteration checkpoint cadence.
+
+## First result: `awareness_contrast` at 393,216 steps
+
+Seed 42, CPU, `strong_feedback` against `strong_feedback_blind`. Both arms have
+`kappa = 0.7` and a myopic ceiling of `0.6128`; they differ only in whether the
+previous guess is in the observation.
+
+| | init aware | final aware | init accuracy | final accuracy |
+| --- | --- | --- | --- | --- |
+| `strong_feedback` | 0.42 | **0.21** | 0.241 | **0.590** |
+| `strong_feedback_blind` | 4.40 | **3.97** | 0.365 | **0.452** |
+
+The sighted arm reaches 96% of its ceiling and halves its awareness ratio: its
+residual stream ends up decoding the guess-conditioned belief roughly five
+times better than the belief of an agent that ignores its guesses. The blind
+arm stays four to eight times *worse* on the guess-conditioned target than on
+the action-blind one for the whole run, and its accuracy peaks at `0.50` before
+settling `0.14` below the sighted arm.
+
+Note that the awareness ratio already starts below one in the sighted arm,
+because the untrained transformer carries the previous guess in its residual
+stream simply by virtue of it being an input. The training-driven part of the
+effect is the halving, not the level.
+
+`marginal_belief_mse` settles at `0.040` in the sighted arm, agreeing with the
+network-free finding: even along the learned policy's own trajectories, the
+stacked single HMM does not reproduce the true guess-conditioned belief.
+
+This budget is roughly one sixth of the study budget and was run to validate
+the pipeline, not to settle the science.
 
 ## Predictions
 

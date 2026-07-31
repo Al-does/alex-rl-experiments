@@ -1,0 +1,118 @@
+{
+  "algorithm": "PPO",
+  "checkpoint_frequency_iterations": 1,
+  "condition": "strong_feedback_blind",
+  "environment": {
+    "delay": 1,
+    "episode_length": 512,
+    "model": {
+      "factory": "envs.mess3.model:passive_model",
+      "kwargs": {
+        "alpha": 0.85
+      }
+    },
+    "observation": {
+      "action": null,
+      "token": {
+        "depth": 1,
+        "offset": 0
+      }
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "experiments.mess3_feedback_cycle_1.task:FeedbackTokenGuessTask",
+      "kwargs": {
+        "feedback_strength": 0.7
+      }
+    }
+  },
+  "feedback_strength": 0.7,
+  "gamma": 0.0,
+  "guess_conditioned_transitions": [
+    [
+      [
+        0.9,
+        0.05,
+        0.05
+      ],
+      [
+        0.05,
+        0.9,
+        0.05
+      ],
+      [
+        0.05,
+        0.05,
+        0.9
+      ]
+    ],
+    [
+      [
+        0.30500000000000005,
+        0.645,
+        0.05
+      ],
+      [
+        0.05,
+        0.30500000000000005,
+        0.645
+      ],
+      [
+        0.645,
+        0.05,
+        0.30500000000000005
+      ]
+    ],
+    [
+      [
+        0.30500000000000005,
+        0.05,
+        0.645
+      ],
+      [
+        0.645,
+        0.30500000000000005,
+        0.05
+      ],
+      [
+        0.05,
+        0.645,
+        0.30500000000000005
+      ]
+    ]
+  ],
+  "hypothesis": "Identical dynamics to strong_feedback with the previous guess hidden from the observation, bounding how much action awareness survives when the guess cannot be read off the input.",
+  "lambda": 0.0,
+  "lr": 0.0001,
+  "minibatch_size": 4096,
+  "model": {
+    "activation": "relu",
+    "context_length": 10,
+    "d_head": 8,
+    "d_mlp": 256,
+    "d_model": 64,
+    "max_seq_len": 32,
+    "n_heads": 1,
+    "n_layers": 4,
+    "normalization": "layer_norm",
+    "positional_embedding": "learned_absolute"
+  },
+  "myopic_ceiling_context_10": {
+    "accuracy": 0.6148209110383065,
+    "context_length": 10,
+    "n_samples": 253952,
+    "stderr": 0.0013162877177417718
+  },
+  "num_epochs": 6,
+  "objective": "clipped_correctness",
+  "observe_previous_guess": false,
+  "probe_budget": {
+    "calibration": 4096,
+    "resamples": 200,
+    "test": 16384,
+    "train": 16384
+  },
+  "total_env_steps": 393216,
+  "train_batch_size_per_learner": 32768,
+  "vf_loss_coeff": 0.5
+}

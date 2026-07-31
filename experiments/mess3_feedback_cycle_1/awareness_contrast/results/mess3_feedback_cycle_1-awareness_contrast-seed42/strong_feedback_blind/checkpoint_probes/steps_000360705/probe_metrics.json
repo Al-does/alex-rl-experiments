@@ -1,0 +1,134 @@
+{
+  "condition": "strong_feedback_blind",
+  "feedback_strength": 0.7,
+  "checkpoint_step": 360705,
+  "is_untrained": false,
+  "target": "exact_action_conditioned_predictive_belief",
+  "probe": "held_out_affine_least_squares",
+  "probe_ridge": 1e-06,
+  "representation": "post_final_layer_norm",
+  "sampling_distribution": "process_weighted_rollout",
+  "policy_mode": "greedy",
+  "warmup": 64,
+  "n_envs": 16,
+  "train_steps": 16384,
+  "test_steps": 16384,
+  "calibration_steps": 4096,
+  "branch_depth": 2,
+  "min_group_size": 50,
+  "mse": 0.005523145147557106,
+  "target_variance": 0.06618139844362883,
+  "global_mse_ratio": 0.08345464552643961,
+  "r_squared": 0.9165453544735603,
+  "fine_evaluation_mse": 0.005523145147557106,
+  "branch_baseline_mse": 0.007104857141301421,
+  "fine_mse_ratio": 0.7773759609395063,
+  "fine_mse_improvement": 0.0015817119937443147,
+  "n_evaluated": 16384,
+  "mse_ci_95_low": 0.005430759116233861,
+  "mse_ci_95_high": 0.0056129096204041475,
+  "bootstrap_n": 200,
+  "bootstrap_cluster": "environment_episode",
+  "permutation_real_mse": 0.0056286266576061625,
+  "permutation_null_mse_p05": 0.06617591652998026,
+  "permutation_null_mse_p50": 0.06849822269533669,
+  "permutation_null_mse_p95": 0.0717894042947859,
+  "permutation_null_p_value_lower_tail": 0.004975124378109453,
+  "permutation_null_n": 200,
+  "targets": {
+    "executed": {
+      "target": "executed",
+      "status": "fitted",
+      "mse": 0.005523145147557106,
+      "target_variance": 0.06618139844362883,
+      "global_mse_ratio": 0.08345464552643961,
+      "r_squared": 0.9165453544735603
+    },
+    "blind": {
+      "target": "blind",
+      "status": "fitted",
+      "mse": 0.0017989146324073736,
+      "target_variance": 0.08952031620587582,
+      "global_mse_ratio": 0.020095043322571494,
+      "r_squared": 0.9799049566774285
+    },
+    "marginal": {
+      "target": "marginal",
+      "status": "fitted",
+      "mse": 4.306648632736286e-06,
+      "target_variance": 0.013955719513349884,
+      "global_mse_ratio": 0.0003085938083390537,
+      "r_squared": 0.999691406191661
+    },
+    "joint": {
+      "target": "joint",
+      "status": "fitted",
+      "mse": 0.0006136844819395,
+      "target_variance": 0.007353490392910357,
+      "global_mse_ratio": 0.08345485601384142,
+      "r_squared": 0.9165451439861586
+    },
+    "factor_m": {
+      "target": "factor_m",
+      "status": "degenerate",
+      "target_variance": 5.1767905693289974e-09,
+      "reason": "the target is constant, so affine decoding is vacuous"
+    },
+    "factor_phi": {
+      "target": "factor_phi",
+      "status": "degenerate",
+      "target_variance": 6.242003535817998e-09,
+      "reason": "the target is constant, so affine decoding is vacuous"
+    }
+  },
+  "geometry": {
+    "effective_dimension": 3.0,
+    "top_two_variance": 0.9006514561875014,
+    "variance_fraction": 0.95,
+    "factor_subspace_overlap": NaN
+  },
+  "action_awareness_ratio": 4.152996546800189,
+  "action_blind_belief_mse": 0.08990480428169152,
+  "marginal_belief_mse": 0.050575510148159135,
+  "guess_given_state": [
+    [
+      0.572118286059143,
+      0.2027761013880507,
+      0.22510561255280628
+    ],
+    [
+      0.24394319131161235,
+      0.4252297410192147,
+      0.3308270676691729
+    ],
+    [
+      0.2765787370103917,
+      0.3061550759392486,
+      0.4172661870503597
+    ]
+  ],
+  "marginal_transition": [
+    [
+      0.6454103802051901,
+      0.17065178032589018,
+      0.18393783946891973
+    ],
+    [
+      0.2468421052631579,
+      0.4501461988304094,
+      0.30301169590643273
+    ],
+    [
+      0.23216227018385294,
+      0.29827338129496406,
+      0.4695643485211831
+    ]
+  ],
+  "joint_product_mse": 0.007601568716020718,
+  "executed_product_mse": 0.06841411475847302,
+  "token_accuracy_greedy": 0.4515380859375,
+  "n_fit": 16384,
+  "n_test": 16384,
+  "target_consistency_max_abs": 4.440892098500626e-16,
+  "interpretation": "Affine decodability does not establish causal policy use."
+}

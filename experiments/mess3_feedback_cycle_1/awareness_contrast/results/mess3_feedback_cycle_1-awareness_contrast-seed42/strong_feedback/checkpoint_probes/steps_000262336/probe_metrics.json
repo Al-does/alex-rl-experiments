@@ -1,0 +1,134 @@
+{
+  "condition": "strong_feedback",
+  "feedback_strength": 0.7,
+  "checkpoint_step": 262336,
+  "is_untrained": false,
+  "target": "exact_action_conditioned_predictive_belief",
+  "probe": "held_out_affine_least_squares",
+  "probe_ridge": 1e-06,
+  "representation": "post_final_layer_norm",
+  "sampling_distribution": "process_weighted_rollout",
+  "policy_mode": "greedy",
+  "warmup": 64,
+  "n_envs": 16,
+  "train_steps": 16384,
+  "test_steps": 16384,
+  "calibration_steps": 4096,
+  "branch_depth": 2,
+  "min_group_size": 50,
+  "mse": 0.002176956448430405,
+  "target_variance": 0.06806025351376487,
+  "global_mse_ratio": 0.031985723473541366,
+  "r_squared": 0.9680142765264587,
+  "fine_evaluation_mse": 0.002176956448430405,
+  "branch_baseline_mse": 0.0004488565501471364,
+  "fine_mse_ratio": 4.850004857268526,
+  "fine_mse_improvement": -0.0017280998982832686,
+  "n_evaluated": 16384,
+  "mse_ci_95_low": 0.0021039035798034486,
+  "mse_ci_95_high": 0.0022617836406703114,
+  "bootstrap_n": 200,
+  "bootstrap_cluster": "environment_episode",
+  "permutation_real_mse": 0.002287438386048977,
+  "permutation_null_mse_p05": 0.06697398542186414,
+  "permutation_null_mse_p50": 0.0694894320292271,
+  "permutation_null_mse_p95": 0.07224838595413087,
+  "permutation_null_p_value_lower_tail": 0.004975124378109453,
+  "permutation_null_n": 200,
+  "targets": {
+    "executed": {
+      "target": "executed",
+      "status": "fitted",
+      "mse": 0.002176956448430405,
+      "target_variance": 0.06806025351376487,
+      "global_mse_ratio": 0.031985723473541366,
+      "r_squared": 0.9680142765264587
+    },
+    "blind": {
+      "target": "blind",
+      "status": "fitted",
+      "mse": 0.01015796860992109,
+      "target_variance": 0.09191297076111771,
+      "global_mse_ratio": 0.1105172482817654,
+      "r_squared": 0.8894827517182347
+    },
+    "marginal": {
+      "target": "marginal",
+      "status": "fitted",
+      "mse": 0.0005042957141989132,
+      "target_variance": 0.025618942936662965,
+      "global_mse_ratio": 0.019684485634152437,
+      "r_squared": 0.9803155143658475
+    },
+    "joint": {
+      "target": "joint",
+      "status": "fitted",
+      "mse": 0.00024190549928136608,
+      "target_variance": 0.0075622717062119454,
+      "global_mse_ratio": 0.03198846969259984,
+      "r_squared": 0.9680115303074002
+    },
+    "factor_m": {
+      "target": "factor_m",
+      "status": "degenerate",
+      "target_variance": 1.0022136339856738e-07,
+      "reason": "the target is constant, so affine decoding is vacuous"
+    },
+    "factor_phi": {
+      "target": "factor_phi",
+      "status": "degenerate",
+      "target_variance": 5.922732868256496e-08,
+      "reason": "the target is constant, so affine decoding is vacuous"
+    }
+  },
+  "geometry": {
+    "effective_dimension": 6.0,
+    "top_two_variance": 0.706631798062287,
+    "variance_fraction": 0.95,
+    "factor_subspace_overlap": NaN
+  },
+  "action_awareness_ratio": 0.28941838464882225,
+  "action_blind_belief_mse": 0.07737059912400253,
+  "marginal_belief_mse": 0.040360688198112254,
+  "guess_given_state": [
+    [
+      0.7508630609896433,
+      0.12600690448791715,
+      0.12313003452243959
+    ],
+    [
+      0.19489361702127658,
+      0.5812765957446808,
+      0.22382978723404257
+    ],
+    [
+      0.18791946308724833,
+      0.23657718120805368,
+      0.575503355704698
+    ]
+  ],
+  "marginal_transition": [
+    [
+      0.7517635212888378,
+      0.12497410817031071,
+      0.12326237054085157
+    ],
+    [
+      0.18317872340425534,
+      0.4209617021276596,
+      0.39585957446808506
+    ],
+    [
+      0.19076342281879194,
+      0.39242449664429535,
+      0.4168120805369128
+    ]
+  ],
+  "joint_product_mse": 0.008237210229767554,
+  "executed_product_mse": 0.07413486155066805,
+  "token_accuracy_greedy": 0.59027099609375,
+  "n_fit": 16384,
+  "n_test": 16384,
+  "target_consistency_max_abs": 3.3306690738754696e-16,
+  "interpretation": "Affine decodability does not establish causal policy use."
+}
