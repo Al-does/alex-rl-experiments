@@ -53,6 +53,44 @@ For per-box seed assignments, provision boxes separately with their own
 `--run` commands unless the confirmed remote command safely dispatches the
 assigned seed. Pass the agreed experiment-repo ref with `--branch` or
 `--commit` so the remote code matches the reviewed launch contract.
+`devops.vast.provision` expands abbreviated commit SHAs to full 40-character
+forms before bootstrap; short hashes in launch prompts are fine once the ref
+exists locally and on the remote.
+
+### Vast mode: on-demand only
+
+Always pass `--mode ondemand`. **Never** use `--mode interruptible` or
+preemptible boxes for experiment runs — interruptible instances get outbid,
+lose SSH mid-run, and waste completed training when the fleet is torn down.
+On-demand is required unless the user explicitly overrides this in writing.
+
+### Remote queue commands: use module invocation
+
+Experiment seed/arm queue scripts must be invoked as modules, not as file paths:
+
+```bash
+python -m experiments.<study>.seed_queue --condition <arm> --seeds 42 43 44 45 46
+```
+
+Do **not** use `python experiments/<study>/seed_queue.py …`. The script path
+shadows the harness `analysis` package (`analysis.py` vs `analysis/`) and
+raises `ModuleNotFoundError` on the box.
+
+### GitHub token and result push without self-destruct
+
+When runs should push compact results (`--push-each`, `publish_results`, etc.)
+but boxes should stay up (no `--self-destruct`), still pass a GitHub write
+token via `--github-token` / `GITHUB_TOKEN`. Bootstrap always configures git
+user identity on the box; the token enables clone and push.
+
+### Parallel multi-box provisioning
+
+Provisioning several boxes concurrently from separate `provision up` processes
+can race on `devops/vast/state.json` (last write wins, earlier instance IDs
+lost). Until that is fixed in rl-harness, **provision sequentially** — one
+`provision up` per box/arm — or use a single process that records every
+instance before moving on. Do not launch eight parallel `provision up` shells
+expecting all IDs to appear in `state.json`.
 
 ## 3. Trigger the confirmed experiment
 
