@@ -27,7 +27,7 @@ from analysis.probes import (
     probe_predict,
     r2_score,
 )
-from experiments.mess3_feedback_cycle_1.dynamics import feedback_transitions
+from experiments.mess3_feedback_cycle_1.dynamics import composite_state_belief
 from experiments.mess3_feedback_cycle_1.probe import (
     FeedbackProbeData,
     branch_keys,
@@ -53,12 +53,19 @@ SMOKE_RESAMPLES = 100
 PERMUTATION_SAMPLE_CAP = 4_096
 PLOT_SAMPLE_SIZE = 40_000
 CONTEXT_LENGTH = 10
-PRIMARY_TARGET = "executed"
-SECONDARY_TARGETS = ("blind", "marginal", "joint", "factor_m", "factor_phi")
+PRIMARY_TARGET = "joint"
+SECONDARY_TARGETS = (
+    "blind",
+    "marginal",
+    "composite",
+    "composite_blind",
+    "factor_m",
+    "factor_phi",
+)
 FACTOR_TARGETS = ("factor_m", "factor_phi")
 # Below this target variance an affine probe has nothing to explain: the
-# factor marginals collapse to their priors whenever the guess feedback is
-# partial, because only their sum is ever observed.
+# register marginal collapses onto its uniform prior once the register
+# sub-token is pure noise, because only the factor sum is then observable.
 MIN_TARGET_VARIANCE = 1e-6
 VARIANCE_FRACTION = 0.95
 _STREAM_KEYS = {
@@ -270,6 +277,7 @@ def probe_checkpoint(
     checkpoint: Path,
     condition: str,
     feedback_strength: float,
+    register_noise: float,
     agent_steps: int | None = None,
     budget: ProbeBudget | None = None,
 ) -> ProbeResult:
@@ -308,10 +316,6 @@ def probe_checkpoint(
                 environment,
                 feedback_strength=feedback_strength,
             )
-            base_transition = np.asarray(
-                environment.model.transition_matrix,
-                dtype=np.float64,
-            )
             n_states = environment.model.n_states
             n_actions = int(environment.action_space.n)
         finally:
@@ -343,11 +347,7 @@ def probe_checkpoint(
         marginal_transition = np.einsum(
             "sa,asj->sj",
             guess_given_state,
-            feedback_transitions(
-                feedback_strength,
-                base=base_transition,
-                n_actions=n_actions,
-            ),
+            filters.transitions,
         )
         calibrated = filters.with_marginal(marginal_transition)
         train = collect_feedback_probe_data(
@@ -364,7 +364,7 @@ def probe_checkpoint(
         )
 
     target_error = max(
-        float(np.max(np.abs(data.executed - data.diagnostic)))
+        float(np.max(np.abs(data.joint - data.diagnostic)))
         for data in (train, test)
     )
     if target_error > 1e-10:
@@ -378,7 +378,7 @@ def probe_checkpoint(
         raise RuntimeError("the action-conditioned belief target must be fittable")
     fine_metrics = conditional_mse_metrics(
         primary_predicted,
-        test.executed,
+        test.joint,
         branch_keys(test, depth=2),
         min_group_size=MIN_GROUP_SIZE,
     )
@@ -387,7 +387,7 @@ def probe_checkpoint(
         clusters,
         lambda indices: mean_squared_error(
             primary_predicted[indices],
-            test.executed[indices],
+            test.joint[indices],
         ),
         n_resamples=n_resamples,
         seed=seed_sequence_to_int(streams["bootstrap"], bits=32),
@@ -395,9 +395,9 @@ def probe_checkpoint(
     mse_ci_low, mse_ci_high = percentile_interval(bootstrap)
     permutation_metrics = _permutation_null_metrics(
         train.activations,
-        train.executed,
+        train.joint,
         test.activations,
-        test.executed,
+        test.joint,
         n_permutations=n_resamples,
         sample_seed=seed_sequence_to_int(streams["permutation_sample"], bits=32),
         permutation_seed=seed_sequence_to_int(streams["permutation"], bits=32),
@@ -428,10 +428,13 @@ def probe_checkpoint(
         geometry["factor_subspace_overlap"] = float("nan")
 
     blind_ratio = targets["blind"].get("global_mse_ratio")
-    executed_ratio = primary_metrics["global_mse_ratio"]
+    joint_ratio = primary_metrics["global_mse_ratio"]
+    composite_ratio = targets["composite"].get("global_mse_ratio")
+    composite_blind_ratio = targets["composite_blind"].get("global_mse_ratio")
     metrics = {
         "condition": condition,
         "feedback_strength": float(feedback_strength),
+        "register_noise": float(register_noise),
         "checkpoint_step": agent_steps,
         "is_untrained": agent_steps == 0,
         "target": "exact_action_conditioned_predictive_belief",
@@ -463,22 +466,27 @@ def probe_checkpoint(
         "action_awareness_ratio": (
             float("nan")
             if blind_ratio is None or blind_ratio == 0.0
-            else float(executed_ratio / blind_ratio)
+            else float(joint_ratio / blind_ratio)
+        ),
+        "composite_awareness_ratio": (
+            float("nan")
+            if not composite_blind_ratio
+            else float(composite_ratio / composite_blind_ratio)
         ),
         "action_blind_belief_mse": float(
-            np.square(test.blind - test.executed).mean()
+            np.square(test.blind - test.joint).mean()
         ),
         "marginal_belief_mse": (
             float("nan")
             if test.marginal is None
-            else float(np.square(test.marginal - test.executed).mean())
+            else float(np.square(test.marginal - test.joint).mean())
         ),
         "guess_given_state": guess_given_state.tolist(),
         "marginal_transition": marginal_transition.tolist(),
         **test.product_state_gap(),
         "token_accuracy_greedy": float(test.rewards.mean()),
-        "n_fit": len(train.executed),
-        "n_test": len(test.executed),
+        "n_fit": len(train.joint),
+        "n_test": len(test.joint),
         "target_consistency_max_abs": target_error,
         "interpretation": (
             "Affine decodability does not establish causal policy use."
@@ -487,9 +495,9 @@ def probe_checkpoint(
     if agent_steps == 0:
         metrics["untrained_mse"] = metrics["mse"]
 
-    sample_size = min(PLOT_SAMPLE_SIZE, len(test.executed))
+    sample_size = min(PLOT_SAMPLE_SIZE, len(test.joint))
     sample_rng = np.random.default_rng(streams["plot_sample"])
-    indices = sample_rng.choice(len(test.executed), sample_size, replace=False)
+    indices = sample_rng.choice(len(test.joint), sample_size, replace=False)
     factor_display = {
         name: (
             test.target(name)[indices],
@@ -500,9 +508,13 @@ def probe_checkpoint(
     }
     result = ProbeResult(
         metrics=metrics,
-        target_display=test.executed[indices],
-        decoded_display=_simplex_display(primary_predicted[indices]),
-        blind_display=test.blind[indices],
+        target_display=test.composite[indices],
+        decoded_display=_simplex_display(
+            predictions["composite"][indices]
+            if "composite" in predictions
+            else composite_state_belief(primary_predicted)[indices]
+        ),
+        blind_display=test.composite_blind[indices],
         factor_display=factor_display,
     )
     (context.results_dir / "probe_metrics.json").write_text(
@@ -666,7 +678,7 @@ def plot_probe_trajectory(
     figure, left = plt.subplots(figsize=(8.6, 5.0))
     right = left.twinx()
     styles = {
-        "executed": ("#355c9a", "o", "Action-conditioned belief"),
+        "joint": ("#355c9a", "o", "Action-conditioned joint belief"),
         "blind": ("#7f9dc9", "^", "Action-blind belief"),
         "marginal": ("#5aa17f", "v", "Stacked single-HMM belief"),
     }
@@ -738,7 +750,7 @@ def plot_contrast(
         )
         axes[1].plot(
             steps,
-            [point["targets"]["executed"]["global_mse_ratio"] for point in points],
+            [point["targets"]["joint"]["global_mse_ratio"] for point in points],
             marker="o",
             color=color,
             label=f"{name.replace('_', ' ')}: action conditioned",
@@ -778,6 +790,7 @@ def probe_at(
     checkpoint: Path,
     condition: str,
     feedback_strength: float,
+    register_noise: float,
     agent_steps: int,
     ceiling: float,
     budget: ProbeBudget | None = None,
@@ -792,6 +805,7 @@ def probe_at(
         checkpoint=checkpoint,
         condition=condition,
         feedback_strength=feedback_strength,
+        register_noise=register_noise,
         agent_steps=agent_steps,
         budget=budget,
     )
@@ -803,6 +817,11 @@ def probe_at(
         "fine_mse_ratio": float(result.metrics["fine_mse_ratio"]),
         "r_squared": float(result.metrics["r_squared"]),
         "action_awareness_ratio": float(result.metrics["action_awareness_ratio"]),
+        "composite_awareness_ratio": float(
+            result.metrics["composite_awareness_ratio"]
+        ),
+        "joint_product_mse": float(result.metrics["joint_product_mse"]),
+        "register_entropy_nats": float(result.metrics["register_entropy_nats"]),
         "action_blind_belief_mse": float(
             result.metrics["action_blind_belief_mse"]
         ),

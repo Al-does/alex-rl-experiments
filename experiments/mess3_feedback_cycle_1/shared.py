@@ -2,8 +2,13 @@
 
 Every arm holds the algorithm fixed (gamma-zero clipped PPO on the paper-scale
 residual stream, exactly the ``ppo`` arm of ``mess3_token_guess_cycle_2``) and
-varies only how strongly a token guess shifts the hidden dynamics. That keeps
-the feedback strength ``kappa`` as the single manipulated variable.
+varies only the generator, along two axes:
+
+``feedback_strength`` (kappa)
+    how hard a token guess shoves the hidden process;
+``register_noise`` (epsilon)
+    how uninformative the register's own sub-token is, and therefore how much
+    predictive fidelity a factored representation gives up.
 """
 
 from __future__ import annotations
@@ -35,7 +40,6 @@ from experiments.mess3_feedback_cycle_1.composition import (
     myopic_ceiling,
     single_hmm_report,
 )
-from experiments.mess3_feedback_cycle_1.dynamics import feedback_transitions
 from experiments.mess3_token_guess_cycle_2.model import (
     PaperActorCriticConfig,
     PaperActorCriticModel,
@@ -48,51 +52,90 @@ from harness.runners import run_tune
 
 @dataclass(frozen=True, slots=True)
 class Condition:
-    """One feedback strength and one observability of the previous guess."""
+    """One point in the ``(kappa, epsilon, guess observability)`` design."""
 
     name: str
     feedback_strength: float
+    register_noise: float
     observe_previous_guess: bool
     hypothesis: str
 
 
+# kappa = 0.7 is the operating point of the epsilon sweep: strong enough that
+# ignoring the guess costs nearly the whole target variance, far from the
+# kappa = 0.5 argmax degeneracy.
+OPERATING_STRENGTH = 0.7
+
 CONDITIONS = (
+    Condition(
+        "factoring_free",
+        OPERATING_STRENGTH,
+        0.0,
+        True,
+        "The register reports itself exactly, so the token-labelled operator "
+        "is a tensor product and a factored representation is lossless. This "
+        "is where the Factored World Hypothesis predicts two orthogonal "
+        "subspaces, for a factor the policy itself drives.",
+    ),
+    Condition(
+        "factoring_cheap",
+        OPERATING_STRENGTH,
+        0.3,
+        True,
+        "Factoring costs about 0.011 nats per token, five percent of the "
+        "maximum. The product representation is still nearly adequate.",
+    ),
+    Condition(
+        "factoring_costly",
+        OPERATING_STRENGTH,
+        0.85,
+        True,
+        "Factoring costs about 0.143 nats per token, two thirds of the "
+        "maximum, so dimensional efficiency and fidelity genuinely conflict.",
+    ),
+    Condition(
+        "factoring_impossible",
+        OPERATING_STRENGTH,
+        1.0,
+        True,
+        "The register sub-token is pure noise, only the factor sum is ever "
+        "observed, and both factor marginals sit at their uniform priors: a "
+        "factored representation carries no predictive information at all.",
+    ),
     Condition(
         "no_feedback",
         0.0,
-        True,
-        "The guess never moves the process, so the action-conditioned and "
-        "action-blind targets coincide and the arm reproduces cycle 2.",
-    ),
-    Condition(
-        "weak_feedback",
-        0.35,
-        True,
-        "A minority of guesses shift the chain, so the guess-driven register "
-        "is maximally ambiguous and only the composed state is predictive.",
-    ),
-    Condition(
-        "strong_feedback",
-        0.70,
-        True,
-        "Most guesses shift the chain; ignoring the guess costs almost as "
-        "much as predicting the target mean.",
-    ),
-    Condition(
-        "full_feedback",
         1.0,
         True,
-        "The guess deterministically rotates the chain, so the process is a "
-        "lossless composition of passive MESS3 with an agent-driven Z3 "
-        "register and the Bayes ceiling returns to the passive value.",
+        "The guess never moves the register, so the action-conditioned and "
+        "action-blind targets coincide and the arm reproduces the passive "
+        "token-guess study.",
     ),
     Condition(
-        "strong_feedback_blind",
-        0.70,
+        "deterministic_feedback",
+        1.0,
+        1.0,
+        True,
+        "Every guess rotates the register exactly, so past guesses pin the "
+        "register without any report and the Bayes ceiling returns to the "
+        "passive value.",
+    ),
+    Condition(
+        "factoring_free_blind",
+        OPERATING_STRENGTH,
+        0.0,
         False,
-        "Identical dynamics to strong_feedback with the previous guess hidden "
-        "from the observation, bounding how much action awareness survives "
-        "when the guess cannot be read off the input.",
+        "Counterfactual for factoring_free: hiding the previous guess should "
+        "cost little, because the register reports itself directly.",
+    ),
+    Condition(
+        "factoring_impossible_blind",
+        OPERATING_STRENGTH,
+        1.0,
+        False,
+        "Counterfactual for factoring_impossible: with no report and no "
+        "visible guess, the register is unrecoverable and action awareness "
+        "should be impossible.",
     ),
 )
 
@@ -119,12 +162,16 @@ def condition_by_name(name: str) -> Condition:
 
 
 def env_config(condition: Condition) -> dict[str, Any]:
-    """Build the delay-one environment for one feedback strength."""
+    """Build the delay-one composed environment for one condition."""
 
     return {
         "model": {
-            "factory": "envs.mess3.model:passive_model",
-            "kwargs": {"alpha": ALPHA},
+            "factory": "experiments.mess3_feedback_cycle_1.model:composed_model",
+            "kwargs": {
+                "alpha": ALPHA,
+                "feedback_strength": condition.feedback_strength,
+                "register_noise": condition.register_noise,
+            },
         },
         "task": {
             "class": (
@@ -147,10 +194,17 @@ def env_config(condition: Condition) -> dict[str, Any]:
 
 
 @lru_cache(maxsize=None)
-def condition_ceiling(feedback_strength: float) -> dict[str, float]:
-    """Cache the finite-context myopic Bayes ceiling for one strength."""
+def condition_ceiling(
+    feedback_strength: float,
+    register_noise: float,
+) -> dict[str, float]:
+    """Cache the finite-context myopic Bayes ceiling for one generator."""
 
-    return myopic_ceiling(feedback_strength, context_length=CONTEXT_LENGTH)
+    return myopic_ceiling(
+        feedback_strength,
+        register_noise,
+        context_length=CONTEXT_LENGTH,
+    )
 
 
 def _apply_runtime_resources(
@@ -305,11 +359,12 @@ def composition_report(
     *,
     smoke: bool = False,
 ) -> dict[str, Any]:
-    """Summarize the analytic closed loop for this condition's strength."""
+    """Summarize the analytic closed loop for this condition's generator."""
 
-    scale = {"n_chains": 64, "n_steps": 384} if smoke else {}
+    scale = {"n_chains": 64, "n_steps": 384, "burn_in": 64} if smoke else {}
     return single_hmm_report(
         condition.feedback_strength,
+        condition.register_noise,
         policy="probability_matching",
         seed=17,
         **scale,
@@ -341,18 +396,25 @@ def run_condition(
         preserve_checkpoint_cadence=preserve_checkpoint_cadence,
     )
     config = build_config(context, condition.name)
-    ceiling = condition_ceiling(condition.feedback_strength)
+    ceiling = condition_ceiling(
+        condition.feedback_strength,
+        condition.register_noise,
+    )
     probe_budget = probe_budget or ProbeBudget.for_context(context)
+    probe_kwargs = {
+        "feedback_strength": condition.feedback_strength,
+        "register_noise": condition.register_noise,
+        "ceiling": ceiling["accuracy"],
+        "budget": probe_budget,
+    }
     recipe = {
         "condition": condition.name,
         "algorithm": "PPO",
         "objective": "clipped_correctness",
         "hypothesis": condition.hypothesis,
         "feedback_strength": condition.feedback_strength,
+        "register_noise": condition.register_noise,
         "observe_previous_guess": condition.observe_previous_guess,
-        "guess_conditioned_transitions": feedback_transitions(
-            condition.feedback_strength
-        ).tolist(),
         "lr": LEARNING_RATE,
         "gamma": 0.0,
         "lambda": 0.0,
@@ -381,10 +443,8 @@ def run_condition(
         context,
         checkpoint=initial_checkpoint,
         condition=f"{condition.name}_init",
-        feedback_strength=condition.feedback_strength,
         agent_steps=0,
-        ceiling=ceiling["accuracy"],
-        budget=probe_budget,
+        **probe_kwargs,
     )
     plot_probe_triplet(
         initial_probe,
@@ -423,10 +483,8 @@ def run_condition(
             context,
             checkpoint=Path(record["checkpoint"].path),
             condition=condition.name,
-            feedback_strength=condition.feedback_strength,
             agent_steps=record["agent_steps"],
-            ceiling=ceiling["accuracy"],
-            budget=probe_budget,
+            **probe_kwargs,
         )
         probes.append(probed)
         trajectory.append(
@@ -459,6 +517,7 @@ def run_condition(
         {
             "condition": condition.name,
             "feedback_strength": condition.feedback_strength,
+            "register_noise": condition.register_noise,
             "checkpoints": trajectory,
         },
     )
@@ -468,6 +527,7 @@ def run_condition(
         "smoke": context.smoke,
         "gamma": 0.0,
         "feedback_strength": condition.feedback_strength,
+        "register_noise": condition.register_noise,
         "observe_previous_guess": condition.observe_previous_guess,
         "myopic_ceiling_context_10": ceiling,
         "initial_probe": initial_probe.metrics,
@@ -480,6 +540,12 @@ def run_condition(
             "action_awareness_ratio_delta": (
                 float(final_probe.metrics["action_awareness_ratio"])
                 - float(initial_probe.metrics["action_awareness_ratio"])
+            ),
+            "factor_subspace_overlap_delta": (
+                float(final_probe.metrics["geometry"]["factor_subspace_overlap"])
+                - float(
+                    initial_probe.metrics["geometry"]["factor_subspace_overlap"]
+                )
             ),
             "task_success_delta": (
                 float(final_probe.metrics["token_accuracy_greedy"])
@@ -502,29 +568,27 @@ def run_condition(
     return summary
 
 
-CONTRAST_ENV_STEPS = 393_216
-CONTRAST_PROBE_BUDGET = ProbeBudget(
-    calibration=4_096,
-    train=16_384,
-    test=16_384,
-    resamples=200,
-)
+def _contrast_row(metrics: Mapping[str, Any]) -> dict[str, float]:
+    return {
+        "joint_mse_ratio": float(metrics["targets"]["joint"]["global_mse_ratio"]),
+        "blind_mse_ratio": float(metrics["targets"]["blind"]["global_mse_ratio"]),
+        "action_awareness_ratio": float(metrics["action_awareness_ratio"]),
+        "factor_subspace_overlap": float(
+            metrics["geometry"]["factor_subspace_overlap"]
+        ),
+        "token_accuracy_greedy": float(metrics["token_accuracy_greedy"]),
+    }
 
 
-def run_contrast(
+def run_conditions(
     context: RunContext,
     condition_names: tuple[str, ...],
     *,
-    target_steps: int,
-    probe_budget: ProbeBudget,
+    target_steps: int | None = None,
+    probe_budget: ProbeBudget | None = None,
+    label: str = "battery",
 ) -> dict[str, Any]:
-    """Train a paired set of conditions and tabulate their action awareness.
-
-    The pairing is the decisive control for this study: two arms with the same
-    dynamics that differ only in whether the previous guess is observable. A
-    representation that genuinely tracks the agent's own influence can only be
-    built by the arm that can see which guess was executed.
-    """
+    """Train several conditions in one run and tabulate them side by side."""
 
     summaries = {}
     for name in condition_names:
@@ -542,21 +606,21 @@ def run_contrast(
         )
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
-    contrast = {
-        name: {
-            "feedback_strength": summary["feedback_strength"],
-            "observe_previous_guess": summary["observe_previous_guess"],
-            "initial": _contrast_row(summary["initial_probe"]),
-            "final": _contrast_row(summary["final_probe"]),
-        }
-        for name, summary in summaries.items()
-    }
     summary = {
+        "label": label,
         "seed": context.seed,
         "smoke": context.smoke,
         "target_env_steps": target_steps,
-        "probe_budget": asdict(probe_budget),
-        "contrast": contrast,
+        "contrast": {
+            name: {
+                "feedback_strength": item["feedback_strength"],
+                "register_noise": item["register_noise"],
+                "observe_previous_guess": item["observe_previous_guess"],
+                "initial": _contrast_row(item["initial_probe"]),
+                "final": _contrast_row(item["final_probe"]),
+            }
+            for name, item in summaries.items()
+        },
         "reading": (
             "action_awareness_ratio below one means the residual stream "
             "decodes the guess-conditioned belief better than the belief of "
@@ -564,44 +628,16 @@ def run_contrast(
         ),
         "conditions": summaries,
     }
-    outputs.write_json("contrast_summary.json", summary)
+    outputs.write_json(f"{label}_summary.json", summary)
     plot_contrast(summaries, path=context.results_dir / "action_awareness.png")
     return summary
 
 
-def _contrast_row(metrics: Mapping[str, Any]) -> dict[str, float]:
-    return {
-        "executed_mse_ratio": float(
-            metrics["targets"]["executed"]["global_mse_ratio"]
-        ),
-        "blind_mse_ratio": float(metrics["targets"]["blind"]["global_mse_ratio"]),
-        "action_awareness_ratio": float(metrics["action_awareness_ratio"]),
-        "token_accuracy_greedy": float(metrics["token_accuracy_greedy"]),
-    }
-
-
 def run_battery(context: RunContext) -> dict[str, Any]:
-    """Run every feedback condition once; intended for smoke validation."""
+    """Run every condition once; intended for smoke validation."""
 
-    summaries = {}
-    for condition in CONDITIONS:
-        condition_context = replace(
-            context,
-            results_dir=context.results_dir / condition.name,
-            artifacts_dir=context.artifacts_dir / condition.name,
-            resume_from=None,
-        )
-        summaries[condition.name] = run_condition(
-            condition_context,
-            condition.name,
-        )
-    outputs = RunArtifacts.from_context(context)
-    outputs.prepare()
-    summary = {
-        "seed": context.seed,
-        "smoke": context.smoke,
-        "gamma": 0.0,
-        "conditions": summaries,
-    }
-    outputs.write_json("battery_summary.json", summary)
-    return summary
+    return run_conditions(
+        context,
+        tuple(condition.name for condition in CONDITIONS),
+        label="battery",
+    )

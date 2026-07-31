@@ -1,33 +1,46 @@
-"""Action-driven MESS3 dynamics and their two-factor decomposition.
+"""The composed two-factor generator and its guess-driven dynamics.
 
-The guessed token feeds back into the hidden dynamics as a cyclic shift of the
-MESS3 state. Writing ``C`` for the forward shift permutation on ``Z_3``, one
-guess ``a`` executes
+The hidden state is a pair ``(m, phi)`` indexed as ``m * 3 + phi``:
 
-    U(a) = T @ R(a),    R(a) = (1 - kappa) I + kappa C^a,
+``m``
+    an untouched passive MESS3 chain, evolving under the circulant kernel ``T``;
+``phi``
+    a ``Z_3`` register that only the agent's own guesses move.
 
-so guess ``0`` leaves the process alone, guess ``1`` rotates it one step, and
-guess ``2`` rotates it two steps, each with probability ``kappa``.
+Guess ``a`` executes ``kron(T, R(a))`` with
 
-Both ``T`` and every ``R(a)`` are circulant, so they commute and the executed
-state factors exactly into two parallel parts,
+    R(a) = (1 - kappa) I + kappa C^a,
 
-    s_t = m_t + Phi_t  (mod 3),
+where ``C`` is the forward cyclic shift. The joint kernel is therefore always an
+exact tensor product: guess ``0`` leaves the register alone, guess ``1`` rotates
+it one step and guess ``2`` two steps, each firing with probability ``kappa``.
 
-where ``m`` is an untouched passive MESS3 chain and ``Phi`` is a Z_3 register
-driven only by the agent's own guesses. The emitted token factors the same way,
-``x_t = u_t + Phi_t``, with ``u`` the passive MESS3 token. This is the
-composition studied by Shai et al. (arXiv:2602.02385), with the twist that the
-policy - not the generator - drives the second factor.
+Each factor emits its own sub-token, and the observed token is the pair
+``(x, rho)`` drawn from a nine-symbol alphabet indexed ``x * 3 + rho``:
 
-``kappa`` interpolates between three qualitatively different regimes:
+``x = u + phi (mod 3)``
+    the composite token the agent is scored on, with ``u`` the passive MESS3
+    sub-token;
+``rho``
+    the register's sub-token, equal to ``phi`` with probability ``1 - epsilon``
+    and uniform noise otherwise.
 
-* ``kappa = 0``  - ``Phi`` never moves; the process is passive MESS3.
-* ``0 < kappa < 1`` - ``Phi`` is a hidden walk; observing ``x`` only reveals the
-  sum ``u + Phi``, so the two factors are correlated and a factored (product)
-  belief is lossy.
-* ``kappa = 1``  - ``Phi`` is a deterministic function of past guesses, so the
-  joint belief is exactly a product state and factoring is lossless.
+So
+
+    P((x, rho) | m, phi) = E[m, (x - phi) % 3] * ((1 - eps) 1{rho = phi} + eps/3).
+
+``epsilon`` is the knob of Shai et al. (arXiv:2602.02385). At ``eps = 0`` the
+token-labelled operator splits as ``A(m) (x) B(phi)``, which is conditional
+independence in the sense of their Definition 2.1, so a factored representation
+is lossless. At ``eps = 1`` the register sub-token is pure noise, only the sum
+``m + phi`` is ever observable, and both factor marginals collapse onto their
+uniform priors: a factored representation then carries no predictive
+information at all. Intermediate ``epsilon`` mixes a factoring and a
+non-factoring operator, exactly as their ``eps T_int + (1 - eps) (x) T_n``.
+
+``kappa`` is a separate axis with no counterpart in that paper: it sets how hard
+a guess shoves the process, not how far the belief sits off the product
+manifold.
 """
 
 from __future__ import annotations
@@ -98,34 +111,34 @@ def action_shift_distribution(
 
 
 def feedback_shift_operator(action: int, strength: float) -> np.ndarray:
-    """Return ``R(a) = (1 - kappa) I + kappa C^a`` on the state space."""
+    """Return ``R(a) = (1 - kappa) I + kappa C^a`` on the register."""
 
     return circulant(action_shift_distribution(action, strength))
 
 
-def feedback_transition(
+def composite_transition(
     action: int,
     strength: float,
     *,
     base: np.ndarray = PASSIVE_TRANSITION_MATRIX,
 ) -> np.ndarray:
-    """Return the row-stochastic kernel executed by one guess."""
+    """Return the kernel executed on the composite state ``s = m + phi``."""
 
     matrix = require_circulant(base, name="base transition matrix")
     return matrix @ feedback_shift_operator(action, strength)
 
 
-def feedback_transitions(
+def composite_transitions(
     strength: float,
     *,
     base: np.ndarray = PASSIVE_TRANSITION_MATRIX,
     n_actions: int = N_TOKENS,
 ) -> np.ndarray:
-    """Return every guess-conditioned kernel stacked on the leading axis."""
+    """Return every guess-conditioned composite kernel, stacked by guess."""
 
     return np.stack(
         [
-            feedback_transition(action, strength, base=base)
+            composite_transition(action, strength, base=base)
             for action in range(n_actions)
         ]
     )
@@ -137,7 +150,7 @@ def joint_transition(
     *,
     base: np.ndarray = PASSIVE_TRANSITION_MATRIX,
 ) -> np.ndarray:
-    """Return the factored kernel on ``(m, Phi)`` indexed as ``m * 3 + Phi``."""
+    """Return the factored kernel on ``(m, phi)``, indexed ``m * 3 + phi``."""
 
     matrix = require_circulant(base, name="base transition matrix")
     return np.kron(matrix, feedback_shift_operator(action, strength))
@@ -159,20 +172,72 @@ def joint_transitions(
     )
 
 
-def joint_emission(emission: np.ndarray) -> np.ndarray:
-    """Return ``P(x | m, Phi) = E[m, (x - Phi) % 3]`` on the factored space."""
+def chain_factor(joint: np.ndarray, *, size: int = N_STATES) -> np.ndarray:
+    """Recover ``T`` from ``kron(T, I)``, validating the tensor structure."""
+
+    matrix = np.asarray(joint, dtype=np.float64)
+    if matrix.shape != (size * size, size * size):
+        raise ValueError("a factored kernel must act on the state product")
+    corners = np.arange(size) * size
+    extracted = matrix[np.ix_(corners, corners)]
+    if not np.allclose(matrix, np.kron(extracted, np.eye(size)), atol=1e-12):
+        raise ValueError("the model kernel must be the register-inert product")
+    return extracted
+
+
+def register_channel(noise: float, *, size: int = N_STATES) -> np.ndarray:
+    """Return ``P(rho | phi)``: the register report, corrupted with ``eps``."""
+
+    if not 0.0 <= float(noise) <= 1.0:
+        raise ValueError("register noise must lie in [0, 1]")
+    return (1.0 - noise) * np.eye(size) + noise / size
+
+
+def joint_emission(
+    emission: np.ndarray,
+    *,
+    register_noise: float,
+) -> np.ndarray:
+    """Return ``P((x, rho) | m, phi)`` on the nine-symbol paired alphabet."""
 
     likelihood = require_circulant(emission, name="emission matrix")
     n_states, n_tokens = likelihood.shape
     tokens = np.arange(n_tokens)
-    by_phase = np.stack(
+    report = register_channel(register_noise, size=n_states)
+    # composite[m, phi, x] = P(x | m, phi); report[phi, rho] = P(rho | phi).
+    composite = np.stack(
         [likelihood[:, (tokens - phase) % n_tokens] for phase in range(n_states)]
-    )
-    return by_phase.transpose(1, 0, 2).reshape(n_states * n_states, n_tokens)
+    ).transpose(1, 0, 2)
+    paired = composite[:, :, :, None] * report[None, :, None, :]
+    return paired.reshape(n_states * n_states, n_tokens * n_states)
+
+
+def composite_likelihood(
+    emission: np.ndarray,
+    *,
+    register_noise: float = 1.0,
+) -> np.ndarray:
+    """Return ``P(x | m, phi)`` after marginalizing the register sub-token."""
+
+    n_states = np.asarray(emission).shape[0]
+    paired = joint_emission(emission, register_noise=register_noise)
+    return paired.reshape(n_states * n_states, -1, n_states).sum(axis=2)
+
+
+def composite_token(token, *, size: int = N_STATES):
+    """Return the scored sub-token ``x`` from a paired-alphabet index."""
+
+    return token // size
+
+
+def register_token(token, *, size: int = N_STATES):
+    """Return the register sub-token ``rho`` from a paired-alphabet index."""
+
+    return token % size
 
 
 def lumping_matrix(n_states: int = N_STATES) -> np.ndarray:
-    """Return the ``(m, Phi) -> (m + Phi) % 3`` state aggregation."""
+    """Return the ``(m, phi) -> (m + phi) % 3`` state aggregation."""
 
     factors = np.arange(n_states)
     sums = (factors[:, None] + factors[None, :]) % n_states
@@ -182,7 +247,7 @@ def lumping_matrix(n_states: int = N_STATES) -> np.ndarray:
 
 
 def joint_initial_distribution(initial: np.ndarray) -> np.ndarray:
-    """Start the register at ``Phi = 0`` and the chain at the MESS3 prior."""
+    """Start the register at ``phi = 0`` and the chain at the MESS3 prior."""
 
     prior = np.asarray(initial, dtype=np.float64)
     register = np.zeros_like(prior)
@@ -191,7 +256,7 @@ def joint_initial_distribution(initial: np.ndarray) -> np.ndarray:
 
 
 def factor_marginals(joint: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Split a joint ``(m, Phi)`` belief into its two factor beliefs."""
+    """Split a joint ``(m, phi)`` belief into its two factor beliefs."""
 
     values = np.asarray(joint, dtype=np.float64)
     size = int(round(np.sqrt(values.shape[-1])))
@@ -212,8 +277,8 @@ def product_state(chain: np.ndarray, register: np.ndarray) -> np.ndarray:
     )
 
 
-def executed_state_belief(joint: np.ndarray) -> np.ndarray:
-    """Aggregate a joint ``(m, Phi)`` belief down to the executed state."""
+def composite_state_belief(joint: np.ndarray) -> np.ndarray:
+    """Aggregate a joint ``(m, phi)`` belief down to ``s = m + phi``."""
 
     values = np.asarray(joint, dtype=np.float64)
     size = int(round(np.sqrt(values.shape[-1])))

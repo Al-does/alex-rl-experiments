@@ -1,4 +1,4 @@
-"""Token guessing whose guess also steers the MESS3 transition kernel."""
+"""Guessing the composite token, where the guess also steers the register."""
 
 from __future__ import annotations
 
@@ -6,16 +6,20 @@ import gymnasium as gym
 import numpy as np
 
 from envs.hmm import ActionDecision, HMMModel, TransitionEvent
-from experiments.mess3_feedback_cycle_1.dynamics import feedback_transitions
+from experiments.mess3_feedback_cycle_1.dynamics import (
+    chain_factor,
+    composite_token,
+    joint_transitions,
+)
 
 
 class FeedbackTokenGuessTask:
-    """Reward a token guess that also shifts the hidden state it predicts.
+    """Reward a guess of the composite token that the guess itself shifts.
 
-    The reward is identical to the passive token-guess task, so the myopic
-    optimum is unchanged: guess the most likely current token. Only the
-    executed transition kernel depends on the guess, which makes the feedback
-    a modelling problem rather than a control problem under ``gamma = 0``.
+    The reward is the passive token-guess reward, so the myopic optimum is
+    unchanged: name the most likely current composite token. Only the executed
+    kernel depends on the guess, which makes the feedback a modelling problem
+    rather than a control problem under ``gamma = 0``.
     """
 
     requires_belief = False
@@ -28,27 +32,33 @@ class FeedbackTokenGuessTask:
     ) -> None:
         if not 0.0 <= float(feedback_strength) <= 1.0:
             raise ValueError("feedback_strength must lie in [0, 1]")
+        self.feedback_strength = float(feedback_strength)
+        self.n_guesses = int(round(np.sqrt(model.n_states)))
+        if self.n_guesses**2 != model.n_states:
+            raise ValueError(
+                "the composed generator must have a square state product"
+            )
         if model.n_tokens != model.n_states:
             raise ValueError(
-                "the guess-driven shift requires one guess per hidden state"
+                "the paired token alphabet must match the state product"
             )
-        self.feedback_strength = float(feedback_strength)
-        self.action_space = gym.spaces.Discrete(model.n_tokens)
+        chain = chain_factor(model.transition_matrix, size=self.n_guesses)
+        self._transitions = joint_transitions(
+            self.feedback_strength,
+            base=chain,
+            n_actions=self.n_guesses,
+        )
+        self.action_space = gym.spaces.Discrete(self.n_guesses)
         self.action_observation_space = gym.spaces.Box(
             low=0.0,
             high=1.0,
-            shape=(model.n_tokens,),
+            shape=(self.n_guesses,),
             dtype=np.float32,
-        )
-        self._transitions = feedback_transitions(
-            self.feedback_strength,
-            base=model.transition_matrix,
-            n_actions=model.n_tokens,
         )
 
     @property
     def transitions(self) -> np.ndarray:
-        """Return every guess-conditioned kernel stacked by guess."""
+        """Return every guess-conditioned joint kernel, stacked by guess."""
 
         return self._transitions
 
@@ -77,7 +87,8 @@ class FeedbackTokenGuessTask:
         event: TransitionEvent,
         decision: ActionDecision,
     ) -> tuple[float, dict[str, float]]:
-        correct = float(decision.executed_action == event.raw_token_before)
+        scored = composite_token(event.raw_token_before, size=self.n_guesses)
+        correct = float(decision.executed_action == scored)
         return correct, {
             "token_guess_correct": correct,
             "token_guess_scored": 1.0,

@@ -1,21 +1,18 @@
-"""Closed-loop composition analysis for guess-driven MESS3 feedback.
+"""Closed-loop analysis of the composed guess-driven generator.
 
-Two questions live here, both answerable without a trained network:
+Three questions live here, all answerable without training a network:
 
-1. What accuracy can a myopic Bayes filter reach once its own guesses steer the
-   process? This is the ceiling the reinforcement-learning arms are measured
-   against.
-2. Once the policy is fixed, can the agent-in-the-loop process be rewritten as
-   a single autonomous HMM whose transition matrix stacks the guess-conditioned
-   kernels and renormalizes them? The candidate is
-
-       Ubar[s, .] = sum_y P(a = y | s) U(y)[s, .],
-
-   the guess-marginalized kernel. It is exact when the guess is conditionally
-   independent of the hidden state given nothing else, and only approximate
-   when the policy conditions on a belief that the state itself is correlated
-   with. The report below measures the residual directly, both on beliefs and
-   on the distribution over observed token blocks.
+1. How hard is the loop at each ``(kappa, epsilon)``? The myopic Bayes ceiling
+   is what the reinforcement-learning arms are measured against.
+2. What does a factored representation cost? A product state ``b_m (x) b_phi``
+   is compared against the exact joint belief, in extra nats per token on the
+   scored sub-token. This is the tradeoff of Shai et al. (arXiv:2602.02385).
+3. Can the agent-in-the-loop process be rewritten as one autonomous HMM whose
+   transition matrix stacks the guess-conditioned kernels and renormalizes
+   them, ``Ubar[s, .] = sum_y P(guess = y | state = s) U(y)[s, .]``? It is exact
+   when the guess is conditionally independent of the hidden state given the
+   state, and only approximate when the policy conditions on a belief that the
+   state is correlated with.
 """
 
 from __future__ import annotations
@@ -26,11 +23,16 @@ from typing import Any
 import numpy as np
 
 from envs.hmm import stationary_distribution
-from envs.mess3.model import PASSIVE_TRANSITION_MATRIX, emission_matrix
+from envs.mess3.model import (
+    N_STATES,
+    PASSIVE_TRANSITION_MATRIX,
+    emission_matrix,
+)
 from experiments.mess3_feedback_cycle_1.dynamics import (
-    executed_state_belief,
+    composite_likelihood,
+    composite_state_belief,
+    composite_token,
     factor_marginals,
-    feedback_transitions,
     joint_emission,
     joint_initial_distribution,
     joint_transitions,
@@ -43,15 +45,75 @@ DEFAULT_BLOCK_LENGTH = 4
 
 
 @dataclass(frozen=True, slots=True)
+class ComposedProcess:
+    """Every operator family of one ``(kappa, epsilon)`` generator."""
+
+    feedback_strength: float
+    register_noise: float
+    transitions: np.ndarray
+    emission: np.ndarray
+    scored_likelihood: np.ndarray
+    initial: np.ndarray
+    n_guesses: int
+
+    @property
+    def n_states(self) -> int:
+        return self.transitions.shape[1]
+
+    @property
+    def window_prior(self) -> np.ndarray:
+        """The mid-stream prior a finite-context observer must start from.
+
+        Episodes begin with the register pinned at zero, but a window that
+        opens mid-episode knows nothing about it. Both factors are
+        uniform-stationary, so the uninformative product prior is uniform over
+        the whole state product; asserting ``phi = 0`` instead would be
+        contradicted outright by an accurate register report.
+        """
+
+        return np.full(self.n_states, 1.0 / self.n_states)
+
+    def predictive(self, belief: np.ndarray) -> np.ndarray:
+        """Return the distribution over the next scored sub-token."""
+
+        return np.asarray(belief) @ self.scored_likelihood
+
+
+def composed_process(
+    feedback_strength: float,
+    register_noise: float,
+    *,
+    alpha: float = 0.85,
+    base: np.ndarray = PASSIVE_TRANSITION_MATRIX,
+) -> ComposedProcess:
+    """Assemble the composed generator used by both theory and probing."""
+
+    likelihood = emission_matrix(alpha)
+    return ComposedProcess(
+        feedback_strength=float(feedback_strength),
+        register_noise=float(register_noise),
+        transitions=joint_transitions(feedback_strength, base=base),
+        emission=joint_emission(likelihood, register_noise=register_noise),
+        scored_likelihood=composite_likelihood(
+            likelihood,
+            register_noise=register_noise,
+        ),
+        initial=joint_initial_distribution(stationary_distribution(base)),
+        n_guesses=N_STATES,
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class ClosedLoopRollout:
     """Exact-filter trajectories for one policy in the feedback loop."""
 
     states: np.ndarray
     actions: np.ndarray
     tokens: np.ndarray
+    scored_tokens: np.ndarray
     rewards: np.ndarray
     beliefs: np.ndarray
-    joint_beliefs: np.ndarray | None
+    factored_costs: np.ndarray
 
 
 def _sample_categorical(
@@ -65,8 +127,7 @@ def _sample_categorical(
 
 
 def _normalize(rows: np.ndarray) -> np.ndarray:
-    total = rows.sum(axis=-1, keepdims=True)
-    return rows / np.maximum(total, 1e-300)
+    return rows / np.maximum(rows.sum(axis=-1, keepdims=True), 1e-300)
 
 
 def _choose_actions(
@@ -86,23 +147,39 @@ def _choose_actions(
     )
 
 
+def factored_cost(process: ComposedProcess, beliefs: np.ndarray) -> np.ndarray:
+    """Extra nats per token paid for a product-state representation.
+
+    This is the fidelity the Factored World Hypothesis trades away: the
+    Kullback-Leibler divergence from the exact predictive distribution over the
+    scored sub-token to the one implied by ``b_m (x) b_phi``.
+    """
+
+    exact = _normalize(process.predictive(beliefs))
+    chain, register = factor_marginals(beliefs)
+    factored = _normalize(process.predictive(product_state(chain, register)))
+    return (
+        exact * (np.log(np.maximum(exact, 1e-300)) - np.log(np.maximum(factored, 1e-300)))
+    ).sum(axis=-1)
+
+
 def simulate_closed_loop(
-    strength: float,
+    feedback_strength: float,
+    register_noise: float,
     *,
     policy: str = "myopic_argmax",
     n_chains: int = 256,
     n_steps: int = 2_048,
-    burn_in: int = 64,
+    burn_in: int = 128,
     seed: int = 0,
     alpha: float = 0.85,
     base: np.ndarray = PASSIVE_TRANSITION_MATRIX,
     context_length: int | None = None,
-    record_joint: bool = False,
 ) -> ClosedLoopRollout:
     """Run the feedback loop with an exact or window-truncated Bayes filter.
 
-    ``context_length`` restarts the acting filter from the stationary prior
-    that many decisions back, matching what a transformer with that many
+    ``context_length`` restarts the acting filter from the stationary prior that
+    many decisions back, matching what a transformer with that many
     ``(token, guess)`` observations can compute.
     """
 
@@ -114,27 +191,23 @@ def simulate_closed_loop(
         raise ValueError("context_length must be positive when supplied")
 
     rng = np.random.default_rng(seed)
-    transitions = feedback_transitions(strength, base=base)
-    emission = emission_matrix(alpha)
-    n_states = emission.shape[0]
-    n_actions = transitions.shape[0]
-    prior = stationary_distribution(base)
+    process = composed_process(
+        feedback_strength,
+        register_noise,
+        alpha=alpha,
+        base=base,
+    )
+    n_states = process.n_states
+    prior = process.initial
 
     state = _sample_categorical(rng, np.tile(prior, (n_chains, 1)))
-    token = _sample_categorical(rng, emission[state])
+    token = _sample_categorical(rng, process.emission[state])
     exact = np.tile(prior, (n_chains, 1))
     window = (
         None
         if context_length is None
         else np.tile(np.eye(n_states), (n_chains, context_length, 1, 1))
     )
-    joint = (
-        np.tile(joint_initial_distribution(prior), (n_chains, 1))
-        if record_joint
-        else None
-    )
-    joint_kernels = joint_transitions(strength, base=base) if record_joint else None
-    joint_likelihood = joint_emission(emission) if record_joint else None
 
     kept = n_steps - burn_in
     states = np.empty((n_chains, kept), dtype=np.int64)
@@ -142,67 +215,67 @@ def simulate_closed_loop(
     tokens = np.empty((n_chains, kept), dtype=np.int64)
     rewards = np.empty((n_chains, kept), dtype=np.float64)
     beliefs = np.empty((n_chains, kept, n_states), dtype=np.float64)
-    joint_beliefs = (
-        np.empty((n_chains, kept, n_states * n_states), dtype=np.float64)
-        if record_joint
-        else None
-    )
 
     for step in range(n_steps):
         if window is None:
             acting = exact
         else:
-            acting = np.tile(prior, (n_chains, 1))
+            acting = np.tile(process.window_prior, (n_chains, 1))
             for slot in range(context_length):
                 acting = _normalize(
                     np.einsum("ni,nij->nj", acting, window[:, slot])
                 )
-        predictive = acting @ emission
-        action = _choose_actions(predictive, policy, rng, n_actions)
-        reward = (action == token).astype(np.float64)
+        action = _choose_actions(
+            process.predictive(acting),
+            policy,
+            rng,
+            process.n_guesses,
+        )
+        scored = composite_token(token, size=process.n_guesses)
 
         if step >= burn_in:
             index = step - burn_in
             states[:, index] = state
             actions[:, index] = action
             tokens[:, index] = token
-            rewards[:, index] = reward
+            rewards[:, index] = (action == scored).astype(np.float64)
             beliefs[:, index] = acting
-            if joint_beliefs is not None:
-                joint_beliefs[:, index] = joint
 
-        kernel = emission[:, token].T[:, :, None] * transitions[action]
+        kernel = (
+            process.emission[:, token].T[:, :, None] * process.transitions[action]
+        )
         exact = _normalize(np.einsum("ni,nij->nj", exact, kernel))
         if window is not None:
             window[:, :-1] = window[:, 1:]
             window[:, -1] = kernel
-        if joint is not None:
-            joint_kernel = (
-                joint_likelihood[:, token].T[:, :, None]
-                * joint_kernels[action]
-            )
-            joint = _normalize(np.einsum("ni,nij->nj", joint, joint_kernel))
-
-        state = _sample_categorical(rng, transitions[action][np.arange(n_chains), state])
-        token = _sample_categorical(rng, emission[state])
+        state = _sample_categorical(
+            rng,
+            process.transitions[action][np.arange(n_chains), state],
+        )
+        token = _sample_categorical(rng, process.emission[state])
 
     return ClosedLoopRollout(
         states=states,
         actions=actions,
         tokens=tokens,
+        scored_tokens=composite_token(tokens, size=process.n_guesses),
         rewards=rewards,
         beliefs=beliefs,
-        joint_beliefs=joint_beliefs,
+        factored_costs=factored_cost(
+            process,
+            beliefs.reshape(-1, n_states),
+        ).reshape(n_chains, kept),
     )
 
 
 def myopic_ceiling(
-    strength: float,
+    feedback_strength: float,
+    register_noise: float,
     *,
     context_length: int | None = None,
     n_chains: int = 256,
     n_steps: int = 1_024,
-    burn_in: int = 32,
+    burn_in: int = 64,
     seed: int = 1,
     alpha: float = 0.85,
     base: np.ndarray = PASSIVE_TRANSITION_MATRIX,
@@ -211,12 +284,12 @@ def myopic_ceiling(
 
     Under ``gamma = 0`` the policy gradient gives no credit for how a guess
     reshapes future beliefs, so the fixed point of policy improvement is the
-    myopic argmax of the current predictive distribution. That is the ceiling
-    the trained arms are measured against.
+    myopic argmax of the current predictive distribution.
     """
 
     rollout = simulate_closed_loop(
-        strength,
+        feedback_strength,
+        register_noise,
         policy="myopic_argmax",
         n_chains=n_chains,
         n_steps=n_steps,
@@ -286,8 +359,9 @@ def hmm_filter(
     belief = np.tile(prior, (n_chains, 1))
     for step in range(n_steps):
         beliefs[:, step] = belief
-        measured = belief * likelihood[:, observations[:, step]].T
-        belief = _normalize(measured @ kernel)
+        belief = _normalize(
+            (belief * likelihood[:, observations[:, step]].T) @ kernel
+        )
     return beliefs
 
 
@@ -298,7 +372,7 @@ def block_distribution(
     length: int,
     initial: np.ndarray | None = None,
 ) -> np.ndarray:
-    """Return the exact stationary distribution over token blocks.
+    """Return the exact stationary distribution over scored-token blocks.
 
     Blocks are indexed little-endian in time: the first token is the least
     significant digit, matching :func:`empirical_block_distribution`.
@@ -350,49 +424,56 @@ def total_variation(left: np.ndarray, right: np.ndarray) -> float:
     return float(0.5 * np.abs(np.asarray(left) - np.asarray(right)).sum())
 
 
-def factorization_report(rollout: ClosedLoopRollout) -> dict[str, float]:
+def factorization_report(
+    process: ComposedProcess,
+    rollout: ClosedLoopRollout,
+) -> dict[str, float]:
     """Measure how much the product-state approximation loses."""
 
-    if rollout.joint_beliefs is None:
-        raise ValueError("factorization analysis requires recorded joint beliefs")
-    joint = rollout.joint_beliefs.reshape(-1, rollout.joint_beliefs.shape[-1])
+    joint = rollout.beliefs.reshape(-1, process.n_states)
     chain, register = factor_marginals(joint)
     factored = product_state(chain, register)
-    executed = executed_state_belief(joint)
-    factored_executed = executed_state_belief(factored)
+    composite = composite_state_belief(joint)
     return {
+        "factored_cost_nats": float(rollout.factored_costs.mean()),
         "joint_product_mse": float(np.square(joint - factored).mean()),
-        "executed_product_mse": float(
-            np.square(executed - factored_executed).mean()
+        "composite_product_mse": float(
+            np.square(composite - composite_state_belief(factored)).mean()
         ),
-        "executed_product_max_abs": float(
-            np.abs(executed - factored_executed).max()
+        "chain_entropy_nats": float(
+            -(chain * np.log(np.maximum(chain, 1e-300))).sum(axis=1).mean()
         ),
         "register_entropy_nats": float(
             -(register * np.log(np.maximum(register, 1e-300))).sum(axis=1).mean()
         ),
-        "register_max_probability": float(register.max(axis=1).mean()),
     }
 
 
 def single_hmm_report(
-    strength: float,
+    feedback_strength: float,
+    register_noise: float,
     *,
     policy: str = "myopic_argmax",
     n_chains: int = 256,
     n_steps: int = 2_048,
-    burn_in: int = 64,
+    burn_in: int = 128,
     seed: int = 0,
     alpha: float = 0.85,
     base: np.ndarray = PASSIVE_TRANSITION_MATRIX,
     block_length: int = DEFAULT_BLOCK_LENGTH,
     context_length: int | None = None,
-    record_joint: bool = True,
 ) -> dict[str, Any]:
     """Test whether one stacked, renormalized HMM reproduces the closed loop."""
 
+    process = composed_process(
+        feedback_strength,
+        register_noise,
+        alpha=alpha,
+        base=base,
+    )
     rollout = simulate_closed_loop(
-        strength,
+        feedback_strength,
+        register_noise,
         policy=policy,
         n_chains=n_chains,
         n_steps=n_steps,
@@ -401,70 +482,66 @@ def single_hmm_report(
         alpha=alpha,
         base=base,
         context_length=context_length,
-        record_joint=record_joint,
     )
-    emission = emission_matrix(alpha)
-    transitions = feedback_transitions(strength, base=base)
     guess_given_state, marginal = marginalized_transition(
         rollout.states,
         rollout.actions,
-        transitions,
+        process.transitions,
     )
 
-    n_tokens = emission.shape[1]
+    n_scored = process.n_guesses
     empirical = empirical_block_distribution(
-        rollout.tokens,
+        rollout.scored_tokens,
         length=block_length,
-        n_tokens=n_tokens,
+        n_tokens=n_scored,
     )
-    half = max(1, rollout.tokens.shape[0] // 2)
+    half = max(1, rollout.scored_tokens.shape[0] // 2)
     sampling_floor = total_variation(
         empirical_block_distribution(
-            rollout.tokens[:half],
+            rollout.scored_tokens[:half],
             length=block_length,
-            n_tokens=n_tokens,
+            n_tokens=n_scored,
         ),
         empirical_block_distribution(
-            rollout.tokens[half:],
+            rollout.scored_tokens[half:],
             length=block_length,
-            n_tokens=n_tokens,
+            n_tokens=n_scored,
         ),
     )
     marginal_blocks = block_distribution(
         marginal,
-        emission,
+        process.scored_likelihood,
         length=block_length,
     )
-    base_blocks = block_distribution(base, emission, length=block_length)
-
-    marginal_beliefs = hmm_filter(rollout.tokens, marginal, emission)
-    exact_beliefs = rollout.beliefs
-    belief_mse = float(np.square(marginal_beliefs - exact_beliefs).mean())
+    inert_blocks = block_distribution(
+        process.transitions[0],
+        process.scored_likelihood,
+        length=block_length,
+    )
+    marginal_beliefs = hmm_filter(rollout.tokens, marginal, process.emission)
 
     report: dict[str, Any] = {
-        "feedback_strength": float(strength),
+        "feedback_strength": float(feedback_strength),
+        "register_noise": float(register_noise),
         "policy": policy,
         "context_length": context_length,
         "block_length": int(block_length),
-        "n_samples": int(rollout.tokens.size),
+        "n_samples": int(rollout.scored_tokens.size),
         "myopic_accuracy": float(rollout.rewards.mean()),
         "myopic_accuracy_stderr": float(
             rollout.rewards.mean(axis=1).std(ddof=1) / np.sqrt(len(rollout.rewards))
         ),
         "guess_given_state": guess_given_state.tolist(),
         "marginal_transition": marginal.tolist(),
-        "marginal_stationary": stationary_distribution(marginal).tolist(),
         "block_tv_marginal_hmm": total_variation(empirical, marginal_blocks),
-        "block_tv_base_hmm": total_variation(empirical, base_blocks),
+        "block_tv_inert_hmm": total_variation(empirical, inert_blocks),
         "block_tv_sampling_floor": sampling_floor,
-        "belief_mse_marginal_vs_exact": belief_mse,
-        "belief_variance_exact": float(
-            np.square(exact_beliefs - exact_beliefs.mean(axis=(0, 1))).mean()
+        "belief_mse_marginal_vs_exact": float(
+            np.square(marginal_beliefs - rollout.beliefs).mean()
         ),
+        **factorization_report(process, rollout),
     }
     report["single_hmm_excess_tv"] = (
         report["block_tv_marginal_hmm"] - sampling_floor
     )
-    if record_joint:
-        report.update(factorization_report(rollout))
     return report
