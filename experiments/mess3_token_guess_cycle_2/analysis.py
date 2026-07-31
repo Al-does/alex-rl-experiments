@@ -252,10 +252,10 @@ def plot_probe_pair(
     title: str,
     path: Path,
 ) -> None:
-    figure, axes = plt.subplots(1, 2, figsize=(9.2, 4.2))
+    figure, axes = plt.subplots(1, 2, figsize=(9.2, 4.8))
     _draw_probe_pair(axes, result, title=title)
-    figure.tight_layout()
-    figure.savefig(path, dpi=200)
+    figure.subplots_adjust(left=0.04, right=0.98, bottom=0.08, top=0.82, wspace=0.18)
+    figure.savefig(path, dpi=200, bbox_inches="tight", pad_inches=0.2)
     plt.close(figure)
 
 
@@ -348,6 +348,7 @@ def probe_checkpoint(
     agent_steps: int | None = None,
     train_steps: int | None = None,
     test_steps: int | None = None,
+    plot_sample_size: int | None = None,
 ) -> ProbeResult:
     """Fit and evaluate the README-standard probe on disjoint rollouts."""
 
@@ -488,7 +489,10 @@ def probe_checkpoint(
     }
     if agent_steps == 0:
         metrics["untrained_mse"] = metrics["mse"]
-    sample_size = min(PLOT_SAMPLE_SIZE, len(test.beliefs))
+    sample_cap = (
+        PLOT_SAMPLE_SIZE if plot_sample_size is None else plot_sample_size
+    )
+    sample_size = min(sample_cap, len(test.beliefs))
     sample_rng = np.random.default_rng(streams["plot_sample"])
     indices = sample_rng.choice(len(test.beliefs), sample_size, replace=False)
     result = ProbeResult(
