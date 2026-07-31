@@ -15,11 +15,13 @@ from envs.mess3.model import (
 from experiments.mess3_feedback_cycle_1 import composition, dynamics
 from experiments.mess3_feedback_cycle_1.analysis import (
     CONTEXT_LENGTH,
+    _fit_target,
     effective_dimension,
     readout_subspace,
     subspace_overlap,
 )
 from experiments.mess3_feedback_cycle_1.probe import (
+    FeedbackProbeData,
     collect_feedback_probe_data,
     make_feedback_filters,
 )
@@ -384,6 +386,77 @@ def test_partial_feedback_pushes_the_joint_belief_off_the_product_manifold():
     assert data.marginal is None
     np.testing.assert_allclose(data.executed, data.diagnostic, atol=1e-12)
     assert data.product_state_gap()["joint_product_mse"] > 1e-4
+
+
+def _oracle_probe_data(
+    activations: np.ndarray,
+    executed: np.ndarray,
+    blind: np.ndarray,
+) -> FeedbackProbeData:
+    count = len(executed)
+    zeros = np.zeros(count, dtype=np.int64)
+    return FeedbackProbeData(
+        activations=activations,
+        executed=executed,
+        diagnostic=executed,
+        blind=blind,
+        marginal=None,
+        joint=np.zeros((count, 9)),
+        factor_m=np.zeros((count, 3)),
+        factor_phi=np.zeros((count, 3)),
+        tokens=zeros,
+        previous_tokens=zeros,
+        actions=zeros,
+        previous_actions=zeros,
+        states=zeros,
+        env_indices=zeros,
+        episode_steps=np.arange(count, dtype=np.int64),
+        rewards=np.zeros(count),
+    )
+
+
+def test_action_awareness_ratio_separates_aware_from_blind_features():
+    """A representation carrying one belief must not decode the other."""
+
+    rollout = composition.simulate_closed_loop(
+        0.7,
+        n_chains=32,
+        n_steps=288,
+        burn_in=32,
+        seed=21,
+    )
+    executed = rollout.beliefs.reshape(-1, 3)
+    blind = composition.hmm_filter(
+        rollout.tokens,
+        PASSIVE_TRANSITION_MATRIX,
+        EMISSION,
+    ).reshape(-1, 3)
+    # The two targets must actually disagree, or the contrast is vacuous.
+    assert np.square(executed - blind).mean() > 1e-2
+    half = len(executed) // 2
+
+    ratios = {}
+    for name, features in (("aware", executed), ("blind", blind)):
+        train = _oracle_probe_data(
+            features[:half],
+            executed[:half],
+            blind[:half],
+        )
+        test = _oracle_probe_data(
+            features[half:],
+            executed[half:],
+            blind[half:],
+        )
+        fitted = {
+            target: _fit_target(train, test, target)[0]
+            for target in ("executed", "blind")
+        }
+        ratios[name] = (
+            fitted["executed"]["global_mse_ratio"]
+            / fitted["blind"]["global_mse_ratio"]
+        )
+    assert ratios["aware"] < 0.1
+    assert ratios["blind"] > 10.0
 
 
 def test_effective_dimension_and_subspace_overlap_report_known_geometry():

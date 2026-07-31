@@ -9,7 +9,7 @@ the feedback strength ``kappa`` as the single manipulated variable.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from functools import lru_cache
 from numbers import Real
 import os
@@ -23,7 +23,9 @@ from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 from envs.hmm import HMMEnv
 from experiments.mess3_feedback_cycle_1.analysis import (
     CONTEXT_LENGTH,
+    ProbeBudget,
     ProbeResult,
+    plot_contrast,
     plot_init_final,
     plot_probe_trajectory,
     plot_probe_triplet,
@@ -320,6 +322,7 @@ def run_condition(
     *,
     target_steps_override: int | None = None,
     preserve_checkpoint_cadence: bool = False,
+    probe_budget: ProbeBudget | None = None,
 ) -> dict[str, Any]:
     """Train one feedback condition and probe init plus every checkpoint."""
 
@@ -339,6 +342,7 @@ def run_condition(
     )
     config = build_config(context, condition.name)
     ceiling = condition_ceiling(condition.feedback_strength)
+    probe_budget = probe_budget or ProbeBudget.for_context(context)
     recipe = {
         "condition": condition.name,
         "algorithm": "PPO",
@@ -361,6 +365,7 @@ def run_condition(
         "vf_loss_coeff": config.vf_loss_coeff,
         "checkpoint_frequency_iterations": checkpoint_frequency,
         "myopic_ceiling_context_10": ceiling,
+        "probe_budget": asdict(probe_budget),
     }
     outputs.write_json("resolved_recipe.json", recipe)
     outputs.write_json(
@@ -379,6 +384,7 @@ def run_condition(
         feedback_strength=condition.feedback_strength,
         agent_steps=0,
         ceiling=ceiling["accuracy"],
+        budget=probe_budget,
     )
     plot_probe_triplet(
         initial_probe,
@@ -420,6 +426,7 @@ def run_condition(
             feedback_strength=condition.feedback_strength,
             agent_steps=record["agent_steps"],
             ceiling=ceiling["accuracy"],
+            budget=probe_budget,
         )
         probes.append(probed)
         trajectory.append(
@@ -493,6 +500,84 @@ def run_condition(
     }
     outputs.write_json("condition_summary.json", summary)
     return summary
+
+
+CONTRAST_ENV_STEPS = 393_216
+CONTRAST_PROBE_BUDGET = ProbeBudget(
+    calibration=4_096,
+    train=16_384,
+    test=16_384,
+    resamples=200,
+)
+
+
+def run_contrast(
+    context: RunContext,
+    condition_names: tuple[str, ...],
+    *,
+    target_steps: int,
+    probe_budget: ProbeBudget,
+) -> dict[str, Any]:
+    """Train a paired set of conditions and tabulate their action awareness.
+
+    The pairing is the decisive control for this study: two arms with the same
+    dynamics that differ only in whether the previous guess is observable. A
+    representation that genuinely tracks the agent's own influence can only be
+    built by the arm that can see which guess was executed.
+    """
+
+    summaries = {}
+    for name in condition_names:
+        condition_context = replace(
+            context,
+            results_dir=context.results_dir / name,
+            artifacts_dir=context.artifacts_dir / name,
+            resume_from=None,
+        )
+        summaries[name] = run_condition(
+            condition_context,
+            name,
+            target_steps_override=target_steps,
+            probe_budget=probe_budget,
+        )
+    outputs = RunArtifacts.from_context(context)
+    outputs.prepare()
+    contrast = {
+        name: {
+            "feedback_strength": summary["feedback_strength"],
+            "observe_previous_guess": summary["observe_previous_guess"],
+            "initial": _contrast_row(summary["initial_probe"]),
+            "final": _contrast_row(summary["final_probe"]),
+        }
+        for name, summary in summaries.items()
+    }
+    summary = {
+        "seed": context.seed,
+        "smoke": context.smoke,
+        "target_env_steps": target_steps,
+        "probe_budget": asdict(probe_budget),
+        "contrast": contrast,
+        "reading": (
+            "action_awareness_ratio below one means the residual stream "
+            "decodes the guess-conditioned belief better than the belief of "
+            "an agent that ignores its own guesses."
+        ),
+        "conditions": summaries,
+    }
+    outputs.write_json("contrast_summary.json", summary)
+    plot_contrast(summaries, path=context.results_dir / "action_awareness.png")
+    return summary
+
+
+def _contrast_row(metrics: Mapping[str, Any]) -> dict[str, float]:
+    return {
+        "executed_mse_ratio": float(
+            metrics["targets"]["executed"]["global_mse_ratio"]
+        ),
+        "blind_mse_ratio": float(metrics["targets"]["blind"]["global_mse_ratio"]),
+        "action_awareness_ratio": float(metrics["action_awareness_ratio"]),
+        "token_accuracy_greedy": float(metrics["token_accuracy_greedy"]),
+    }
 
 
 def run_battery(context: RunContext) -> dict[str, Any]:

@@ -73,6 +73,32 @@ _STREAM_KEYS = {
 
 
 @dataclass(frozen=True, slots=True)
+class ProbeBudget:
+    """Rollout and resampling sizes for one checkpoint probe."""
+
+    calibration: int
+    train: int
+    test: int
+    resamples: int
+
+    @classmethod
+    def for_context(cls, context: RunContext) -> ProbeBudget:
+        if context.smoke:
+            return cls(
+                calibration=SMOKE_CALIBRATION_STEPS,
+                train=SMOKE_STEPS,
+                test=SMOKE_STEPS,
+                resamples=SMOKE_RESAMPLES,
+            )
+        return cls(
+            calibration=FULL_CALIBRATION_STEPS,
+            train=FULL_TRAIN_STEPS,
+            test=FULL_TEST_STEPS,
+            resamples=FULL_RESAMPLES,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class ProbeResult:
     metrics: dict[str, Any]
     target_display: np.ndarray
@@ -245,8 +271,7 @@ def probe_checkpoint(
     condition: str,
     feedback_strength: float,
     agent_steps: int | None = None,
-    train_steps: int | None = None,
-    test_steps: int | None = None,
+    budget: ProbeBudget | None = None,
 ) -> ProbeResult:
     """Fit every action-awareness target on disjoint held-out rollouts."""
 
@@ -254,15 +279,12 @@ def probe_checkpoint(
         raise ValueError("feedback probing requires a resolved seed")
     context.results_dir.mkdir(parents=True, exist_ok=True)
     streams = named_seed_sequences(context.seed, _STREAM_KEYS)
-    train_steps = train_steps or (
-        SMOKE_STEPS if context.smoke else FULL_TRAIN_STEPS
-    )
-    test_steps = test_steps or (SMOKE_STEPS if context.smoke else FULL_TEST_STEPS)
-    calibration_steps = (
-        SMOKE_CALIBRATION_STEPS if context.smoke else FULL_CALIBRATION_STEPS
-    )
+    budget = budget or ProbeBudget.for_context(context)
+    train_steps = budget.train
+    test_steps = budget.test
+    calibration_steps = budget.calibration
     warmup = 4 if context.smoke else 64
-    n_resamples = SMOKE_RESAMPLES if context.smoke else FULL_RESAMPLES
+    n_resamples = budget.resamples
 
     with load_algorithm(checkpoint) as algorithm:
         module = algorithm.get_module()
@@ -682,6 +704,62 @@ def plot_probe_trajectory(
     plt.close(figure)
 
 
+def plot_contrast(
+    summaries: dict[str, dict[str, Any]],
+    *,
+    path: Path,
+) -> None:
+    """Compare paired arms on how much their beliefs track their own guesses."""
+
+    figure, axes = plt.subplots(1, 2, figsize=(11.5, 4.6))
+    palette = ("#355c9a", "#c45135", "#5aa17f", "#8a5ba8", "#b58a2b")
+    for index, (name, summary) in enumerate(sorted(summaries.items())):
+        color = palette[index % len(palette)]
+        points = summary["checkpoint_probes"]
+        steps = np.asarray([point["agent_steps"] for point in points])
+        axes[0].plot(
+            steps,
+            [point["action_awareness_ratio"] for point in points],
+            marker="o",
+            color=color,
+            label=name.replace("_", " "),
+        )
+        axes[1].plot(
+            steps,
+            [point["targets"]["executed"]["global_mse_ratio"] for point in points],
+            marker="o",
+            color=color,
+            label=f"{name.replace('_', ' ')}: action conditioned",
+        )
+        axes[1].plot(
+            steps,
+            [point["targets"]["blind"]["global_mse_ratio"] for point in points],
+            marker="^",
+            linestyle="--",
+            alpha=0.7,
+            color=color,
+            label=f"{name.replace('_', ' ')}: action blind",
+        )
+    axes[0].axhline(
+        1.0,
+        color="#222222",
+        linestyle="--",
+        linewidth=1.2,
+        label="No preference for either target",
+    )
+    axes[0].set_ylabel("Action-conditioned MSE / action-blind MSE")
+    axes[0].set_title("Does the residual stream track the agent's own guess?")
+    axes[1].set_ylabel("Held-out probe MSE / target variance")
+    axes[1].set_title("Both Bayesian targets, decoded from the same features")
+    for axis in axes:
+        axis.set_xlabel("Environment steps")
+        axis.grid(alpha=0.2)
+        axis.legend(fontsize=7, loc="best")
+    figure.tight_layout()
+    figure.savefig(path, dpi=200)
+    plt.close(figure)
+
+
 def probe_at(
     context: RunContext,
     *,
@@ -690,6 +768,7 @@ def probe_at(
     feedback_strength: float,
     agent_steps: int,
     ceiling: float,
+    budget: ProbeBudget | None = None,
 ) -> tuple[ProbeResult, dict[str, Any]]:
     """Probe one checkpoint and summarize it as one trajectory point."""
 
@@ -702,6 +781,7 @@ def probe_at(
         condition=condition,
         feedback_strength=feedback_strength,
         agent_steps=agent_steps,
+        budget=budget,
     )
     point = {
         "agent_steps": agent_steps,
