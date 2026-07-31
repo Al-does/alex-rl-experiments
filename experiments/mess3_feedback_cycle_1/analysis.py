@@ -522,6 +522,18 @@ def probe_checkpoint(
     return result
 
 
+def _scatter_style(n_points: int) -> dict[str, float]:
+    """Keep simplex clouds legible across very different probe budgets."""
+
+    # Feedback collapses the reachable belief set onto a few tight atoms, so
+    # the marker floor matters as much as the sample-count scaling.
+    scale = float(np.sqrt(PLOT_SAMPLE_SIZE / max(n_points, 1)))
+    return {
+        "s": float(np.clip(1.2 * scale, 1.2, 6.0)),
+        "alpha": float(np.clip(0.3 * scale, 0.25, 0.7)),
+    }
+
+
 def _draw_probe_triplet(
     axes: np.ndarray,
     result: ProbeResult,
@@ -529,39 +541,37 @@ def _draw_probe_triplet(
     title: str,
 ) -> None:
     colors = np.clip(result.target_display, 0.0, 1.0)
+    style = _scatter_style(len(result.target_display))
     simplex_scatter(
         axes[0],
         result.target_display,
         colors=colors,
-        s=0.25,
-        alpha=0.18,
         title=f"{title}: action-conditioned Bayesian target",
         labels=("s0", "s1", "s2"),
+        **style,
     )
     simplex_scatter(
         axes[1],
         result.decoded_display,
         colors=colors,
-        s=0.25,
-        alpha=0.18,
         title=(
             f"{title}: affine-decoded residual stream\n"
             f"MSE={result.metrics['mse']:.5f}, "
             f"ratio={result.metrics['global_mse_ratio']:.3f}"
         ),
         labels=("s0", "s1", "s2"),
+        **style,
     )
     simplex_scatter(
         axes[2],
         result.blind_display,
         colors=colors,
-        s=0.25,
-        alpha=0.18,
         title=(
             f"{title}: action-blind belief\n"
             f"gap to target={result.metrics['action_blind_belief_mse']:.5f}"
         ),
         labels=("s0", "s1", "s2"),
+        **style,
     )
 
 
@@ -609,21 +619,19 @@ def plot_factor_geometry(result: ProbeResult, *, title: str, path: Path) -> None
         target, decoded = result.factor_display[name]
         caption, vertices = labels[name]
         colors = np.clip(target, 0.0, 1.0)
+        style = _scatter_style(len(target))
         simplex_scatter(
             axes[row][0],
             target,
             colors=colors,
-            s=0.25,
-            alpha=0.18,
             title=f"{title}: {caption} target",
             labels=vertices,
+            **style,
         )
         simplex_scatter(
             axes[row][1],
             decoded,
             colors=colors,
-            s=0.25,
-            alpha=0.18,
             title=(
                 f"{title}: decoded {caption}\n"
                 f"ratio="
@@ -631,6 +639,7 @@ def plot_factor_geometry(result: ProbeResult, *, title: str, path: Path) -> None
                 f"subspace overlap={overlap:.3f}"
             ),
             labels=vertices,
+            **style,
         )
     figure.tight_layout()
     figure.savefig(path, dpi=200)
