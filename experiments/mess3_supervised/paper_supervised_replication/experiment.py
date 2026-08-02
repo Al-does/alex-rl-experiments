@@ -119,6 +119,8 @@ def run_replication(
     full_training_config: TrainingConfig,
     smoke_training_config: TrainingConfig,
     variant: str,
+    model_class: type[PaperTransformer] = PaperTransformer,
+    model_kwargs: dict[str, Any] | None = None,
 ):
     if context.seed is None:
         raise ValueError("the paper replication requires a resolved seed")
@@ -140,9 +142,12 @@ def run_replication(
     training_config = (
         smoke_training_config if context.smoke else full_training_config
     )
+    resolved_model_kwargs = (
+        {} if model_kwargs is None else dict(model_kwargs)
+    )
 
     _seed_model(initialization_seed)
-    model = PaperTransformer(MODEL_CONFIG).to(device)
+    model = model_class(MODEL_CONFIG, **resolved_model_kwargs).to(device)
     paths = enumerate_paths(11, device=device)
     probability_dtype = (
         torch.float32 if device.type == "mps" else torch.float64
@@ -182,6 +187,15 @@ def run_replication(
                 **MODEL_CONFIG.to_dict(),
                 "parameter_count": parameter_count(model),
                 "residual_probe_location": "block_3 pre-final-LayerNorm",
+                "prediction_head": getattr(
+                    model,
+                    "prediction_head_spec",
+                    {"type": "linear", "depth": 1},
+                ),
+                "belief_probe": {
+                    "type": "affine_ols",
+                    "target": "exact_bayesian_belief",
+                },
             },
             "training": training_config.to_dict(),
             "bayesian_floor_nats": bayesian_floor,
@@ -212,7 +226,10 @@ def run_replication(
     del alias_table
 
     _seed_model(initialization_seed)
-    analyzed_model = PaperTransformer(MODEL_CONFIG).to(device)
+    analyzed_model = model_class(
+        MODEL_CONFIG,
+        **resolved_model_kwargs,
+    ).to(device)
     load_checkpoint(
         analyzed_checkpoint,
         model=analyzed_model,
