@@ -1,0 +1,115 @@
+{
+  "bayesian_floor_nats": 0.8025117746251761,
+  "mess3": {
+    "alpha": 0.85,
+    "enumerated_length_11_paths": 177147,
+    "labeled_operators": [
+      [
+        [
+          0.765,
+          0.0037500000000000007,
+          0.0037500000000000007
+        ],
+        [
+          0.0425,
+          0.06750000000000002,
+          0.0037500000000000007
+        ],
+        [
+          0.0425,
+          0.0037500000000000007,
+          0.06750000000000002
+        ]
+      ],
+      [
+        [
+          0.06750000000000002,
+          0.0425,
+          0.0037500000000000007
+        ],
+        [
+          0.0037500000000000007,
+          0.765,
+          0.0037500000000000007
+        ],
+        [
+          0.0037500000000000007,
+          0.0425,
+          0.06750000000000002
+        ]
+      ],
+      [
+        [
+          0.06750000000000002,
+          0.0037500000000000007,
+          0.0425
+        ],
+        [
+          0.0037500000000000007,
+          0.06750000000000002,
+          0.0425
+        ],
+        [
+          0.0037500000000000007,
+          0.0037500000000000007,
+          0.765
+        ]
+      ]
+    ],
+    "path_probability_mass": 1.0000000000000007,
+    "stationary_start": true,
+    "x": 0.05
+  },
+  "model": {
+    "activation": "relu",
+    "belief_probe": {
+      "target": "exact_bayesian_belief",
+      "type": "affine_ols"
+    },
+    "context_length": 10,
+    "d_head": 8,
+    "d_mlp": 256,
+    "d_model": 64,
+    "d_vocab": 3,
+    "n_heads": 1,
+    "n_layers": 4,
+    "normalization": "layer_norm",
+    "parameter_count": 147235,
+    "positional_embedding": "learned_absolute",
+    "prediction_head": {
+      "activation": "swish_silu",
+      "activation_after_output": false,
+      "depth": 2,
+      "hidden_dim": 64,
+      "type": "mlp"
+    },
+    "residual_probe_location": "block_3 pre-final-LayerNorm"
+  },
+  "objective": "ten shifted next-token cross-entropies",
+  "paper": "arXiv:2405.15943",
+  "runtime": {
+    "compile_fullgraph": true,
+    "compile_mode": "reduce-overhead",
+    "compiled_training": true,
+    "device": "cuda",
+    "seed": 44,
+    "smoke": false
+  },
+  "training": {
+    "analyzed_step": 61446,
+    "auxiliary_learning_rate": null,
+    "auxiliary_weight_decay": 0.0,
+    "batch_size": 16384,
+    "checkpoint_every": 5000,
+    "learning_rate": 0.16,
+    "log_every": 250,
+    "momentum": 0.0,
+    "optimizer_name": "sgd",
+    "retain_periodic_checkpoints": true,
+    "total_steps": 62500,
+    "validation_batch_size": 16384,
+    "validation_every": 5000,
+    "weight_decay": 0.0
+  },
+  "variant": "swish-mlp-decoder-2-layer"
+}
