@@ -65,7 +65,7 @@ def _run_one(
     push_each: bool,
 ) -> int:
     module = f"experiments.{STUDY}.{condition}.experiment"
-    run_id = f"{STUDY}-{condition}-seed{seed}"
+    run_id = f"{STUDY}-largebatch-{condition}-seed{seed}"
     experiment = load_experiment(module)
     context = make_run_context(
         experiment,

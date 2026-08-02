@@ -4,19 +4,18 @@ from __future__ import annotations
 
 from harness.context import RunContext
 
+from experiments.mess3_supervised.large_batch_replication.experiment import (
+    FULL_TRAINING_CONFIG,
+    SMOKE_TRAINING_CONFIG,
+)
 from experiments.mess3_supervised.paper_supervised_replication.experiment import (
     run_replication,
-)
-from experiments.mess3_supervised.paper_supervised_replication.training import (
-    TrainingConfig,
 )
 
 from .model import SwishMLPDecoderTransformer
 
 
 DECODER_HIDDEN_DIM = 64
-FULL_TRAINING_CONFIG = TrainingConfig(optimizer_name="sgd")
-SMOKE_TRAINING_CONFIG = TrainingConfig.smoke()
 
 
 def run_linear_control(context: RunContext):

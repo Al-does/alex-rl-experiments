@@ -78,8 +78,10 @@ def test_nonlinear_head_preserves_backbone_and_probe_location(depth):
     )
 
 
-def test_all_conditions_use_only_the_paper_sgd_recipe():
+def test_all_conditions_use_the_large_batch_sgd_recipe():
     assert FULL_TRAINING_CONFIG.optimizer_name == "sgd"
-    assert FULL_TRAINING_CONFIG.total_steps == 1_000_000
+    assert FULL_TRAINING_CONFIG.total_steps == 62_500
+    assert FULL_TRAINING_CONFIG.batch_size == 16_384
+    assert FULL_TRAINING_CONFIG.learning_rate == 0.16
     assert SMOKE_TRAINING_CONFIG.optimizer_name == "sgd"
     assert SMOKE_TRAINING_CONFIG.total_steps == 100
