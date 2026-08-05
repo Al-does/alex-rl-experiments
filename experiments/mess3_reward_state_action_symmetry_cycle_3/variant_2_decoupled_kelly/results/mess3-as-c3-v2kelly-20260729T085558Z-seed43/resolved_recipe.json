@@ -1,0 +1,42 @@
+{
+  "algorithm": "PPO",
+  "checkpoint_schedule": "init_then_iterations_1_2_4_8_and_final",
+  "checkpoint_storage": "every_iteration_unpruned_pending_generic_log_schedule",
+  "condition": "variant_2_decoupled_kelly",
+  "entropy_coeff": 0.003,
+  "environment": {
+    "delay": 0,
+    "episode_length": 1024,
+    "model": {
+      "factory": "envs.mess3.model:control_model",
+      "kwargs": {
+        "alpha": 0.85
+      }
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "experiments.mess3_reward_state_action_symmetry_cycle_3.task:ActionSymmetryTask",
+      "kwargs": {
+        "effect_size": 1.5,
+        "variant": 2
+      }
+    }
+  },
+  "gamma": 0.99,
+  "lambda": 0.95,
+  "learner_config": {
+    "token_guess_kelly/loss_coefficient": 1.0
+  },
+  "model_config": {
+    "context_len": 64,
+    "d_model": 96,
+    "max_seq_len": 32,
+    "n_heads": 4,
+    "n_layers": 3
+  },
+  "objective": "decoupled_kelly",
+  "probe_sampling_distribution": "process_weighted_rollout",
+  "probe_target": "exact_predictive_bayesian_belief",
+  "total_env_steps": 700000,
+  "variant": 2
+}
