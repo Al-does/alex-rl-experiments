@@ -30,6 +30,7 @@ SOURCE_RUN_PATTERNS = {
     5: "mess3-rsa-c5-v{variant}-seed{seed}",
 }
 CHECKPOINT_NAME = re.compile(r"checkpoint_\d+")
+CAMPAIGN_SUFFIX = "0035"
 
 
 def _walk_strings(value: Any):
@@ -229,7 +230,10 @@ def _parse_job(job: str) -> tuple[int, int]:
 def run_job(*, cycle: int, variant: int, seed: int, push_each: bool) -> int:
     package = f"mess3_reward_state_action_symmetry_cycle_{cycle}"
     module = f"experiments.{package}.belief_symmetry_probes.variant_{variant}.experiment"
-    run_id = f"mess3-rsa-c{cycle}-belief-symmetry-probe-v{variant}-seed{seed}"
+    run_id = (
+        f"mess3-rsa-c{cycle}-belief-symmetry-probe-{CAMPAIGN_SUFFIX}-"
+        f"v{variant}-seed{seed}"
+    )
     experiment = load_experiment(module)
     context = make_run_context(
         experiment,

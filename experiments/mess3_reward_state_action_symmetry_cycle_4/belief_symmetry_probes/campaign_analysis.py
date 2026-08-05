@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 SEEDS = (42, 43, 44, 45, 46)
 VARIANTS = (1, 2, 3)
 TARGETS = ("symmetric_b2", "antisymmetric_b0_minus_b1", "coarse_b2")
+CAMPAIGN_SUFFIX = "0035"
 
 
 def _stats(values: list[float]) -> dict[str, float | int]:
@@ -42,7 +43,10 @@ def _paired(values: list[float], *, seed: int) -> dict[str, Any]:
 
 
 def _run_path(root: Path, cycle: int, variant: int, seed: int) -> Path:
-    run_id = f"mess3-rsa-c{cycle}-belief-symmetry-probe-v{variant}-seed{seed}"
+    run_id = (
+        f"mess3-rsa-c{cycle}-belief-symmetry-probe-{CAMPAIGN_SUFFIX}-"
+        f"v{variant}-seed{seed}"
+    )
     return root / f"variant_{variant}" / "results" / run_id / "condition_summary.json"
 
 
