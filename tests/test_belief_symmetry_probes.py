@@ -230,6 +230,12 @@ class _FakeS3:
             raise RuntimeError("not found")
         return {}
 
+    def list_objects_v2(self, *, Bucket: str, Prefix: str, MaxKeys: int = 1):
+        del Bucket, MaxKeys
+        self.requested.append(Prefix)
+        contents = [{"Key": key} for key in self.existing if key.startswith(Prefix)]
+        return {"Contents": contents[:1]}
+
 
 def test_b2_base_selection_falls_back_to_unprefixed_historical_root():
     bases = _candidate_bases(

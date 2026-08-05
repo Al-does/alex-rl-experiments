@@ -95,11 +95,15 @@ def _select_source_base(
     for base in bases:
         tune_key = f"{base}/compact-results/tune_summary.json"
         try:
-            client.head_object(Bucket=bucket, Key=tune_key)
+            # B2 often rejects HeadObject while ListObjectsV2 still works.
+            response = client.list_objects_v2(
+                Bucket=bucket, Prefix=tune_key, MaxKeys=1
+            )
+            if response.get("Contents"):
+                return base, tune_key
         except Exception as error:  # provider clients use generated exception types
             failures.append(error)
             continue
-        return base, tune_key
     raise FileNotFoundError(
         "tune_summary.json was not found at any historical B2 base"
     ) from (failures[-1] if failures else None)
@@ -213,7 +217,9 @@ def _push_results(run_name: str) -> bool:
 
     return bool(
         push_results(
-            branch=os.environ.get("VAST_RESULTS_BRANCH", "results"),
+            branch=os.environ.get(
+                "VAST_RESULTS_BRANCH", "results-belief-symmetry-0035"
+            ),
             run_name=run_name,
             instance_id=_instance_id(),
         )
