@@ -244,6 +244,23 @@ def _prepare_results_history(branch: str) -> bool:
     )
     if merged.returncode == 0:
         return True
+    conflicts = [
+        path
+        for path in git(
+            "diff", "--name-only", "--diff-filter=U", "-z"
+        ).stdout.split("\0")
+        if path
+    ]
+    if conflicts:
+        resolved = git("checkout", "--ours", "--", *conflicts)
+        staged = git("add", "--", *conflicts)
+        committed = git("commit", "--no-edit")
+        if (
+            resolved.returncode == 0
+            and staged.returncode == 0
+            and committed.returncode == 0
+        ):
+            return True
     git("merge", "--abort")
     print(
         f"[seed_queue] FAILED to join results history: "

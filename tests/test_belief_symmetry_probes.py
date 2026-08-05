@@ -300,20 +300,25 @@ def test_result_history_join_preserves_source_and_existing_results(tmp_path, mon
     old_result = source / "experiments" / "old" / "results" / "result.json"
     old_result.parent.mkdir(parents=True)
     old_result.write_text("{}\n")
+    shared = source / "shared.txt"
+    shared.write_text("results version\n")
     git("add", "experiments", cwd=source)
+    git("add", "shared.txt", cwd=source)
     git("commit", "-m", "old result", cwd=source)
     git("push", "origin", "results", cwd=source)
     git("switch", "-c", "feature", base, cwd=source)
+    shared.write_text("feature version\n")
     new_source = source / "experiments" / "study" / "probe.py"
     new_source.parent.mkdir(parents=True)
     new_source.write_text("TARGET = 'symmetric'\n")
-    git("add", "experiments", cwd=source)
+    git("add", "experiments", "shared.txt", cwd=source)
     git("commit", "-m", "probe source", cwd=source)
     monkeypatch.setenv("VAST_EXPERIMENT_DIR", str(source))
 
     assert _prepare_results_history("results")
     assert old_result.read_text() == "{}\n"
     assert new_source.read_text() == "TARGET = 'symmetric'\n"
+    assert shared.read_text() == "feature version\n"
     git("merge-base", "--is-ancestor", "origin/results", "HEAD", cwd=source)
 
 
