@@ -234,7 +234,14 @@ def _prepare_results_history(branch: str) -> bool:
         return True
     if git("merge-base", "--is-ancestor", "FETCH_HEAD", "HEAD").returncode == 0:
         return True
-    merged = git("merge", "--no-edit", "-X", "ours", "FETCH_HEAD")
+    merged = git(
+        "merge",
+        "--no-edit",
+        "--allow-unrelated-histories",
+        "-X",
+        "ours",
+        "FETCH_HEAD",
+    )
     if merged.returncode == 0:
         return True
     git("merge", "--abort")

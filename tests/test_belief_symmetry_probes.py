@@ -295,7 +295,8 @@ def test_result_history_join_preserves_source_and_existing_results(tmp_path, mon
     git("add", "base.txt", cwd=source)
     git("commit", "-m", "base", cwd=source)
     base = git("rev-parse", "HEAD", cwd=source).stdout.strip()
-    git("switch", "-c", "results", cwd=source)
+    git("switch", "--orphan", "results", cwd=source)
+    (source / "base.txt").unlink(missing_ok=True)
     old_result = source / "experiments" / "old" / "results" / "result.json"
     old_result.parent.mkdir(parents=True)
     old_result.write_text("{}\n")
