@@ -225,6 +225,7 @@ class _FakeS3:
     def __init__(self, existing: set[str]):
         self.existing = existing
         self.requested: list[str] = []
+        self.listed: list[str] = []
 
     def head_object(self, *, Bucket: str, Key: str):
         del Bucket
@@ -232,6 +233,17 @@ class _FakeS3:
         if Key not in self.existing:
             raise RuntimeError("not found")
         return {}
+
+    def list_objects_v2(self, *, Bucket: str, Prefix: str, MaxKeys: int):
+        del Bucket, MaxKeys
+        self.listed.append(Prefix)
+        return {
+            "Contents": [
+                {"Key": key}
+                for key in self.existing
+                if key.startswith(Prefix)
+            ][:1]
+        }
 
 
 def test_b2_base_selection_falls_back_to_unprefixed_historical_root():
@@ -256,6 +268,22 @@ def test_b2_base_selection_falls_back_to_unprefixed_historical_root():
         f"{bases[0]}/compact-results/tune_summary.json",
         tune_key,
     ]
+    assert client.listed == [f"{bases[0]}/compact-results/tune_summary.json"]
+
+
+def test_b2_base_selection_uses_listing_when_head_is_forbidden():
+    base = "experiments/study/variant_1/run"
+    tune_key = f"{base}/compact-results/tune_summary.json"
+    client = _FakeS3({tune_key})
+    client.head_object = lambda **kwargs: (_ for _ in ()).throw(
+        RuntimeError("403 forbidden")
+    )
+
+    selected_base, selected_key = _select_source_base(client, "bucket", [base])
+
+    assert selected_base == base
+    assert selected_key == tune_key
+    assert client.listed == [tune_key]
 
 
 def test_b2_candidate_bases_are_deduplicated_without_configured_prefix():

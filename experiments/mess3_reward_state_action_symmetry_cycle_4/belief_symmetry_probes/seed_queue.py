@@ -98,7 +98,16 @@ def _select_source_base(
             client.head_object(Bucket=bucket, Key=tune_key)
         except Exception as error:  # provider clients use generated exception types
             failures.append(error)
-            continue
+            # Some prefix-restricted Backblaze keys permit listing and download
+            # but reject S3 HEAD with 403. Fall back to an exact-key listing.
+            response = client.list_objects_v2(
+                Bucket=bucket,
+                Prefix=tune_key,
+                MaxKeys=1,
+            )
+            keys = {item["Key"] for item in response.get("Contents", [])}
+            if tune_key not in keys:
+                continue
         return base, tune_key
     raise FileNotFoundError(
         "tune_summary.json was not found at any historical B2 base"
