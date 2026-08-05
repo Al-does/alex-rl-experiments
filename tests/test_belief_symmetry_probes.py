@@ -257,6 +257,7 @@ def test_b2_base_selection_falls_back_to_unprefixed_historical_root():
     assert selected_key == tune_key
     assert client.requested == [
         f"{bases[0]}/compact-results/tune_summary.json",
+        f"{bases[0]}/compact-results/tune_summary.json",
         tune_key,
     ]
 

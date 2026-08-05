@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import subprocess
 import tempfile
 import time
 from typing import Any
@@ -95,15 +96,16 @@ def _select_source_base(
     for base in bases:
         tune_key = f"{base}/compact-results/tune_summary.json"
         try:
-            # B2 often rejects HeadObject while ListObjectsV2 still works.
+            client.head_object(Bucket=bucket, Key=tune_key)
+        except Exception as error:
+            failures.append(error)
             response = client.list_objects_v2(
                 Bucket=bucket, Prefix=tune_key, MaxKeys=1
             )
-            if response.get("Contents"):
-                return base, tune_key
-        except Exception as error:  # provider clients use generated exception types
-            failures.append(error)
-            continue
+            keys = {item["Key"] for item in response.get("Contents", [])}
+            if tune_key not in keys:
+                continue
+        return base, tune_key
     raise FileNotFoundError(
         "tune_summary.json was not found at any historical B2 base"
     ) from (failures[-1] if failures else None)
@@ -114,7 +116,13 @@ def _download_atomic(client: Any, bucket: str, key: str, destination: Path) -> N
     with tempfile.NamedTemporaryFile(dir=destination.parent, delete=False) as handle:
         temporary = Path(handle.name)
     try:
-        client.download_file(bucket, key, str(temporary))
+        response = client.get_object(Bucket=bucket, Key=key)
+        body = response["Body"]
+        try:
+            with temporary.open("wb") as output:
+                shutil.copyfileobj(body, output, length=8 * 1024 * 1024)
+        finally:
+            body.close()
         os.replace(temporary, destination)
     finally:
         temporary.unlink(missing_ok=True)
@@ -158,9 +166,12 @@ def recover_bundle(
             source_run_id=source_run_id,
         ),
     )
-    with tempfile.NamedTemporaryFile() as handle:
-        client.download_file(config.bucket, tune_key, handle.name)
-        tune_summary = json.loads(Path(handle.name).read_text())
+    tune_response = client.get_object(Bucket=config.bucket, Key=tune_key)
+    tune_body = tune_response["Body"]
+    try:
+        tune_summary = json.loads(tune_body.read())
+    finally:
+        tune_body.close()
     final_name = _final_checkpoint_name(tune_summary)
     all_keys = _objects(client, config.bucket, f"{base}/")
     selected: list[tuple[str, str, str]] = []
@@ -212,14 +223,58 @@ def _instance_id() -> str | None:
     return path.read_text().strip() if path.is_file() else os.environ.get("VAST_INSTANCE_ID")
 
 
+def _prepare_results_history(branch: str) -> bool:
+    """Merge publication branch tip before pushing result-only commits."""
+    repo = Path(os.environ.get("VAST_EXPERIMENT_DIR", Path.cwd()))
+
+    def git(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["git", *args], cwd=repo, capture_output=True, text=True, check=False
+        )
+
+    fetched = git("fetch", "origin", branch)
+    if fetched.returncode != 0:
+        return True
+    if git("merge-base", "--is-ancestor", "FETCH_HEAD", "HEAD").returncode == 0:
+        return True
+    merged = git(
+        "merge", "--no-edit", "--allow-unrelated-histories", "-X", "ours", "FETCH_HEAD"
+    )
+    if merged.returncode == 0:
+        return True
+    conflicts = [
+        path
+        for path in git("diff", "--name-only", "--diff-filter=U", "-z").stdout.split("\0")
+        if path
+    ]
+    if conflicts:
+        resolved = git("checkout", "--ours", "--", *conflicts)
+        staged = git("add", "--", *conflicts)
+        committed = git("commit", "--no-edit")
+        if (
+            resolved.returncode == 0
+            and staged.returncode == 0
+            and committed.returncode == 0
+        ):
+            return True
+    git("merge", "--abort")
+    print(
+        f"[seed_queue] FAILED to join results history: "
+        f"{merged.stderr.strip() or merged.stdout.strip()}",
+        flush=True,
+    )
+    return False
+
+
 def _push_results(run_name: str) -> bool:
     from devops.vast.self_destruct import push_results
 
+    branch = os.environ.get("VAST_RESULTS_BRANCH", "results-belief-symmetry-0035")
+    if not _prepare_results_history(branch):
+        return False
     return bool(
         push_results(
-            branch=os.environ.get(
-                "VAST_RESULTS_BRANCH", "results-belief-symmetry-0035"
-            ),
+            branch=branch,
             run_name=run_name,
             instance_id=_instance_id(),
         )
