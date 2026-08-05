@@ -1,0 +1,55 @@
+{
+  "algorithm": "PPO-IQN",
+  "bayesian_optimal_accuracy_context_10": 0.6895773959227977,
+  "checkpoint_frequency_iterations": 10,
+  "condition": "iqn",
+  "direct_kelly_loss_weight": 0.0,
+  "environment": {
+    "delay": 1,
+    "episode_length": 512,
+    "model": {
+      "factory": "envs.mess3.model:passive_model",
+      "kwargs": {
+        "alpha": 0.85
+      }
+    },
+    "observation": {
+      "action": null
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "experiments.mess3_token_guess_cycle_2.task:NextTokenGuessTask"
+    }
+  },
+  "gamma": 0.0,
+  "iqn_config": {
+    "n_cosines": 64,
+    "train_quantiles": 32,
+    "value_quantiles": 64
+  },
+  "kelly_head_logits": 0,
+  "kelly_reward_decoupled_from_ppo": false,
+  "lambda": 0.0,
+  "lr": 0.0001,
+  "model": {
+    "activation": "relu",
+    "context_length": 10,
+    "d_head": 8,
+    "d_mlp": 256,
+    "d_model": 64,
+    "iqn_value": {
+      "n_cosines": 64,
+      "train_quantiles": 32,
+      "value_quantiles": 64
+    },
+    "max_seq_len": 32,
+    "n_heads": 1,
+    "n_layers": 4,
+    "normalization": "layer_norm",
+    "positional_embedding": "learned_absolute"
+  },
+  "objective": "clipped_correctness_distributional_value",
+  "predictive_loss_weight": 0.0,
+  "total_env_steps": 2500000,
+  "validation_budget": false
+}
