@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import io
 import os
 from pathlib import Path
 import subprocess
@@ -23,6 +24,7 @@ from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_prob
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_probes.seed_queue import (
     _candidate_bases,
+    _download_atomic,
     _final_checkpoint_name,
     _prepare_results_history,
     _select_source_base,
@@ -245,6 +247,12 @@ class _FakeS3:
             ][:1]
         }
 
+    def get_object(self, *, Bucket: str, Key: str):
+        del Bucket
+        if Key not in self.existing:
+            raise RuntimeError("not found")
+        return {"Body": io.BytesIO(Key.encode())}
+
 
 def test_b2_base_selection_falls_back_to_unprefixed_historical_root():
     bases = _candidate_bases(
@@ -284,6 +292,17 @@ def test_b2_base_selection_uses_listing_when_head_is_forbidden():
     assert selected_base == base
     assert selected_key == tune_key
     assert client.listed == [tune_key]
+
+
+def test_b2_download_uses_get_without_head(tmp_path):
+    key = "experiments/study/checkpoint/file"
+    client = _FakeS3({key})
+    destination = tmp_path / "checkpoint" / "file"
+
+    _download_atomic(client, "bucket", key, destination)
+
+    assert destination.read_bytes() == key.encode()
+    assert client.requested == []
 
 
 def test_b2_candidate_bases_are_deduplicated_without_configured_prefix():

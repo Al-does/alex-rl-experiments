@@ -119,7 +119,13 @@ def _download_atomic(client: Any, bucket: str, key: str, destination: Path) -> N
     with tempfile.NamedTemporaryFile(dir=destination.parent, delete=False) as handle:
         temporary = Path(handle.name)
     try:
-        client.download_file(bucket, key, str(temporary))
+        response = client.get_object(Bucket=bucket, Key=key)
+        body = response["Body"]
+        try:
+            with temporary.open("wb") as output:
+                shutil.copyfileobj(body, output, length=8 * 1024 * 1024)
+        finally:
+            body.close()
         os.replace(temporary, destination)
     finally:
         temporary.unlink(missing_ok=True)
@@ -163,9 +169,12 @@ def recover_bundle(
             source_run_id=source_run_id,
         ),
     )
-    with tempfile.NamedTemporaryFile() as handle:
-        client.download_file(config.bucket, tune_key, handle.name)
-        tune_summary = json.loads(Path(handle.name).read_text())
+    tune_response = client.get_object(Bucket=config.bucket, Key=tune_key)
+    tune_body = tune_response["Body"]
+    try:
+        tune_summary = json.loads(tune_body.read())
+    finally:
+        tune_body.close()
     final_name = _final_checkpoint_name(tune_summary)
     all_keys = _objects(client, config.bucket, f"{base}/")
     selected: list[tuple[str, str, str]] = []
