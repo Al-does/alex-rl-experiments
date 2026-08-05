@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import importlib
+import os
 from pathlib import Path
+import subprocess
 from types import SimpleNamespace
 
 import numpy as np
@@ -22,6 +24,7 @@ from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_prob
 from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_probes.seed_queue import (
     _candidate_bases,
     _final_checkpoint_name,
+    _prepare_results_history,
     _select_source_base,
 )
 
@@ -263,6 +266,54 @@ def test_b2_candidate_bases_are_deduplicated_without_configured_prefix():
         source_run_id="run",
     )
     assert bases == ["experiments/study/variant_1/run"]
+
+
+def test_result_history_join_preserves_source_and_existing_results(tmp_path, monkeypatch):
+    remote = tmp_path / "remote.git"
+    source = tmp_path / "source"
+    env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "test",
+        "GIT_AUTHOR_EMAIL": "test@example.com",
+        "GIT_COMMITTER_NAME": "test",
+        "GIT_COMMITTER_EMAIL": "test@example.com",
+    }
+
+    def git(*args, cwd=None):
+        return subprocess.run(
+            ["git", *args],
+            cwd=cwd,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+    git("init", "--bare", str(remote))
+    git("clone", str(remote), str(source))
+    (source / "base.txt").write_text("base\n")
+    git("add", "base.txt", cwd=source)
+    git("commit", "-m", "base", cwd=source)
+    base = git("rev-parse", "HEAD", cwd=source).stdout.strip()
+    git("switch", "-c", "results", cwd=source)
+    old_result = source / "experiments" / "old" / "results" / "result.json"
+    old_result.parent.mkdir(parents=True)
+    old_result.write_text("{}\n")
+    git("add", "experiments", cwd=source)
+    git("commit", "-m", "old result", cwd=source)
+    git("push", "origin", "results", cwd=source)
+    git("switch", "-c", "feature", base, cwd=source)
+    new_source = source / "experiments" / "study" / "probe.py"
+    new_source.parent.mkdir(parents=True)
+    new_source.write_text("TARGET = 'symmetric'\n")
+    git("add", "experiments", cwd=source)
+    git("commit", "-m", "probe source", cwd=source)
+    monkeypatch.setenv("VAST_EXPERIMENT_DIR", str(source))
+
+    assert _prepare_results_history("results")
+    assert old_result.read_text() == "{}\n"
+    assert new_source.read_text() == "TARGET = 'symmetric'\n"
+    git("merge-base", "--is-ancestor", "origin/results", "HEAD", cwd=source)
 
 
 @pytest.mark.parametrize("cycle", (4, 5))
