@@ -42,21 +42,30 @@ def _paired(values: list[float], *, seed: int) -> dict[str, Any]:
     }
 
 
-def _run_path(root: Path, cycle: int, variant: int, seed: int) -> Path:
-    run_id = (
+def _run_paths(root: Path, cycle: int, variant: int, seed: int) -> tuple[Path, ...]:
+    current_run_id = (
         f"mess3-rsa-c{cycle}-belief-symmetry-probe-{CAMPAIGN_SUFFIX}-"
         f"v{variant}-seed{seed}"
     )
-    return root / f"variant_{variant}" / "results" / run_id / "condition_summary.json"
+    legacy_run_id = f"mess3-rsa-c{cycle}-belief-symmetry-probe-v{variant}-seed{seed}"
+    results = root / f"variant_{variant}" / "results"
+    return tuple(
+        results / run_id / "condition_summary.json"
+        for run_id in (current_run_id, legacy_run_id)
+    )
 
 
 def aggregate(root: Path, *, cycle: int) -> dict[str, Any]:
     runs: dict[tuple[int, int], dict[str, Any]] = {}
     for variant in VARIANTS:
         for seed in SEEDS:
-            path = _run_path(root, cycle, variant, seed)
-            if not path.is_file():
-                raise FileNotFoundError(f"required campaign run missing: {path}")
+            candidates = _run_paths(root, cycle, variant, seed)
+            path = next((candidate for candidate in candidates if candidate.is_file()), None)
+            if path is None:
+                raise FileNotFoundError(
+                    "required campaign run missing; checked "
+                    + ", ".join(str(candidate) for candidate in candidates)
+                )
             runs[(variant, seed)] = json.loads(path.read_text())
 
     aggregate_targets: dict[str, Any] = {}

@@ -19,6 +19,9 @@ from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_prob
     decompose_belief,
     reconstruct_belief,
 )
+from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_probes.campaign_analysis import (
+    _run_paths,
+)
 from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_probes.seed_queue import (
     _candidate_bases,
     _final_checkpoint_name,
@@ -270,6 +273,13 @@ def test_b2_candidate_bases_are_deduplicated_without_configured_prefix():
         source_run_id="run",
     )
     assert bases == ["experiments/study/variant_1/run"]
+
+
+def test_campaign_run_paths_prefer_suffix_and_accept_legacy_results(tmp_path):
+    current, legacy = _run_paths(tmp_path, cycle=4, variant=2, seed=43)
+    assert current.name == "condition_summary.json"
+    assert current.parent.name == "mess3-rsa-c4-belief-symmetry-probe-0035-v2-seed43"
+    assert legacy.parent.name == "mess3-rsa-c4-belief-symmetry-probe-v2-seed43"
 
 
 @pytest.mark.parametrize("cycle", (4, 5))
