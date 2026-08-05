@@ -1,0 +1,280 @@
+{
+  "schema_version": 1,
+  "study": "belief_symmetry_probes",
+  "cycle": 4,
+  "variant": 1,
+  "seed": 42,
+  "source": {
+    "source_run_id": "mess3-rsa-c4-v1-seed42",
+    "historical_study": "mess3_reward_state_action_symmetry_cycle_4",
+    "cycle": 4,
+    "variant": 1,
+    "seed": 42,
+    "b2_base": "experiments/mess3_reward_state_action_symmetry_cycle_4/variant_1/mess3-rsa-c4-v1-seed42",
+    "final_checkpoint_name": "checkpoint_000021"
+  },
+  "target_definitions": {
+    "symmetric_b2": "b2",
+    "antisymmetric_b0_minus_b1": "b0-b1",
+    "coarse_b2": "separate A={0,1}, B={2} lumped Bayes filter"
+  },
+  "filter_definitions": {
+    "full": "delay-0 initial measurement; later transition@measurement using action-dependent transitions",
+    "coarse": "tokens 0/1 coarsened to not-2; destination-lump rows, never summed source rows"
+  },
+  "random_weight_baseline_interpretation": "The restored initial checkpoint estimates the affine random-network floor; it is a baseline, not evidence that an untrained network computes belief.",
+  "checkpoints": {
+    "initial": {
+      "checkpoint": "initial",
+      "protocol": {
+        "representation": "post_final_layer_norm",
+        "sampling_distribution": "greedy_process_weighted_rollout",
+        "train_steps": 60000,
+        "test_steps": 80000,
+        "n_envs": 16,
+        "warmup": 64,
+        "ridge": 1e-06,
+        "branch_depth": 2,
+        "target_dtype": "float64",
+        "seed_streams": {
+          "train": [
+            510
+          ],
+          "test": [
+            511
+          ],
+          "bootstrap_symmetric_b2": [
+            520
+          ],
+          "bootstrap_antisymmetric_b0_minus_b1": [
+            521
+          ],
+          "bootstrap_coarse_b2": [
+            522
+          ],
+          "permutation_symmetric_b2": [
+            530
+          ],
+          "permutation_antisymmetric_b0_minus_b1": [
+            531
+          ],
+          "permutation_coarse_b2": [
+            532
+          ],
+          "permutation_sample_symmetric_b2": [
+            540
+          ],
+          "permutation_sample_antisymmetric_b0_minus_b1": [
+            541
+          ],
+          "permutation_sample_coarse_b2": [
+            542
+          ]
+        }
+      },
+      "target_consistency_max_abs": 4.440892098500626e-16,
+      "coarse_projection_mse": 8.032751887470879e-05,
+      "coarse_projection_max_abs_difference": 0.07382841990893765,
+      "targets": {
+        "symmetric_b2": {
+          "status": "fitted",
+          "definition": "exact full-filter P(state=2)",
+          "mse": 0.0020141035145736707,
+          "target_variance": 0.05170028115829319,
+          "global_mse_ratio": 0.038957302928527504,
+          "r_squared": 0.9610426970714725,
+          "R2": 0.9610426970714725,
+          "fine_evaluation_mse": 0.0020141035145736707,
+          "branch_baseline_mse": 0.002984579997314463,
+          "fine_mse_ratio": 0.674836498397084,
+          "fine_mse_improvement": 0.0009704764827407923,
+          "n_evaluated": 80000,
+          "mse_ci_95_low": 0.001945164814745078,
+          "mse_ci_95_high": 0.002093759128231513,
+          "bootstrap_n": 1000,
+          "bootstrap_cluster": "environment_episode",
+          "permutation_real_mse": 0.0022439958602756757,
+          "permutation_null_mse_p05": 0.05175274051066787,
+          "permutation_null_mse_p50": 0.05462349790102271,
+          "permutation_null_mse_p95": 0.05744083995338318,
+          "permutation_null_p_value_lower_tail": 0.000999000999000999,
+          "permutation_null_n": 1000
+        },
+        "antisymmetric_b0_minus_b1": {
+          "status": "fitted",
+          "definition": "exact full-filter P(state=0)-P(state=1)",
+          "mse": 0.021372695767320444,
+          "target_variance": 0.5969267140196871,
+          "global_mse_ratio": 0.03580455567719081,
+          "r_squared": 0.9641954443228092,
+          "R2": 0.9641954443228092,
+          "fine_evaluation_mse": 0.021372695767320444,
+          "branch_baseline_mse": 0.004506472323234928,
+          "fine_mse_ratio": 4.742666599132304,
+          "fine_mse_improvement": -0.016866223444085518,
+          "n_evaluated": 80000,
+          "mse_ci_95_low": 0.02118073731993199,
+          "mse_ci_95_high": 0.021568180467336093,
+          "bootstrap_n": 1000,
+          "bootstrap_cluster": "environment_episode",
+          "permutation_real_mse": 0.02254375467464477,
+          "permutation_null_mse_p05": 0.577619973107754,
+          "permutation_null_mse_p50": 0.608493563551258,
+          "permutation_null_mse_p95": 0.642285325355821,
+          "permutation_null_p_value_lower_tail": 0.000999000999000999,
+          "permutation_null_n": 1000
+        },
+        "coarse_b2": {
+          "status": "fitted",
+          "definition": "separate exact lumped-filter P(B={state2})",
+          "mse": 0.001948639384650325,
+          "target_variance": 0.051648357173970906,
+          "global_mse_ratio": 0.03772897128337658,
+          "r_squared": 0.9622710287166234,
+          "R2": 0.9622710287166234,
+          "fine_evaluation_mse": 0.001948639384650325,
+          "branch_baseline_mse": 0.0029695601332863112,
+          "fine_mse_ratio": 0.6562047229849601,
+          "fine_mse_improvement": 0.0010209207486359861,
+          "n_evaluated": 80000,
+          "mse_ci_95_low": 0.001870593534625983,
+          "mse_ci_95_high": 0.0020253719394368536,
+          "bootstrap_n": 1000,
+          "bootstrap_cluster": "environment_episode",
+          "permutation_real_mse": 0.0019668970431366054,
+          "permutation_null_mse_p05": 0.0491244712986704,
+          "permutation_null_mse_p50": 0.05184724214420852,
+          "permutation_null_mse_p95": 0.05441382718948058,
+          "permutation_null_p_value_lower_tail": 0.000999000999000999,
+          "permutation_null_n": 1000
+        }
+      }
+    },
+    "final": {
+      "checkpoint": "final",
+      "protocol": {
+        "representation": "post_final_layer_norm",
+        "sampling_distribution": "greedy_process_weighted_rollout",
+        "train_steps": 60000,
+        "test_steps": 80000,
+        "n_envs": 16,
+        "warmup": 64,
+        "ridge": 1e-06,
+        "branch_depth": 2,
+        "target_dtype": "float64",
+        "seed_streams": {
+          "train": [
+            510
+          ],
+          "test": [
+            511
+          ],
+          "bootstrap_symmetric_b2": [
+            520
+          ],
+          "bootstrap_antisymmetric_b0_minus_b1": [
+            521
+          ],
+          "bootstrap_coarse_b2": [
+            522
+          ],
+          "permutation_symmetric_b2": [
+            530
+          ],
+          "permutation_antisymmetric_b0_minus_b1": [
+            531
+          ],
+          "permutation_coarse_b2": [
+            532
+          ],
+          "permutation_sample_symmetric_b2": [
+            540
+          ],
+          "permutation_sample_antisymmetric_b0_minus_b1": [
+            541
+          ],
+          "permutation_sample_coarse_b2": [
+            542
+          ]
+        }
+      },
+      "target_consistency_max_abs": 3.3306690738754696e-16,
+      "coarse_projection_mse": 0.0005614029383429281,
+      "coarse_projection_max_abs_difference": 0.07199800282699871,
+      "targets": {
+        "symmetric_b2": {
+          "status": "fitted",
+          "definition": "exact full-filter P(state=2)",
+          "mse": 0.006288872427181896,
+          "target_variance": 0.14999446976917166,
+          "global_mse_ratio": 0.041927361967810675,
+          "r_squared": 0.9580726380321893,
+          "R2": 0.9580726380321893,
+          "fine_evaluation_mse": 0.006288872427181896,
+          "branch_baseline_mse": 0.00022077235044044077,
+          "fine_mse_ratio": 28.48577919578968,
+          "fine_mse_improvement": -0.006068100076741455,
+          "n_evaluated": 80000,
+          "mse_ci_95_low": 0.006230429493552298,
+          "mse_ci_95_high": 0.00634655198170113,
+          "bootstrap_n": 1000,
+          "bootstrap_cluster": "environment_episode",
+          "permutation_real_mse": 0.0061538933922381765,
+          "permutation_null_mse_p05": 0.14764660594760198,
+          "permutation_null_mse_p50": 0.15509364632666084,
+          "permutation_null_mse_p95": 0.1625594970200265,
+          "permutation_null_p_value_lower_tail": 0.000999000999000999,
+          "permutation_null_n": 1000
+        },
+        "antisymmetric_b0_minus_b1": {
+          "status": "fitted",
+          "definition": "exact full-filter P(state=0)-P(state=1)",
+          "mse": 0.01565012627718891,
+          "target_variance": 0.24318271471046682,
+          "global_mse_ratio": 0.06435542220104723,
+          "r_squared": 0.9356445777989528,
+          "R2": 0.9356445777989528,
+          "fine_evaluation_mse": 0.01565012627718891,
+          "branch_baseline_mse": 0.0009207719110099236,
+          "fine_mse_ratio": 16.996745980254214,
+          "fine_mse_improvement": -0.014729354366178988,
+          "n_evaluated": 80000,
+          "mse_ci_95_low": 0.015366351754011041,
+          "mse_ci_95_high": 0.015935797875892187,
+          "bootstrap_n": 1000,
+          "bootstrap_cluster": "environment_episode",
+          "permutation_real_mse": 0.015785985477160626,
+          "permutation_null_mse_p05": 0.23166923711859158,
+          "permutation_null_mse_p50": 0.24380921704447853,
+          "permutation_null_mse_p95": 0.25661212536625905,
+          "permutation_null_p_value_lower_tail": 0.000999000999000999,
+          "permutation_null_n": 1000
+        },
+        "coarse_b2": {
+          "status": "fitted",
+          "definition": "separate exact lumped-filter P(B={state2})",
+          "mse": 0.005752051496477953,
+          "target_variance": 0.14947563534402217,
+          "global_mse_ratio": 0.03848153234632154,
+          "r_squared": 0.9615184676536784,
+          "R2": 0.9615184676536784,
+          "fine_evaluation_mse": 0.005752051496477953,
+          "branch_baseline_mse": 0.00018381377551136117,
+          "fine_mse_ratio": 31.292820576020592,
+          "fine_mse_improvement": -0.005568237720966591,
+          "n_evaluated": 80000,
+          "mse_ci_95_low": 0.005713829008495735,
+          "mse_ci_95_high": 0.005795555907452671,
+          "bootstrap_n": 1000,
+          "bootstrap_cluster": "environment_episode",
+          "permutation_real_mse": 0.005625792156068923,
+          "permutation_null_mse_p05": 0.14578713890511222,
+          "permutation_null_mse_p50": 0.1532024792355061,
+          "permutation_null_mse_p95": 0.16127003066650628,
+          "permutation_null_p_value_lower_tail": 0.000999000999000999,
+          "permutation_null_n": 1000
+        }
+      }
+    }
+  }
+}
