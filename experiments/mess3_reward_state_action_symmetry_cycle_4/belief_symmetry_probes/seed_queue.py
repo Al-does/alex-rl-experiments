@@ -14,7 +14,6 @@ import os
 from pathlib import Path
 import re
 import shutil
-import subprocess
 import tempfile
 import time
 from typing import Any
@@ -223,58 +222,11 @@ def _instance_id() -> str | None:
     return path.read_text().strip() if path.is_file() else os.environ.get("VAST_INSTANCE_ID")
 
 
-def _prepare_results_history(branch: str) -> bool:
-    """Merge publication branch tip before pushing result-only commits."""
-    repo = Path(os.environ.get("VAST_EXPERIMENT_DIR", Path.cwd()))
-
-    def git(*args: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            ["git", *args], cwd=repo, capture_output=True, text=True, check=False
-        )
-
-    fetched = git("fetch", "origin", branch)
-    if fetched.returncode != 0:
-        return True
-    if git("merge-base", "--is-ancestor", "FETCH_HEAD", "HEAD").returncode == 0:
-        return True
-    merged = git(
-        "merge", "--no-edit", "--allow-unrelated-histories", "-X", "ours", "FETCH_HEAD"
-    )
-    if merged.returncode == 0:
-        return True
-    conflicts = [
-        path
-        for path in git("diff", "--name-only", "--diff-filter=U", "-z").stdout.split("\0")
-        if path
-    ]
-    if conflicts:
-        resolved = git("checkout", "--ours", "--", *conflicts)
-        staged = git("add", "--", *conflicts)
-        committed = git("commit", "--no-edit")
-        if (
-            resolved.returncode == 0
-            and staged.returncode == 0
-            and committed.returncode == 0
-        ):
-            return True
-    git("merge", "--abort")
-    print(
-        f"[seed_queue] FAILED to join results history: "
-        f"{merged.stderr.strip() or merged.stdout.strip()}",
-        flush=True,
-    )
-    return False
-
-
 def _push_results(run_name: str) -> bool:
     from devops.vast.self_destruct import push_results
 
-    branch = os.environ.get("VAST_RESULTS_BRANCH", "results-belief-symmetry-0035")
-    if not _prepare_results_history(branch):
-        return False
     return bool(
         push_results(
-            branch=branch,
             run_name=run_name,
             instance_id=_instance_id(),
         )

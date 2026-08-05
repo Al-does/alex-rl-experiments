@@ -41,6 +41,12 @@ local `~/.ssh/id_rsa` keypair exists. Both are required by
 missing on an old snapshot, re-run `./scripts/bootstrap_local.sh` or
 `apt-get install -y openssh-client`.
 
+Remote boxes publish **compact results only** (`experiments/**/results/**`) back
+to the **launch branch** (`--branch cursor/...`). They do not rebase onto
+`main` or a shared `results` branch. Merge findings to `main` manually in a
+PR. Never commit checkpoints or `artifacts/` trees from a box — see
+`experiments/AGENTS.md`.
+
 ### RunPod Pods from Cloud Agents
 
 The sibling harness also provides `devops/runpod/pods/` for on-demand,

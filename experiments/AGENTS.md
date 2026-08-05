@@ -31,3 +31,22 @@ experiment until reuse proves an abstraction.
 Track compact findings under `results/`. Ignore large/raw data under
 `artifacts/` locally; optional Backblaze B2 upload records durable URIs in
 `results/` when configured (see the library's `docs/artifact_storage.md`).
+
+### What belongs in git
+
+| Path | Commit from remote boxes? | Notes |
+|------|---------------------------|-------|
+| `experiments/**/results/**` | Yes | JSON summaries, manifests, small plots |
+| `experiments/**/artifacts/**` | **Never** | Checkpoints (`.pt`, `.pkl`), tune trees, raw logs |
+| `*.pth`, `*.pt`, `checkpoint_*` | **Never** | Always under `artifacts/` or B2 |
+| Source code (`analysis.py`, etc.) | No | Land on your feature branch via normal PR, not from Vast |
+
+Remote GPU boxes publish **only** new files under `experiments/**/results/**`.
+They push to the **launch branch** (the `--branch` you passed to `provision
+up`), not to `main`. Merge to `main` manually in a PR when the campaign is
+ready. If two agents push to the same branch concurrently, git merge (not
+rebase) is used; resolve any content conflicts on a workstation — do not rely
+on silent rebases on the box.
+
+Do not use a shared orphan `results` branch unless you have a deliberate reason.
+Prefer one feature branch per campaign attempt so parallel agents stay isolated.
