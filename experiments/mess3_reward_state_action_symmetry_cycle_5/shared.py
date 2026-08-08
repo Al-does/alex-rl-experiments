@@ -92,10 +92,16 @@ def environment_config(variant: int) -> dict[str, Any]:
     }
 
 
-def build_config(context: RunContext, variant: int) -> PPOConfig:
+def build_config(
+    context: RunContext,
+    variant: int,
+    *,
+    model_config: Mapping[str, Any] | None = None,
+) -> PPOConfig:
     """Build one fresh transformer PPO configuration."""
 
     batch_size = SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
+    resolved_model_config = dict(model_config or BASE_MODEL_CONFIG)
     config = (
         PPOConfig()
         .environment(HMMEnv, env_config=environment_config(variant))
@@ -120,7 +126,7 @@ def build_config(context: RunContext, variant: int) -> PPOConfig:
         .rl_module(
             rl_module_spec=RLModuleSpec(
                 module_class=TransformerModel,
-                model_config=dict(BASE_MODEL_CONFIG),
+                model_config=resolved_model_config,
             )
         )
         .debugging(seed=context.seed)

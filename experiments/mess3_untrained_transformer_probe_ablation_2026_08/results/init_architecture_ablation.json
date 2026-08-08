@@ -1,0 +1,936 @@
+{
+  "study": "mess3_untrained_transformer_probe_ablation_2026_08",
+  "smoke": false,
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "architectures": [
+    {
+      "key": "c5_baseline",
+      "label": "cycle-5 baseline (64/4/1/10)",
+      "d_model": 64,
+      "n_layers": 4,
+      "n_heads": 1,
+      "context_len": 10
+    },
+    {
+      "key": "width96_c5_style",
+      "label": "96-wide, cycle-5 depth/heads/context",
+      "d_model": 96,
+      "n_layers": 4,
+      "n_heads": 1,
+      "context_len": 10
+    },
+    {
+      "key": "ablate_layers",
+      "label": "3 layers (cycle-4 depth, else cycle-5)",
+      "d_model": 64,
+      "n_layers": 3,
+      "n_heads": 1,
+      "context_len": 10
+    },
+    {
+      "key": "ablate_heads",
+      "label": "4 heads (cycle-4 heads, else cycle-5)",
+      "d_model": 64,
+      "n_layers": 4,
+      "n_heads": 4,
+      "context_len": 10
+    },
+    {
+      "key": "ablate_context",
+      "label": "context 64 (cycle-4 band, else cycle-5)",
+      "d_model": 64,
+      "n_layers": 4,
+      "n_heads": 1,
+      "context_len": 64
+    },
+    {
+      "key": "c4_full",
+      "label": "cycle-4 large (96/3/4/64)",
+      "d_model": 96,
+      "n_layers": 3,
+      "n_heads": 4,
+      "context_len": 64
+    }
+  ],
+  "rows": [
+    {
+      "architecture": "c5_baseline",
+      "architecture_label": "cycle-5 baseline (64/4/1/10)",
+      "seed": 42,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 4,
+        "n_heads": 1,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.003908044301200134,
+      "target_variance": 0.13245563290722887,
+      "global_mse_ratio": 0.029504553452530814,
+      "branch_baseline_mse": 0.007472228295966468,
+      "fine_mse_ratio": 0.5230092211328323,
+      "r_squared": 0.9704954465474692,
+      "reward_state_2_fraction_greedy": 0.142475,
+      "greedy_action_fractions": [
+        0.0052125,
+        0.4433875,
+        0.5514
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_c5_baseline",
+      "task_variant": 2
+    },
+    {
+      "architecture": "width96_c5_style",
+      "architecture_label": "96-wide, cycle-5 depth/heads/context",
+      "seed": 42,
+      "model_config": {
+        "d_model": 96,
+        "n_layers": 4,
+        "n_heads": 1,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.0014124434828840032,
+      "target_variance": 0.11562752926488115,
+      "global_mse_ratio": 0.012215460209725299,
+      "branch_baseline_mse": 0.0008941455061418818,
+      "fine_mse_ratio": 1.5796573076551128,
+      "r_squared": 0.9877845397902747,
+      "reward_state_2_fraction_greedy": 0.0273125,
+      "greedy_action_fractions": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_width96_c5_style",
+      "task_variant": 2
+    },
+    {
+      "architecture": "ablate_layers",
+      "architecture_label": "3 layers (cycle-4 depth, else cycle-5)",
+      "seed": 42,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 3,
+        "n_heads": 1,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.00483820599655888,
+      "target_variance": 0.11758728077392813,
+      "global_mse_ratio": 0.041145657631634115,
+      "branch_baseline_mse": 0.000967068581584933,
+      "fine_mse_ratio": 5.002960584894116,
+      "r_squared": 0.9588543423683659,
+      "reward_state_2_fraction_greedy": 0.0381,
+      "greedy_action_fractions": [
+        0.0785,
+        0.0002,
+        0.9213
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_ablate_layers",
+      "task_variant": 2
+    },
+    {
+      "architecture": "ablate_heads",
+      "architecture_label": "4 heads (cycle-4 heads, else cycle-5)",
+      "seed": 42,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 4,
+        "n_heads": 4,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.003216536606768772,
+      "target_variance": 0.13322191472143707,
+      "global_mse_ratio": 0.02414420040047053,
+      "branch_baseline_mse": 0.007220394612527218,
+      "fine_mse_ratio": 0.44547933726338934,
+      "r_squared": 0.9758557995995295,
+      "reward_state_2_fraction_greedy": 0.1502375,
+      "greedy_action_fractions": [
+        0.00375,
+        0.4701625,
+        0.5260875
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_ablate_heads",
+      "task_variant": 2
+    },
+    {
+      "architecture": "ablate_context",
+      "architecture_label": "context 64 (cycle-4 band, else cycle-5)",
+      "seed": 42,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 4,
+        "n_heads": 1,
+        "context_len": 64,
+        "max_seq_len": 32
+      },
+      "mse": 0.0056181173036005515,
+      "target_variance": 0.13283606810863366,
+      "global_mse_ratio": 0.042293613350600244,
+      "branch_baseline_mse": 0.008014347477460252,
+      "fine_mse_ratio": 0.7010074518731666,
+      "r_squared": 0.9577063866493998,
+      "reward_state_2_fraction_greedy": 0.1444875,
+      "greedy_action_fractions": [
+        3.75e-05,
+        0.4679,
+        0.5320625
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_ablate_context",
+      "task_variant": 2
+    },
+    {
+      "architecture": "c4_full",
+      "architecture_label": "cycle-4 large (96/3/4/64)",
+      "seed": 42,
+      "model_config": {
+        "d_model": 96,
+        "n_layers": 3,
+        "n_heads": 4,
+        "context_len": 64,
+        "max_seq_len": 32
+      },
+      "mse": 0.004610714090406173,
+      "target_variance": 0.12545367311595976,
+      "global_mse_ratio": 0.036752324391047385,
+      "branch_baseline_mse": 0.0021642613609040512,
+      "fine_mse_ratio": 2.1303869180015274,
+      "r_squared": 0.9632476756089526,
+      "reward_state_2_fraction_greedy": 0.1185125,
+      "greedy_action_fractions": [
+        0.7633875,
+        0.0178875,
+        0.218725
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_c4_full",
+      "task_variant": 2
+    },
+    {
+      "architecture": "c5_baseline",
+      "architecture_label": "cycle-5 baseline (64/4/1/10)",
+      "seed": 43,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 4,
+        "n_heads": 1,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.0032907821545740284,
+      "target_variance": 0.12603790722022964,
+      "global_mse_ratio": 0.02610946363004862,
+      "branch_baseline_mse": 0.0006830890896243074,
+      "fine_mse_ratio": 4.817500681183369,
+      "r_squared": 0.9738905363699514,
+      "reward_state_2_fraction_greedy": 0.13655,
+      "greedy_action_fractions": [
+        0.94815,
+        0.05185,
+        0.0
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_c5_baseline",
+      "task_variant": 2
+    },
+    {
+      "architecture": "width96_c5_style",
+      "architecture_label": "96-wide, cycle-5 depth/heads/context",
+      "seed": 43,
+      "model_config": {
+        "d_model": 96,
+        "n_layers": 4,
+        "n_heads": 1,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.003233795784529904,
+      "target_variance": 0.12697762109167973,
+      "global_mse_ratio": 0.02546744659986231,
+      "branch_baseline_mse": 0.0006122476826150013,
+      "fine_mse_ratio": 5.281842424813891,
+      "r_squared": 0.9745325534001377,
+      "reward_state_2_fraction_greedy": 0.1417125,
+      "greedy_action_fractions": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_width96_c5_style",
+      "task_variant": 2
+    },
+    {
+      "architecture": "ablate_layers",
+      "architecture_label": "3 layers (cycle-4 depth, else cycle-5)",
+      "seed": 43,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 3,
+        "n_heads": 1,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.004546357644680044,
+      "target_variance": 0.11804082461078005,
+      "global_mse_ratio": 0.03851512948736931,
+      "branch_baseline_mse": 0.0021327468462504135,
+      "fine_mse_ratio": 2.1316911815731925,
+      "r_squared": 0.9614848705126307,
+      "reward_state_2_fraction_greedy": 0.0368,
+      "greedy_action_fractions": [
+        0.0280875,
+        0.0228875,
+        0.949025
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_ablate_layers",
+      "task_variant": 2
+    },
+    {
+      "architecture": "ablate_heads",
+      "architecture_label": "4 heads (cycle-4 heads, else cycle-5)",
+      "seed": 43,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 4,
+        "n_heads": 4,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.0027096520652062717,
+      "target_variance": 0.12591628524147921,
+      "global_mse_ratio": 0.021519472719591166,
+      "branch_baseline_mse": 0.0006835931787062965,
+      "fine_mse_ratio": 3.963837190906881,
+      "r_squared": 0.9784805272804088,
+      "reward_state_2_fraction_greedy": 0.13585,
+      "greedy_action_fractions": [
+        0.94135,
+        0.05865,
+        0.0
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_ablate_heads",
+      "task_variant": 2
+    },
+    {
+      "architecture": "ablate_context",
+      "architecture_label": "context 64 (cycle-4 band, else cycle-5)",
+      "seed": 43,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 4,
+        "n_heads": 1,
+        "context_len": 64,
+        "max_seq_len": 32
+      },
+      "mse": 0.006315822035579183,
+      "target_variance": 0.12667271206052771,
+      "global_mse_ratio": 0.04985937328444748,
+      "branch_baseline_mse": 0.0006192519900120604,
+      "fine_mse_ratio": 10.199114637413079,
+      "r_squared": 0.9501406267155525,
+      "reward_state_2_fraction_greedy": 0.13975,
+      "greedy_action_fractions": [
+        0.9856375,
+        0.0143625,
+        0.0
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_ablate_context",
+      "task_variant": 2
+    },
+    {
+      "architecture": "c4_full",
+      "architecture_label": "cycle-4 large (96/3/4/64)",
+      "seed": 43,
+      "model_config": {
+        "d_model": 96,
+        "n_layers": 3,
+        "n_heads": 4,
+        "context_len": 64,
+        "max_seq_len": 32
+      },
+      "mse": 0.0047925156562586705,
+      "target_variance": 0.12140974977907959,
+      "global_mse_ratio": 0.0394738945181854,
+      "branch_baseline_mse": 0.0008480569556741711,
+      "fine_mse_ratio": 5.651171922113195,
+      "r_squared": 0.9605261054818146,
+      "reward_state_2_fraction_greedy": 0.1068625,
+      "greedy_action_fractions": [
+        0.8690625,
+        0.000375,
+        0.1305625
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_c4_full",
+      "task_variant": 2
+    },
+    {
+      "architecture": "c5_baseline",
+      "architecture_label": "cycle-5 baseline (64/4/1/10)",
+      "seed": 44,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 4,
+        "n_heads": 1,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.0034216739705859663,
+      "target_variance": 0.11962145428047981,
+      "global_mse_ratio": 0.028604183013550985,
+      "branch_baseline_mse": 0.002519206258579363,
+      "fine_mse_ratio": 1.3582349436189178,
+      "r_squared": 0.9713958169864491,
+      "reward_state_2_fraction_greedy": 0.06645,
+      "greedy_action_fractions": [
+        0.42625,
+        0.0026625,
+        0.5710875
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_c5_baseline",
+      "task_variant": 2
+    },
+    {
+      "architecture": "width96_c5_style",
+      "architecture_label": "96-wide, cycle-5 depth/heads/context",
+      "seed": 44,
+      "model_config": {
+        "d_model": 96,
+        "n_layers": 4,
+        "n_heads": 1,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.001761900710973442,
+      "target_variance": 0.11561489977832755,
+      "global_mse_ratio": 0.01523939141366377,
+      "branch_baseline_mse": 0.0008925339297033105,
+      "fine_mse_ratio": 1.9740433974976392,
+      "r_squared": 0.9847606085863362,
+      "reward_state_2_fraction_greedy": 0.027075,
+      "greedy_action_fractions": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_width96_c5_style",
+      "task_variant": 2
+    },
+    {
+      "architecture": "ablate_layers",
+      "architecture_label": "3 layers (cycle-4 depth, else cycle-5)",
+      "seed": 44,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 3,
+        "n_heads": 1,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.00312776914724391,
+      "target_variance": 0.11562150467012293,
+      "global_mse_ratio": 0.027051794181088343,
+      "branch_baseline_mse": 0.0008979301570373616,
+      "fine_mse_ratio": 3.4833100578375693,
+      "r_squared": 0.9729482058189116,
+      "reward_state_2_fraction_greedy": 0.0270875,
+      "greedy_action_fractions": [
+        0.0,
+        6.25e-05,
+        0.9999375
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_ablate_layers",
+      "task_variant": 2
+    },
+    {
+      "architecture": "ablate_heads",
+      "architecture_label": "4 heads (cycle-4 heads, else cycle-5)",
+      "seed": 44,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 4,
+        "n_heads": 4,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.0028194523572963076,
+      "target_variance": 0.11923848942061617,
+      "global_mse_ratio": 0.02364548872596526,
+      "branch_baseline_mse": 0.002396581568555502,
+      "fine_mse_ratio": 1.176447484320629,
+      "r_squared": 0.9763545112740347,
+      "reward_state_2_fraction_greedy": 0.0618875,
+      "greedy_action_fractions": [
+        0.3861375,
+        0.0018,
+        0.6120625
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_ablate_heads",
+      "task_variant": 2
+    },
+    {
+      "architecture": "ablate_context",
+      "architecture_label": "context 64 (cycle-4 band, else cycle-5)",
+      "seed": 44,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 4,
+        "n_heads": 1,
+        "context_len": 64,
+        "max_seq_len": 32
+      },
+      "mse": 0.006512716661714734,
+      "target_variance": 0.11964945093112953,
+      "global_mse_ratio": 0.05443164687369496,
+      "branch_baseline_mse": 0.002442176420791527,
+      "fine_mse_ratio": 2.6667674809520583,
+      "r_squared": 0.945568353126305,
+      "reward_state_2_fraction_greedy": 0.0676,
+      "greedy_action_fractions": [
+        0.4455375,
+        0.0,
+        0.5544625
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_ablate_context",
+      "task_variant": 2
+    },
+    {
+      "architecture": "c4_full",
+      "architecture_label": "cycle-4 large (96/3/4/64)",
+      "seed": 44,
+      "model_config": {
+        "d_model": 96,
+        "n_layers": 3,
+        "n_heads": 4,
+        "context_len": 64,
+        "max_seq_len": 32
+      },
+      "mse": 0.005867790145302115,
+      "target_variance": 0.1159451677577126,
+      "global_mse_ratio": 0.05060831993933437,
+      "branch_baseline_mse": 0.0012071933669651315,
+      "fine_mse_ratio": 4.860687861509431,
+      "r_squared": 0.9493916800606657,
+      "reward_state_2_fraction_greedy": 0.0300375,
+      "greedy_action_fractions": [
+        0.0331375,
+        0.0,
+        0.9668625
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_c4_full",
+      "task_variant": 2
+    },
+    {
+      "architecture": "c5_baseline",
+      "architecture_label": "cycle-5 baseline (64/4/1/10)",
+      "seed": 45,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 4,
+        "n_heads": 1,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.002916194272743592,
+      "target_variance": 0.11821668999278821,
+      "global_mse_ratio": 0.02466821117154857,
+      "branch_baseline_mse": 0.0009095844183085532,
+      "fine_mse_ratio": 3.2060732506461513,
+      "r_squared": 0.9753317888284514,
+      "reward_state_2_fraction_greedy": 0.0422375,
+      "greedy_action_fractions": [
+        0.0952875,
+        0.0,
+        0.9047125
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_c5_baseline",
+      "task_variant": 2
+    },
+    {
+      "architecture": "width96_c5_style",
+      "architecture_label": "96-wide, cycle-5 depth/heads/context",
+      "seed": 45,
+      "model_config": {
+        "d_model": 96,
+        "n_layers": 4,
+        "n_heads": 1,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.002051769151877338,
+      "target_variance": 0.127106513398027,
+      "global_mse_ratio": 0.016142124404375225,
+      "branch_baseline_mse": 0.0006073607665917158,
+      "fine_mse_ratio": 3.3781720268023046,
+      "r_squared": 0.9838578755956248,
+      "reward_state_2_fraction_greedy": 0.142375,
+      "greedy_action_fractions": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_width96_c5_style",
+      "task_variant": 2
+    },
+    {
+      "architecture": "ablate_layers",
+      "architecture_label": "3 layers (cycle-4 depth, else cycle-5)",
+      "seed": 45,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 3,
+        "n_heads": 1,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.00224031155939659,
+      "target_variance": 0.136279065637627,
+      "global_mse_ratio": 0.016439146753131493,
+      "branch_baseline_mse": 0.0006813240330333111,
+      "fine_mse_ratio": 3.288173395884095,
+      "r_squared": 0.9835608532468685,
+      "reward_state_2_fraction_greedy": 0.2644625,
+      "greedy_action_fractions": [
+        0.0,
+        0.7628875,
+        0.2371125
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_ablate_layers",
+      "task_variant": 2
+    },
+    {
+      "architecture": "ablate_heads",
+      "architecture_label": "4 heads (cycle-4 heads, else cycle-5)",
+      "seed": 45,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 4,
+        "n_heads": 4,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.0032903798235323573,
+      "target_variance": 0.11782922861274357,
+      "global_mse_ratio": 0.027924988241639845,
+      "branch_baseline_mse": 0.0008902683393566881,
+      "fine_mse_ratio": 3.695941637001267,
+      "r_squared": 0.9720750117583602,
+      "reward_state_2_fraction_greedy": 0.04065,
+      "greedy_action_fractions": [
+        0.0896,
+        0.0,
+        0.9104
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_ablate_heads",
+      "task_variant": 2
+    },
+    {
+      "architecture": "ablate_context",
+      "architecture_label": "context 64 (cycle-4 band, else cycle-5)",
+      "seed": 45,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 4,
+        "n_heads": 1,
+        "context_len": 64,
+        "max_seq_len": 32
+      },
+      "mse": 0.006606529886627527,
+      "target_variance": 0.11823693852384996,
+      "global_mse_ratio": 0.055875346309773595,
+      "branch_baseline_mse": 0.0009109525034266968,
+      "fine_mse_ratio": 7.252331885335387,
+      "r_squared": 0.9441246536902264,
+      "reward_state_2_fraction_greedy": 0.0423375,
+      "greedy_action_fractions": [
+        0.095325,
+        0.0,
+        0.904675
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_ablate_context",
+      "task_variant": 2
+    },
+    {
+      "architecture": "c4_full",
+      "architecture_label": "cycle-4 large (96/3/4/64)",
+      "seed": 45,
+      "model_config": {
+        "d_model": 96,
+        "n_layers": 3,
+        "n_heads": 4,
+        "context_len": 64,
+        "max_seq_len": 32
+      },
+      "mse": 0.0012863587762440229,
+      "target_variance": 0.13071227502853655,
+      "global_mse_ratio": 0.009841147481850427,
+      "branch_baseline_mse": 0.0005708073951064635,
+      "fine_mse_ratio": 2.253577629287895,
+      "r_squared": 0.9901588525181496,
+      "reward_state_2_fraction_greedy": 0.162425,
+      "greedy_action_fractions": [
+        0.047225,
+        0.5024375,
+        0.4503375
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_c4_full",
+      "task_variant": 2
+    },
+    {
+      "architecture": "c5_baseline",
+      "architecture_label": "cycle-5 baseline (64/4/1/10)",
+      "seed": 46,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 4,
+        "n_heads": 1,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.0026764820912697843,
+      "target_variance": 0.11561286648505538,
+      "global_mse_ratio": 0.0231503825883926,
+      "branch_baseline_mse": 0.0008932961493302205,
+      "fine_mse_ratio": 2.9961867553963697,
+      "r_squared": 0.9768496174116074,
+      "reward_state_2_fraction_greedy": 0.0279,
+      "greedy_action_fractions": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_c5_baseline",
+      "task_variant": 2
+    },
+    {
+      "architecture": "width96_c5_style",
+      "architecture_label": "96-wide, cycle-5 depth/heads/context",
+      "seed": 46,
+      "model_config": {
+        "d_model": 96,
+        "n_layers": 4,
+        "n_heads": 1,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.0033181089039764633,
+      "target_variance": 0.13647064031281456,
+      "global_mse_ratio": 0.024313719759581826,
+      "branch_baseline_mse": 0.00219340198925469,
+      "fine_mse_ratio": 1.512768256904857,
+      "r_squared": 0.9756862802404181,
+      "reward_state_2_fraction_greedy": 0.2393125,
+      "greedy_action_fractions": [
+        0.667325,
+        0.32035,
+        0.012325
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_width96_c5_style",
+      "task_variant": 2
+    },
+    {
+      "architecture": "ablate_layers",
+      "architecture_label": "3 layers (cycle-4 depth, else cycle-5)",
+      "seed": 46,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 3,
+        "n_heads": 1,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.0028060538451769,
+      "target_variance": 0.13297242013963917,
+      "global_mse_ratio": 0.021102525187028716,
+      "branch_baseline_mse": 0.004069365335550398,
+      "fine_mse_ratio": 0.6895556465925834,
+      "r_squared": 0.9788974748129713,
+      "reward_state_2_fraction_greedy": 0.15695,
+      "greedy_action_fractions": [
+        0.4411375,
+        0.1966125,
+        0.36225
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_ablate_layers",
+      "task_variant": 2
+    },
+    {
+      "architecture": "ablate_heads",
+      "architecture_label": "4 heads (cycle-4 heads, else cycle-5)",
+      "seed": 46,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 4,
+        "n_heads": 4,
+        "context_len": 10,
+        "max_seq_len": 32
+      },
+      "mse": 0.0017401938000430979,
+      "target_variance": 0.11561286648505538,
+      "global_mse_ratio": 0.015051904281501773,
+      "branch_baseline_mse": 0.0008932961493302205,
+      "fine_mse_ratio": 1.9480592201677662,
+      "r_squared": 0.9849480957184982,
+      "reward_state_2_fraction_greedy": 0.0279,
+      "greedy_action_fractions": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_ablate_heads",
+      "task_variant": 2
+    },
+    {
+      "architecture": "ablate_context",
+      "architecture_label": "context 64 (cycle-4 band, else cycle-5)",
+      "seed": 46,
+      "model_config": {
+        "d_model": 64,
+        "n_layers": 4,
+        "n_heads": 1,
+        "context_len": 64,
+        "max_seq_len": 32
+      },
+      "mse": 0.006533564606384153,
+      "target_variance": 0.11561286648505538,
+      "global_mse_ratio": 0.05651243503445795,
+      "branch_baseline_mse": 0.0008932961493302205,
+      "fine_mse_ratio": 7.3139961604927075,
+      "r_squared": 0.9434875649655421,
+      "reward_state_2_fraction_greedy": 0.0279,
+      "greedy_action_fractions": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_ablate_context",
+      "task_variant": 2
+    },
+    {
+      "architecture": "c4_full",
+      "architecture_label": "cycle-4 large (96/3/4/64)",
+      "seed": 46,
+      "model_config": {
+        "d_model": 96,
+        "n_layers": 3,
+        "n_heads": 4,
+        "context_len": 64,
+        "max_seq_len": 32
+      },
+      "mse": 0.0048476733260934286,
+      "target_variance": 0.12943227398973453,
+      "global_mse_ratio": 0.03745335824415713,
+      "branch_baseline_mse": 0.005249156200181663,
+      "fine_mse_ratio": 0.9235147786087333,
+      "r_squared": 0.9625466417558428,
+      "reward_state_2_fraction_greedy": 0.135,
+      "greedy_action_fractions": [
+        0.318025,
+        0.3384625,
+        0.3435125
+      ],
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_c4_full",
+      "task_variant": 2
+    }
+  ],
+  "summary": {
+    "ablate_context": {
+      "label": "context 64 (cycle-4 band, else cycle-5)",
+      "n": 5,
+      "mse_mean": 0.00631735009878123,
+      "mse_sd": 0.0003626211780198694,
+      "global_mse_ratio_mean": 0.05179448297059484,
+      "fine_mse_ratio_mean": 5.626643523213279,
+      "per_seed_mse": {
+        "42": 0.0056181173036005515,
+        "43": 0.006315822035579183,
+        "44": 0.006512716661714734,
+        "45": 0.006606529886627527,
+        "46": 0.006533564606384153
+      }
+    },
+    "ablate_heads": {
+      "label": "4 heads (cycle-4 heads, else cycle-5)",
+      "n": 5,
+      "mse_mean": 0.0027552429305693613,
+      "mse_sd": 0.0005542002282170114,
+      "global_mse_ratio_mean": 0.022457210873833715,
+      "fine_mse_ratio_mean": 2.2459529739319866,
+      "per_seed_mse": {
+        "42": 0.003216536606768772,
+        "43": 0.0027096520652062717,
+        "44": 0.0028194523572963076,
+        "45": 0.0032903798235323573,
+        "46": 0.0017401938000430979
+      }
+    },
+    "ablate_layers": {
+      "label": "3 layers (cycle-4 depth, else cycle-5)",
+      "n": 5,
+      "mse_mean": 0.003511739638611265,
+      "mse_sd": 0.0010091484088239986,
+      "global_mse_ratio_mean": 0.028850850648050395,
+      "fine_mse_ratio_mean": 2.9191381733563113,
+      "per_seed_mse": {
+        "42": 0.00483820599655888,
+        "43": 0.004546357644680044,
+        "44": 0.00312776914724391,
+        "45": 0.00224031155939659,
+        "46": 0.0028060538451769
+      }
+    },
+    "c4_full": {
+      "label": "cycle-4 large (96/3/4/64)",
+      "n": 5,
+      "mse_mean": 0.004281010398860882,
+      "mse_sd": 0.0015605933057796847,
+      "global_mse_ratio_mean": 0.03482580891491494,
+      "fine_mse_ratio_mean": 3.1638678219041565,
+      "per_seed_mse": {
+        "42": 0.004610714090406173,
+        "43": 0.0047925156562586705,
+        "44": 0.005867790145302115,
+        "45": 0.0012863587762440229,
+        "46": 0.0048476733260934286
+      }
+    },
+    "c5_baseline": {
+      "label": "cycle-5 baseline (64/4/1/10)",
+      "n": 5,
+      "mse_mean": 0.0032426353580747008,
+      "mse_sd": 0.0004252611677735092,
+      "global_mse_ratio_mean": 0.026407358771214317,
+      "fine_mse_ratio_mean": 2.580200970395528,
+      "per_seed_mse": {
+        "42": 0.003908044301200134,
+        "43": 0.0032907821545740284,
+        "44": 0.0034216739705859663,
+        "45": 0.002916194272743592,
+        "46": 0.0026764820912697843
+      }
+    },
+    "width96_c5_style": {
+      "label": "96-wide, cycle-5 depth/heads/context",
+      "n": 5,
+      "mse_mean": 0.00235560360684823,
+      "mse_sd": 0.0007787152845520592,
+      "global_mse_ratio_mean": 0.018675628477441687,
+      "fine_mse_ratio_mean": 2.745296682734761,
+      "per_seed_mse": {
+        "42": 0.0014124434828840032,
+        "43": 0.003233795784529904,
+        "44": 0.001761900710973442,
+        "45": 0.002051769151877338,
+        "46": 0.0033181089039764633
+      }
+    }
+  },
+  "task_variant": 2
+}
