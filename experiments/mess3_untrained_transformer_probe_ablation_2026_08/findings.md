@@ -5,19 +5,19 @@
 When we score an affine belief probe on a **freshly initialized** transformer, how
 much of the reported MSE is spurious? Probe capacity grows with representation
 width: a wider residual stream gives the least-squares decoder more free parameters
-to fit random activations against the belief cloud induced by the untrained
-greedy policy. **Low init MSE is therefore suspicious, not desirable.** We want
-init probes to look bad and stay above trivial baselines until training has
-actually organized the representation.
+to fit random activations against the belief targets sampled from greedy rollouts.
+**Low init MSE is therefore suspicious, not desirable.** We want init probes to
+look bad and stay above trivial baselines until training has actually organized
+the representation.
 
 This study isolates which architectural knobs increase or decrease that spurious
-decodability at step zero.
+decodability at step zero. All models are untrained; the comparison is trunk
+geometry only.
 
 ## Protocol
 
 | Setting | Value |
 |---|---|
-| Task environment | Sticky-state action-symmetry HMM, reward **variant 2** (fixed rollout setting only) |
 | Model seeds | **5** (42, 43, 44, 45, 46) |
 | Architectures probed | **6** (see table below) |
 | Total init probes | **30** (6 × 5) |
@@ -27,18 +27,18 @@ decodability at step zero.
 | Representation | `post_final_layer_norm` |
 | Null control | Held-out label permutation (1k resamples per probe) |
 
-Architectures compared cycle-5 small (64-wide, 4 layers, 1 head, context 10)
-against width-only and single-factor swaps, plus the cycle-4 large trunk
+Architectures compared a **small** baseline (64-wide, 4 layers, 1 head, context 10)
+against width-only and single-factor swaps, plus the **large** trunk
 (96/3/4/64):
 
 | Key | d_model | Layers | Heads | Context band | Params (approx.) |
 |---|---:|---:|---:|---:|---:|
-| `c5_baseline` | 64 | 4 | 1 | 10 | 201k |
-| `width96_c5_style` | 96 | 4 | 1 | 10 | — |
+| `small_baseline` | 64 | 4 | 1 | 10 | 201k |
+| `width96_small_style` | 96 | 4 | 1 | 10 | — |
 | `ablate_heads` | 64 | 4 | 4 | 10 | — |
 | `ablate_layers` | 64 | 3 | 1 | 10 | — |
 | `ablate_context` | 64 | 4 | 1 | 64 | — |
-| `c4_full` | 96 | 3 | 4 | 64 | 337k |
+| `large_full` | 96 | 3 | 4 | 64 | 337k |
 
 Full per-seed metrics live in `results/init_architecture_ablation.json` and
 `results/<architecture>/seed_<seed>/probe_metrics.json`.
@@ -52,22 +52,22 @@ represents belief.”
 
 From a **probe-skeptic** perspective (higher init MSE = less spurious fit):
 
-| Architecture | Mean init MSE | SD | Δ vs c5 baseline | Verdict |
+| Architecture | Mean init MSE | SD | Δ vs small baseline | Verdict |
 |---|---:|---:|---:|---|
-| `c5_baseline` | 3.24×10⁻³ | 4.3×10⁻⁴ | — | reference |
-| `width96_c5_style` | **2.36×10⁻³** | 7.8×10⁻⁴ | **−27%** | **worst** — most spurious |
+| `small_baseline` | 3.24×10⁻³ | 4.3×10⁻⁴ | — | reference |
+| `width96_small_style` | **2.36×10⁻³** | 7.8×10⁻⁴ | **−27%** | **worst** — most spurious |
 | `ablate_heads` | 2.76×10⁻³ | 5.5×10⁻⁴ | −15% | more spurious |
 | `ablate_layers` | 3.51×10⁻³ | 1.0×10⁻³ | +8% | slightly less spurious |
-| `c4_full` | 4.28×10⁻³ | 1.6×10⁻³ | +32% | less spurious |
+| `large_full` | 4.28×10⁻³ | 1.6×10⁻³ | +32% | less spurious |
 | `ablate_context` | **6.32×10⁻³** | 3.6×10⁻⁴ | **+95%** | **best** — least spurious |
 
 ![Init MSE by architecture](results/init_ablation_mse_by_architecture.png)
 
-*Figure: mean ± SD over five seeds. Red bars sit below the c5 baseline (more
+*Figure: mean ± SD over five seeds. Red bars sit below the small baseline (more
 spurious fit); green bars sit above it (harder for the probe to latch onto random
-structure). Percent labels are change relative to the c5 baseline mean.*
+structure). Percent labels are change relative to the small baseline mean.*
 
-## What helps and what hurts (single-factor swaps from c5 baseline)
+## What helps and what hurts (single-factor swaps from small baseline)
 
 ### Hurts probe validity — lower init MSE, more spurious fit
 
@@ -93,17 +93,14 @@ structure). Percent labels are change relative to the c5 baseline mean.*
    Mean MSE rises **8%** (→ 3.51×10⁻³). Shallower depth slightly reduces
    spurious fit.
 
-### Combined cycle-4 trunk
+### Combined large trunk
 
-The historical large model (`c4_full`: 96-wide, 3 layers, 4 heads, context 64)
-lands **+32% above** the c5 baseline (4.28×10⁻³ vs 3.24×10⁻³). Width alone would
- have pushed MSE down; **context length and depth dominate in the opposite
- direction.** This reconciles the earlier cross-cycle observation that cycle-4
- showed *higher* init MSE than cycle-5 even though it is the “larger” model in
- parameter count.
-
-Reproduction check: `c4_full` mean init MSE matches the archived cycle-4 variant-2
- value (4.28×10⁻³) to rounding; `c5_baseline` matches cycle-5 (3.24×10⁻³).
+The full **large** configuration (96-wide, 3 layers, 4 heads, context 64)
+lands **+32% above** the small baseline (4.28×10⁻³ vs 3.24×10⁻³). Width alone would
+have pushed MSE down; **context length and depth dominate in the opposite
+direction.** This explains why a nominally larger model can still show *higher*
+init MSE than the small baseline when width is bundled with a long context band
+and fewer layers.
 
 ## Normalized metrics
 
@@ -112,11 +109,11 @@ Two supplementary views from the probe README:
 
 | Architecture | Global MSE ratio | Fine MSE ratio | Mean global R² |
 |---|---:|---:|---:|
-| `c5_baseline` | 0.026 | 2.58 | 0.974 |
-| `width96_c5_style` | 0.019 | 2.75 | 0.981 |
+| `small_baseline` | 0.026 | 2.58 | 0.974 |
+| `width96_small_style` | 0.019 | 2.75 | 0.981 |
 | `ablate_heads` | 0.022 | 2.25 | 0.978 |
 | `ablate_layers` | 0.029 | 2.92 | 0.971 |
-| `c4_full` | 0.035 | 3.16 | 0.965 |
+| `large_full` | 0.035 | 3.16 | 0.965 |
 | `ablate_context` | 0.052 | 5.63 | 0.948 |
 
 - **Global MSE ratio** (MSE / target variance): all configs are far below 1.0, so
@@ -129,7 +126,7 @@ Two supplementary views from the probe README:
 
 ## Per-seed init MSE (×10³)
 
-| Seed | c5 baseline | 96-wide | +heads | −layers | +context | c4 full |
+| Seed | small baseline | 96-wide | +heads | −layers | +context | large full |
 |---:|---:|---:|---:|---:|---:|---:|
 | 42 | 3.91 | **1.41** | 3.22 | 4.84 | 5.62 | 4.61 |
 | 43 | 3.29 | 3.23 | 2.71 | 4.55 | 6.32 | 4.79 |
@@ -138,7 +135,7 @@ Two supplementary views from the probe README:
 | 46 | 2.68 | 3.32 | **1.74** | 2.81 | 6.53 | 4.85 |
 | **Mean** | **3.24** | **2.36** | **2.76** | **3.51** | **6.32** | **4.28** |
 
-Seed 45 is an outlier for `c4_full` ( unusually *high* MSE / low spurious fit).
+Seed 45 is an outlier for `large_full` (unusually high MSE / low spurious fit).
 Otherwise the ranking by mean is stable.
 
 ## Interpretation for later probe work
@@ -151,9 +148,9 @@ Otherwise the ranking by mean is stable.
    if architectural choice is still open. Context 64 nearly doubles init MSE
    relative to baseline, making spurious wins harder.
 
-3. **Cross-cycle init comparisons confound width with context and depth.** The
-   cycle-4 vs cycle-5 gap is explained here as opposing effects, not a simple
-   “large vs small model” story.
+3. **Cross-architecture init comparisons confound width with context and depth.**
+   The small-vs-large gap is explained here as opposing effects, not a simple
+   width story.
 
 4. **Report init MSE alongside permutation nulls and fine ratios.** A raw init MSE
    of ~0.004 is ~30× below the label-shuffle null but still compatible with fine

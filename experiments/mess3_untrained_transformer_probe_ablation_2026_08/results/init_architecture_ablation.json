@@ -10,16 +10,16 @@
   ],
   "architectures": [
     {
-      "key": "c5_baseline",
-      "label": "cycle-5 baseline (64/4/1/10)",
+      "key": "small_baseline",
+      "label": "small baseline (64/4/1/10)",
       "d_model": 64,
       "n_layers": 4,
       "n_heads": 1,
       "context_len": 10
     },
     {
-      "key": "width96_c5_style",
-      "label": "96-wide, cycle-5 depth/heads/context",
+      "key": "width96_small_style",
+      "label": "96-wide, small depth/heads/context",
       "d_model": 96,
       "n_layers": 4,
       "n_heads": 1,
@@ -27,7 +27,7 @@
     },
     {
       "key": "ablate_layers",
-      "label": "3 layers (cycle-4 depth, else cycle-5)",
+      "label": "3 layers (large depth, else small)",
       "d_model": 64,
       "n_layers": 3,
       "n_heads": 1,
@@ -35,7 +35,7 @@
     },
     {
       "key": "ablate_heads",
-      "label": "4 heads (cycle-4 heads, else cycle-5)",
+      "label": "4 heads (large head count, else small)",
       "d_model": 64,
       "n_layers": 4,
       "n_heads": 4,
@@ -43,15 +43,15 @@
     },
     {
       "key": "ablate_context",
-      "label": "context 64 (cycle-4 band, else cycle-5)",
+      "label": "context 64 (large band, else small)",
       "d_model": 64,
       "n_layers": 4,
       "n_heads": 1,
       "context_len": 64
     },
     {
-      "key": "c4_full",
-      "label": "cycle-4 large (96/3/4/64)",
+      "key": "large_full",
+      "label": "large full (96/3/4/64)",
       "d_model": 96,
       "n_layers": 3,
       "n_heads": 4,
@@ -60,8 +60,8 @@
   ],
   "rows": [
     {
-      "architecture": "c5_baseline",
-      "architecture_label": "cycle-5 baseline (64/4/1/10)",
+      "architecture": "small_baseline",
+      "architecture_label": "small baseline (64/4/1/10)",
       "seed": 42,
       "model_config": {
         "d_model": 64,
@@ -82,12 +82,11 @@
         0.4433875,
         0.5514
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_c5_baseline",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_small_baseline"
     },
     {
-      "architecture": "width96_c5_style",
-      "architecture_label": "96-wide, cycle-5 depth/heads/context",
+      "architecture": "width96_small_style",
+      "architecture_label": "96-wide, small depth/heads/context",
       "seed": 42,
       "model_config": {
         "d_model": 96,
@@ -108,12 +107,11 @@
         0.0,
         1.0
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_width96_c5_style",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_width96_small_style"
     },
     {
       "architecture": "ablate_layers",
-      "architecture_label": "3 layers (cycle-4 depth, else cycle-5)",
+      "architecture_label": "3 layers (large depth, else small)",
       "seed": 42,
       "model_config": {
         "d_model": 64,
@@ -134,12 +132,11 @@
         0.0002,
         0.9213
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_ablate_layers",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_ablate_layers"
     },
     {
       "architecture": "ablate_heads",
-      "architecture_label": "4 heads (cycle-4 heads, else cycle-5)",
+      "architecture_label": "4 heads (large head count, else small)",
       "seed": 42,
       "model_config": {
         "d_model": 64,
@@ -160,12 +157,11 @@
         0.4701625,
         0.5260875
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_ablate_heads",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_ablate_heads"
     },
     {
       "architecture": "ablate_context",
-      "architecture_label": "context 64 (cycle-4 band, else cycle-5)",
+      "architecture_label": "context 64 (large band, else small)",
       "seed": 42,
       "model_config": {
         "d_model": 64,
@@ -186,12 +182,11 @@
         0.4679,
         0.5320625
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_ablate_context",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_ablate_context"
     },
     {
-      "architecture": "c4_full",
-      "architecture_label": "cycle-4 large (96/3/4/64)",
+      "architecture": "large_full",
+      "architecture_label": "large full (96/3/4/64)",
       "seed": 42,
       "model_config": {
         "d_model": 96,
@@ -212,12 +207,11 @@
         0.0178875,
         0.218725
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_c4_full",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed42_large_full"
     },
     {
-      "architecture": "c5_baseline",
-      "architecture_label": "cycle-5 baseline (64/4/1/10)",
+      "architecture": "small_baseline",
+      "architecture_label": "small baseline (64/4/1/10)",
       "seed": 43,
       "model_config": {
         "d_model": 64,
@@ -238,12 +232,11 @@
         0.05185,
         0.0
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_c5_baseline",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_small_baseline"
     },
     {
-      "architecture": "width96_c5_style",
-      "architecture_label": "96-wide, cycle-5 depth/heads/context",
+      "architecture": "width96_small_style",
+      "architecture_label": "96-wide, small depth/heads/context",
       "seed": 43,
       "model_config": {
         "d_model": 96,
@@ -264,12 +257,11 @@
         0.0,
         0.0
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_width96_c5_style",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_width96_small_style"
     },
     {
       "architecture": "ablate_layers",
-      "architecture_label": "3 layers (cycle-4 depth, else cycle-5)",
+      "architecture_label": "3 layers (large depth, else small)",
       "seed": 43,
       "model_config": {
         "d_model": 64,
@@ -290,12 +282,11 @@
         0.0228875,
         0.949025
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_ablate_layers",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_ablate_layers"
     },
     {
       "architecture": "ablate_heads",
-      "architecture_label": "4 heads (cycle-4 heads, else cycle-5)",
+      "architecture_label": "4 heads (large head count, else small)",
       "seed": 43,
       "model_config": {
         "d_model": 64,
@@ -316,12 +307,11 @@
         0.05865,
         0.0
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_ablate_heads",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_ablate_heads"
     },
     {
       "architecture": "ablate_context",
-      "architecture_label": "context 64 (cycle-4 band, else cycle-5)",
+      "architecture_label": "context 64 (large band, else small)",
       "seed": 43,
       "model_config": {
         "d_model": 64,
@@ -342,12 +332,11 @@
         0.0143625,
         0.0
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_ablate_context",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_ablate_context"
     },
     {
-      "architecture": "c4_full",
-      "architecture_label": "cycle-4 large (96/3/4/64)",
+      "architecture": "large_full",
+      "architecture_label": "large full (96/3/4/64)",
       "seed": 43,
       "model_config": {
         "d_model": 96,
@@ -368,12 +357,11 @@
         0.000375,
         0.1305625
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_c4_full",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed43_large_full"
     },
     {
-      "architecture": "c5_baseline",
-      "architecture_label": "cycle-5 baseline (64/4/1/10)",
+      "architecture": "small_baseline",
+      "architecture_label": "small baseline (64/4/1/10)",
       "seed": 44,
       "model_config": {
         "d_model": 64,
@@ -394,12 +382,11 @@
         0.0026625,
         0.5710875
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_c5_baseline",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_small_baseline"
     },
     {
-      "architecture": "width96_c5_style",
-      "architecture_label": "96-wide, cycle-5 depth/heads/context",
+      "architecture": "width96_small_style",
+      "architecture_label": "96-wide, small depth/heads/context",
       "seed": 44,
       "model_config": {
         "d_model": 96,
@@ -420,12 +407,11 @@
         0.0,
         1.0
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_width96_c5_style",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_width96_small_style"
     },
     {
       "architecture": "ablate_layers",
-      "architecture_label": "3 layers (cycle-4 depth, else cycle-5)",
+      "architecture_label": "3 layers (large depth, else small)",
       "seed": 44,
       "model_config": {
         "d_model": 64,
@@ -446,12 +432,11 @@
         6.25e-05,
         0.9999375
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_ablate_layers",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_ablate_layers"
     },
     {
       "architecture": "ablate_heads",
-      "architecture_label": "4 heads (cycle-4 heads, else cycle-5)",
+      "architecture_label": "4 heads (large head count, else small)",
       "seed": 44,
       "model_config": {
         "d_model": 64,
@@ -472,12 +457,11 @@
         0.0018,
         0.6120625
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_ablate_heads",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_ablate_heads"
     },
     {
       "architecture": "ablate_context",
-      "architecture_label": "context 64 (cycle-4 band, else cycle-5)",
+      "architecture_label": "context 64 (large band, else small)",
       "seed": 44,
       "model_config": {
         "d_model": 64,
@@ -498,12 +482,11 @@
         0.0,
         0.5544625
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_ablate_context",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_ablate_context"
     },
     {
-      "architecture": "c4_full",
-      "architecture_label": "cycle-4 large (96/3/4/64)",
+      "architecture": "large_full",
+      "architecture_label": "large full (96/3/4/64)",
       "seed": 44,
       "model_config": {
         "d_model": 96,
@@ -524,12 +507,11 @@
         0.0,
         0.9668625
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_c4_full",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed44_large_full"
     },
     {
-      "architecture": "c5_baseline",
-      "architecture_label": "cycle-5 baseline (64/4/1/10)",
+      "architecture": "small_baseline",
+      "architecture_label": "small baseline (64/4/1/10)",
       "seed": 45,
       "model_config": {
         "d_model": 64,
@@ -550,12 +532,11 @@
         0.0,
         0.9047125
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_c5_baseline",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_small_baseline"
     },
     {
-      "architecture": "width96_c5_style",
-      "architecture_label": "96-wide, cycle-5 depth/heads/context",
+      "architecture": "width96_small_style",
+      "architecture_label": "96-wide, small depth/heads/context",
       "seed": 45,
       "model_config": {
         "d_model": 96,
@@ -576,12 +557,11 @@
         0.0,
         0.0
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_width96_c5_style",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_width96_small_style"
     },
     {
       "architecture": "ablate_layers",
-      "architecture_label": "3 layers (cycle-4 depth, else cycle-5)",
+      "architecture_label": "3 layers (large depth, else small)",
       "seed": 45,
       "model_config": {
         "d_model": 64,
@@ -602,12 +582,11 @@
         0.7628875,
         0.2371125
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_ablate_layers",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_ablate_layers"
     },
     {
       "architecture": "ablate_heads",
-      "architecture_label": "4 heads (cycle-4 heads, else cycle-5)",
+      "architecture_label": "4 heads (large head count, else small)",
       "seed": 45,
       "model_config": {
         "d_model": 64,
@@ -628,12 +607,11 @@
         0.0,
         0.9104
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_ablate_heads",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_ablate_heads"
     },
     {
       "architecture": "ablate_context",
-      "architecture_label": "context 64 (cycle-4 band, else cycle-5)",
+      "architecture_label": "context 64 (large band, else small)",
       "seed": 45,
       "model_config": {
         "d_model": 64,
@@ -654,12 +632,11 @@
         0.0,
         0.904675
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_ablate_context",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_ablate_context"
     },
     {
-      "architecture": "c4_full",
-      "architecture_label": "cycle-4 large (96/3/4/64)",
+      "architecture": "large_full",
+      "architecture_label": "large full (96/3/4/64)",
       "seed": 45,
       "model_config": {
         "d_model": 96,
@@ -680,12 +657,11 @@
         0.5024375,
         0.4503375
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_c4_full",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed45_large_full"
     },
     {
-      "architecture": "c5_baseline",
-      "architecture_label": "cycle-5 baseline (64/4/1/10)",
+      "architecture": "small_baseline",
+      "architecture_label": "small baseline (64/4/1/10)",
       "seed": 46,
       "model_config": {
         "d_model": 64,
@@ -706,12 +682,11 @@
         0.0,
         1.0
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_c5_baseline",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_small_baseline"
     },
     {
-      "architecture": "width96_c5_style",
-      "architecture_label": "96-wide, cycle-5 depth/heads/context",
+      "architecture": "width96_small_style",
+      "architecture_label": "96-wide, small depth/heads/context",
       "seed": 46,
       "model_config": {
         "d_model": 96,
@@ -732,12 +707,11 @@
         0.32035,
         0.012325
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_width96_c5_style",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_width96_small_style"
     },
     {
       "architecture": "ablate_layers",
-      "architecture_label": "3 layers (cycle-4 depth, else cycle-5)",
+      "architecture_label": "3 layers (large depth, else small)",
       "seed": 46,
       "model_config": {
         "d_model": 64,
@@ -758,12 +732,11 @@
         0.1966125,
         0.36225
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_ablate_layers",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_ablate_layers"
     },
     {
       "architecture": "ablate_heads",
-      "architecture_label": "4 heads (cycle-4 heads, else cycle-5)",
+      "architecture_label": "4 heads (large head count, else small)",
       "seed": 46,
       "model_config": {
         "d_model": 64,
@@ -784,12 +757,11 @@
         0.0,
         1.0
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_ablate_heads",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_ablate_heads"
     },
     {
       "architecture": "ablate_context",
-      "architecture_label": "context 64 (cycle-4 band, else cycle-5)",
+      "architecture_label": "context 64 (large band, else small)",
       "seed": 46,
       "model_config": {
         "d_model": 64,
@@ -810,12 +782,11 @@
         0.0,
         1.0
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_ablate_context",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_ablate_context"
     },
     {
-      "architecture": "c4_full",
-      "architecture_label": "cycle-4 large (96/3/4/64)",
+      "architecture": "large_full",
+      "architecture_label": "large full (96/3/4/64)",
       "seed": 46,
       "model_config": {
         "d_model": 96,
@@ -836,13 +807,12 @@
         0.3384625,
         0.3435125
       ],
-      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_c4_full",
-      "task_variant": 2
+      "checkpoint": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_untrained_transformer_probe_ablation_2026_08/artifacts/init_ablation_seed46_large_full"
     }
   ],
   "summary": {
     "ablate_context": {
-      "label": "context 64 (cycle-4 band, else cycle-5)",
+      "label": "context 64 (large band, else small)",
       "n": 5,
       "mse_mean": 0.00631735009878123,
       "mse_sd": 0.0003626211780198694,
@@ -857,7 +827,7 @@
       }
     },
     "ablate_heads": {
-      "label": "4 heads (cycle-4 heads, else cycle-5)",
+      "label": "4 heads (large head count, else small)",
       "n": 5,
       "mse_mean": 0.0027552429305693613,
       "mse_sd": 0.0005542002282170114,
@@ -872,7 +842,7 @@
       }
     },
     "ablate_layers": {
-      "label": "3 layers (cycle-4 depth, else cycle-5)",
+      "label": "3 layers (large depth, else small)",
       "n": 5,
       "mse_mean": 0.003511739638611265,
       "mse_sd": 0.0010091484088239986,
@@ -886,8 +856,8 @@
         "46": 0.0028060538451769
       }
     },
-    "c4_full": {
-      "label": "cycle-4 large (96/3/4/64)",
+    "large_full": {
+      "label": "large full (96/3/4/64)",
       "n": 5,
       "mse_mean": 0.004281010398860882,
       "mse_sd": 0.0015605933057796847,
@@ -901,8 +871,8 @@
         "46": 0.0048476733260934286
       }
     },
-    "c5_baseline": {
-      "label": "cycle-5 baseline (64/4/1/10)",
+    "small_baseline": {
+      "label": "small baseline (64/4/1/10)",
       "n": 5,
       "mse_mean": 0.0032426353580747008,
       "mse_sd": 0.0004252611677735092,
@@ -916,8 +886,8 @@
         "46": 0.0026764820912697843
       }
     },
-    "width96_c5_style": {
-      "label": "96-wide, cycle-5 depth/heads/context",
+    "width96_small_style": {
+      "label": "96-wide, small depth/heads/context",
       "n": 5,
       "mse_mean": 0.00235560360684823,
       "mse_sd": 0.0007787152845520592,
@@ -931,6 +901,5 @@
         "46": 0.0033181089039764633
       }
     }
-  },
-  "task_variant": 2
+  }
 }

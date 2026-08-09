@@ -8,7 +8,6 @@ from pathlib import Path
 from experiments.mess3_untrained_transformer_probe_ablation_2026_08.shared import (
     ARCHITECTURE_SPECS,
     DEFAULT_SEEDS,
-    DEFAULT_TASK_VARIANT,
     ArchitectureSpec,
     run_ablation,
 )
@@ -33,7 +32,6 @@ def _select_specs(raw: str) -> tuple[ArchitectureSpec, ...]:
 def run(context: RunContext) -> dict:
     return run_ablation(
         context,
-        task_variant=DEFAULT_TASK_VARIANT,
         seeds=DEFAULT_SEEDS,
         specs=ARCHITECTURE_SPECS,
     )
@@ -41,12 +39,6 @@ def run(context: RunContext) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--task-variant",
-        type=int,
-        default=DEFAULT_TASK_VARIANT,
-        help="Fixed sticky-state HMM reward variant used for rollouts.",
-    )
     parser.add_argument(
         "--seeds",
         default=",".join(str(seed) for seed in DEFAULT_SEEDS),
@@ -78,7 +70,6 @@ def main() -> None:
     )
     payload = run_ablation(
         context,
-        task_variant=args.task_variant,
         seeds=_parse_int_list(args.seeds),
         specs=_select_specs(args.architectures),
     )

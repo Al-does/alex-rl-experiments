@@ -19,10 +19,9 @@ from experiments.mess3_reward_state_action_symmetry_cycle_5.shared import (
 from harness.context import RunContext
 
 
-# Fixed sticky-state HMM reward setting used only to instantiate rollouts.
-# The comparison is over untrained trunk geometry, not action-symmetry variants.
-DEFAULT_TASK_VARIANT = 2
 DEFAULT_SEEDS = (42, 43, 44, 45, 46)
+# Internal rollout env wiring only; not part of the ablation comparison.
+_ROLLOUT_ENV_VARIANT = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,16 +44,16 @@ class ArchitectureSpec:
 
 ARCHITECTURE_SPECS = (
     ArchitectureSpec(
-        key="c5_baseline",
-        label="cycle-5 baseline (64/4/1/10)",
+        key="small_baseline",
+        label="small baseline (64/4/1/10)",
         d_model=64,
         n_layers=4,
         n_heads=1,
         context_len=10,
     ),
     ArchitectureSpec(
-        key="width96_c5_style",
-        label="96-wide, cycle-5 depth/heads/context",
+        key="width96_small_style",
+        label="96-wide, small depth/heads/context",
         d_model=96,
         n_layers=4,
         n_heads=1,
@@ -62,7 +61,7 @@ ARCHITECTURE_SPECS = (
     ),
     ArchitectureSpec(
         key="ablate_layers",
-        label="3 layers (cycle-4 depth, else cycle-5)",
+        label="3 layers (large depth, else small)",
         d_model=64,
         n_layers=3,
         n_heads=1,
@@ -70,7 +69,7 @@ ARCHITECTURE_SPECS = (
     ),
     ArchitectureSpec(
         key="ablate_heads",
-        label="4 heads (cycle-4 heads, else cycle-5)",
+        label="4 heads (large head count, else small)",
         d_model=64,
         n_layers=4,
         n_heads=4,
@@ -78,15 +77,15 @@ ARCHITECTURE_SPECS = (
     ),
     ArchitectureSpec(
         key="ablate_context",
-        label="context 64 (cycle-4 band, else cycle-5)",
+        label="context 64 (large band, else small)",
         d_model=64,
         n_layers=4,
         n_heads=1,
         context_len=64,
     ),
     ArchitectureSpec(
-        key="c4_full",
-        label="cycle-4 large (96/3/4/64)",
+        key="large_full",
+        label="large full (96/3/4/64)",
         d_model=96,
         n_layers=3,
         n_heads=4,
@@ -108,14 +107,17 @@ def _save_initial_checkpoint(config, path: Path) -> Path:
 def _probe_init(
     context: RunContext,
     *,
-    task_variant: int,
     spec: ArchitectureSpec,
 ) -> dict[str, Any]:
     if context.seed is None:
         raise ValueError("init architecture ablation requires a resolved seed")
     model_config = spec.to_model_config()
     build_context = replace(context, smoke=True)
-    config = build_config(build_context, task_variant, model_config=model_config)
+    config = build_config(
+        build_context,
+        _ROLLOUT_ENV_VARIANT,
+        model_config=model_config,
+    )
     checkpoint_dir = (
         context.artifacts_dir.resolve()
         / f"init_ablation_seed{context.seed}_{spec.key}"
@@ -133,7 +135,6 @@ def _probe_init(
     return {
         "architecture": spec.key,
         "architecture_label": spec.label,
-        "task_variant": task_variant,
         "seed": context.seed,
         "model_config": model_config,
         "mse": float(metrics["mse"]),
@@ -179,7 +180,6 @@ def _summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
 def run_ablation(
     context: RunContext,
     *,
-    task_variant: int = DEFAULT_TASK_VARIANT,
     seeds: tuple[int, ...] = DEFAULT_SEEDS,
     specs: tuple[ArchitectureSpec, ...] = ARCHITECTURE_SPECS,
 ) -> dict[str, Any]:
@@ -192,13 +192,10 @@ def run_ablation(
                 f"({'smoke' if context.smoke else 'full'})",
                 flush=True,
             )
-            rows.append(
-                _probe_init(row_context, task_variant=task_variant, spec=spec)
-            )
+            rows.append(_probe_init(row_context, spec=spec))
     payload = {
         "study": "mess3_untrained_transformer_probe_ablation_2026_08",
         "smoke": context.smoke,
-        "task_variant": task_variant,
         "seeds": list(seeds),
         "architectures": [asdict(spec) for spec in specs],
         "rows": rows,

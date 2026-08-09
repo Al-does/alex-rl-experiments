@@ -17,27 +17,27 @@ DEFAULT_SOURCE = HERE / "results" / "init_architecture_ablation.json"
 DEFAULT_OUTPUT = HERE / "results" / "init_ablation_mse_by_architecture.png"
 
 DISPLAY_ORDER = (
-    "c5_baseline",
-    "width96_c5_style",
+    "small_baseline",
+    "width96_small_style",
     "ablate_heads",
     "ablate_layers",
-    "c4_full",
+    "large_full",
     "ablate_context",
 )
 SHORT_LABELS = {
-    "c5_baseline": "c5 baseline\n64/4/1/10",
-    "width96_c5_style": "96-wide\nc5-style",
+    "small_baseline": "small baseline\n64/4/1/10",
+    "width96_small_style": "96-wide\nsmall-style",
     "ablate_heads": "+heads\n(4 vs 1)",
     "ablate_layers": "−layers\n(3 vs 4)",
     "ablate_context": "+context\n(64 vs 10)",
-    "c4_full": "c4 full\n96/3/4/64",
+    "large_full": "large full\n96/3/4/64",
 }
 
 
 def plot(source: Path, output: Path) -> None:
     payload = json.loads(source.read_text())
     summary = payload["summary"]
-    baseline_mse = summary["c5_baseline"]["mse_mean"]
+    baseline_mse = summary["small_baseline"]["mse_mean"]
 
     labels: list[str] = []
     means: list[float] = []
@@ -49,7 +49,7 @@ def plot(source: Path, output: Path) -> None:
         labels.append(SHORT_LABELS[key])
         means.append(mean)
         sds.append(row["mse_sd"])
-        if key == "c5_baseline":
+        if key == "small_baseline":
             colors.append("#4c72b0")
         elif mean < baseline_mse:
             colors.append("#c44e52")
@@ -73,14 +73,14 @@ def plot(source: Path, output: Path) -> None:
         color="0.35",
         linestyle="--",
         linewidth=1.0,
-        label="c5 baseline mean",
+        label="small baseline mean",
     )
     axis.set_xticks(x)
     axis.set_xticklabels(labels, fontsize=9)
     axis.set_ylabel("Held-out affine-probe MSE at init (lower = more spurious fit)")
     axis.set_title(
         "Untrained belief-probe MSE by transformer architecture\n"
-        f"5 model seeds, sticky-state task variant 2, 60k/80k rollout protocol"
+        "5 model seeds, 60k/80k held-out rollout protocol"
     )
     for index, mean in enumerate(means):
         if index == 0:
