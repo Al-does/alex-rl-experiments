@@ -144,9 +144,10 @@ Otherwise the ranking by mean is stable.
    the probe before training precisely because the affine decoder has more degrees
    of freedom — not because belief geometry is already present.
 
-2. **Prefer shorter context bands when init probe numbers must be conservative,**
+2. **Prefer longer context bands when init probe numbers must be conservative,**
    if architectural choice is still open. Context 64 nearly doubles init MSE
-   relative to baseline, making spurious wins harder.
+   relative to the small baseline, making spurious low-MSE wins harder. The
+   default small band (10) is more permissive to the probe, not more conservative.
 
 3. **Cross-architecture init comparisons confound width with context and depth.**
    The small-vs-large gap is explained here as opposing effects, not a simple

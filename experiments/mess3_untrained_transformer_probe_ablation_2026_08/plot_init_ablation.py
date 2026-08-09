@@ -21,16 +21,16 @@ DISPLAY_ORDER = (
     "width96_small_style",
     "ablate_heads",
     "ablate_layers",
-    "large_full",
     "ablate_context",
+    "large_full",
 )
 SHORT_LABELS = {
     "small_baseline": "small baseline\n64/4/1/10",
     "width96_small_style": "96-wide\nsmall-style",
-    "ablate_heads": "+heads\n(4 vs 1)",
-    "ablate_layers": "−layers\n(3 vs 4)",
-    "ablate_context": "+context\n(64 vs 10)",
-    "large_full": "large full\n96/3/4/64",
+    "ablate_heads": "more heads\n(4 vs 1)",
+    "ablate_layers": "fewer layers\n(3 vs 4)",
+    "ablate_context": "longer context\n(64 vs 10)",
+    "large_full": "all interventions\n96/3/4/64",
 }
 
 
