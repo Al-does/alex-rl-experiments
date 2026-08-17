@@ -199,6 +199,7 @@ def _probe_data(
         states=zeros,
         actions=zeros.astype(np.float64),
         rewards=zeros.astype(np.float64),
+        observations=None,
     )
 
 

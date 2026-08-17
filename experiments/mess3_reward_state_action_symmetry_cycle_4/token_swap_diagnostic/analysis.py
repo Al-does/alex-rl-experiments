@@ -183,8 +183,13 @@ def paired_token_swap_activations(
 
     if not module.is_stateful() or not hasattr(module, "sequence_lookback"):
         raise TypeError("token-swap diagnostic requires a stateful transformer")
+    if data.observations is None:
+        raise ValueError(
+            "token-swap replay requires ProbeData.observations; "
+            "collect with store_observations=True"
+        )
     segments = _contiguous_segments(data)
-    observations = _reconstruct_observations(data, segments)
+    observations = np.asarray(data.observations, dtype=np.float32)
     max_length = max(map(len, segments))
     padded = np.zeros(
         (len(segments), max_length, observations.shape[1]),
@@ -395,11 +400,13 @@ def probe_checkpoint(
         train = collect_probe_data(
             n_steps=train_steps,
             seed=streams["probe_train"],
+            store_observations=True,
             **common,
         )
         test = collect_probe_data(
             n_steps=test_steps,
             seed=streams["probe_test"],
+            store_observations=True,
             **common,
         )
         weight, bias = fit_affine_probe(

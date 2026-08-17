@@ -263,7 +263,7 @@ def test_paired_token_swap_replay_reconstructs_rollout_activations():
         **importlib.import_module(
             "experiments.mess3_reward_state_action_symmetry_cycle_4.shared"
         ).environment_config(2),
-        "episode_length": 8,
+        "episode_length": 128,
         "randomize_first_episode_length": False,
         "diagnostics": {
             "state": True,
@@ -299,7 +299,8 @@ def test_paired_token_swap_replay_reconstructs_rollout_activations():
         seed=42,
         policy_mode="random",
         n_envs=2,
-        warmup=0,
+        warmup=64,
+        store_observations=True,
         initial_belief=target[0],
         action_outcome_operator=target[1],
         initial_outcome_operator=target[2],
