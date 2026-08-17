@@ -35,6 +35,7 @@ class ProbeData:
     states: np.ndarray
     actions: np.ndarray
     rewards: np.ndarray
+    observations: np.ndarray | None = None
 
 
 def _local_torch_generator(
@@ -164,6 +165,7 @@ def collect_probe_data(
     action_outcome_operator: ActionOutcomeOperator | None = None,
     initial_outcome_operator: ActionOutcomeOperator | None = None,
     observation_transform: Callable[[np.ndarray], np.ndarray] | None = None,
+    store_observations: bool = False,
 ) -> ProbeData:
     """Collect aligned activations and public MESS3 diagnostics.
 
@@ -176,6 +178,10 @@ def collect_probe_data(
     if (initial_belief is None) != (action_outcome_operator is None):
         raise ValueError(
             "initial_belief and action_outcome_operator must be provided together"
+        )
+    if store_observations and observation_transform is not None:
+        raise ValueError(
+            "store_observations is incompatible with observation_transform"
         )
     if initial_outcome_operator is not None and initial_belief is None:
         raise ValueError(
@@ -353,6 +359,7 @@ def collect_probe_data(
         initial_state=initial_state if stateful else None,
         reset_state=reset_state if stateful else None,
         warmup=warmup,
+        store_observations=store_observations,
     )
 
     return ProbeData(
@@ -390,6 +397,7 @@ def collect_probe_data(
         ),
         actions=np.asarray(collected.actions, dtype=np.float64),
         rewards=np.asarray(collected.rewards, dtype=np.float64),
+        observations=collected.observations,
     )
 
 
