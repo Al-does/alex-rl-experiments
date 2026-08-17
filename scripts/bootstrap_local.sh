@@ -6,6 +6,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PARENT="$(dirname "$ROOT")"
 LIB_LINK="$PARENT/rl-harness"
 LIB_SPACED="$PARENT/RL Harness"
+LIB_HYPHEN="$PARENT/RL-Harness"
 LIB_CLONE="$PARENT/rl-harness-src"
 LIBRARY_URL="${RL_HARNESS_URL:-https://github.com/Al-does/RL-Harness.git}"
 
@@ -40,6 +41,9 @@ if [ -d "$LIB_LINK/.git" ] || [ -L "$LIB_LINK" ]; then
 elif [ -d "$LIB_SPACED/.git" ]; then
   echo "Linking $LIB_LINK -> RL Harness"
   ln -s "RL Harness" "$LIB_LINK"
+elif [ -d "$LIB_HYPHEN/.git" ]; then
+  echo "Linking $LIB_LINK -> RL-Harness"
+  ln -s "RL-Harness" "$LIB_LINK"
 elif [ -d "$LIB_CLONE/.git" ]; then
   echo "Linking $LIB_LINK -> rl-harness-src"
   ln -s "rl-harness-src" "$LIB_LINK"
