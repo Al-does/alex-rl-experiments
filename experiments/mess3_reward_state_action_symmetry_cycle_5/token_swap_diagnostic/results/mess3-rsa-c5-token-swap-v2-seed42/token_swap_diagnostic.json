@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "study": "state_0_1_token_swap_diagnostic",
+  "cycle": 5,
+  "variant": 2,
+  "seed": 42,
+  "checkpoint": "/root/work/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_5/token_swap_diagnostic/artifacts/mess3-rsa-c5-token-swap-v2-seed42/source_checkpoint_bundle/final_checkpoint",
+  "hypothesis": "A state-0/state-1-equivariant belief representation should exchange decoded b0/b1, preserve decoded b2, and retain factual probe MSE.",
+  "intervention": "Exchange token-0/token-1 channels at every position in each held-out history while holding its factual previous-action sequence fixed.",
+  "target_intervention": "exchange exact Bayesian b0/b1; preserve b2",
+  "decoder": "frozen factual held-out affine least-squares probe",
+  "representation": "post_final_layer_norm",
+  "sampling_distribution": "greedy_process_weighted_factual_rollout",
+  "policy_feedback": "disabled_during_paired_history_replay",
+  "train_steps": 60000,
+  "test_steps": 80000,
+  "n_evaluated": 76069,
+  "n_envs": 16,
+  "warmup": 64,
+  "probe_ridge": 1e-06,
+  "bootstrap_n": 1000,
+  "bootstrap_cluster": "environment_episode",
+  "target_consistency_max_abs": 3.3306690738754696e-16,
+  "activation_reconstruction_max_abs": 2.9802322387695312e-06,
+  "metrics": {
+    "factual": {
+      "mse": 0.001183817183879047,
+      "target_variance": 0.13663986106896434,
+      "global_mse_ratio": 0.008663776255462932
+    },
+    "counterfactual": {
+      "mse": 0.001200275384955535,
+      "target_variance": 0.13663986106896434,
+      "global_mse_ratio": 0.008784225741782163
+    },
+    "counterfactual_minus_factual_mse": 1.6458201076487936e-05,
+    "counterfactual_over_factual_mse": 1.0139026543123482,
+    "equivariance_mse": 0.001688569626339086,
+    "state_2_invariance_rmse": 0.017330137600599253,
+    "antisymmetric_sign_reversal_rmse": 0.09607505789885014,
+    "activation_shift_rms": 0.09083071156770414,
+    "shift_mse": 0.0029574433624183116,
+    "shift_cosine_mean": 0.7730441403698823,
+    "shift_norm_ratio_mean": 1980.5888477259598,
+    "decoded_shift_rms": 0.524301246948664,
+    "exact_shift_rms": 0.5294150204988718,
+    "n_nonzero": 76069,
+    "counterfactual_minus_factual_mse_ci_95": [
+      -5.78543332934573e-06,
+      3.8778211324338264e-05
+    ]
+  },
+  "interpretation": "This tests a controlled representational response, not closed-loop policy use: policy actions and environment transitions are not rerun after the token intervention."
+}
