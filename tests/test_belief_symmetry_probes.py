@@ -27,6 +27,13 @@ from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_prob
     _final_checkpoint_name,
     _select_source_base,
 )
+from experiments.mess3_reward_state_action_symmetry_cycle_4.token_swap_diagnostic.analysis import (
+    _validate_intervention_environment,
+    evaluate_token_swap,
+    paired_token_swap_activations,
+    swap_state_0_1_tokens,
+)
+from learners.models import TransformerModel
 
 
 def _environment(cycle: int, variant: int) -> HMMEnv:
@@ -196,6 +203,116 @@ def test_scalar_targets_support_exact_affine_fit():
         np.testing.assert_allclose(prediction, target, atol=1e-7)
 
 
+def test_token_swap_exchanges_only_first_two_observation_channels():
+    observations = np.asarray(
+        [[1, 0, 0, 0, 1, 0], [0, 1, 0, 0, 0, 1]],
+        dtype=np.float32,
+    )
+
+    swapped = swap_state_0_1_tokens(observations)
+
+    np.testing.assert_array_equal(
+        swapped,
+        [[0, 1, 0, 0, 1, 0], [1, 0, 0, 0, 0, 1]],
+    )
+    np.testing.assert_array_equal(
+        observations,
+        [[1, 0, 0, 0, 1, 0], [0, 1, 0, 0, 0, 1]],
+    )
+
+
+def test_equivariant_decoding_preserves_token_swap_mse():
+    targets = np.asarray(
+        [[0.7, 0.2, 0.1], [0.1, 0.4, 0.5], [0.25, 0.6, 0.15]],
+        dtype=np.float64,
+    )
+    residual = np.asarray([0.02, -0.01, 0.03])
+    factual = targets + residual
+    swapped = factual[:, [1, 0, 2]]
+
+    metrics = evaluate_token_swap(
+        factual_activations=factual,
+        swapped_activations=swapped,
+        factual_targets=targets,
+        weight=np.eye(3),
+        bias=np.zeros(3),
+    )
+
+    assert metrics["counterfactual_minus_factual_mse"] == pytest.approx(0.0)
+    assert metrics["counterfactual_over_factual_mse"] == pytest.approx(1.0)
+    assert metrics["equivariance_mse"] == pytest.approx(0.0)
+    assert metrics["state_2_invariance_rmse"] == pytest.approx(0.0)
+    assert metrics["antisymmetric_sign_reversal_rmse"] == pytest.approx(0.0)
+
+
+@pytest.mark.parametrize("cycle", (4, 5))
+def test_variant_2_environment_supports_exact_token_swap_counterfactual(cycle):
+    environment = _environment(cycle, 2)
+    try:
+        _validate_intervention_environment(environment, cycle=cycle)
+    finally:
+        environment.close()
+
+
+def test_paired_token_swap_replay_reconstructs_rollout_activations():
+    config = {
+        **importlib.import_module(
+            "experiments.mess3_reward_state_action_symmetry_cycle_4.shared"
+        ).environment_config(2),
+        "episode_length": 8,
+        "randomize_first_episode_length": False,
+        "diagnostics": {
+            "state": True,
+            "belief": True,
+            "tokens": True,
+            "transitions": True,
+        },
+    }
+
+    def make_environment():
+        return HMMEnv(config)
+
+    environment = make_environment()
+    try:
+        target = make_transducer_target(environment)
+        module = TransformerModel(
+            observation_space=environment.observation_space,
+            action_space=environment.action_space,
+            model_config={
+                "context_len": 2,
+                "d_model": 24,
+                "n_layers": 1,
+                "n_heads": 3,
+                "max_seq_len": 8,
+            },
+        )
+    finally:
+        environment.close()
+    data = collect_probe_data(
+        module,
+        make_environment,
+        n_steps=40,
+        seed=42,
+        policy_mode="random",
+        n_envs=2,
+        warmup=0,
+        initial_belief=target[0],
+        action_outcome_operator=target[1],
+        initial_outcome_operator=target[2],
+    )
+
+    factual, swapped, indices, error = paired_token_swap_activations(
+        module,
+        data,
+        device="cpu",
+    )
+
+    assert len(indices) > 0
+    assert error < 2e-5
+    np.testing.assert_allclose(factual, data.activations[indices], atol=2e-5)
+    assert np.sqrt(np.mean(np.square(swapped - factual))) > 0.0
+
+
 def test_cycle_five_checkpoint_import_aliases_resolve_renamed_task():
     _install_checkpoint_import_aliases(5)
     old_task = importlib.import_module(
@@ -293,3 +410,14 @@ def test_all_probe_leaves_import_and_encode_cycle_variant(cycle, variant):
     assert module.VARIANT == variant
     assert callable(module.run)
     assert Path(module.__file__).name == "experiment.py"
+
+
+@pytest.mark.parametrize("cycle", (4, 5))
+def test_token_swap_diagnostic_leaves_import_and_encode_cycle_variant(cycle):
+    module = importlib.import_module(
+        f"experiments.mess3_reward_state_action_symmetry_cycle_{cycle}."
+        "token_swap_diagnostic.experiment"
+    )
+    assert module.CYCLE == cycle
+    assert module.VARIANT == 2
+    assert callable(module.run)
