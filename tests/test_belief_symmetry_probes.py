@@ -11,6 +11,10 @@ import pytest
 
 from analysis.probes import fit_affine_probe, predictive_belief_update, probe_predict
 from envs.hmm import HMMEnv
+from experiments.mess3_belief_geometry_2026_07.probe import (
+    collect_probe_data,
+    make_transducer_target,
+)
 from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_probes.analysis import (
     RIDGE,
     _coarse_spec,
