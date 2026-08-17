@@ -59,6 +59,12 @@ fi
 
 ensure_local_ssh
 
+if ! command -v uv >/dev/null 2>&1; then
+  echo "Installing uv (required for dependency sync)..."
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  export PATH="$HOME/.local/bin:${PATH:-}"
+fi
+
 cd "$ROOT"
 if [ "${USE_RL_HYPHEN_PATH:-}" = 1 ]; then
   tmp="$(mktemp)"
