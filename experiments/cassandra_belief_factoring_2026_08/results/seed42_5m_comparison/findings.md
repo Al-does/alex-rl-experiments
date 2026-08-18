@@ -244,4 +244,3 @@ optimization remains a plausible contributor.
   targeted transition semantics.
 - Compare PPO directly with an exact-belief policy and record regret against
   the same executable reference.
-
