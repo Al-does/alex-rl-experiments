@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
@@ -30,8 +32,12 @@ from experiments.cassandra_belief_factoring_2026_08.probe import (
 )
 from experiments.cassandra_belief_factoring_2026_08.shared import (
     SMOKE_BATCH_SIZE,
+    _last_reported_return,
+    _save_log_spaced_checkpoint,
     build_config,
+    checkpoint_records,
     log_spaced_records,
+    training_curve,
 )
 from experiments.cassandra_belief_factoring_2026_08.targeted_ppo.experiment import (
     build_config as build_targeted_config,
@@ -273,3 +279,98 @@ def test_log_schedule_keeps_powers_of_two_and_final():
         4,
         6,
     ]
+
+
+def test_training_curve_preserves_null_windows_and_finds_last_return():
+    rows = [
+        {
+            "training_iteration": 1,
+            "env_runners/num_env_steps_sampled_lifetime": 2_048,
+            "env_runners/num_episodes": 2,
+            "env_runners/episode_return_mean": 3.5,
+            "env_runners/episode_len_mean": 1_000,
+        },
+        {
+            "training_iteration": 2,
+            "env_runners/num_env_steps_sampled_lifetime": 4_096,
+            "env_runners/num_episodes": 0,
+            "env_runners/episode_return_mean": np.nan,
+            "env_runners/episode_len_mean": np.nan,
+        },
+    ]
+    dataframe = SimpleNamespace(
+        iterrows=lambda: [
+            (index, SimpleNamespace(to_dict=lambda row=row: row))
+            for index, row in enumerate(rows)
+        ]
+    )
+
+    curve = training_curve(SimpleNamespace(metrics_dataframe=dataframe))
+
+    assert len(curve) == 2
+    assert curve[-1]["episode_return_mean"] is None
+    assert _last_reported_return(curve) == curve[0]
+
+
+def test_log_spaced_callback_saves_only_power_of_two_iterations(tmp_path):
+    saved = []
+
+    class Algorithm:
+        def save_to_path(self, path):
+            Path(path).mkdir(parents=True)
+            saved.append(path)
+            return path
+
+    for iteration in (1, 2, 3, 4):
+        _save_log_spaced_checkpoint(
+            algorithm=Algorithm(),
+            result={
+                "training_iteration": iteration,
+                "env_runners": {
+                    "num_env_steps_sampled_lifetime": iteration * 2_048
+                },
+            },
+            checkpoint_root=str(tmp_path),
+        )
+
+    index = json.loads((tmp_path / "index.json").read_text())
+    assert [row["training_iteration"] for row in index["checkpoints"]] == [
+        1,
+        2,
+        4,
+    ]
+    assert len(saved) == 3
+
+
+def test_checkpoint_records_combine_log_spaced_and_final(tmp_path):
+    root = tmp_path / "checkpoints"
+    first = root / "iteration_000001_steps_000002048"
+    first.mkdir(parents=True)
+    (root / "index.json").write_text(
+        json.dumps(
+            {
+                "checkpoints": [
+                    {
+                        "path": str(first),
+                        "checkpoint_name": first.name,
+                        "training_iteration": 1,
+                        "agent_steps": 2_048,
+                    }
+                ]
+            }
+        )
+    )
+    final = SimpleNamespace(path=str(tmp_path / "checkpoint_final"))
+    result = SimpleNamespace(
+        best_checkpoints=[],
+        checkpoint=final,
+        metrics={
+            "training_iteration": 3,
+            "env_runners/num_env_steps_sampled_lifetime": 6_144,
+        },
+    )
+
+    records = checkpoint_records(result, checkpoint_root=root)
+
+    assert [row["training_iteration"] for row in records] == [1, 3]
+    assert records[-1]["checkpoint_path"] == Path(final.path)
