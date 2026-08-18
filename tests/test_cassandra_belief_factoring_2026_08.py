@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import numpy as np
+import torch
 
 from envs.cassandra_machine import (
     N_COMPONENTS,
@@ -20,7 +21,10 @@ from experiments.cassandra_belief_factoring_2026_08.environment import (
     OBSERVATION_DIM,
     CassandraActionObservationEnv,
 )
-from experiments.cassandra_belief_factoring_2026_08.probe import belief_targets
+from experiments.cassandra_belief_factoring_2026_08.probe import (
+    belief_targets,
+    collect_probe_data,
+)
 from experiments.cassandra_belief_factoring_2026_08.shared import (
     SMOKE_BATCH_SIZE,
     build_config,
@@ -28,6 +32,7 @@ from experiments.cassandra_belief_factoring_2026_08.shared import (
 )
 from harness.context import RunContext
 from harness.hardware import PROFILES
+from learners.models import TransformerModel
 
 
 def test_history_observation_exposes_symbol_and_preceding_action():
@@ -90,6 +95,63 @@ def test_pca_and_component_subspaces_recover_known_factored_geometry():
     assert subspaces["component_ranks"] == [3, 3, 3, 3]
     assert subspaces["union_rank"] == 12
     assert subspaces["mean_pairwise_overlap"] < 1e-6
+
+
+def test_probe_histories_and_targets_are_checkpoint_independent():
+    config = {"episode_length": 12, "diagnostics": True}
+
+    def make_environment():
+        return CassandraActionObservationEnv(config)
+
+    environment = make_environment()
+    try:
+        spaces = (environment.observation_space, environment.action_space)
+    finally:
+        environment.close()
+    model_config = {
+        "context_len": 4,
+        "d_model": 24,
+        "n_layers": 1,
+        "n_heads": 3,
+        "max_seq_len": 4,
+    }
+    torch.manual_seed(1)
+    first_module = TransformerModel(
+        observation_space=spaces[0],
+        action_space=spaces[1],
+        model_config=model_config,
+    )
+    torch.manual_seed(2)
+    second_module = TransformerModel(
+        observation_space=spaces[0],
+        action_space=spaces[1],
+        model_config=model_config,
+    )
+
+    first = collect_probe_data(
+        first_module,
+        make_environment,
+        n_steps=32,
+        seed=42,
+        n_envs=2,
+        warmup=1,
+    )
+    second = collect_probe_data(
+        second_module,
+        make_environment,
+        n_steps=32,
+        seed=42,
+        n_envs=2,
+        warmup=1,
+    )
+
+    np.testing.assert_array_equal(first.actions, second.actions)
+    np.testing.assert_array_equal(first.observations, second.observations)
+    for name in first.targets:
+        np.testing.assert_allclose(first.targets[name], second.targets[name])
+    assert first.marginal_consistency_max_abs < 1e-12
+    assert second.marginal_consistency_max_abs < 1e-12
+    assert not np.allclose(first.activations, second.activations)
 
 
 def test_smoke_recipe_builds_fresh_canonical_configs(tmp_path):
