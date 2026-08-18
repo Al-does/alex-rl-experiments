@@ -12,7 +12,7 @@ from ray import tune
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
-from envs.cassandra_machine import DISCOUNT
+from envs.cassandra_machine import DISCOUNT, action_names
 from experiments.cassandra_belief_factoring_2026_08.analysis import (
     ProbeResult,
     plot_probe_trajectory,
@@ -44,11 +44,15 @@ MODEL_CONFIG = TransformerModelConfig(
 ).to_dict()
 
 
-def environment_config() -> dict[str, Any]:
-    """Return the canonical hidden-symbol task with public diagnostics off."""
+def environment_config(
+    *,
+    action_scope: str = "global",
+) -> dict[str, Any]:
+    """Return the hidden-symbol task with public diagnostics off."""
 
     return {
         "episode_length": EPISODE_LENGTH,
+        "action_scope": action_scope,
         "diagnostics": False,
     }
 
@@ -75,7 +79,11 @@ def _apply_runtime_resources(config: PPOConfig, context: RunContext) -> PPOConfi
     )
 
 
-def build_config(context: RunContext) -> PPOConfig:
+def build_config(
+    context: RunContext,
+    *,
+    action_scope: str = "global",
+) -> PPOConfig:
     """Build a fresh transformer PPO configuration."""
 
     batch_size = SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
@@ -83,7 +91,7 @@ def build_config(context: RunContext) -> PPOConfig:
         PPOConfig()
         .environment(
             CassandraActionObservationEnv,
-            env_config=environment_config(),
+            env_config=environment_config(action_scope=action_scope),
         )
         .framework(
             "torch",
@@ -251,24 +259,30 @@ def _training_change(
     }
 
 
-def run_condition(context: RunContext) -> dict[str, Any]:
+def run_condition(
+    context: RunContext,
+    *,
+    action_scope: str = "global",
+    condition: str = "global_actions_transformer_ppo",
+    hypothesis: str = (
+        "Global actions create pressure for a coarse, permutation-invariant "
+        "machine representation rather than separate labeled component "
+        "beliefs."
+    ),
+) -> dict[str, Any]:
     """Train PPO and probe initialization plus log-spaced checkpoints."""
 
     if context.seed is None:
         raise ValueError("Cassandra belief factoring requires a resolved seed")
-    condition = "global_actions_transformer_ppo"
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
+    action_count = len(action_names(action_scope))
     outputs.write_json(
         "resolved_recipe.json",
         {
             "condition": condition,
-            "hypothesis": (
-                "Global actions create pressure for a coarse, "
-                "permutation-invariant machine representation rather than "
-                "separate labeled component beliefs."
-            ),
+            "hypothesis": hypothesis,
             "primary_comparison": (
                 "trained-minus-initialization decodability of aggregate belief "
                 "versus identity-specific component residuals"
@@ -277,10 +291,10 @@ def run_condition(context: RunContext) -> dict[str, Any]:
             "gamma": DISCOUNT,
             "lambda": 0.95,
             "entropy_coeff": ENTROPY_COEFF,
-            "environment": environment_config(),
+            "environment": environment_config(action_scope=action_scope),
             "policy_observation": (
-                "16-way symbol one-hot plus previous 4-way action one-hot; "
-                "no belief, hidden state, or reward"
+                f"16-way symbol one-hot plus previous {action_count}-way "
+                "action one-hot; no belief, hidden state, or reward"
             ),
             "model_config": MODEL_CONFIG,
             "total_env_steps": target_steps,
@@ -301,7 +315,7 @@ def run_condition(context: RunContext) -> dict[str, Any]:
         },
     )
 
-    config = build_config(context)
+    config = build_config(context, action_scope=action_scope)
     initial_checkpoint = _save_initial_checkpoint(
         config,
         context.artifacts_dir / "initial_checkpoint",

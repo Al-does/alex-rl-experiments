@@ -20,6 +20,11 @@ belief has 255 degrees of freedom; concatenated component marginals have 12.
 - Reward is not included in the model input because the environment's public
   belief diagnostic does not condition on reward.
 - Canonical global `operate`, `inspect`, `repair`, and `replace` actions.
+- Optional targeted condition with `operate`, `inspect`, four component repair
+  actions, and four component replacement actions. Targeted repair costs
+  `0.75` and improves a bad or fair component one level with probability
+  `0.8`; targeted replacement costs `3.75` and deterministically restores its
+  component to good.
 - Canonical discount `0.999`.
 
 The transformer never receives exact belief, factored belief, or hidden state.
@@ -42,6 +47,11 @@ practice:
 The fixed behavior policy uses probabilities `(0.68, 0.20, 0.08, 0.04)` for
 operate, inspect, repair, and replace. It emphasizes natural degradation while
 still visiting every intervention.
+
+For the targeted condition, the aggregate repair and replacement mass is split
+uniformly across component identities: each repair has probability `0.02` and
+each replacement has probability `0.01`. This preserves the same aggregate
+operate/inspect/repair/replace frequencies across action scopes.
 
 ## Targets
 

@@ -22,7 +22,7 @@ from analysis.probes import (
     probe_predict,
     r2_score,
 )
-from envs.cassandra_machine import N_COMPONENTS, N_CONDITIONS
+from envs.cassandra_machine import N_COMPONENTS, N_CONDITIONS, N_OBSERVATIONS
 from experiments.cassandra_belief_factoring_2026_08.probe import (
     CassandraProbeData,
     collect_probe_data,
@@ -64,7 +64,7 @@ TARGET_DESCRIPTIONS = {
         "Posterior probability that the next operate action emits pass."
     ),
     "expected_action_reward": (
-        "Posterior expected immediate reward for all four actions."
+        "Posterior expected immediate reward for every available action."
     ),
     "broken_count_distribution": (
         "Posterior distribution over the number of broken components."
@@ -210,15 +210,18 @@ def factor_subspace_geometry(
 
 
 def _observation_groups(observations: np.ndarray) -> np.ndarray:
-    symbols = np.asarray(observations[:, :16]).argmax(axis=1)
-    action_features = np.asarray(observations[:, 16:20])
+    symbols = np.asarray(
+        observations[:, :N_OBSERVATIONS]
+    ).argmax(axis=1)
+    action_features = np.asarray(observations[:, N_OBSERVATIONS:])
+    action_count = action_features.shape[1]
     has_previous_action = action_features.sum(axis=1) > 0.5
     previous_actions = np.where(
         has_previous_action,
         action_features.argmax(axis=1) + 1,
         0,
     )
-    return symbols * 5 + previous_actions
+    return symbols * (action_count + 1) + previous_actions
 
 
 def _fit_target(
@@ -301,6 +304,7 @@ def probe_checkpoint(
         env_class = algorithm.config.env
         env_config = dict(algorithm.config.env_config)
         env_config["diagnostics"] = True
+        action_scope = str(env_config.get("action_scope", "global"))
 
         def make_environment():
             return env_class(env_config)
@@ -311,6 +315,7 @@ def probe_checkpoint(
             "n_envs": N_ENVS,
             "device": _device(context),
             "warmup": warmup,
+            "action_scope": action_scope,
         }
         train = collect_probe_data(
             n_steps=train_steps,
@@ -395,7 +400,7 @@ def probe_checkpoint(
     }
     action_counts = np.bincount(
         test.actions.reshape(-1),
-        minlength=4,
+        minlength=test.observations.shape[1] - N_OBSERVATIONS,
     )
     metrics = {
         "condition": condition,
@@ -405,7 +410,10 @@ def probe_checkpoint(
         "probe_ridge": PROBE_RIDGE,
         "representation": "pre_final_layer_norm_decision_token",
         "sampling_distribution": "fixed_checkpoint_independent_behavior_policy",
-        "policy_input": "current_symbol_one_hot_plus_previous_action_one_hot",
+        "policy_input": (
+            "current_symbol_one_hot_plus_previous_action_one_hot"
+        ),
+        "action_scope": action_scope,
         "reward_in_policy_input": False,
         "train_steps": train_steps,
         "test_steps": test_steps,

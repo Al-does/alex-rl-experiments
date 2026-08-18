@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 import torch
 
 from envs.cassandra_machine import (
@@ -12,6 +13,7 @@ from envs.cassandra_machine import (
     N_CONDITIONS,
     N_STATES,
     Action,
+    TargetedAction,
 )
 from experiments.cassandra_belief_factoring_2026_08.analysis import (
     factor_subspace_geometry,
@@ -19,6 +21,7 @@ from experiments.cassandra_belief_factoring_2026_08.analysis import (
 )
 from experiments.cassandra_belief_factoring_2026_08.environment import (
     OBSERVATION_DIM,
+    TARGETED_OBSERVATION_DIM,
     CassandraActionObservationEnv,
 )
 from experiments.cassandra_belief_factoring_2026_08.probe import (
@@ -29,6 +32,9 @@ from experiments.cassandra_belief_factoring_2026_08.shared import (
     SMOKE_BATCH_SIZE,
     build_config,
     log_spaced_records,
+)
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo.experiment import (
+    build_config as build_targeted_config,
 )
 from harness.context import RunContext
 from harness.hardware import PROFILES
@@ -57,6 +63,35 @@ def test_history_observation_exposes_symbol_and_preceding_action():
         environment.close()
 
 
+def test_targeted_history_observation_exposes_ten_action_features():
+    environment = CassandraActionObservationEnv(
+        {
+            "action_scope": "targeted",
+            "episode_length": 3,
+            "diagnostics": True,
+        }
+    )
+    try:
+        observation, _ = environment.reset(seed=42)
+        assert observation.shape == (TARGETED_OBSERVATION_DIM,)
+        assert observation[16:].sum() == 0.0
+
+        next_observation, reward, _, _, info = environment.step(
+            TargetedAction.REPLACE_COMPONENT_3
+        )
+        assert reward == -3.75
+        assert next_observation[16:].sum() == 1.0
+        assert (
+            next_observation[
+                16 + int(TargetedAction.REPLACE_COMPONENT_3)
+            ]
+            == 1.0
+        )
+        assert info["action_name"] == "replace_component_3"
+    finally:
+        environment.close()
+
+
 def test_belief_targets_separate_aggregate_and_identity_information():
     joint = np.zeros((1, N_STATES), dtype=np.float64)
     joint[0, -1] = 1.0
@@ -80,6 +115,15 @@ def test_belief_targets_separate_aggregate_and_identity_information():
         np.array([[1.0, 0.0, 0.0, 0.0, 0.0]]),
     )
     np.testing.assert_allclose(targets["total_correlation"], 0.0, atol=1e-12)
+    targeted = belief_targets(
+        joint,
+        marginals,
+        action_scope="targeted",
+    )
+    assert targeted["expected_action_reward"].shape == (
+        1,
+        len(TargetedAction),
+    )
 
 
 def test_pca_and_component_subspaces_recover_known_factored_geometry():
@@ -97,8 +141,13 @@ def test_pca_and_component_subspaces_recover_known_factored_geometry():
     assert subspaces["mean_pairwise_overlap"] < 1e-6
 
 
-def test_probe_histories_and_targets_are_checkpoint_independent():
-    config = {"episode_length": 12, "diagnostics": True}
+@pytest.mark.parametrize("action_scope", ["global", "targeted"])
+def test_probe_histories_and_targets_are_checkpoint_independent(action_scope):
+    config = {
+        "action_scope": action_scope,
+        "episode_length": 12,
+        "diagnostics": True,
+    }
 
     def make_environment():
         return CassandraActionObservationEnv(config)
@@ -135,6 +184,7 @@ def test_probe_histories_and_targets_are_checkpoint_independent():
         seed=42,
         n_envs=2,
         warmup=1,
+        action_scope=action_scope,
     )
     second = collect_probe_data(
         second_module,
@@ -143,6 +193,7 @@ def test_probe_histories_and_targets_are_checkpoint_independent():
         seed=42,
         n_envs=2,
         warmup=1,
+        action_scope=action_scope,
     )
 
     np.testing.assert_array_equal(first.actions, second.actions)
@@ -177,6 +228,28 @@ def test_smoke_recipe_builds_fresh_canonical_configs(tmp_path):
     try:
         assert environment.observation_space.shape == (OBSERVATION_DIM,)
         assert environment.action_space.n == 4
+    finally:
+        environment.close()
+
+
+def test_smoke_recipe_builds_targeted_config(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=True,
+        hardware=PROFILES["cpu"],
+    )
+
+    config = build_targeted_config(context)
+    environment = config.env(config.env_config)
+    try:
+        assert config.env_config["action_scope"] == "targeted"
+        assert environment.observation_space.shape == (
+            TARGETED_OBSERVATION_DIM,
+        )
+        assert environment.action_space.n == len(TargetedAction)
     finally:
         environment.close()
 

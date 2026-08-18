@@ -16,6 +16,7 @@ from envs.cassandra_machine import (
     N_OBSERVATIONS,
     N_STATES,
     Action,
+    TargetedAction,
     decode_state,
     observation_matrix,
     reward_vector,
@@ -27,6 +28,10 @@ from harness.seeding import SeedSource
 # A checkpoint-independent policy keeps init/trained probe histories matched.
 BEHAVIOR_ACTION_PROBABILITIES = np.array(
     [0.68, 0.20, 0.08, 0.04],
+    dtype=np.float64,
+)
+TARGETED_BEHAVIOR_ACTION_PROBABILITIES = np.array(
+    [0.68, 0.20, *([0.02] * N_COMPONENTS), *([0.01] * N_COMPONENTS)],
     dtype=np.float64,
 )
 CONDITION_VALUES = np.arange(N_CONDITIONS, dtype=np.float64)
@@ -56,10 +61,19 @@ for _state, _components in enumerate(_STATE_COMPONENTS):
 _BROKEN_COUNT_INDICATORS = np.eye(N_COMPONENTS + 1)[
     (_STATE_COMPONENTS == 0).sum(axis=1)
 ]
-_ACTION_REWARDS = np.stack(
-    [reward_vector(action) for action in Action],
-    axis=1,
-)
+_ACTION_REWARDS = {
+    "global": np.stack(
+        [reward_vector(action) for action in Action],
+        axis=1,
+    ),
+    "targeted": np.stack(
+        [
+            reward_vector(action, action_scope="targeted")
+            for action in TargetedAction
+        ],
+        axis=1,
+    ),
+}
 _NEXT_OPERATE_PASS = (
     transition_matrix(Action.OPERATE)
     @ observation_matrix(Action.OPERATE)[:, N_OBSERVATIONS - 1]
@@ -83,11 +97,15 @@ class CassandraProbeData:
 def belief_targets(
     joint_belief: np.ndarray,
     factored_belief: np.ndarray,
+    *,
+    action_scope: str = "global",
 ) -> dict[str, np.ndarray]:
     """Derive coarse, factored, and control-relevant targets from beliefs."""
 
     joint = np.asarray(joint_belief, dtype=np.float64)
     marginals = np.asarray(factored_belief, dtype=np.float64)
+    if action_scope not in _ACTION_REWARDS:
+        raise ValueError("action_scope must be 'global' or 'targeted'")
     if joint.ndim != 2 or joint.shape[1] != N_STATES:
         raise ValueError(f"joint_belief must have shape (N, {N_STATES})")
     if marginals.shape != (len(joint), N_COMPONENTS, N_CONDITIONS):
@@ -137,7 +155,7 @@ def belief_targets(
         "next_operate_pass_probability": (
             joint @ _NEXT_OPERATE_PASS
         )[:, None],
-        "expected_action_reward": joint @ _ACTION_REWARDS,
+        "expected_action_reward": joint @ _ACTION_REWARDS[action_scope],
         "broken_count_distribution": joint @ _BROKEN_COUNT_INDICATORS,
         "total_correlation": total_correlation,
     }
@@ -163,12 +181,20 @@ def collect_probe_data(
     n_envs: int = 16,
     device: str | torch.device = "cpu",
     warmup: int = 64,
+    action_scope: str = "global",
 ) -> CassandraProbeData:
     """Collect matched-history pre-final-LayerNorm Cassandra activations."""
 
     device = torch.device(device)
     module = module.to(device).eval()
     stateful = module.is_stateful()
+    if action_scope not in _ACTION_REWARDS:
+        raise ValueError("action_scope must be 'global' or 'targeted'")
+    action_probabilities = (
+        BEHAVIOR_ACTION_PROBABILITIES
+        if action_scope == "global"
+        else TARGETED_BEHAVIOR_ACTION_PROBABILITIES
+    )
 
     def initial_state(batch_size: int):
         return _initial_state(module, batch_size, device)
@@ -200,9 +226,9 @@ def collect_probe_data(
         else:
             embedding, _ = module.encode_step(observation_tensor)
         actions = randomness.numpy.choice(
-            len(Action),
+            len(action_probabilities),
             size=len(observations),
-            p=BEHAVIOR_ACTION_PROBABILITIES,
+            p=action_probabilities,
         )
         return actions, state, embedding.cpu().numpy()
 
@@ -216,7 +242,11 @@ def collect_probe_data(
         marginals = np.stack(
             [info["factored_belief_current"] for info in infos]
         )
-        targets = belief_targets(joint, marginals)
+        targets = belief_targets(
+            joint,
+            marginals,
+            action_scope=action_scope,
+        )
         targets.update(
             {
                 "diagnostic_marginals": marginals.reshape(len(infos), -1),

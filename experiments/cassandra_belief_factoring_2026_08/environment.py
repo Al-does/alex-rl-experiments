@@ -9,10 +9,11 @@ import gymnasium as gym
 import numpy as np
 
 from envs.cassandra_machine import CassandraMachineEnv
-from envs.cassandra_machine.model import Action, N_OBSERVATIONS
+from envs.cassandra_machine.model import Action, N_OBSERVATIONS, TargetedAction
 
 
 OBSERVATION_DIM = N_OBSERVATIONS + len(Action)
+TARGETED_OBSERVATION_DIM = N_OBSERVATIONS + len(TargetedAction)
 
 
 class CassandraActionObservationEnv(gym.Wrapper):
@@ -33,16 +34,25 @@ class CassandraActionObservationEnv(gym.Wrapper):
         values["observation_mode"] = "symbol"
         environment = CassandraMachineEnv(values)
         super().__init__(environment)
+        self._n_actions = environment.action_space.n
         self.observation_space = gym.spaces.Box(
             low=0.0,
             high=1.0,
-            shape=(OBSERVATION_DIM,),
+            shape=(N_OBSERVATIONS + self._n_actions,),
             dtype=np.float32,
         )
 
     @staticmethod
-    def encode(symbol: int, previous_action: int | None) -> np.ndarray:
-        observation = np.zeros(OBSERVATION_DIM, dtype=np.float32)
+    def encode(
+        symbol: int,
+        previous_action: int | None,
+        *,
+        n_actions: int = len(Action),
+    ) -> np.ndarray:
+        observation = np.zeros(
+            N_OBSERVATIONS + n_actions,
+            dtype=np.float32,
+        )
         observation[int(symbol)] = 1.0
         if previous_action is not None:
             observation[N_OBSERVATIONS + int(previous_action)] = 1.0
@@ -55,7 +65,11 @@ class CassandraActionObservationEnv(gym.Wrapper):
         options: Mapping[str, Any] | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         symbol, info = self.env.reset(seed=seed, options=options)
-        return self.encode(int(symbol), None), info
+        return self.encode(
+            int(symbol),
+            None,
+            n_actions=self._n_actions,
+        ), info
 
     def step(
         self,
@@ -63,7 +77,11 @@ class CassandraActionObservationEnv(gym.Wrapper):
     ) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
         symbol, reward, terminated, truncated, info = self.env.step(action)
         return (
-            self.encode(int(symbol), int(info["action"])),
+            self.encode(
+                int(symbol),
+                int(info["action"]),
+                n_actions=self._n_actions,
+            ),
             reward,
             terminated,
             truncated,
