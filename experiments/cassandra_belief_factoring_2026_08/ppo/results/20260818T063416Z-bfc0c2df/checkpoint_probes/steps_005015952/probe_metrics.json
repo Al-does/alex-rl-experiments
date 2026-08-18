@@ -1,0 +1,571 @@
+{
+  "condition": "global_actions_transformer_ppo",
+  "checkpoint_step": 5015952,
+  "is_untrained": false,
+  "probe": "held_out_affine_ridge_least_squares",
+  "probe_ridge": 1e-06,
+  "representation": "pre_final_layer_norm_decision_token",
+  "sampling_distribution": "fixed_checkpoint_independent_behavior_policy",
+  "policy_input": "current_symbol_one_hot_plus_previous_action_one_hot",
+  "reward_in_policy_input": false,
+  "train_steps": 60000,
+  "test_steps": 80000,
+  "n_envs": 8,
+  "warmup": 64,
+  "target_descriptions": {
+    "joint_belief": "Exact posterior over all 4^4 joint component states.",
+    "component_contrast": "Four labeled component marginals in three independent simplex coordinates each (12 coordinates).",
+    "identity_deviation": "Labeled component marginals after subtracting their component mean; this isolates identity-specific information beyond a coarse average.",
+    "aggregate_contrast": "Mean component marginal in three independent simplex coordinates.",
+    "labeled_expected_condition": "Expected condition of each named component in fixed component order.",
+    "sorted_expected_condition": "Permutation-invariant sorted expected component conditions.",
+    "next_operate_pass_probability": "Posterior probability that the next operate action emits pass.",
+    "expected_action_reward": "Posterior expected immediate reward for all four actions.",
+    "broken_count_distribution": "Posterior distribution over the number of broken components.",
+    "total_correlation": "KL divergence from the joint posterior to the product of marginals."
+  },
+  "targets": {
+    "joint_belief": {
+      "mse": 0.0003084726572839609,
+      "target_variance": 0.0005835832285573862,
+      "global_mse_ratio": 0.5285838286451501,
+      "r_squared": 0.4714161713548498,
+      "fine_evaluation_mse": 0.00030838471038996786,
+      "branch_baseline_mse": 0.0004070827828825422,
+      "fine_mse_ratio": 0.7575479075933992,
+      "fine_mse_improvement": 9.869807249257432e-05,
+      "n_evaluated": 79995,
+      "observation_only_r_squared": 0.3005500670958072,
+      "representation_gain_over_observation_r2": 0.17086610425904258
+    },
+    "component_contrast": {
+      "mse": 0.01765383218691719,
+      "target_variance": 0.02871659489221918,
+      "global_mse_ratio": 0.6147606376444212,
+      "r_squared": 0.38523936235557876,
+      "fine_evaluation_mse": 0.017636353058273383,
+      "branch_baseline_mse": 0.021850951195411663,
+      "fine_mse_ratio": 0.8071206100161317,
+      "fine_mse_improvement": 0.00421459813713828,
+      "n_evaluated": 79995,
+      "observation_only_r_squared": 0.23413414635563656,
+      "representation_gain_over_observation_r2": 0.1511052159999422
+    },
+    "identity_deviation": {
+      "mse": 0.01060333460898046,
+      "target_variance": 0.01215370642072414,
+      "global_mse_ratio": 0.8724362957212763,
+      "r_squared": 0.12756370427872366,
+      "fine_evaluation_mse": 0.01059566943808551,
+      "branch_baseline_mse": 0.010730717798809276,
+      "fine_mse_ratio": 0.9874147877843967,
+      "fine_mse_improvement": 0.00013504836072376555,
+      "n_evaluated": 79995,
+      "observation_only_r_squared": 0.10883700342959668,
+      "representation_gain_over_observation_r2": 0.018726700849126976
+    },
+    "aggregate_contrast": {
+      "mse": 0.007050497577936834,
+      "target_variance": 0.016562888471495035,
+      "global_mse_ratio": 0.42568043551526896,
+      "r_squared": 0.574319564484731,
+      "fine_evaluation_mse": 0.007040683620187976,
+      "branch_baseline_mse": 0.011120233396602385,
+      "fine_mse_ratio": 0.6331417128654105,
+      "fine_mse_improvement": 0.0040795497764144085,
+      "n_evaluated": 79995,
+      "observation_only_r_squared": 0.32607612212269044,
+      "representation_gain_over_observation_r2": 0.24824344236204055
+    },
+    "labeled_expected_condition": {
+      "mse": 0.08704531354195198,
+      "target_variance": 0.15774214543708626,
+      "global_mse_ratio": 0.5518202716259433,
+      "r_squared": 0.44817972837405673,
+      "fine_evaluation_mse": 0.0869404220251735,
+      "branch_baseline_mse": 0.10820708070357403,
+      "fine_mse_ratio": 0.803463335854526,
+      "fine_mse_improvement": 0.021266658678400524,
+      "n_evaluated": 79995,
+      "observation_only_r_squared": 0.3058842924973266,
+      "representation_gain_over_observation_r2": 0.1422954358767301
+    },
+    "sorted_expected_condition": {
+      "mse": 0.04345335854014024,
+      "target_variance": 0.14526564683875595,
+      "global_mse_ratio": 0.2991303139163606,
+      "r_squared": 0.7008696860836394,
+      "fine_evaluation_mse": 0.04338784482735451,
+      "branch_baseline_mse": 0.08282054720238335,
+      "fine_mse_ratio": 0.5238777850782653,
+      "fine_mse_improvement": 0.03943270237502884,
+      "n_evaluated": 79995,
+      "observation_only_r_squared": 0.4247297501642796,
+      "representation_gain_over_observation_r2": 0.2761399359193598
+    },
+    "next_operate_pass_probability": {
+      "mse": 0.0035375492721124273,
+      "target_variance": 0.03822779598265381,
+      "global_mse_ratio": 0.09253866672610737,
+      "r_squared": 0.9074613332738927,
+      "fine_evaluation_mse": 0.003534464272030897,
+      "branch_baseline_mse": 0.019218240642807225,
+      "fine_mse_ratio": 0.18391195831725285,
+      "fine_mse_improvement": 0.01568377637077633,
+      "n_evaluated": 79995,
+      "observation_only_r_squared": 0.4909498335160627,
+      "representation_gain_over_observation_r2": 0.41651149975783
+    },
+    "expected_action_reward": {
+      "mse": 0.000884387318028107,
+      "target_variance": 0.00955694899566346,
+      "global_mse_ratio": 0.09253866672610732,
+      "r_squared": 0.9074613332738927,
+      "fine_evaluation_mse": 0.000883616068007724,
+      "branch_baseline_mse": 0.004804560160701811,
+      "fine_mse_ratio": 0.18391195831725263,
+      "fine_mse_improvement": 0.003920944092694087,
+      "n_evaluated": 79995,
+      "observation_only_r_squared": 0.4909498335160579,
+      "representation_gain_over_observation_r2": 0.41651149975783475
+    },
+    "broken_count_distribution": {
+      "mse": 0.0018600462569336742,
+      "target_variance": 0.013715157143890332,
+      "global_mse_ratio": 0.13561975538590645,
+      "r_squared": 0.8643802446140936,
+      "fine_evaluation_mse": 0.0018566748324880427,
+      "branch_baseline_mse": 0.008903912212198809,
+      "fine_mse_ratio": 0.2085234881296678,
+      "fine_mse_improvement": 0.007047237379710766,
+      "n_evaluated": 79995,
+      "observation_only_r_squared": 0.3387628219446127,
+      "representation_gain_over_observation_r2": 0.5256174226694809
+    },
+    "total_correlation": {
+      "mse": 0.0027715469631120456,
+      "target_variance": 0.005254981126885625,
+      "global_mse_ratio": 0.5274133048608318,
+      "r_squared": 0.4725866951391682,
+      "fine_evaluation_mse": 0.002771357829600012,
+      "branch_baseline_mse": 0.004359084451376209,
+      "fine_mse_ratio": 0.6357660331001536,
+      "fine_mse_improvement": 0.0015877266217761972,
+      "n_evaluated": 79995,
+      "observation_only_r_squared": 0.16903282633248806,
+      "representation_gain_over_observation_r2": 0.3035538688066801
+    }
+  },
+  "factor_specific": {
+    "component_0": {
+      "mse": 0.017871717134069445,
+      "target_variance": 0.02913440208862558,
+      "global_mse_ratio": 0.6134231648106064,
+      "r_squared": 0.38657683518939356
+    },
+    "component_1": {
+      "mse": 0.017171407145571686,
+      "target_variance": 0.027675849605897765,
+      "global_mse_ratio": 0.6204473354961588,
+      "r_squared": 0.3795526645038412
+    },
+    "component_2": {
+      "mse": 0.016532699734125914,
+      "target_variance": 0.026774547539191014,
+      "global_mse_ratio": 0.6174782117205274,
+      "r_squared": 0.3825217882794727
+    },
+    "component_3": {
+      "mse": 0.019039504733901716,
+      "target_variance": 0.031281580335162346,
+      "global_mse_ratio": 0.6086490685542567,
+      "r_squared": 0.3913509314457433
+    }
+  },
+  "geometry": {
+    "activation_pca": {
+      "rank": 96,
+      "cev90_dimension": 2,
+      "cev95_dimension": 2,
+      "cev99_dimension": 3,
+      "participation_ratio": 1.2344099293804816,
+      "explained_variance_fraction": [
+        0.8953583951749854,
+        0.0915240216859555,
+        0.006860979779698313,
+        0.0032704227371582744,
+        0.001483636834344113,
+        0.0004954578717971492,
+        0.00025146074224614596,
+        0.00018322454026166375,
+        0.00013431534951503833,
+        0.00010147632645005856,
+        9.029116414385096e-05,
+        6.260746885836395e-05,
+        3.736790883186173e-05,
+        2.9815509614830317e-05,
+        2.3137016955919852e-05,
+        2.186162568737139e-05,
+        9.904552173248599e-06,
+        7.3910166100924316e-06,
+        7.14603953959881e-06,
+        6.720574916031843e-06,
+        5.2470339290581e-06,
+        4.754958572565084e-06,
+        3.9120868805151706e-06,
+        3.530765653911441e-06,
+        3.210589093457985e-06,
+        2.7890511072397305e-06,
+        2.6250200869705986e-06,
+        1.7030079343839078e-06,
+        1.3379677423611416e-06,
+        1.1818111198820519e-06,
+        9.858045809600088e-07,
+        8.680714218414682e-07
+      ],
+      "cumulative_explained_variance": [
+        0.8953583951749854,
+        0.9868824168609409,
+        0.9937433966406393,
+        0.9970138193777975,
+        0.9984974562121417,
+        0.9989929140839389,
+        0.999244374826185,
+        0.9994275993664467,
+        0.9995619147159617,
+        0.9996633910424118,
+        0.9997536822065556,
+        0.9998162896754139,
+        0.9998536575842458,
+        0.9998834730938606,
+        0.9999066101108165,
+        0.9999284717365039,
+        0.9999383762886771,
+        0.9999457673052872,
+        0.9999529133448267,
+        0.9999596339197427,
+        0.9999648809536718,
+        0.9999696359122443,
+        0.9999735479991249,
+        0.9999770787647788,
+        0.9999802893538723,
+        0.9999830784049796,
+        0.9999857034250665,
+        0.9999874064330009,
+        0.9999887444007433,
+        0.9999899262118631,
+        0.9999909120164441,
+        0.9999917800878659
+      ]
+    },
+    "target_pca": {
+      "joint_belief": {
+        "rank": 255,
+        "cev90_dimension": 8,
+        "cev95_dimension": 14,
+        "cev99_dimension": 49,
+        "participation_ratio": 1.7651213230565073,
+        "explained_variance_fraction": [
+          0.7496092685576428,
+          0.041672664674993636,
+          0.02686305982714521,
+          0.0254748356768835,
+          0.022646002143239783,
+          0.016203917980795377,
+          0.014608059933794843,
+          0.012539059354372469,
+          0.009032279672001235,
+          0.007926187766172228,
+          0.007178836743579882,
+          0.006443173576335798,
+          0.005654521585591704,
+          0.004963796253683525,
+          0.004146532506167277,
+          0.0030331279095562767,
+          0.0027646219985396846,
+          0.0024687247483069423,
+          0.00211618215892042,
+          0.0017482618330555853,
+          0.0016593421734258436,
+          0.0015248934172489774,
+          0.001427798710606751,
+          0.0013208326497080637,
+          0.0012718868129075126,
+          0.0011965106834620092,
+          0.0011040774599582607,
+          0.001001809439115174,
+          0.0009283651569829235,
+          0.0009026502941825934,
+          0.0008434371373377921,
+          0.0008017385048452697
+        ],
+        "cumulative_explained_variance": [
+          0.7496092685576428,
+          0.7912819332326364,
+          0.8181449930597816,
+          0.8436198287366651,
+          0.8662658308799048,
+          0.8824697488607002,
+          0.8970778087944951,
+          0.9096168681488676,
+          0.9186491478208688,
+          0.9265753355870411,
+          0.933754172330621,
+          0.9401973459069568,
+          0.9458518674925485,
+          0.9508156637462319,
+          0.9549621962523992,
+          0.9579953241619554,
+          0.9607599461604951,
+          0.963228670908802,
+          0.9653448530677224,
+          0.967093114900778,
+          0.9687524570742039,
+          0.9702773504914528,
+          0.9717051492020595,
+          0.9730259818517676,
+          0.974297868664675,
+          0.9754943793481371,
+          0.9765984568080953,
+          0.9776002662472105,
+          0.9785286314041934,
+          0.979431281698376,
+          0.9802747188357138,
+          0.981076457340559
+        ]
+      },
+      "component_contrast": {
+        "rank": 12,
+        "cev90_dimension": 8,
+        "cev95_dimension": 10,
+        "cev99_dimension": 12,
+        "participation_ratio": 3.568488422549417,
+        "explained_variance_fraction": [
+          0.4981787655672345,
+          0.09926164417802251,
+          0.0889747547939598,
+          0.08052656771793174,
+          0.05419334299036986,
+          0.03511114274652913,
+          0.03194757606259629,
+          0.02871980535351668,
+          0.026320303607819763,
+          0.021813210557484586,
+          0.017692948537918158,
+          0.017259937886616863
+        ],
+        "cumulative_explained_variance": [
+          0.4981787655672345,
+          0.597440409745257,
+          0.6864151645392168,
+          0.7669417322571486,
+          0.8211350752475184,
+          0.8562462179940475,
+          0.8881937940566438,
+          0.9169135994101605,
+          0.9432339030179803,
+          0.9650471135754648,
+          0.9827400621133829,
+          0.9999999999999998
+        ]
+      },
+      "identity_deviation": {
+        "rank": 9,
+        "cev90_dimension": 7,
+        "cev95_dimension": 8,
+        "cev99_dimension": 9,
+        "participation_ratio": 6.299348485465805,
+        "explained_variance_fraction": [
+          0.2348198510686788,
+          0.2081542923473203,
+          0.19049491587766554,
+          0.08450585744650004,
+          0.07592239607598668,
+          0.0689956139273459,
+          0.0517160643148439,
+          0.044015018056329826,
+          0.04137599088532906,
+          4.375855817196523e-31,
+          2.1088661481938033e-31,
+          6.394923508927396e-32
+        ],
+        "cumulative_explained_variance": [
+          0.2348198510686788,
+          0.4429741434159991,
+          0.6334690592936647,
+          0.7179749167401648,
+          0.7938973128161515,
+          0.8628929267434974,
+          0.9146089910583413,
+          0.958624009114671,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "aggregate_contrast": {
+        "rank": 3,
+        "cev90_dimension": 2,
+        "cev95_dimension": 2,
+        "cev99_dimension": 3,
+        "participation_ratio": 1.3244547786826837,
+        "explained_variance_fraction": [
+          0.8628249302352475,
+          0.09259071880861666,
+          0.04458435095613577
+        ],
+        "cumulative_explained_variance": [
+          0.8628249302352475,
+          0.9554156490438642,
+          1.0
+        ]
+      },
+      "labeled_expected_condition": {
+        "rank": 4,
+        "cev90_dimension": 4,
+        "cev95_dimension": 4,
+        "cev99_dimension": 4,
+        "participation_ratio": 3.056272799338054,
+        "explained_variance_fraction": [
+          0.4882242192398634,
+          0.201327536623776,
+          0.1626807217713389,
+          0.1477675223650217
+        ],
+        "cumulative_explained_variance": [
+          0.4882242192398634,
+          0.6895517558636395,
+          0.8522324776349783,
+          1.0
+        ]
+      },
+      "sorted_expected_condition": {
+        "rank": 4,
+        "cev90_dimension": 2,
+        "cev95_dimension": 2,
+        "cev99_dimension": 3,
+        "participation_ratio": 1.3502228949946606,
+        "explained_variance_fraction": [
+          0.8530325412241736,
+          0.10824684148950889,
+          0.03496352896235334,
+          0.0037570883239642313
+        ],
+        "cumulative_explained_variance": [
+          0.8530325412241736,
+          0.9612793827136825,
+          0.9962429116760358,
+          1.0
+        ]
+      },
+      "next_operate_pass_probability": {
+        "rank": 1,
+        "cev90_dimension": 1,
+        "cev95_dimension": 1,
+        "cev99_dimension": 1,
+        "participation_ratio": 1.0,
+        "explained_variance_fraction": [
+          1.0
+        ],
+        "cumulative_explained_variance": [
+          1.0
+        ]
+      },
+      "expected_action_reward": {
+        "rank": 1,
+        "cev90_dimension": 1,
+        "cev95_dimension": 1,
+        "cev99_dimension": 1,
+        "participation_ratio": 1.0,
+        "explained_variance_fraction": [
+          1.0,
+          1.611063619488381e-28,
+          7.000786495524678e-30,
+          5.887402215822669e-31
+        ],
+        "cumulative_explained_variance": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "broken_count_distribution": {
+        "rank": 4,
+        "cev90_dimension": 1,
+        "cev95_dimension": 2,
+        "cev99_dimension": 2,
+        "participation_ratio": 1.146826890252038,
+        "explained_variance_fraction": [
+          0.9312657843653334,
+          0.06866743950135318,
+          6.67660163140376e-05,
+          1.011699943503787e-08,
+          9.117994586949625e-30
+        ],
+        "cumulative_explained_variance": [
+          0.9312657843653334,
+          0.9999332238666865,
+          0.9999999898830005,
+          1.0,
+          1.0
+        ]
+      },
+      "total_correlation": {
+        "rank": 1,
+        "cev90_dimension": 1,
+        "cev95_dimension": 1,
+        "cev99_dimension": 1,
+        "participation_ratio": 1.0,
+        "explained_variance_fraction": [
+          1.0
+        ],
+        "cumulative_explained_variance": [
+          1.0
+        ]
+      }
+    },
+    "component_readout_subspaces": {
+      "target_whitening": "per_component_full_covariance",
+      "component_ranks": [
+        3,
+        3,
+        3,
+        3
+      ],
+      "pairwise_overlap": {
+        "component_0_vs_1": 0.3431078922729885,
+        "component_0_vs_2": 0.2410416108957343,
+        "component_0_vs_3": 0.3696107044593189,
+        "component_1_vs_2": 0.2950317128964021,
+        "component_1_vs_3": 0.2946560881246945,
+        "component_2_vs_3": 0.301316012810183
+      },
+      "mean_pairwise_overlap": 0.3074606702432202,
+      "union_rank": 12,
+      "sum_component_ranks": 12
+    }
+  },
+  "hypothesis_diagnostics": {
+    "aggregate_r_squared": 0.574319564484731,
+    "identity_deviation_r_squared": 0.12756370427872366,
+    "coarse_over_identity_r2_advantage": 0.4467558602060073,
+    "sorted_expected_condition_r_squared": 0.7008696860836394,
+    "labeled_expected_condition_r_squared": 0.44817972837405673,
+    "permutation_invariant_r2_advantage": 0.2526899577095827,
+    "mean_component_subspace_overlap": 0.3074606702432202,
+    "interpretation": "A positive coarse-over-identity gap, positive sorted-over-labeled gap, and high component-subspace overlap jointly support a coarse permutation-invariant representation. No one metric is decisive."
+  },
+  "behavior_action_fractions": [
+    0.6793625,
+    0.2012625,
+    0.0792125,
+    0.0401625
+  ],
+  "behavior_reward_mean": -0.4287367586334616,
+  "n_fit": 60000,
+  "n_test": 80000,
+  "target_consistency_max_abs": 9.992007221626409e-16,
+  "caveat": "Linear decodability and PCA geometry do not establish causal policy use; an addressable-action intervention is the causal follow-up."
+}
