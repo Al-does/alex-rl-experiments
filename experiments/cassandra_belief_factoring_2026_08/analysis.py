@@ -81,9 +81,8 @@ class ProbeResult:
 
 
 def _device(context: RunContext) -> str:
-    profile = context.hardware or PROFILES["cpu"]
-    if profile.learner_device == "cuda" and torch.cuda.is_available():
-        return "cuda"
+    """Collect probe rollouts on CPU so training retains the full GPU budget."""
+
     return "cpu"
 
 

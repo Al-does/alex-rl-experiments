@@ -682,6 +682,10 @@ def run_condition(
         condition=f"{condition}_initialization",
         agent_steps=0,
     )
+    import ray
+
+    if ray.is_initialized():
+        ray.shutdown()
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
