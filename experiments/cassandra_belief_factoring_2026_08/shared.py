@@ -96,6 +96,25 @@ def _apply_runtime_resources(config: PPOConfig, context: RunContext) -> PPOConfi
     )
 
 
+def _on_train_result(
+    *,
+    algorithm: Any,
+    result: Mapping[str, Any],
+    checkpoint_root: str,
+    **_: Any,
+) -> None:
+    """Save log-spaced checkpoints and release GPU memory each iteration."""
+
+    _save_log_spaced_checkpoint(
+        algorithm=algorithm,
+        result=result,
+        checkpoint_root=checkpoint_root,
+    )
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+
 def _save_log_spaced_checkpoint(
     *,
     algorithm: Any,
@@ -184,7 +203,7 @@ def build_config(
         )
         .callbacks(
             on_train_result=partial(
-                _save_log_spaced_checkpoint,
+                _on_train_result,
                 checkpoint_root=str(
                     context.artifacts_dir / "log_spaced_checkpoints"
                 ),
