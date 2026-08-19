@@ -16,6 +16,7 @@ from envs.cassandra_machine import (
     N_OBSERVATIONS,
     N_STATES,
     Action,
+    GlobalAliasAction,
     TargetedAction,
     decode_state,
     observation_matrix,
@@ -33,6 +34,9 @@ BEHAVIOR_ACTION_PROBABILITIES = np.array(
 TARGETED_BEHAVIOR_ACTION_PROBABILITIES = np.array(
     [0.68, 0.20, *([0.02] * N_COMPONENTS), *([0.01] * N_COMPONENTS)],
     dtype=np.float64,
+)
+GLOBAL_ALIAS_BEHAVIOR_ACTION_PROBABILITIES = (
+    TARGETED_BEHAVIOR_ACTION_PROBABILITIES
 )
 CONDITION_VALUES = np.arange(N_CONDITIONS, dtype=np.float64)
 CONTRAST = np.linalg.qr(
@@ -64,6 +68,13 @@ _BROKEN_COUNT_INDICATORS = np.eye(N_COMPONENTS + 1)[
 _ACTION_REWARDS = {
     "global": np.stack(
         [reward_vector(action) for action in Action],
+        axis=1,
+    ),
+    "global_aliases": np.stack(
+        [
+            reward_vector(action, action_scope="global_aliases")
+            for action in GlobalAliasAction
+        ],
         axis=1,
     ),
     "targeted": np.stack(
@@ -193,7 +204,7 @@ def collect_probe_data(
     action_probabilities = (
         BEHAVIOR_ACTION_PROBABILITIES
         if action_scope == "global"
-        else TARGETED_BEHAVIOR_ACTION_PROBABILITIES
+        else GLOBAL_ALIAS_BEHAVIOR_ACTION_PROBABILITIES
     )
 
     def initial_state(batch_size: int):

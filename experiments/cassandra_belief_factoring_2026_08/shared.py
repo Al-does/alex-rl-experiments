@@ -54,7 +54,8 @@ MODEL_CONFIG = TransformerModelConfig(
     d_model=96,
     n_layers=3,
     n_heads=4,
-    context_len=64,
+    context_len=256,
+    max_seq_len=256,
 ).to_dict()
 
 
@@ -67,6 +68,7 @@ def environment_config(
     return {
         "episode_length": EPISODE_LENGTH,
         "action_scope": action_scope,
+        "initial_state_distribution": "uniform",
         "diagnostics": False,
     }
 
@@ -626,6 +628,7 @@ def run_condition(
                 "action one-hot; no belief, hidden state, or reward"
             ),
             "model_config": MODEL_CONFIG,
+            "bptt_sequence_length": MODEL_CONFIG["max_seq_len"],
             "total_env_steps": target_steps,
             "checkpoint_schedule": (
                 "initialization_then_power_of_two_iterations_and_final"

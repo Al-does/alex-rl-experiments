@@ -15,6 +15,7 @@ from envs.cassandra_machine import (
     N_CONDITIONS,
     N_STATES,
     Action,
+    GlobalAliasAction,
     TargetedAction,
 )
 from experiments.cassandra_belief_factoring_2026_08.analysis import (
@@ -31,13 +32,16 @@ from experiments.cassandra_belief_factoring_2026_08.probe import (
     collect_probe_data,
 )
 from experiments.cassandra_belief_factoring_2026_08.shared import (
+    MODEL_CONFIG,
     SMOKE_BATCH_SIZE,
     _last_reported_return,
     _save_log_spaced_checkpoint,
-    build_config,
     checkpoint_records,
     log_spaced_records,
     training_curve,
+)
+from experiments.cassandra_belief_factoring_2026_08.global_alias_ppo.experiment import (
+    build_config as build_global_alias_config,
 )
 from experiments.cassandra_belief_factoring_2026_08.targeted_ppo.experiment import (
     build_config as build_targeted_config,
@@ -130,6 +134,31 @@ def test_belief_targets_separate_aggregate_and_identity_information():
         1,
         len(TargetedAction),
     )
+    aliases = belief_targets(
+        joint,
+        marginals,
+        action_scope="global_aliases",
+    )
+    assert aliases["expected_action_reward"].shape == (
+        1,
+        len(GlobalAliasAction),
+    )
+    np.testing.assert_array_equal(
+        aliases["expected_action_reward"][:, 2:6],
+        np.repeat(
+            aliases["expected_action_reward"][:, 2:3],
+            N_COMPONENTS,
+            axis=1,
+        ),
+    )
+    np.testing.assert_array_equal(
+        aliases["expected_action_reward"][:, 6:10],
+        np.repeat(
+            aliases["expected_action_reward"][:, 6:7],
+            N_COMPONENTS,
+            axis=1,
+        ),
+    )
 
 
 def test_pca_and_component_subspaces_recover_known_factored_geometry():
@@ -147,7 +176,10 @@ def test_pca_and_component_subspaces_recover_known_factored_geometry():
     assert subspaces["mean_pairwise_overlap"] < 1e-6
 
 
-@pytest.mark.parametrize("action_scope", ["global", "targeted"])
+@pytest.mark.parametrize(
+    "action_scope",
+    ["global_aliases", "targeted"],
+)
 def test_probe_histories_and_targets_are_checkpoint_independent(action_scope):
     config = {
         "action_scope": action_scope,
@@ -211,7 +243,7 @@ def test_probe_histories_and_targets_are_checkpoint_independent(action_scope):
     assert not np.allclose(first.activations, second.activations)
 
 
-def test_smoke_recipe_builds_fresh_canonical_configs(tmp_path):
+def test_smoke_recipe_builds_fresh_global_alias_configs(tmp_path):
     context = RunContext(
         experiment_dir=tmp_path,
         results_dir=tmp_path / "results",
@@ -221,8 +253,8 @@ def test_smoke_recipe_builds_fresh_canonical_configs(tmp_path):
         hardware=PROFILES["cpu"],
     )
 
-    first = build_config(context)
-    second = build_config(context)
+    first = build_global_alias_config(context)
+    second = build_global_alias_config(context)
 
     assert first is not second
     assert first.gamma == 0.999
@@ -230,10 +262,16 @@ def test_smoke_recipe_builds_fresh_canonical_configs(tmp_path):
     assert first.train_batch_size_per_learner == SMOKE_BATCH_SIZE
     assert first.minibatch_size == 256
     assert first.num_env_runners == 0
+    assert first.env_config["action_scope"] == "global_aliases"
+    assert first.env_config["initial_state_distribution"] == "uniform"
+    assert MODEL_CONFIG["context_len"] == 256
+    assert MODEL_CONFIG["max_seq_len"] == 256
     environment = first.env(first.env_config)
     try:
-        assert environment.observation_space.shape == (OBSERVATION_DIM,)
-        assert environment.action_space.n == 4
+        assert environment.observation_space.shape == (
+            TARGETED_OBSERVATION_DIM,
+        )
+        assert environment.action_space.n == len(GlobalAliasAction)
     finally:
         environment.close()
 
@@ -252,6 +290,9 @@ def test_smoke_recipe_builds_targeted_config(tmp_path):
     environment = config.env(config.env_config)
     try:
         assert config.env_config["action_scope"] == "targeted"
+        assert config.env_config["initial_state_distribution"] == "uniform"
+        assert config.model_config["context_len"] == 256
+        assert config.model_config["max_seq_len"] == 256
         assert environment.observation_space.shape == (
             TARGETED_OBSERVATION_DIM,
         )

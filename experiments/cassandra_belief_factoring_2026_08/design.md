@@ -2,9 +2,10 @@
 
 ## Question
 
-Does a transformer trained on Cassandra's canonical global-action maintenance
-task represent each named component's posterior, or only a coarser
-permutation-invariant summary sufficient for global decisions?
+Does a transformer trained on Cassandra maintenance represent each named
+component's posterior, or only a coarser permutation-invariant summary? The
+primary comparison holds action-space cardinality fixed at ten while changing
+whether maintenance actions are global aliases or component-addressable.
 
 The environment has one machine with four hidden components, not four
 independent machines. Each component has four conditions. The exact joint
@@ -19,8 +20,12 @@ belief has 255 degrees of freedom; concatenated component marginals have 12.
   action-conditioned.
 - Reward is not included in the model input because the environment's public
   belief diagnostic does not condition on reward.
-- Canonical global `operate`, `inspect`, `repair`, and `replace` actions.
-- Optional targeted condition with `operate`, `inspect`, four component repair
+- Every reset samples each component independently and uniformly from broken,
+  bad, fair, and good; the initial Bayesian belief is uniform over 256 states.
+- BPTT sequence length and per-layer transformer context are both 256.
+- Cardinality control with `operate`, `inspect`, four exact aliases of canonical
+  global repair, and four exact aliases of canonical global replacement.
+- Targeted condition with `operate`, `inspect`, four component repair
   actions, and four component replacement actions. Targeted repair costs
   `0.75` and improves a bad or fair component one level with probability
   `0.8`; targeted replacement costs `3.75` and deterministically restores its
@@ -48,10 +53,10 @@ The fixed behavior policy uses probabilities `(0.68, 0.20, 0.08, 0.04)` for
 operate, inspect, repair, and replace. It emphasizes natural degradation while
 still visiting every intervention.
 
-For the targeted condition, the aggregate repair and replacement mass is split
-uniformly across component identities: each repair has probability `0.02` and
-each replacement has probability `0.01`. This preserves the same aggregate
-operate/inspect/repair/replace frequencies across action scopes.
+For both ten-action conditions, aggregate repair and replacement mass is split
+uniformly across the four action indices: each repair has probability `0.02`
+and each replacement has probability `0.01`. This preserves identical
+operate/inspect/repair/replace frequencies and action-vocabulary cardinality.
 
 ## Targets
 
@@ -100,15 +105,17 @@ value, position, or action information can dominate activation variance.
 
 ## Causal follow-up
 
-The strongest follow-up is a matched action-scope intervention:
+The primary matched action-scope intervention is:
 
-1. canonical global actions;
-2. indexed action aliases whose index is ignored;
-3. genuinely addressable per-component repair and replacement.
+1. indexed global-action aliases whose index is ignored;
+2. genuinely addressable per-component repair and replacement.
 
 The alias arm controls action-vocabulary size. The causal prediction is that
 addressable actions increase identity-residual decodability and reduce
 component-subspace overlap relative to the alias arm.
+
+The original four-action `ppo` leaf and its existing result history are retained
+only as a legacy record. New runs use `global_alias_ppo` and `targeted_ppo`.
 
 Additional post-smoke interventions:
 
