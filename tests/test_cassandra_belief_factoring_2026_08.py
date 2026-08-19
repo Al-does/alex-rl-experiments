@@ -314,9 +314,9 @@ def test_full_recipe_uses_cuda_validated_minibatch_size(tmp_path):
 
     config = build_global_alias_config(context)
 
-    assert MINIBATCH_SIZE == 2_048
-    assert config.train_batch_size_per_learner == 32_768
-    assert config.minibatch_size == 8_192
+    assert MINIBATCH_SIZE == 1_024
+    assert config.train_batch_size_per_learner == 8_192
+    assert config.minibatch_size == 1_024
 
 
 def test_log_schedule_keeps_powers_of_two_and_final():
