@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import replace
 from functools import partial
+import gc
 import json
 import math
 from numbers import Real
@@ -41,9 +42,9 @@ from learners.models.transformer import TransformerModel, TransformerModelConfig
 
 TOTAL_ENV_STEPS = 5_000_000
 SMOKE_ENV_STEPS = 4_096
-TRAIN_BATCH_SIZE = 4_096
+TRAIN_BATCH_SIZE = 1_024
 SMOKE_BATCH_SIZE = 2_048
-MINIBATCH_SIZE = 512
+MINIBATCH_SIZE = 256
 SMOKE_MINIBATCH_SIZE = 256
 FULL_EVAL_EPISODES = 64
 SMOKE_EVAL_EPISODES = 2
@@ -662,6 +663,9 @@ def run_condition(
         condition=f"{condition}_initialization",
         agent_steps=0,
     )
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
     result_grid = run_tune(
         config,
