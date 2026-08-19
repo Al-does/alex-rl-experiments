@@ -32,6 +32,7 @@ from experiments.cassandra_belief_factoring_2026_08.probe import (
     collect_probe_data,
 )
 from experiments.cassandra_belief_factoring_2026_08.shared import (
+    MINIBATCH_SIZE,
     MODEL_CONFIG,
     SMOKE_BATCH_SIZE,
     _last_reported_return,
@@ -299,6 +300,23 @@ def test_smoke_recipe_builds_targeted_config(tmp_path):
         assert environment.action_space.n == len(TargetedAction)
     finally:
         environment.close()
+
+
+def test_full_recipe_uses_cuda_validated_minibatch_size(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+
+    config = build_global_alias_config(context)
+
+    assert MINIBATCH_SIZE == 8_192
+    assert config.train_batch_size_per_learner == 32_768
+    assert config.minibatch_size == 8_192
 
 
 def test_log_schedule_keeps_powers_of_two_and_final():

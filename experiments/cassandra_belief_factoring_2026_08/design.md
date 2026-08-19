@@ -23,6 +23,8 @@ belief has 255 degrees of freedom; concatenated component marginals have 12.
 - Every reset samples each component independently and uniformly from broken,
   bad, fair, and good; the initial Bayesian belief is uniform over 256 states.
 - BPTT sequence length and per-layer transformer context are both 256.
+- Full PPO updates use a 32,768-step train batch and 8,192-step minibatches;
+  the latter was selected from live RTX 4090 measurements.
 - Cardinality control with `operate`, `inspect`, four exact aliases of canonical
   global repair, and four exact aliases of canonical global replacement.
 - Targeted condition with `operate`, `inspect`, four component repair
