@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
+from ray.rllib.utils.postprocessing.zero_padding import create_mask_and_seq_lens
 import torch
 
 from envs.cassandra_machine import (
@@ -35,6 +36,8 @@ from experiments.cassandra_belief_factoring_2026_08.shared import (
     MINIBATCH_SIZE,
     MODEL_CONFIG,
     SMOKE_BATCH_SIZE,
+    TRAIN_BATCH_SIZE,
+    TRAIN_ENVS_PER_ENV_RUNNER,
     _last_reported_return,
     _save_log_spaced_checkpoint,
     checkpoint_records,
@@ -50,6 +53,31 @@ from experiments.cassandra_belief_factoring_2026_08.targeted_ppo.experiment impo
 from harness.context import RunContext
 from harness.hardware import PROFILES
 from learners.models import TransformerModel
+
+
+def _padded_learner_sequences(config, *, episode_phase: int) -> int:
+    """Model RLlib's bootstrap-timestep and stateful zero-padding semantics."""
+
+    max_seq_len = MODEL_CONFIG["max_seq_len"]
+    episode_length = int(config.env_config["episode_length"])
+    total = 0
+    for worker_index in range(1, config.num_env_runners + 1):
+        remaining = config.get_rollout_fragment_length(worker_index)
+        position = episode_phase
+        rows_per_environment = 0
+        while remaining:
+            chunk_length = min(remaining, episode_length - position)
+            # PPO adds one bootstrap timestep to every returned episode chunk
+            # before RLlib splits and zero-pads it to max_seq_len.
+            _, seq_lens = create_mask_and_seq_lens(
+                chunk_length + 1,
+                max_seq_len,
+            )
+            rows_per_environment += len(seq_lens)
+            remaining -= chunk_length
+            position = (position + chunk_length) % episode_length
+        total += rows_per_environment * config.num_envs_per_env_runner
+    return total
 
 
 def test_history_observation_exposes_symbol_and_preceding_action():
@@ -302,21 +330,62 @@ def test_smoke_recipe_builds_targeted_config(tmp_path):
         environment.close()
 
 
-def test_full_recipe_uses_cuda_validated_minibatch_size(tmp_path):
+def test_full_recipe_limits_stateful_connector_fanout(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr("harness.hardware.available_cpus", lambda: 64.0)
     context = RunContext(
         experiment_dir=tmp_path,
         results_dir=tmp_path / "results",
         artifacts_dir=tmp_path / "artifacts",
         seed=42,
         smoke=False,
-        hardware=PROFILES["cpu"],
+        hardware=PROFILES["cuda4090"],
     )
 
     config = build_global_alias_config(context)
 
-    assert MINIBATCH_SIZE == 256
-    assert config.train_batch_size_per_learner == 1_024
-    assert config.minibatch_size == 256
+    assert TRAIN_BATCH_SIZE == 32_768
+    assert MINIBATCH_SIZE == 8_192
+    assert TRAIN_ENVS_PER_ENV_RUNNER == 4
+    assert config.train_batch_size_per_learner == 32_768
+    assert config.minibatch_size == 8_192
+    assert config.num_env_runners == 16
+    assert config.num_envs_per_env_runner == 4
+    sequence_counts = [
+        _padded_learner_sequences(config, episode_phase=phase)
+        for phase in range(config.env_config["episode_length"])
+    ]
+    assert min(sequence_counts) == 192
+    assert max(sequence_counts) == 256
+
+
+def test_previous_vectorization_reproduces_episode_boundary_sequence_spike(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr("harness.hardware.available_cpus", lambda: 64.0)
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cuda4090"],
+    )
+    config = build_global_alias_config(context)
+    config.train_batch_size_per_learner = 1_024
+    config.num_envs_per_env_runner = 24
+
+    sequence_counts = [
+        _padded_learner_sequences(config, episode_phase=phase)
+        for phase in range(config.env_config["episode_length"])
+    ]
+
+    assert min(sequence_counts) == 384
+    assert max(sequence_counts) == 768
+    assert max(sequence_counts) >= 720
 
 
 def test_log_schedule_keeps_powers_of_two_and_final():

@@ -25,6 +25,11 @@ belief has 255 degrees of freedom; concatenated component marginals have 12.
 - BPTT sequence length and per-layer transformer context are both 256.
 - Full PPO updates use a 32,768-step train batch and 8,192-step minibatches;
   the latter was selected from live RTX 4090 measurements.
+- Full runs use four vectorized environments per EnvRunner. RLlib zero-pads
+  every returned stateful episode chunk to the BPTT length after adding a
+  bootstrap timestep, so the hardware profile's larger vectorization would
+  make the learner batch scale with environment streams instead of sampled
+  steps and spike again when 1,000-step episodes finish.
 - Cardinality control with `operate`, `inspect`, four exact aliases of canonical
   global repair, and four exact aliases of canonical global replacement.
 - Targeted condition with `operate`, `inspect`, four component repair

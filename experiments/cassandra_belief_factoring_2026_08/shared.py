@@ -42,10 +42,11 @@ from learners.models.transformer import TransformerModel, TransformerModelConfig
 
 TOTAL_ENV_STEPS = 5_000_000
 SMOKE_ENV_STEPS = 4_096
-TRAIN_BATCH_SIZE = 1_024
+TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 2_048
-MINIBATCH_SIZE = 256
+MINIBATCH_SIZE = 8_192
 SMOKE_MINIBATCH_SIZE = 256
+TRAIN_ENVS_PER_ENV_RUNNER = 4
 FULL_EVAL_EPISODES = 64
 SMOKE_EVAL_EPISODES = 2
 ENTROPY_COEFF = 0.005
@@ -83,7 +84,7 @@ def _apply_runtime_resources(config: PPOConfig, context: RunContext) -> PPOConfi
             else resolve_env_runners(profile, default=8)
         ),
         num_envs_per_env_runner=(
-            1 if context.smoke else profile.num_envs_per_env_runner
+            1 if context.smoke else TRAIN_ENVS_PER_ENV_RUNNER
         ),
         num_gpus_per_env_runner=(
             0 if context.smoke else profile.num_gpus_per_env_runner
@@ -94,25 +95,6 @@ def _apply_runtime_resources(config: PPOConfig, context: RunContext) -> PPOConfi
             1 if profile.learner_device == "cuda" else 0
         )
     )
-
-
-def _on_train_result(
-    *,
-    algorithm: Any,
-    result: Mapping[str, Any],
-    checkpoint_root: str,
-    **_: Any,
-) -> None:
-    """Save log-spaced checkpoints and release GPU memory each iteration."""
-
-    _save_log_spaced_checkpoint(
-        algorithm=algorithm,
-        result=result,
-        checkpoint_root=checkpoint_root,
-    )
-    gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
 
 
 def _save_log_spaced_checkpoint(
@@ -203,7 +185,7 @@ def build_config(
         )
         .callbacks(
             on_train_result=partial(
-                _on_train_result,
+                _save_log_spaced_checkpoint,
                 checkpoint_root=str(
                     context.artifacts_dir / "log_spaced_checkpoints"
                 ),
@@ -649,6 +631,15 @@ def run_condition(
             ),
             "model_config": MODEL_CONFIG,
             "bptt_sequence_length": MODEL_CONFIG["max_seq_len"],
+            "train_batch_size": (
+                SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
+            ),
+            "minibatch_size": (
+                SMOKE_MINIBATCH_SIZE if context.smoke else MINIBATCH_SIZE
+            ),
+            "num_envs_per_env_runner": (
+                1 if context.smoke else TRAIN_ENVS_PER_ENV_RUNNER
+            ),
             "total_env_steps": target_steps,
             "checkpoint_schedule": (
                 "initialization_then_power_of_two_iterations_and_final"
