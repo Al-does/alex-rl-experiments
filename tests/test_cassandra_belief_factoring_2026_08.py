@@ -291,8 +291,8 @@ def test_smoke_recipe_builds_targeted_config(tmp_path):
     try:
         assert config.env_config["action_scope"] == "targeted"
         assert config.env_config["initial_state_distribution"] == "uniform"
-        assert config.model_config["context_len"] == 256
-        assert config.model_config["max_seq_len"] == 256
+        assert config.rl_module_spec.model_config["context_len"] == 256
+        assert config.rl_module_spec.model_config["max_seq_len"] == 256
         assert environment.observation_space.shape == (
             TARGETED_OBSERVATION_DIM,
         )
