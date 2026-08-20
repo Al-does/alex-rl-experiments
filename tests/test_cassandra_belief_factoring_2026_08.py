@@ -59,6 +59,9 @@ from experiments.cassandra_belief_factoring_2026_08.global_alias_ppo_entropy_0_0
 from experiments.cassandra_belief_factoring_2026_08.global_alias_ppo_small_entropy_anneal_continue_10m.experiment import (
     build_config as build_global_alias_small_continuation_config,
 )
+from experiments.cassandra_belief_factoring_2026_08.global_alias_ppo_small_continue_30m.experiment import (
+    build_config as build_global_alias_small_30m_config,
+)
 from experiments.cassandra_belief_factoring_2026_08.targeted_ppo.experiment import (
     build_config as build_targeted_config,
 )
@@ -115,6 +118,18 @@ from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_small_entropy_a
 )
 from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_small_entropy_anneal_continue_10m.experiment import (
     build_config as build_targeted_small_continuation_config,
+)
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_small_continue_30m.experiment import (
+    ADDITIONAL_ENV_STEPS as SMALL_30M_CONTINUATION_STEPS,
+)
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_small_continue_30m.experiment import (
+    ENTROPY_COEFF as SMALL_30M_ENTROPY_COEFF,
+)
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_small_continue_30m.experiment import (
+    SOURCE_STEPS as SMALL_30M_SOURCE_STEPS,
+)
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_small_continue_30m.experiment import (
+    build_config as build_targeted_small_30m_config,
 )
 from harness.context import RunContext
 from harness.hardware import PROFILES
@@ -598,6 +613,31 @@ def test_small_continuations_share_lifetime_entropy_schedule(tmp_path):
     ]
     for config in (targeted, global_alias):
         assert config.entropy_coeff == SMALL_CONTINUATION_ENTROPY_SCHEDULE
+        assert config.gamma == 0.990
+        assert config.use_kl_loss is False
+        assert config.rl_module_spec.model_config == SMALL_FOUR_LAYER_MODEL_CONFIG
+    assert targeted.env_config["action_scope"] == "targeted"
+    assert global_alias.env_config["action_scope"] == "global_aliases"
+
+
+def test_small_30m_continuations_hold_entropy_floor(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+
+    targeted = build_targeted_small_30m_config(context)
+    global_alias = build_global_alias_small_30m_config(context)
+
+    assert SMALL_30M_SOURCE_STEPS == 20_054_016
+    assert SMALL_30M_CONTINUATION_STEPS == 30_000_000
+    assert SMALL_30M_ENTROPY_COEFF == 0.008
+    for config in (targeted, global_alias):
+        assert config.entropy_coeff == 0.008
         assert config.gamma == 0.990
         assert config.use_kl_loss is False
         assert config.rl_module_spec.model_config == SMALL_FOUR_LAYER_MODEL_CONFIG
