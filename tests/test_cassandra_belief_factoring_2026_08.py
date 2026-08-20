@@ -23,6 +23,10 @@ from experiments.cassandra_belief_factoring_2026_08.analysis import (
     factor_subspace_geometry,
     variance_geometry,
 )
+from experiments.cassandra_belief_factoring_2026_08.continuation import (
+    _sampled_steps,
+    continue_from_checkpoint,
+)
 from experiments.cassandra_belief_factoring_2026_08.environment import (
     OBSERVATION_DIM,
     TARGETED_OBSERVATION_DIM,
@@ -39,6 +43,7 @@ from experiments.cassandra_belief_factoring_2026_08.shared import (
     TRAIN_BATCH_SIZE,
     TRAIN_ENVS_PER_ENV_RUNNER,
     _last_reported_return,
+    _save_initial_checkpoint,
     _save_log_spaced_checkpoint,
     checkpoint_records,
     log_spaced_records,
@@ -99,7 +104,6 @@ from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_anneal_
     ADDITIONAL_ENV_STEPS,
     SOURCE_STEPS,
     TARGET_ENV_STEPS,
-    _sampled_steps,
 )
 from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_anneal_continue_5m.experiment import (
     build_config as build_entropy_continuation_config,
@@ -645,6 +649,28 @@ def test_small_30m_continuations_hold_entropy_floor(tmp_path):
     assert global_alias.env_config["action_scope"] == "global_aliases"
 
 
+def test_continuation_rejects_checkpoint_from_wrong_source_run(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        resume_from=tmp_path / "different-run" / "checkpoint",
+        hardware=PROFILES["cpu"],
+    )
+    config = build_targeted_small_30m_config(context)
+
+    with pytest.raises(ValueError, match="does not match declared source run"):
+        continue_from_checkpoint(
+            config,
+            context,
+            source_run_id="expected-run",
+            source_steps=20_054_016,
+            additional_steps=30_000_000,
+        )
+
+
 def test_full_recipe_limits_stateful_connector_fanout(
     tmp_path,
     monkeypatch,
@@ -783,6 +809,32 @@ def test_log_spaced_callback_saves_only_power_of_two_iterations(tmp_path):
         4,
     ]
     assert len(saved) == 3
+
+
+def test_initial_checkpoint_callback_saves_exact_algorithm_once(tmp_path):
+    saved = []
+
+    class Algorithm:
+        def save_to_path(self, path):
+            destination = Path(path)
+            destination.mkdir(parents=True)
+            (destination / "rllib_checkpoint.json").write_text("{}")
+            saved.append(path)
+            return path
+
+    checkpoint = tmp_path / "initial"
+    algorithm = Algorithm()
+
+    _save_initial_checkpoint(
+        algorithm=algorithm,
+        checkpoint_path=str(checkpoint),
+    )
+    _save_initial_checkpoint(
+        algorithm=algorithm,
+        checkpoint_path=str(checkpoint),
+    )
+
+    assert saved == [str(checkpoint)]
 
 
 def test_checkpoint_records_combine_log_spaced_and_final(tmp_path):
