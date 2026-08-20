@@ -35,10 +35,7 @@ def build_config(context: RunContext) -> PPOConfig:
             CassandraActionObservationEnv,
             env_config=env_config,
         )
-        .training(
-            entropy_coeff=ENTROPY_COEFF,
-            entropy_coeff_schedule=ENTROPY_COEFF_SCHEDULE,
-        )
+        .training(entropy_coeff=ENTROPY_COEFF_SCHEDULE)
     )
 
 

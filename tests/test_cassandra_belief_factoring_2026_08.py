@@ -405,8 +405,8 @@ def test_annealed_entropy_targeted_recipe_uses_expected_schedule(tmp_path):
         [2_500_000, 0.08],
         [5_000_000, 0.01],
     ]
-    assert config.entropy_coeff == 0.08
-    assert config.entropy_coeff_schedule == ENTROPY_COEFF_SCHEDULE
+    assert config.entropy_coeff == ENTROPY_COEFF_SCHEDULE
+    assert config.entropy_coeff_schedule is None
     assert config.env_config["action_scope"] == "targeted"
     assert config.env_config["initial_state_distribution"] == "all_good"
 
