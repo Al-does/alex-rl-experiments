@@ -68,6 +68,15 @@ from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_anneal_
 from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_anneal_all_good.experiment import (
     build_config as build_annealed_entropy_targeted_config,
 )
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_anneal_continue_5m.experiment import (
+    ADDITIONAL_ENV_STEPS,
+    SOURCE_STEPS,
+    TARGET_ENV_STEPS,
+    _sampled_steps,
+)
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_anneal_continue_5m.experiment import (
+    build_config as build_entropy_continuation_config,
+)
 from harness.context import RunContext
 from harness.hardware import PROFILES
 from learners.models import TransformerModel
@@ -409,6 +418,28 @@ def test_annealed_entropy_targeted_recipe_uses_expected_schedule(tmp_path):
     assert config.entropy_coeff_schedule is None
     assert config.env_config["action_scope"] == "targeted"
     assert config.env_config["initial_state_distribution"] == "all_good"
+
+
+def test_entropy_continuation_targets_five_million_additional_steps(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+
+    config = build_entropy_continuation_config(context)
+
+    assert SOURCE_STEPS == 5_013_504
+    assert ADDITIONAL_ENV_STEPS == 5_000_000
+    assert TARGET_ENV_STEPS == 10_013_504
+    assert config.entropy_coeff[-1] == [5_000_000, 0.01]
+    assert config.env_config["initial_state_distribution"] == "all_good"
+    assert _sampled_steps(
+        {"env_runners": {"num_env_steps_sampled_lifetime": 10_027_008}}
+    ) == 10_027_008
 
 
 def test_full_recipe_limits_stateful_connector_fanout(
