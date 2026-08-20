@@ -62,6 +62,12 @@ from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_0_8_all
 from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_0_8_all_good.experiment import (
     build_config as build_high_entropy_targeted_config,
 )
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_anneal_all_good.experiment import (
+    ENTROPY_COEFF_SCHEDULE,
+)
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_anneal_all_good.experiment import (
+    build_config as build_annealed_entropy_targeted_config,
+)
 from harness.context import RunContext
 from harness.hardware import PROFILES
 from learners.models import TransformerModel
@@ -380,6 +386,29 @@ def test_moderate_entropy_targeted_recipe_uses_all_good_starts(tmp_path):
     assert config.env_config["initial_state_distribution"] == "all_good"
     assert config.train_batch_size_per_learner == TRAIN_BATCH_SIZE
     assert config.minibatch_size == MINIBATCH_SIZE
+
+
+def test_annealed_entropy_targeted_recipe_uses_expected_schedule(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+
+    config = build_annealed_entropy_targeted_config(context)
+
+    assert ENTROPY_COEFF_SCHEDULE == [
+        [0, 0.08],
+        [2_500_000, 0.08],
+        [5_000_000, 0.01],
+    ]
+    assert config.entropy_coeff == 0.08
+    assert config.entropy_coeff_schedule == ENTROPY_COEFF_SCHEDULE
+    assert config.env_config["action_scope"] == "targeted"
+    assert config.env_config["initial_state_distribution"] == "all_good"
 
 
 def test_full_recipe_limits_stateful_connector_fanout(
