@@ -13,6 +13,8 @@ Dedicated run records:
 9. [`targeted_allgood_entropy_0_05_gamma_0_990_standard_10m.md`](targeted_allgood_entropy_0_05_gamma_0_990_standard_10m.md)
 10. [`global_alias_allgood_entropy_0_03_gamma_0_990_small_4layer_10m.md`](global_alias_allgood_entropy_0_03_gamma_0_990_small_4layer_10m.md)
 11. [`small_final_checkpoint_probe_comparison.md`](small_final_checkpoint_probe_comparison.md)
+12. [`targeted_small_entropy_anneal_0_03_to_0_008_continuation_20m.md`](targeted_small_entropy_anneal_0_03_to_0_008_continuation_20m.md)
+13. [`global_alias_small_entropy_anneal_0_03_to_0_008_continuation_20m.md`](global_alias_small_entropy_anneal_0_03_to_0_008_continuation_20m.md)
 
 These are single-seed diagnostics. Raw returns are not directly comparable
 across different initial-state distributions.
