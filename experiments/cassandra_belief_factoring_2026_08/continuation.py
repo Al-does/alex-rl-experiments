@@ -55,6 +55,11 @@ def continue_from_checkpoint(
                 "full continuation requires --resume-from with the source "
                 "Algorithm checkpoint"
             )
+        if source_run_id not in str(context.resume_from):
+            raise ValueError(
+                "resume checkpoint does not match declared source run "
+                f"{source_run_id}: {context.resume_from}"
+            )
         runtime_config = RestoringAlgorithmConfig(
             config=config,
             checkpoint=context.resume_from,
@@ -63,10 +68,27 @@ def continue_from_checkpoint(
         target_steps = source_steps + additional_steps
         recorded_source_steps = source_steps
 
+    first_result = True
+
+    def should_stop(metrics) -> bool:
+        nonlocal first_result
+        steps = _sampled_steps(metrics)
+        if first_result and not context.smoke:
+            expected = source_steps + int(
+                config.train_batch_size_per_learner
+            )
+            if steps != expected:
+                raise ValueError(
+                    "restored checkpoint sampled-step counter does not match "
+                    f"source run: expected first result at {expected}, got {steps}"
+                )
+        first_result = False
+        return steps >= target_steps
+
     result = run_algorithm(
         runtime_config,
         runtime_context,
-        should_stop=lambda metrics: _sampled_steps(metrics) >= target_steps,
+        should_stop=should_stop,
         checkpoint_at_end=True,
     )
     RunArtifacts.from_context(context).write_json(

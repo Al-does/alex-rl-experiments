@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import replace
 from functools import partial
-import gc
 import json
 import math
 from numbers import Real
@@ -145,6 +144,21 @@ def _save_log_spaced_checkpoint(
     temporary.replace(index_path)
 
 
+def _save_initial_checkpoint(
+    *,
+    algorithm: Any,
+    checkpoint_path: str,
+    **_: Any,
+) -> None:
+    """Save step zero from the exact Algorithm instance Tune will train."""
+
+    destination = Path(checkpoint_path)
+    if (destination / "rllib_checkpoint.json").is_file():
+        return
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    algorithm.save_to_path(str(destination))
+
+
 def build_config(
     context: RunContext,
     *,
@@ -184,6 +198,12 @@ def build_config(
             )
         )
         .callbacks(
+            on_algorithm_init=partial(
+                _save_initial_checkpoint,
+                checkpoint_path=str(
+                    context.artifacts_dir / "initial_checkpoint"
+                ),
+            ),
             on_train_result=partial(
                 _save_log_spaced_checkpoint,
                 checkpoint_root=str(
@@ -515,16 +535,6 @@ def _validate_compact_outputs(
         )
 
 
-def _save_initial_checkpoint(config: PPOConfig, path: Path) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    algorithm = config.build_algo()
-    try:
-        saved = algorithm.save_to_path(str(path))
-    finally:
-        algorithm.stop()
-    return Path(saved)
-
-
 def _probe_at(
     context: RunContext,
     *,
@@ -663,24 +673,6 @@ def run_condition(
     )
 
     config = build_config(context, action_scope=action_scope)
-    initial_checkpoint = _save_initial_checkpoint(
-        config,
-        context.artifacts_dir / "initial_checkpoint",
-    )
-    initial_probe, initial_point = _probe_at(
-        context,
-        checkpoint=initial_checkpoint,
-        condition=f"{condition}_initialization",
-        agent_steps=0,
-    )
-    import ray
-
-    if ray.is_initialized():
-        ray.shutdown()
-    gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-
     result_grid = run_tune(
         config,
         context,
@@ -719,6 +711,17 @@ def run_condition(
     if not selected:
         raise RuntimeError(f"{condition} retained no checkpoints")
 
+    initial_checkpoint = context.artifacts_dir / "initial_checkpoint"
+    if not (initial_checkpoint / "rllib_checkpoint.json").is_file():
+        raise RuntimeError(
+            f"{condition} did not save its exact initialization checkpoint"
+        )
+    initial_probe, initial_point = _probe_at(
+        context,
+        checkpoint=initial_checkpoint,
+        condition=f"{condition}_initialization",
+        agent_steps=0,
+    )
     trajectory = [initial_point]
     trained_probes: list[ProbeResult] = []
     for record in selected:
