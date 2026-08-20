@@ -56,6 +56,9 @@ from experiments.cassandra_belief_factoring_2026_08.global_alias_ppo.experiment 
 from experiments.cassandra_belief_factoring_2026_08.global_alias_ppo_entropy_0_03_gamma_0_990_small_4layer_all_good_10m.experiment import (
     build_config as build_global_alias_small_config,
 )
+from experiments.cassandra_belief_factoring_2026_08.global_alias_ppo_small_entropy_anneal_continue_10m.experiment import (
+    build_config as build_global_alias_small_continuation_config,
+)
 from experiments.cassandra_belief_factoring_2026_08.targeted_ppo.experiment import (
     build_config as build_targeted_config,
 )
@@ -97,6 +100,21 @@ from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_anneal_
 )
 from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_anneal_continue_5m.experiment import (
     build_config as build_entropy_continuation_config,
+)
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_small_entropy_anneal_continue_10m.experiment import (
+    ADDITIONAL_ENV_STEPS as SMALL_CONTINUATION_STEPS,
+)
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_small_entropy_anneal_continue_10m.experiment import (
+    ANNEAL_END_STEPS as SMALL_ANNEAL_END_STEPS,
+)
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_small_entropy_anneal_continue_10m.experiment import (
+    ENTROPY_COEFF_SCHEDULE as SMALL_CONTINUATION_ENTROPY_SCHEDULE,
+)
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_small_entropy_anneal_continue_10m.experiment import (
+    SOURCE_STEPS as SMALL_SOURCE_STEPS,
+)
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_small_entropy_anneal_continue_10m.experiment import (
+    build_config as build_targeted_small_continuation_config,
 )
 from harness.context import RunContext
 from harness.hardware import PROFILES
@@ -555,6 +573,36 @@ def test_small_final_probe_paths_resolve_under_study_root(tmp_path):
     assert set(paths) == {"targeted", "global_alias"}
     assert all(path.is_relative_to(study_root) for path in paths.values())
     assert all(path.name == "checkpoint_000000" for path in paths.values())
+
+
+def test_small_continuations_share_lifetime_entropy_schedule(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+
+    targeted = build_targeted_small_continuation_config(context)
+    global_alias = build_global_alias_small_continuation_config(context)
+
+    assert SMALL_SOURCE_STEPS == 10_027_008
+    assert SMALL_CONTINUATION_STEPS == 10_000_000
+    assert SMALL_ANNEAL_END_STEPS == 12_527_008
+    assert SMALL_CONTINUATION_ENTROPY_SCHEDULE == [
+        [0, 0.03],
+        [10_027_008, 0.03],
+        [12_527_008, 0.008],
+    ]
+    for config in (targeted, global_alias):
+        assert config.entropy_coeff == SMALL_CONTINUATION_ENTROPY_SCHEDULE
+        assert config.gamma == 0.990
+        assert config.use_kl_loss is False
+        assert config.rl_module_spec.model_config == SMALL_FOUR_LAYER_MODEL_CONFIG
+    assert targeted.env_config["action_scope"] == "targeted"
+    assert global_alias.env_config["action_scope"] == "global_aliases"
 
 
 def test_full_recipe_limits_stateful_connector_fanout(
