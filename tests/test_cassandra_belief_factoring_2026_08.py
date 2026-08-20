@@ -44,6 +44,12 @@ from experiments.cassandra_belief_factoring_2026_08.shared import (
     log_spaced_records,
     training_curve,
 )
+from experiments.cassandra_belief_factoring_2026_08.small_final_checkpoint_probes.experiment import (
+    AGENT_STEPS as SMALL_FINAL_PROBE_STEPS,
+)
+from experiments.cassandra_belief_factoring_2026_08.small_final_checkpoint_probes.experiment import (
+    checkpoint_paths as small_final_checkpoint_paths,
+)
 from experiments.cassandra_belief_factoring_2026_08.global_alias_ppo.experiment import (
     build_config as build_global_alias_config,
 )
@@ -530,6 +536,25 @@ def test_small_global_alias_recipe_matches_small_targeted_architecture(tmp_path)
         assert config.use_kl_loss is False
         assert config.env_config["initial_state_distribution"] == "all_good"
         assert config.rl_module_spec.model_config == SMALL_FOUR_LAYER_MODEL_CONFIG
+
+
+def test_small_final_probe_paths_resolve_under_study_root(tmp_path):
+    study_root = tmp_path / "cassandra_belief_factoring_2026_08"
+    context = RunContext(
+        experiment_dir=study_root / "small_final_checkpoint_probes",
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=True,
+        hardware=PROFILES["cpu"],
+    )
+
+    paths = small_final_checkpoint_paths(context)
+
+    assert SMALL_FINAL_PROBE_STEPS == 10_027_008
+    assert set(paths) == {"targeted", "global_alias"}
+    assert all(path.is_relative_to(study_root) for path in paths.values())
+    assert all(path.name == "checkpoint_000000" for path in paths.values())
 
 
 def test_full_recipe_limits_stateful_connector_fanout(
