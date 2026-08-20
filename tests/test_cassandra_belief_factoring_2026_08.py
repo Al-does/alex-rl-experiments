@@ -50,6 +50,15 @@ from experiments.cassandra_belief_factoring_2026_08.global_alias_ppo.experiment 
 from experiments.cassandra_belief_factoring_2026_08.targeted_ppo.experiment import (
     build_config as build_targeted_config,
 )
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_0_03_gamma_0_990_all_good_10m.experiment import (
+    build_config as build_entropy_003_standard_config,
+)
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_0_03_gamma_0_990_small_4layer_all_good_10m.experiment import (
+    MODEL_CONFIG as SMALL_FOUR_LAYER_MODEL_CONFIG,
+)
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_0_03_gamma_0_990_small_4layer_all_good_10m.experiment import (
+    build_config as build_entropy_003_small_config,
+)
 from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_0_08_all_good.experiment import (
     ENTROPY_COEFF as MODERATE_ENTROPY_COEFF,
 )
@@ -440,6 +449,38 @@ def test_entropy_continuation_targets_five_million_additional_steps(tmp_path):
     assert _sampled_steps(
         {"env_runners": {"num_env_steps_sampled_lifetime": 10_027_008}}
     ) == 10_027_008
+
+
+def test_entropy_003_10m_recipes_match_except_for_transformer_shape(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+
+    standard = build_entropy_003_standard_config(context)
+    small = build_entropy_003_small_config(context)
+
+    for config in (standard, small):
+        assert config.entropy_coeff == 0.03
+        assert config.gamma == 0.990
+        assert config.use_kl_loss is False
+        assert config.kl_coeff == 0.0
+        assert config.env_config["initial_state_distribution"] == "all_good"
+        assert config.train_batch_size_per_learner == TRAIN_BATCH_SIZE
+        assert config.minibatch_size == MINIBATCH_SIZE
+    assert standard.rl_module_spec.model_config == MODEL_CONFIG
+    assert small.rl_module_spec.model_config == SMALL_FOUR_LAYER_MODEL_CONFIG
+    assert SMALL_FOUR_LAYER_MODEL_CONFIG == {
+        "d_model": 64,
+        "n_layers": 4,
+        "n_heads": 1,
+        "context_len": 256,
+        "max_seq_len": 256,
+    }
 
 
 def test_full_recipe_limits_stateful_connector_fanout(
