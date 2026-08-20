@@ -23,3 +23,10 @@ The records are intentionally self-contained: each lists its scientific and
 optimization settings, source run ID, and outcome. One-off campaign recipes,
 raw `progress.jsonl`, checkpoints, duplicate durability manifests, and
 per-checkpoint plots remain on the research branch/B2 rather than this PR.
+
+[`compact_training_curves.json`](compact_training_curves.json) retains the
+episode-reporting rows needed to reproduce campaign reward and optimization
+plots without committing the raw RLlib histories. Each row contains sampled
+steps, training iteration, return mean/min/max, entropy coefficient, policy
+entropy, value explained variance, mean KL, and policy loss. Non-reporting
+windows and repeated flattened configuration/connector payloads are omitted.
