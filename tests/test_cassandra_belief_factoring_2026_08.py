@@ -47,6 +47,9 @@ from experiments.cassandra_belief_factoring_2026_08.shared import (
 from experiments.cassandra_belief_factoring_2026_08.global_alias_ppo.experiment import (
     build_config as build_global_alias_config,
 )
+from experiments.cassandra_belief_factoring_2026_08.global_alias_ppo_entropy_0_03_gamma_0_990_small_4layer_all_good_10m.experiment import (
+    build_config as build_global_alias_small_config,
+)
 from experiments.cassandra_belief_factoring_2026_08.targeted_ppo.experiment import (
     build_config as build_targeted_config,
 )
@@ -58,6 +61,9 @@ from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_0_03_ga
 )
 from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_0_03_gamma_0_990_small_4layer_all_good_10m.experiment import (
     build_config as build_entropy_003_small_config,
+)
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_0_05_gamma_0_990_all_good_10m.experiment import (
+    build_config as build_entropy_005_standard_config,
 )
 from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_entropy_0_08_all_good.experiment import (
     ENTROPY_COEFF as MODERATE_ENTROPY_COEFF,
@@ -481,6 +487,49 @@ def test_entropy_003_10m_recipes_match_except_for_transformer_shape(tmp_path):
         "context_len": 256,
         "max_seq_len": 256,
     }
+
+
+def test_entropy_005_10m_recipe_keeps_standard_transformer(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+
+    config = build_entropy_005_standard_config(context)
+
+    assert config.entropy_coeff == 0.05
+    assert config.gamma == 0.990
+    assert config.use_kl_loss is False
+    assert config.kl_coeff == 0.0
+    assert config.env_config["initial_state_distribution"] == "all_good"
+    assert config.rl_module_spec.model_config == MODEL_CONFIG
+
+
+def test_small_global_alias_recipe_matches_small_targeted_architecture(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+
+    global_alias = build_global_alias_small_config(context)
+    targeted = build_entropy_003_small_config(context)
+
+    assert global_alias.env_config["action_scope"] == "global_aliases"
+    assert targeted.env_config["action_scope"] == "targeted"
+    for config in (global_alias, targeted):
+        assert config.entropy_coeff == 0.03
+        assert config.gamma == 0.990
+        assert config.use_kl_loss is False
+        assert config.env_config["initial_state_distribution"] == "all_good"
+        assert config.rl_module_spec.model_config == SMALL_FOUR_LAYER_MODEL_CONFIG
 
 
 def test_full_recipe_limits_stateful_connector_fanout(
