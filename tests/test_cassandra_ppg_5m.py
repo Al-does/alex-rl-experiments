@@ -23,8 +23,8 @@ from experiments.cassandra_belief_factoring_2026_08.ppg_5m.shared import (
 
 
 CONDITIONS = {
-    "global_alias": "global_aliases",
-    "targeted": "targeted",
+    "global_alias_ppg": "global_aliases",
+    "targeted_ppg": "targeted",
 }
 MODULE_PREFIX = "experiments.cassandra_belief_factoring_2026_08.ppg_5m"
 
@@ -73,8 +73,8 @@ def test_action_scope_is_the_only_config_difference(tmp_path):
         leaf: module.build_config(_context(tmp_path, smoke=False))
         for leaf, module in modules.items()
     }
-    global_alias = configs["global_alias"]
-    targeted = configs["targeted"]
+    global_alias = configs["global_alias_ppg"]
+    targeted = configs["targeted_ppg"]
 
     assert global_alias.env_config != targeted.env_config
     assert {

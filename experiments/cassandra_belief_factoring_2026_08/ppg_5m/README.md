@@ -4,8 +4,8 @@ This campaign contains exactly two seed-42 training conditions:
 
 | Leaf | Action scope |
 |---|---|
-| `global_alias` | Ten actions: indexed aliases of global repair/replacement |
-| `targeted` | Ten actions: component-addressable repair/replacement |
+| `global_alias_ppg` | Ten actions: indexed aliases of global repair/replacement |
+| `targeted_ppg` | Ten actions: component-addressable repair/replacement |
 
 Both recipes train for 5,000,000 environment steps from the all-good initial
 state with the same width-64, four-layer, one-head transformer. Every PPG and
@@ -17,10 +17,10 @@ Run the conditions separately with:
 
 ```bash
 uv run rl-harness \
-  experiments.cassandra_belief_factoring_2026_08.ppg_5m.global_alias.experiment \
+  experiments.cassandra_belief_factoring_2026_08.ppg_5m.global_alias_ppg.experiment \
   --seed 42
 
 uv run rl-harness \
-  experiments.cassandra_belief_factoring_2026_08.ppg_5m.targeted.experiment \
+  experiments.cassandra_belief_factoring_2026_08.ppg_5m.targeted_ppg.experiment \
   --seed 42
 ```
