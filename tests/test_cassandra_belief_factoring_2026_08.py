@@ -55,6 +55,12 @@ from experiments.cassandra_belief_factoring_2026_08.small_final_checkpoint_probe
 from experiments.cassandra_belief_factoring_2026_08.small_final_checkpoint_probes.experiment import (
     checkpoint_paths as small_final_checkpoint_paths,
 )
+from experiments.cassandra_belief_factoring_2026_08.small_50m_final_checkpoint_probes.experiment import (
+    AGENT_STEPS as SMALL_50M_FINAL_PROBE_STEPS,
+)
+from experiments.cassandra_belief_factoring_2026_08.small_50m_final_checkpoint_probes.experiment import (
+    checkpoint_paths as small_50m_final_checkpoint_paths,
+)
 from experiments.cassandra_belief_factoring_2026_08.global_alias_ppo.experiment import (
     build_config as build_global_alias_config,
 )
@@ -592,6 +598,25 @@ def test_small_final_probe_paths_resolve_under_study_root(tmp_path):
     assert set(paths) == {"targeted", "global_alias"}
     assert all(path.is_relative_to(study_root) for path in paths.values())
     assert all(path.name == "checkpoint_000000" for path in paths.values())
+
+
+def test_small_50m_final_probe_paths_resolve_under_study_root(tmp_path):
+    study_root = tmp_path / "cassandra_belief_factoring_2026_08"
+    context = RunContext(
+        experiment_dir=study_root / "small_50m_final_checkpoint_probes",
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=True,
+        hardware=PROFILES["cpu"],
+    )
+
+    paths = small_50m_final_checkpoint_paths(context)
+
+    assert SMALL_50M_FINAL_PROBE_STEPS == 50_069_504
+    assert set(paths) == {"targeted", "global_alias"}
+    assert all(path.is_relative_to(study_root) for path in paths.values())
+    assert all(path.name == "iteration_000916_final" for path in paths.values())
 
 
 def test_small_continuations_share_lifetime_entropy_schedule(tmp_path):
