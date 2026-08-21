@@ -39,10 +39,10 @@ threshold and quantile count preserves the matched environment comparison.
 
 ```bash
 uv run rl-harness \
-  experiments.cassandra_belief_factoring_2026_08.qr_ppo_5m.global_alias.experiment \
+  experiments.cassandra_belief_factoring_2026_08.qr_ppo_5m.global_alias_qr.experiment \
   --seed 42
 
 uv run rl-harness \
-  experiments.cassandra_belief_factoring_2026_08.qr_ppo_5m.targeted.experiment \
+  experiments.cassandra_belief_factoring_2026_08.qr_ppo_5m.targeted_qr.experiment \
   --seed 42
 ```

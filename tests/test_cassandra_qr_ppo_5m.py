@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from experiments.cassandra_belief_factoring_2026_08.qr_ppo_5m.global_alias.experiment import (
+from experiments.cassandra_belief_factoring_2026_08.qr_ppo_5m.global_alias_qr.experiment import (
     build_config as build_global_alias_config,
 )
 from experiments.cassandra_belief_factoring_2026_08.qr_ppo_5m.shared import (
@@ -17,7 +17,7 @@ from experiments.cassandra_belief_factoring_2026_08.qr_ppo_5m.shared import (
     QUANTILE_LOSS_COEFFICIENT,
     TOTAL_ENV_STEPS,
 )
-from experiments.cassandra_belief_factoring_2026_08.qr_ppo_5m.targeted.experiment import (
+from experiments.cassandra_belief_factoring_2026_08.qr_ppo_5m.targeted_qr.experiment import (
     build_config as build_targeted_config,
 )
 from harness.context import RunContext
