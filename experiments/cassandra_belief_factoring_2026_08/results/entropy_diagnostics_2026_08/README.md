@@ -15,18 +15,8 @@ Dedicated run records:
 11. [`small_final_checkpoint_probe_comparison.md`](small_final_checkpoint_probe_comparison.md)
 12. [`targeted_small_entropy_anneal_0_03_to_0_008_continuation_20m.md`](targeted_small_entropy_anneal_0_03_to_0_008_continuation_20m.md)
 13. [`global_alias_small_entropy_anneal_0_03_to_0_008_continuation_20m.md`](global_alias_small_entropy_anneal_0_03_to_0_008_continuation_20m.md)
+14. [`targeted_small_entropy_0_008_continuation_50m.md`](targeted_small_entropy_0_008_continuation_50m.md)
+15. [`global_alias_small_entropy_0_008_continuation_50m.md`](global_alias_small_entropy_0_008_continuation_50m.md)
 
 These are single-seed diagnostics. Raw returns are not directly comparable
 across different initial-state distributions.
-
-The records are intentionally self-contained: each lists its scientific and
-optimization settings, source run ID, and outcome. One-off campaign recipes,
-raw `progress.jsonl`, checkpoints, duplicate durability manifests, and
-per-checkpoint plots remain on the research branch/B2 rather than this PR.
-
-[`compact_training_curves.json`](compact_training_curves.json) retains the
-episode-reporting rows needed to reproduce campaign reward and optimization
-plots without committing the raw RLlib histories. Each row contains sampled
-steps, training iteration, return mean/min/max, entropy coefficient, policy
-entropy, value explained variance, mean KL, and policy loss. Non-reporting
-windows and repeated flattened configuration/connector payloads are omitted.
