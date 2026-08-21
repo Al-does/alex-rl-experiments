@@ -1,4 +1,4 @@
-"""Shared mechanics for the isolated four-arm targeted PPG campaign."""
+"""Matched mechanics for the global-alias and targeted PPG runs."""
 
 from __future__ import annotations
 
@@ -30,25 +30,24 @@ SMOKE_BATCH_SIZE = 2_048
 MINIBATCH_SIZE = 8_192
 SMOKE_MINIBATCH_SIZE = 256
 TRAIN_ENVS_PER_ENV_RUNNER = 4
-ACTION_SCOPE = "targeted"
 EPISODE_LENGTH = 1_000
 GAMMA = 0.990
 GAE_LAMBDA = 0.95
 POLICY_LR = 3e-4
 AUX_LR = 3e-4
+POLICY_ITERATIONS_PER_AUX = 32
 AUX_EPOCHS = 6
 BETA_CLONE = 1.0
+AUX_VALUE_LOSS_COEFF = 0.003
 ENTROPY_COEFF = [[0, 0.03], [2_500_000, 0.008]]
 
-# Targeted rewards lie in [-3.75, 0.9985**4]. At gamma=0.99, the largest
-# possible absolute discounted value is 3.75 / (1 - gamma) = 375, so this
-# squared-loss ceiling avoids clipping any in-range, zero-centered target.
-VF_CLIP_PARAM = 375.0**2
-REWARD_RANGE = (-3.75, 0.9985**4)
-DISCOUNTED_VALUE_RANGE = (
-    REWARD_RANGE[0] / (1.0 - GAMMA),
-    REWARD_RANGE[1] / (1.0 - GAMMA),
-)
+REWARD_RANGES = {
+    "global_aliases": (-15.0, 0.9985**4),
+    "targeted": (-3.75, 0.9985**4),
+}
+# Use one common ceiling based on the larger global-alias reward magnitude so
+# action scope remains the only algorithmic difference between the two runs.
+VF_CLIP_PARAM = (15.0 / (1.0 - GAMMA)) ** 2
 
 MODEL_CONFIG = TransformerModelConfig(
     d_model=64,
@@ -63,10 +62,12 @@ class CassandraPPGTransformer(PPGAuxiliaryValueHead, TransformerModel):
     """Stable Cassandra transformer plus PPG's auxiliary value head."""
 
 
-def environment_config() -> dict[str, Any]:
+def environment_config(action_scope: str) -> dict[str, Any]:
+    if action_scope not in REWARD_RANGES:
+        raise ValueError(f"unsupported PPG action scope: {action_scope}")
     return {
         "episode_length": EPISODE_LENGTH,
-        "action_scope": ACTION_SCOPE,
+        "action_scope": action_scope,
         "initial_state_distribution": "all_good",
         "diagnostics": False,
     }
@@ -75,20 +76,19 @@ def environment_config() -> dict[str, Any]:
 def build_config(
     context: RunContext,
     *,
-    policy_iterations_per_aux: int,
-    aux_value_loss_coeff: float,
+    action_scope: str,
 ) -> PPGConfig:
-    """Build one fresh targeted PPG intervention configuration."""
+    """Build one fresh, action-scope-matched PPG configuration."""
 
     if context.seed is None:
         raise ValueError("Cassandra PPG requires a resolved seed")
     profile = context.hardware or PROFILES["cpu"]
     smoke = context.smoke
-    config = (
+    return (
         PPGConfig()
         .environment(
             CassandraActionObservationEnv,
-            env_config=environment_config(),
+            env_config=environment_config(action_scope),
         )
         .framework(
             "torch",
@@ -113,7 +113,7 @@ def build_config(
             ),
             num_epochs=4,
             policy_iterations_per_aux=(
-                2 if smoke else policy_iterations_per_aux
+                2 if smoke else POLICY_ITERATIONS_PER_AUX
             ),
             aux_epochs=1 if smoke else AUX_EPOCHS,
             aux_minibatch_size=(
@@ -121,8 +121,8 @@ def build_config(
             ),
             aux_lr=AUX_LR,
             beta_clone=BETA_CLONE,
-            aux_value_loss_coeff=aux_value_loss_coeff,
-            aux_true_value_loss_coeff=aux_value_loss_coeff,
+            aux_value_loss_coeff=AUX_VALUE_LOSS_COEFF,
+            aux_true_value_loss_coeff=AUX_VALUE_LOSS_COEFF,
         )
         .rl_module(
             rl_module_spec=RLModuleSpec(
@@ -149,19 +149,21 @@ def build_config(
             )
         )
     )
-    return config
 
 
-def run_intervention(
+def run_condition(
     context: RunContext,
     *,
+    action_scope: str,
     condition: str,
-    policy_iterations_per_aux: int,
-    aux_value_loss_coeff: float,
 ):
-    """Run one 5M-step targeted PPG intervention (or two-phase smoke)."""
+    """Run one matched 5M-step Cassandra PPG condition."""
 
     target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
+    reward_range = REWARD_RANGES[action_scope]
+    discounted_value_range = [
+        reward / (1.0 - GAMMA) for reward in reward_range
+    ]
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     outputs.write_json(
@@ -172,38 +174,30 @@ def run_intervention(
             "seed": context.seed,
             "smoke": context.smoke,
             "total_env_steps": target_steps,
-            "environment": environment_config(),
-            "action_names": list(action_names(ACTION_SCOPE)),
-            "reward_range": list(REWARD_RANGE),
-            "discounted_value_range_bound": list(DISCOUNTED_VALUE_RANGE),
+            "environment": environment_config(action_scope),
+            "action_names": list(action_names(action_scope)),
+            "reward_range": list(reward_range),
+            "discounted_value_range_bound": discounted_value_range,
             "model_config": MODEL_CONFIG,
             "entropy_coeff_schedule": ENTROPY_COEFF,
             "gamma": GAMMA,
             "gae_lambda": GAE_LAMBDA,
             "vf_clip_param_squared_loss_ceiling": VF_CLIP_PARAM,
             "policy_iterations_per_aux": (
-                2 if context.smoke else policy_iterations_per_aux
+                2 if context.smoke else POLICY_ITERATIONS_PER_AUX
             ),
             "aux_epochs": 1 if context.smoke else AUX_EPOCHS,
             "beta_clone": BETA_CLONE,
-            "aux_value_loss_coeff": aux_value_loss_coeff,
-            "aux_true_value_loss_coeff": aux_value_loss_coeff,
-            "hyperparameter_rationale": (
-                "Raw PPG half-MSE sees discounted targets as large as roughly "
-                "-375 to 99 in this environment. Coefficients 0.003 and 0.01 "
-                "bound a 100-point value error's auxiliary representation "
-                "gradient scale to about 0.3 and 1.0 while beta_clone remains "
-                "at the paper default 1.0. N_pi 16 and 32 compare more frequent "
-                "distillation with the canonical cadence."
+            "aux_value_loss_coeff": AUX_VALUE_LOSS_COEFF,
+            "aux_true_value_loss_coeff": AUX_VALUE_LOSS_COEFF,
+            "primary_comparison": (
+                "global aliases versus component-targeted actions with every "
+                "model and PPG hyperparameter held fixed"
             ),
         },
     )
     return run_tune(
-        build_config(
-            context,
-            policy_iterations_per_aux=policy_iterations_per_aux,
-            aux_value_loss_coeff=aux_value_loss_coeff,
-        ),
+        build_config(context, action_scope=action_scope),
         context,
         stop={"env_runners/num_env_steps_sampled_lifetime": target_steps},
         run_config_kwargs={
@@ -216,18 +210,18 @@ def run_intervention(
 
 
 __all__ = [
-    "ACTION_SCOPE",
     "AUX_EPOCHS",
+    "AUX_VALUE_LOSS_COEFF",
     "BETA_CLONE",
     "CassandraPPGTransformer",
-    "DISCOUNTED_VALUE_RANGE",
     "ENTROPY_COEFF",
     "MODEL_CONFIG",
-    "REWARD_RANGE",
+    "POLICY_ITERATIONS_PER_AUX",
+    "REWARD_RANGES",
     "SMOKE_ENV_STEPS",
     "TOTAL_ENV_STEPS",
     "VF_CLIP_PARAM",
     "build_config",
     "environment_config",
-    "run_intervention",
+    "run_condition",
 ]
