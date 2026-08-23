@@ -38,6 +38,11 @@ TARGETED_BEHAVIOR_ACTION_PROBABILITIES = np.array(
 GLOBAL_ALIAS_BEHAVIOR_ACTION_PROBABILITIES = (
     TARGETED_BEHAVIOR_ACTION_PROBABILITIES
 )
+_BEHAVIOR_ACTION_PROBABILITIES = {
+    "global": BEHAVIOR_ACTION_PROBABILITIES,
+    "global_aliases": GLOBAL_ALIAS_BEHAVIOR_ACTION_PROBABILITIES,
+    "targeted": TARGETED_BEHAVIOR_ACTION_PROBABILITIES,
+}
 CONDITION_VALUES = np.arange(N_CONDITIONS, dtype=np.float64)
 CONTRAST = np.linalg.qr(
     np.array(
@@ -116,7 +121,9 @@ def belief_targets(
     joint = np.asarray(joint_belief, dtype=np.float64)
     marginals = np.asarray(factored_belief, dtype=np.float64)
     if action_scope not in _ACTION_REWARDS:
-        raise ValueError("action_scope must be 'global' or 'targeted'")
+        raise ValueError(
+            "action_scope must be 'global', 'global_aliases', or 'targeted'"
+        )
     if joint.ndim != 2 or joint.shape[1] != N_STATES:
         raise ValueError(f"joint_belief must have shape (N, {N_STATES})")
     if marginals.shape != (len(joint), N_COMPONENTS, N_CONDITIONS):
@@ -200,12 +207,10 @@ def collect_probe_data(
     module = module.to(device).eval()
     stateful = module.is_stateful()
     if action_scope not in _ACTION_REWARDS:
-        raise ValueError("action_scope must be 'global' or 'targeted'")
-    action_probabilities = (
-        BEHAVIOR_ACTION_PROBABILITIES
-        if action_scope == "global"
-        else GLOBAL_ALIAS_BEHAVIOR_ACTION_PROBABILITIES
-    )
+        raise ValueError(
+            "action_scope must be 'global', 'global_aliases', or 'targeted'"
+        )
+    action_probabilities = _BEHAVIOR_ACTION_PROBABILITIES[action_scope]
 
     def initial_state(batch_size: int):
         return _initial_state(module, batch_size, device)

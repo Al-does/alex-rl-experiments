@@ -33,6 +33,7 @@ from experiments.cassandra_belief_factoring_2026_08.environment import (
     CassandraActionObservationEnv,
 )
 from experiments.cassandra_belief_factoring_2026_08.probe import (
+    _BEHAVIOR_ACTION_PROBABILITIES,
     belief_targets,
     collect_probe_data,
 )
@@ -140,6 +141,9 @@ from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_small_continue_
 )
 from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_small_continue_30m.experiment import (
     build_config as build_targeted_small_30m_config,
+)
+from experiments.cassandra_belief_factoring_2026_08.targeted_50m_policy_action_diagnostic.experiment import (
+    summarize_streaks,
 )
 from harness.context import RunContext
 from harness.hardware import PROFILES
@@ -279,6 +283,37 @@ def test_belief_targets_separate_aggregate_and_identity_information():
             axis=1,
         ),
     )
+
+
+def test_probe_behavior_accepts_all_global_aliases():
+    aliases = _BEHAVIOR_ACTION_PROBABILITIES["global_aliases"]
+    targeted = _BEHAVIOR_ACTION_PROBABILITIES["targeted"]
+
+    np.testing.assert_allclose(aliases, targeted)
+    np.testing.assert_allclose(aliases[2:6], 0.02)
+    np.testing.assert_allclose(aliases[6:10], 0.01)
+    assert aliases.sum() == pytest.approx(1.0)
+
+
+def test_maintenance_streak_summary_detects_shotgun_sweeps():
+    summary = summarize_streaks(
+        [
+            [
+                ("repair", 0),
+                ("repair", 1),
+                ("repair", 2),
+                ("repair", 3),
+            ],
+            [("repair", 1), ("replace", 1)],
+        ]
+    )
+
+    assert summary["count"] == 2
+    assert summary["max_length"] == 4
+    assert summary["length_at_least_four_fraction"] == 0.5
+    assert summary["all_four_components_fraction"] == 0.5
+    assert summary["four_action_sweep_fraction"] == 0.5
+    assert summary["same_kind_all_four_fraction"] == 0.5
 
 
 def test_pca_and_component_subspaces_recover_known_factored_geometry():
