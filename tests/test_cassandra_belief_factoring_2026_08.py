@@ -29,6 +29,7 @@ from experiments.cassandra_belief_factoring_2026_08.environment import (
     CassandraActionObservationEnv,
 )
 from experiments.cassandra_belief_factoring_2026_08.probe import (
+    _BEHAVIOR_ACTION_PROBABILITIES,
     belief_targets,
     collect_probe_data,
 )
@@ -189,6 +190,16 @@ def test_belief_targets_separate_aggregate_and_identity_information():
             axis=1,
         ),
     )
+
+
+def test_probe_behavior_accepts_all_global_aliases():
+    aliases = _BEHAVIOR_ACTION_PROBABILITIES["global_aliases"]
+    targeted = _BEHAVIOR_ACTION_PROBABILITIES["targeted"]
+
+    np.testing.assert_allclose(aliases, targeted)
+    np.testing.assert_allclose(aliases[2:6], 0.02)
+    np.testing.assert_allclose(aliases[6:10], 0.01)
+    assert aliases.sum() == pytest.approx(1.0)
 
 
 def test_pca_and_component_subspaces_recover_known_factored_geometry():

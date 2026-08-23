@@ -18,6 +18,7 @@ Dedicated run records:
 14. [`targeted_small_entropy_0_008_continuation_50m.md`](targeted_small_entropy_0_008_continuation_50m.md)
 15. [`global_alias_small_entropy_0_008_continuation_50m.md`](global_alias_small_entropy_0_008_continuation_50m.md)
 16. [`small_50m_final_checkpoint_probe_comparison.md`](small_50m_final_checkpoint_probe_comparison.md)
+17. [`targeted_50m_policy_action_targeting.md`](targeted_50m_policy_action_targeting.md)
 
 These are single-seed diagnostics. Raw returns are not directly comparable
 across different initial-state distributions.
