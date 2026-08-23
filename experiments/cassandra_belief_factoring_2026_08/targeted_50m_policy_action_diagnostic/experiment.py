@@ -187,9 +187,17 @@ def run(context: RunContext):
                             {
                                 "true_hit": components[component]
                                 in (Condition.BAD, Condition.FAIR),
+                                "random_true_hit_probability": np.mean(
+                                    np.isin(
+                                        components,
+                                        (Condition.BAD, Condition.FAIR),
+                                    )
+                                ),
                                 "chosen_belief": useful[component],
                                 "mean_belief": useful.mean(),
                                 "max_belief": useful.max(),
+                                "chosen_is_belief_argmax": useful[component]
+                                >= useful.max() - 1e-12,
                             }
                         )
                         current_streaks[index].append(("repair", component))
@@ -213,14 +221,26 @@ def run(context: RunContext):
                                 == Condition.BROKEN,
                                 "true_non_good_hit": components[component]
                                 != Condition.GOOD,
+                                "random_true_broken_probability": np.mean(
+                                    components == Condition.BROKEN
+                                ),
+                                "random_true_non_good_probability": np.mean(
+                                    components != Condition.GOOD
+                                ),
                                 "chosen_broken_belief": broken[component],
                                 "mean_broken_belief": broken.mean(),
                                 "max_broken_belief": broken.max(),
+                                "chosen_is_broken_argmax": broken[component]
+                                >= broken.max() - 1e-12,
                                 "chosen_condition_gain": condition_gain[
                                     component
                                 ],
                                 "mean_condition_gain": condition_gain.mean(),
                                 "max_condition_gain": condition_gain.max(),
+                                "chosen_is_gain_argmax": condition_gain[
+                                    component
+                                ]
+                                >= condition_gain.max() - 1e-12,
                             }
                         )
                         current_streaks[index].append(("replace", component))
@@ -283,8 +303,10 @@ def run(context: RunContext):
         "episode_return_mean": (
             float(np.mean(completed_returns)) if completed_returns else None
         ),
-        "action_counts": action_counts,
-        "action_fractions": action_counts / max(action_counts.sum(), 1),
+        "action_counts": action_counts.tolist(),
+        "action_fractions": (
+            action_counts / max(action_counts.sum(), 1)
+        ).tolist(),
         "action_fractions_by_name": {
             name: fraction
             for name, fraction in zip(
@@ -292,8 +314,10 @@ def run(context: RunContext):
                 action_counts / max(action_counts.sum(), 1),
             )
         },
-        "greedy_action_counts": greedy_counts,
-        "greedy_action_fractions": greedy_counts / max(greedy_counts.sum(), 1),
+        "greedy_action_counts": greedy_counts.tolist(),
+        "greedy_action_fractions": (
+            greedy_counts / max(greedy_counts.sum(), 1)
+        ).tolist(),
         "greedy_action_fractions_by_name": {
             name: fraction
             for name, fraction in zip(
@@ -303,19 +327,30 @@ def run(context: RunContext):
         },
         "repair_targeting": aggregate(
             repair_records,
-            ("true_hit", "chosen_belief", "mean_belief", "max_belief"),
+            (
+                "true_hit",
+                "random_true_hit_probability",
+                "chosen_belief",
+                "mean_belief",
+                "max_belief",
+                "chosen_is_belief_argmax",
+            ),
         ),
         "replace_targeting": aggregate(
             replace_records,
             (
                 "true_broken_hit",
                 "true_non_good_hit",
+                "random_true_broken_probability",
+                "random_true_non_good_probability",
                 "chosen_broken_belief",
                 "mean_broken_belief",
                 "max_broken_belief",
+                "chosen_is_broken_argmax",
                 "chosen_condition_gain",
                 "mean_condition_gain",
                 "max_condition_gain",
+                "chosen_is_gain_argmax",
             ),
         ),
         "maintenance_streaks": summarize_streaks(completed_streaks),
