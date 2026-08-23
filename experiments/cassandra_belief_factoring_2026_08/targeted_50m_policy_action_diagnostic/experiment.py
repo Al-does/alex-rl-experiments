@@ -7,19 +7,22 @@ from typing import Any
 
 import numpy as np
 import torch
+from ray.rllib.core.rl_module.rl_module import RLModule
 
-from analysis.checkpoints import load_algorithm
 from envs.cassandra_machine import (
     Condition,
     N_COMPONENTS,
     TargetedAction,
     action_names,
 )
+from experiments.cassandra_belief_factoring_2026_08.environment import (
+    CassandraActionObservationEnv,
+)
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
 
 
-FULL_STEPS = 128_000
+FULL_STEPS = 64_000
 SMOKE_STEPS = 4_096
 N_ENVS = 8
 CHECKPOINT = (
@@ -104,11 +107,22 @@ def run(context: RunContext):
     rng = np.random.default_rng(context.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    with load_algorithm(checkpoint) as algorithm:
-        module = algorithm.get_module().to(device).eval()
-        env_class = algorithm.config.env
-        env_config = dict(algorithm.config.env_config)
-        env_config["diagnostics"] = True
+    module_checkpoint = (
+        checkpoint
+        / "learner_group"
+        / "learner"
+        / "rl_module"
+        / "default_policy"
+    )
+    module = RLModule.from_checkpoint(str(module_checkpoint)).to(device).eval()
+    env_class = CassandraActionObservationEnv
+    env_config = {
+        "action_scope": "targeted",
+        "initial_state_distribution": "all_good",
+        "episode_length": 1_000,
+        "diagnostics": True,
+    }
+    with torch.inference_mode():
         envs = [env_class(env_config) for _ in range(N_ENVS)]
         observations, infos = [], []
         episode_indices = np.zeros(N_ENVS, dtype=np.int64)
