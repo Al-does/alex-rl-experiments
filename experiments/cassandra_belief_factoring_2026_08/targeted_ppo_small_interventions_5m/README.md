@@ -2,7 +2,7 @@
 
 These four one-at-a-time variants hold the targeted Cassandra environment,
 seed (`42`), five-million-step budget, dim-64 four-layer transformer, entropy
-coefficient (`0.008`), discount (`0.990`), and disabled KL loss fixed.
+coefficient (`0.03`, matching the successful dim-64 control), discount (`0.990`), and disabled KL loss fixed.
 
 | Leaf | Only baseline change |
 |---|---|
