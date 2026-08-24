@@ -1,0 +1,61 @@
+{
+  "algorithm": "PPO",
+  "environment": {
+    "delay": 0,
+    "episode_length": 512,
+    "model": {
+      "factory": "envs.hmm:factored_model",
+      "kwargs": {
+        "factors": [
+          {
+            "factory": "envs.mess3.model:passive_model",
+            "kwargs": {
+              "alpha": 0.85
+            }
+          },
+          {
+            "factory": "envs.mess3.model:passive_model",
+            "kwargs": {
+              "alpha": 0.85
+            }
+          }
+        ]
+      }
+    },
+    "observation": {
+      "action": null,
+      "token": {
+        "depth": 1,
+        "offset": 0
+      }
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "envs.mess3.tasks.state_guess:StateGuessTask"
+    }
+  },
+  "gamma": 0.0,
+  "generator": "two independent passive MESS3 HMM factors",
+  "hypothesis": "PPO's 64-dimensional transformer will encode each independent MESS3 belief in a linearly decodable, approximately orthogonal two-dimensional subspace, using about four activation dimensions rather than the eight-dimensional joint simplex.",
+  "lambda": 0.0,
+  "minibatch_size": 8192,
+  "model": {
+    "context_len": 32,
+    "d_model": 64,
+    "max_seq_len": 32,
+    "n_heads": 4,
+    "n_layers": 2
+  },
+  "observed_token": "one nine-way token in one-to-one correspondence with the Cartesian pair of three-way factor subtokens",
+  "paper": "https://arxiv.org/abs/2602.02385",
+  "primary_comparison": "step_zero_initialization_vs_final_checkpoint",
+  "probe_controls": [
+    "exact step-zero checkpoint",
+    "disjoint train/test rollout seeds",
+    "current-token observation-only affine baseline",
+    "joint-versus-factored dimension predictions"
+  ],
+  "task": "guess the current joint hidden state (nine actions)",
+  "total_env_steps": 2500000,
+  "train_batch_size_per_learner": 32768
+}
