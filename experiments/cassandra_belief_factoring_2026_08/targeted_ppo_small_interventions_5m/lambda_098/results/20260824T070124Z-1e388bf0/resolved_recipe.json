@@ -1,0 +1,27 @@
+{
+  "algorithm": "PPO",
+  "condition": "targeted_ppo_small_lambda_098",
+  "entropy_coeff": 0.03,
+  "environment": {
+    "action_scope": "targeted",
+    "diagnostics": false,
+    "episode_length": 1000,
+    "initial_state_distribution": "all_good"
+  },
+  "gamma": 0.99,
+  "hypothesis": "Longer-horizon advantage estimation improves credit assignment for maintenance actions whose benefits arrive after delayed degradation.",
+  "lambda": 0.98,
+  "previous_reward_visible": false,
+  "primary_comparison": "one intervention versus the otherwise fixed targeted dim-64 transformer PPO baseline",
+  "seed": 42,
+  "total_env_steps": 5000000,
+  "transformer": {
+    "context_len": 256,
+    "d_model": 64,
+    "max_seq_len": 256,
+    "n_heads": 1,
+    "n_layers": 4
+  },
+  "use_kl_loss": false,
+  "vf_clip_param": 10.0
+}
