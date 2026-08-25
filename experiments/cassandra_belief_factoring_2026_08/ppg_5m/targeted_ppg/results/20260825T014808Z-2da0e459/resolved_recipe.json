@@ -1,0 +1,52 @@
+{
+  "action_names": [
+    "operate",
+    "inspect",
+    "repair_component_0",
+    "repair_component_1",
+    "repair_component_2",
+    "repair_component_3",
+    "replace_component_0",
+    "replace_component_1",
+    "replace_component_2",
+    "replace_component_3"
+  ],
+  "algorithm": "single_network_detach_ppg",
+  "aux_epochs": 6,
+  "aux_true_value_loss_coeff": 0.003,
+  "aux_value_loss_coeff": 0.003,
+  "beta_clone": 1.0,
+  "bptt": 64,
+  "condition": "targeted_actions_transformer_ppg",
+  "discounted_value_range_bound": [
+    -374.99999999999966,
+    99.40134865050618
+  ],
+  "entropy_coeff": 0.03,
+  "environment": {
+    "action_scope": "targeted",
+    "diagnostics": false,
+    "episode_length": 1000,
+    "initial_state_distribution": "all_good"
+  },
+  "gae_lambda": 0.95,
+  "gamma": 0.99,
+  "model_config": {
+    "context_len": 64,
+    "d_model": 64,
+    "max_seq_len": 64,
+    "n_heads": 1,
+    "n_layers": 4
+  },
+  "policy_iterations_per_aux": 32,
+  "primary_comparison": "global aliases versus component-targeted actions with every model and PPG hyperparameter held fixed",
+  "reward_range": [
+    -3.75,
+    0.9940134865050627
+  ],
+  "seed": 42,
+  "smoke": false,
+  "total_env_steps": 5000000,
+  "vf_clip_param": 100.0,
+  "vf_loss_coeff": 0.01
+}
