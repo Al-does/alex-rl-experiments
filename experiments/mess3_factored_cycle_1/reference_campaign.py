@@ -694,16 +694,33 @@ def run_reference_campaign(protocol: CampaignProtocol) -> dict[str, Any]:
         "status": "passed",
         "reference_policy": "QMDP",
         "one_step_greedy_is_diagnostic_only": True,
+        "acceptance_basis": (
+            "All accepted reference estimates use QMDP. The preregistration "
+            "sets no numerical QMDP-versus-greedy separation threshold."
+        ),
         "conditions": {
             name: {
                 "qmdp": simulation["policies"][
                     "coarse" if name == "E2" else "aware"
                 ],
                 "one_step_greedy": simulation["policies"]["greedy"],
+                "qmdp_minus_greedy": _contrast(
+                    simulation["_chain_values"][
+                        "coarse" if name == "E2" else "aware"
+                    ],
+                    simulation["_chain_values"]["greedy"],
+                ),
             }
             for name, simulation in primary.items()
         },
     }
+    a6["diagnostic_note"] = (
+        "Under the implemented next-reward greedy definition, E1, E2, E3b, "
+        "and E4 select behavior indistinguishable from QMDP here; E3c differs "
+        "only slightly. This does not reproduce the design document's claim "
+        "that greedy is inadequate for E3b/E3c/E4. QMDP remains the frozen "
+        "reference, and the discrepancy is reported rather than hidden."
+    )
     status = (
         "passed"
         if (
