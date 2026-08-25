@@ -78,6 +78,7 @@ class ConditionSpec:
 class _World:
     name: str
     policy_kind: str
+    belief_kind: str | None
     states: np.ndarray
     x1: np.ndarray
     x2: np.ndarray
@@ -222,6 +223,14 @@ def _make_worlds(
 
     worlds: list[_World] = []
     for policy_kind in policy_kinds:
+        if policy_kind == "coarse" or (
+            policy_kind == "greedy" and spec.filter_kind == "coarse"
+        ):
+            belief_kind = "coarse"
+        elif policy_kind in {"aware", "masked", "greedy"}:
+            belief_kind = "joint"
+        else:
+            belief_kind = None
         use_coarse_tables = policy_kind == "coarse" or (
             spec.filter_kind == "coarse"
             and policy_kind in {"reactive", "greedy"}
@@ -256,6 +265,7 @@ def _make_worlds(
         world = _World(
             name=policy_kind,
             policy_kind=policy_kind,
+            belief_kind=belief_kind,
             states=initial_states.copy(),
             x1=initial_x1.copy(),
             x2=initial_x2.copy(),
@@ -323,7 +333,7 @@ def _advance_world(
         with open("/opt/cursor/logs/debug.log", "a") as debug_log:
             debug_log.write(json.dumps({"hypothesisId": "A", "location": "reference_campaign.py:_advance_world:prediction", "message": "belief prediction operands", "data": {"world": world.name, "belief_state_count": int(world.belief.shape[1]), "prediction_kernel_state_count": 2 if world.policy_kind == "coarse" else int(selected.shape[-1])}, "timestamp": 0}) + "\n")
         # endregion
-        if world.policy_kind == "coarse":
+        if world.belief_kind == "coarse":
             predicted = np.einsum(
                 "bi,bij->bj",
                 world.belief,
@@ -331,6 +341,10 @@ def _advance_world(
             )
         else:
             predicted = np.einsum("bi,bij->bj", world.belief, selected)
+        # region agent log
+        with open("/opt/cursor/logs/debug.log", "a") as debug_log:
+            debug_log.write(json.dumps({"hypothesisId": "A", "location": "reference_campaign.py:_advance_world:prediction_result", "message": "belief prediction result", "data": {"world": world.name, "belief_kind": world.belief_kind, "predicted_state_count": int(predicted.shape[1])}, "timestamp": 0}) + "\n")
+        # endregion
     else:
         predicted = None
 
@@ -366,7 +380,7 @@ def _advance_world(
     symbols = 3 * world.x1 + world.x2
 
     if predicted is not None:
-        if world.policy_kind == "coarse":
+        if world.belief_kind == "coarse":
             binary = (world.x2 == 2).astype(np.int64)
             likelihood = coarse_e2_emission(
                 float(second_emission[2, 2])
