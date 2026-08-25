@@ -65,6 +65,26 @@ balanced actor–critic update. The sweet spot is near **clip=100, coeff=0.01**
 Cells with max weighted loss ≈ 0.2 (coeff 0.002–0.0025) collapse like
 `previous_reward` — critic signal is too weak to learn.
 
+## Phase 3: previous_reward rerun with best critic (entropy 0.03)
+
+After the vf-clip grid identified **vf100_coeff001**, we re-ran the
+`previous_reward` intervention (visible +1-d previous reward feature) with those
+critic settings instead of the default clip=10 / coeff=0.5.
+
+| Condition | vf_clip / coeff | Final return | Δ vs control | Notes |
+|---|---|---:|---:|---|
+| previous_reward (default critic) | 10 / 0.5 | 31.60 | −321.4 | Collapse; entropy → ~0.01 |
+| **previous_reward + vf100_coeff001** | 100 / 0.01 | **492.36** | **+139.4** | Matches best baseline (495.30) |
+| vf100_coeff001 (no reward feature) | 100 / 0.01 | 495.30 | +142.3 | Phase 2 best cell |
+
+Run: `targeted_ppo_previous_reward_best_critic_5m` /
+`20260825T023104Z-baed31de` (seed 42, 5M steps, RTX 4090).
+
+**Takeaway:** the earlier `previous_reward` collapse was a **critic scaling**
+failure, not an inherent incompatibility with the reward feature. With a
+properly scaled critic, visible previous reward is neutral to slightly
+negative (−2.9 return vs vf100_coeff001 without the feature).
+
 ## Recommended next step
 
 Adopt **vf_clip_param=100, vf_loss_coeff=0.01** as the new critic default for
@@ -77,6 +97,7 @@ this recipe (replacing clip=10, coeff=0.5). Optionally combine with **bptt=64**
 |---|---|
 | `targeted_ppo_small_interventions_5m/` | Intervention leaves + compact results |
 | `targeted_ppo_vf_clip_grid_5m/` | Five-cell grid + compact results |
+| `targeted_ppo_previous_reward_best_critic_5m/` | Phase 3 previous_reward rerun |
 | `interventions_and_vf_clip_2026_08_reward_curves.png` | Return vs steps overlay |
 
 Control curve source: `results/entropy_diagnostics_2026_08/compact_training_curves.json`
