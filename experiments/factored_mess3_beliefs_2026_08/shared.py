@@ -215,7 +215,7 @@ def _probe_summary(metrics: Mapping[str, Any]) -> dict[str, Any]:
         "joint_readout_excess_subspace": metrics[
             "joint_readout_excess_subspace"
         ],
-        "probe_degrees_of_freedom": metrics["probe_degrees_of_freedom"],
+        "probe_parameter_counts": metrics["probe_parameter_counts"],
     }
 
 
@@ -386,7 +386,7 @@ def run_independent(
             else "single_seed_exploratory"
         ),
         "interpretation_rule": (
-            "Evidence for native factoring requires both factor beliefs to be "
+            "Evidence for native factoring requires all factor beliefs to be "
             "linearly decodable, CEV near the "
             f"{factored_dimension}-dimensional direct-sum prediction rather "
             f"than the {joint_dimension}-dimensional joint prediction, low "

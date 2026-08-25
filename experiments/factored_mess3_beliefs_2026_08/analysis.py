@@ -24,9 +24,11 @@ from analysis.probes import (
     fit_product_constrained_joint_probe,
     global_mse_metrics,
     joint_readout_excess_subspace,
+    orthonormal_basis,
     percentile_interval,
     probe_predict,
     product_constrained_joint_metrics,
+    readout_subspace,
     r2_score,
     regression_factor_geometry,
     representation_dimension_predictions,
@@ -212,11 +214,14 @@ def _episode_clusters(data: ProbeData) -> np.ndarray:
         members = np.flatnonzero(data.env_indices == env_index)
         current = next_cluster
         first = True
+        previous_step = -1
         for index in members:
-            if not first and data.episode_steps[index] == 0:
+            episode_step = int(data.episode_steps[index])
+            if not first and episode_step <= previous_step:
                 current += 1
             clusters[index] = current
             first = False
+            previous_step = episode_step
         next_cluster = current + 1
     return clusters
 
@@ -229,6 +234,10 @@ def _pcjr_bootstrap(
     clusters: np.ndarray,
     n_resamples: int,
     seed: int,
+    reading: str = (
+        "positive means the direct joint probe has lower held-out MSE; "
+        "negative means product-constrained reconstruction is better"
+    ),
 ) -> dict[str, Any]:
     """Bootstrap paired PCJR error differences over complete episodes."""
 
@@ -248,10 +257,8 @@ def _pcjr_bootstrap(
         "paired_episode_bootstrap_ci95_low": low,
         "paired_episode_bootstrap_ci95_high": high,
         "paired_episode_bootstrap_n": n_resamples,
-        "reading": (
-            "positive means the direct joint probe has lower held-out MSE; "
-            "negative means product-constrained reconstruction is better"
-        ),
+        "paired_episode_cluster_count": int(len(np.unique(clusters))),
+        "reading": reading,
     }
 
 
@@ -432,12 +439,57 @@ def probe_checkpoint(
         ridge=PROBE_RIDGE,
     )
     crd = correlation_residual_metrics(crd_probe)
-    jres = joint_readout_excess_subspace(
+    jres_geometry = joint_readout_excess_subspace(
         pcjr_probe.direct_weight,
         pcjr_probe.factor_weights,
         joint_rank=FACTOR_SIZE**n_factors - 1,
         factor_ranks=(FACTOR_SIZE - 1,) * n_factors,
     )
+    factor_bases = tuple(
+        readout_subspace(weight, rank=FACTOR_SIZE - 1)
+        for weight in pcjr_probe.factor_weights
+    )
+    factor_union = orthonormal_basis(
+        np.concatenate(factor_bases, axis=1)
+    )
+    restricted_weight, restricted_bias = fit_affine_probe(
+        train.activations @ factor_union,
+        train.joint_belief,
+        ridge=PROBE_RIDGE,
+    )
+    restricted_prediction = probe_predict(
+        restricted_weight,
+        restricted_bias,
+        test.activations @ factor_union,
+    )
+    restricted_metrics = global_mse_metrics(
+        restricted_prediction,
+        test.joint_belief,
+    )
+    jres = {
+        **jres_geometry,
+        "factor_union_restricted_mse": restricted_metrics["mse"],
+        "factor_union_restricted_r_squared": r2_score(
+            restricted_prediction,
+            test.joint_belief,
+        ),
+        "restricted_minus_full_direct_mse": (
+            float(restricted_metrics["mse"])
+            - pcjr["direct_joint_mse"]
+        ),
+        **_pcjr_bootstrap(
+            direct_prediction=pcjr_probe.direct_prediction,
+            product_prediction=restricted_prediction,
+            target=test.joint_belief,
+            clusters=_episode_clusters(test),
+            n_resamples=100 if context.smoke else 1_000,
+            seed=int(streams["pcjr_bootstrap"].generate_state(1)[0]) + 1,
+            reading=(
+                "positive means the factor-union-restricted joint probe is "
+                "worse, so excess joint directions add held-out value"
+            ),
+        ),
+    }
     predictions = representation_dimension_predictions(
         [FACTOR_SIZE] * n_factors
     )
@@ -458,7 +510,7 @@ def probe_checkpoint(
         "product_constrained_joint_reconstruction": pcjr,
         "correlation_residual_decodability": crd,
         "joint_readout_excess_subspace": jres,
-        "probe_degrees_of_freedom": {
+        "probe_parameter_counts": {
             "activation_width": int(train.activations.shape[1]),
             "direct_joint_simplex_adjusted": (
                 (train.activations.shape[1] + 1)
@@ -474,7 +526,8 @@ def probe_checkpoint(
         "dimension_predictions": predictions,
         "behavior_reward_mean": float(test.rewards.mean()),
         "interpretation": (
-            "Factored native geometry requires decodable factor beliefs, "
+            "Factored native geometry requires all factor beliefs to be "
+            "decodable, "
             "activation dimension near the direct-sum prediction, and low "
             "principal-angle overlap. No single metric is decisive, and "
             "decodability does not establish causal policy use."

@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import numpy as np
 
 from envs.hmm import HMMEnv, factor_marginals, product_distribution
+from experiments.factored_mess3_beliefs_2026_08.analysis import (
+    _episode_clusters,
+)
 from experiments.factored_mess3_beliefs_2026_08.shared import (
     ENV_CONFIG,
     MODEL_CONFIG,
@@ -111,3 +116,18 @@ def test_three_mess3_recipe_has_27_states_tokens_and_actions(tmp_path):
 
     assert len(config.env_config["model"]["kwargs"]["factors"]) == 3
     assert config.rl_module_spec.module_class is TransformerModel
+
+
+def test_probe_bootstrap_clusters_detect_episode_step_resets_after_warmup():
+    data = SimpleNamespace(
+        env_indices=np.array([0, 1, 0, 1, 0, 1]),
+        episode_steps=np.array([64, 64, 65, 65, 64, 64]),
+    )
+
+    clusters = _episode_clusters(data)
+
+    assert len(np.unique(clusters)) == 4
+    assert clusters[0] == clusters[2]
+    assert clusters[1] == clusters[3]
+    assert clusters[4] != clusters[2]
+    assert clusters[5] != clusters[3]
