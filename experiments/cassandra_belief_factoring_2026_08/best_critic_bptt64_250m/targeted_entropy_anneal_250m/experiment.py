@@ -1,4 +1,4 @@
-"""Anneal entropy from 0.03 to 0.008 over the next 5M targeted steps."""
+"""Anneal entropy from 0.03 to 0.008 over the next 250M targeted steps."""
 
 from ray.rllib.algorithms.ppo import PPOConfig
 
@@ -13,7 +13,7 @@ from experiments.cassandra_belief_factoring_2026_08.best_critic_bptt64_250m.cont
 from harness.context import RunContext
 
 
-CONDITION = "best_critic_bptt64_targeted_entropy_anneal_5m"
+CONDITION = "best_critic_bptt64_targeted_entropy_anneal_250m"
 HYPOTHESIS = (
     "Resume the completed targeted best-critic BPTT-64 agents and anneal "
     f"entropy over {ANNEAL_DURATION_ENV_STEPS:,} steps down to "
@@ -32,6 +32,7 @@ def run(context: RunContext):
         hypothesis=HYPOTHESIS,
         lifetime_env_steps=ANNEAL_LIFETIME_ENV_STEPS,
         config_builder=build_anneal_config,
+        apply_entropy_anneal=True,
         extra_recipe={
             "entropy_anneal_schedule": ENTROPY_ANNEAL_SCHEDULE,
             "entropy_anneal_duration_env_steps": ANNEAL_DURATION_ENV_STEPS,
