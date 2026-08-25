@@ -39,22 +39,22 @@ POLICY_ITERATIONS_PER_AUX = 32
 AUX_EPOCHS = 6
 BETA_CLONE = 1.0
 AUX_VALUE_LOSS_COEFF = 0.003
-ENTROPY_COEFF = [[0, 0.03], [2_500_000, 0.008]]
+# Match the best targeted PPO critic settings from best_run_parameters.json.
+ENTROPY_COEFF = 0.03
+VF_CLIP_PARAM = 100.0
+VF_LOSS_COEFF = 0.01
 
 REWARD_RANGES = {
     "global_aliases": (-15.0, 0.9985**4),
     "targeted": (-3.75, 0.9985**4),
 }
-# Use one common ceiling based on the larger global-alias reward magnitude so
-# action scope remains the only algorithmic difference between the two runs.
-VF_CLIP_PARAM = (15.0 / (1.0 - GAMMA)) ** 2
 
 MODEL_CONFIG = TransformerModelConfig(
     d_model=64,
     n_layers=4,
     n_heads=1,
-    context_len=256,
-    max_seq_len=256,
+    context_len=64,
+    max_seq_len=64,
 ).to_dict()
 
 
@@ -100,7 +100,7 @@ def build_config(
             gamma=GAMMA,
             lambda_=GAE_LAMBDA,
             clip_param=0.2,
-            vf_loss_coeff=0.5,
+            vf_loss_coeff=VF_LOSS_COEFF,
             vf_clip_param=VF_CLIP_PARAM,
             entropy_coeff=ENTROPY_COEFF,
             use_kl_loss=False,
@@ -179,10 +179,12 @@ def run_condition(
             "reward_range": list(reward_range),
             "discounted_value_range_bound": discounted_value_range,
             "model_config": MODEL_CONFIG,
-            "entropy_coeff_schedule": ENTROPY_COEFF,
+            "entropy_coeff": ENTROPY_COEFF,
             "gamma": GAMMA,
             "gae_lambda": GAE_LAMBDA,
-            "vf_clip_param_squared_loss_ceiling": VF_CLIP_PARAM,
+            "vf_clip_param": VF_CLIP_PARAM,
+            "vf_loss_coeff": VF_LOSS_COEFF,
+            "bptt": MODEL_CONFIG["max_seq_len"],
             "policy_iterations_per_aux": (
                 2 if context.smoke else POLICY_ITERATIONS_PER_AUX
             ),
@@ -221,6 +223,7 @@ __all__ = [
     "SMOKE_ENV_STEPS",
     "TOTAL_ENV_STEPS",
     "VF_CLIP_PARAM",
+    "VF_LOSS_COEFF",
     "build_config",
     "environment_config",
     "run_condition",

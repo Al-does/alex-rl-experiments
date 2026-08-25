@@ -13,11 +13,13 @@ from learners import PPG, PPGConfig
 
 from experiments.cassandra_belief_factoring_2026_08.ppg_5m.shared import (
     AUX_VALUE_LOSS_COEFF,
+    ENTROPY_COEFF,
     MODEL_CONFIG,
     POLICY_ITERATIONS_PER_AUX,
     REWARD_RANGES,
     TOTAL_ENV_STEPS,
     VF_CLIP_PARAM,
+    VF_LOSS_COEFF,
     CassandraPPGTransformer,
 )
 
@@ -61,7 +63,11 @@ def test_ppg_conditions_build_fresh_configs(tmp_path, leaf, action_scope):
     assert first.aux_true_value_loss_coeff == AUX_VALUE_LOSS_COEFF
     assert first.rl_module_spec.module_class is CassandraPPGTransformer
     assert first.rl_module_spec.model_config == MODEL_CONFIG
-    assert first.entropy_coeff == [[0, 0.03], [2_500_000, 0.008]]
+    assert first.entropy_coeff == ENTROPY_COEFF == 0.03
+    assert first.vf_clip_param == VF_CLIP_PARAM == 100.0
+    assert first.vf_loss_coeff == VF_LOSS_COEFF == 0.01
+    assert MODEL_CONFIG["context_len"] == 64
+    assert MODEL_CONFIG["max_seq_len"] == 64
 
 
 def test_action_scope_is_the_only_config_difference(tmp_path):
@@ -131,4 +137,5 @@ def test_reward_bounds_cover_both_action_scopes():
         (-15.0, 0.9985**4)
     )
     assert REWARD_RANGES["targeted"] == pytest.approx((-3.75, 0.9985**4))
-    assert VF_CLIP_PARAM == pytest.approx(1_500.0**2)
+    assert VF_CLIP_PARAM == 100.0
+    assert VF_LOSS_COEFF == 0.01
