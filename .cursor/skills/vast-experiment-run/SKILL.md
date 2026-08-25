@@ -80,7 +80,7 @@ raises `ModuleNotFoundError` on the box.
 
 When runs should push compact results (`--push-each`, `publish_results`, etc.)
 but boxes should stay up (no `--self-destruct`), still pass a GitHub write
-token via `--github-token` / `GITHUB_TOKEN`. Bootstrap always configures git
+token via `--github-token` / `GH_TOKEN`. Bootstrap always configures git
 user identity on the box; the token enables clone and push.
 
 ### Parallel multi-box provisioning
