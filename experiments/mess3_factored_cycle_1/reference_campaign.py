@@ -258,10 +258,6 @@ def _make_worlds(
             )
         else:
             raise ValueError(f"unknown policy kind {policy_kind!r}")
-        # region agent log
-        with open("/opt/cursor/logs/debug.log", "a") as debug_log:
-            debug_log.write(json.dumps({"hypothesisId": "A,B", "location": "reference_campaign.py:_make_worlds", "message": "world model dimensions", "data": {"condition": spec.name, "filter_kind": spec.filter_kind, "policy_kind": policy_kind, "belief_shape": None if belief is None else belief.shape, "table_state_count": len(q_values)}, "timestamp": 0}) + "\n")
-        # endregion
         world = _World(
             name=policy_kind,
             policy_kind=policy_kind,
@@ -324,15 +320,7 @@ def _advance_world(
     score_visibility: bool,
 ) -> None:
     selected = kernels[actions]
-    # region agent log
-    with open("/opt/cursor/logs/debug.log", "a") as debug_log:
-        debug_log.write(json.dumps({"hypothesisId": "C", "location": "reference_campaign.py:_advance_world", "message": "selected simulation kernel", "data": {"world": world.name, "state_count": int(selected.shape[-1]), "latent_state_max": int(world.states.max())}, "timestamp": 0}) + "\n")
-    # endregion
     if world.belief is not None:
-        # region agent log
-        with open("/opt/cursor/logs/debug.log", "a") as debug_log:
-            debug_log.write(json.dumps({"hypothesisId": "A", "location": "reference_campaign.py:_advance_world:prediction", "message": "belief prediction operands", "data": {"world": world.name, "belief_state_count": int(world.belief.shape[1]), "prediction_kernel_state_count": 2 if world.policy_kind == "coarse" else int(selected.shape[-1])}, "timestamp": 0}) + "\n")
-        # endregion
         if world.belief_kind == "coarse":
             predicted = np.einsum(
                 "bi,bij->bj",
@@ -341,10 +329,6 @@ def _advance_world(
             )
         else:
             predicted = np.einsum("bi,bij->bj", world.belief, selected)
-        # region agent log
-        with open("/opt/cursor/logs/debug.log", "a") as debug_log:
-            debug_log.write(json.dumps({"hypothesisId": "A", "location": "reference_campaign.py:_advance_world:prediction_result", "message": "belief prediction result", "data": {"world": world.name, "belief_kind": world.belief_kind, "predicted_state_count": int(predicted.shape[1])}, "timestamp": 0}) + "\n")
-        # endregion
     else:
         predicted = None
 
@@ -392,10 +376,6 @@ def _advance_world(
             ).reshape(len(world.x2), 9)
         else:
             likelihood = joint_emission[:, symbols].T
-        # region agent log
-        with open("/opt/cursor/logs/debug.log", "a") as debug_log:
-            debug_log.write(json.dumps({"hypothesisId": "B", "location": "reference_campaign.py:_advance_world:conditioning", "message": "belief conditioning operands", "data": {"world": world.name, "predicted_state_count": int(predicted.shape[1]), "likelihood_state_count": int(likelihood.shape[1])}, "timestamp": 0}) + "\n")
-        # endregion
         world.belief = normalize(predicted * likelihood)
 
     if blind_predicted is not None:
