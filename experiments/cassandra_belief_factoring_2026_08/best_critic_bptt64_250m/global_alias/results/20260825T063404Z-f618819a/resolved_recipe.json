@@ -1,0 +1,28 @@
+{
+  "algorithm": "PPO",
+  "checkpoint_schedule": "every_50000000_env_steps",
+  "condition": "best_critic_bptt64_250m_global_alias",
+  "entropy_coeff": 0.03,
+  "environment": {
+    "action_scope": "global_aliases",
+    "diagnostics": false,
+    "episode_length": 1000,
+    "initial_state_distribution": "all_good"
+  },
+  "gamma": 0.99,
+  "hypothesis": "Combine the vf100/coeff0.01 critic with BPTT 64 on global-alias and targeted Cassandra maintenance for long-horizon (250M-step) learning.",
+  "lambda": 0.95,
+  "primary_comparison": "global_aliases versus targeted actions under matched best-critic BPTT-64 recipe across two seeds",
+  "seed": 42,
+  "total_env_steps": 250000000,
+  "transformer": {
+    "context_len": 64,
+    "d_model": 64,
+    "max_seq_len": 64,
+    "n_heads": 1,
+    "n_layers": 4
+  },
+  "use_kl_loss": false,
+  "vf_clip_param": 100.0,
+  "vf_loss_coeff": 0.01
+}
