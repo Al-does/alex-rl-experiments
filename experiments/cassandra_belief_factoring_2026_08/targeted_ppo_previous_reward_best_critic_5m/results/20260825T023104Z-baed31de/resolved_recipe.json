@@ -1,0 +1,29 @@
+{
+  "algorithm": "PPO",
+  "best_critic_reference": "best_run_parameters.json vf100_coeff001",
+  "condition": "targeted_ppo_previous_reward_best_critic",
+  "entropy_coeff": 0.03,
+  "environment": {
+    "action_scope": "targeted",
+    "diagnostics": false,
+    "episode_length": 1000,
+    "initial_state_distribution": "all_good"
+  },
+  "gamma": 0.99,
+  "hypothesis": "Re-test visible previous reward with the vf100/coeff0.01 critic that achieved 495.30 on the standard targeted recipe; the earlier previous_reward run collapsed (~31.6) under the default vf_clip=10 critic.",
+  "lambda": 0.95,
+  "previous_reward_visible": true,
+  "primary_comparison": "previous_reward with best critic versus vf100_coeff001 without reward feature (495.30) and the earlier previous_reward baseline (31.60)",
+  "seed": 42,
+  "total_env_steps": 5000000,
+  "transformer": {
+    "context_len": 256,
+    "d_model": 64,
+    "max_seq_len": 256,
+    "n_heads": 1,
+    "n_layers": 4
+  },
+  "use_kl_loss": false,
+  "vf_clip_param": 100.0,
+  "vf_loss_coeff": 0.01
+}
