@@ -1,4 +1,4 @@
-"""Held-out belief probes and factor-geometry analysis for two MESS3 factors."""
+"""Held-out belief probes and factor geometry for independent MESS3 factors."""
 
 from __future__ import annotations
 
@@ -16,10 +16,17 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from analysis.checkpoints import load_algorithm
 from analysis.probes import (
+    cluster_bootstrap_statistics,
     conditional_mse_metrics,
+    correlation_residual_metrics,
+    fit_correlation_residual_probe,
     fit_affine_probe,
+    fit_product_constrained_joint_probe,
     global_mse_metrics,
+    joint_readout_excess_subspace,
+    percentile_interval,
     probe_predict,
+    product_constrained_joint_metrics,
     r2_score,
     regression_factor_geometry,
     representation_dimension_predictions,
@@ -31,7 +38,6 @@ from harness.hardware import PROFILES
 from harness.seeding import named_seed_sequences
 
 
-N_FACTORS = 2
 FACTOR_SIZE = 3
 PROBE_RIDGE = 1e-6
 N_ENVS = 8
@@ -41,6 +47,7 @@ SMOKE_STEPS = 1_024
 _STREAM_KEYS = {
     "probe_train": (610,),
     "probe_test": (611,),
+    "pcjr_bootstrap": (612,),
 }
 
 
@@ -51,6 +58,8 @@ class ProbeData:
     joint_belief: np.ndarray
     factor_beliefs: tuple[np.ndarray, ...]
     tokens: np.ndarray
+    env_indices: np.ndarray
+    episode_steps: np.ndarray
     actions: np.ndarray
     rewards: np.ndarray
 
@@ -74,6 +83,7 @@ def collect_probe_data(
     seed,
     device: str | torch.device,
     warmup: int,
+    n_factors: int,
 ) -> ProbeData:
     """Collect paper-comparable residuals and exact aligned belief targets."""
 
@@ -105,15 +115,15 @@ def collect_probe_data(
         )
         actions = randomness.numpy.integers(
             0,
-            FACTOR_SIZE**N_FACTORS,
+            FACTOR_SIZE**n_factors,
             size=len(observations),
         )
         return actions, state, embedding.cpu().numpy()
 
     def target_adapter(observations, infos, episode_steps):
-        del observations, episode_steps
+        del observations
         joint = np.stack([info["belief_current"] for info in infos])
-        factors = factor_marginals(joint, (FACTOR_SIZE,) * N_FACTORS)
+        factors = factor_marginals(joint, (FACTOR_SIZE,) * n_factors)
         return {
             "joint_belief": joint,
             **{
@@ -124,6 +134,8 @@ def collect_probe_data(
                 [info["visible_token_current"] for info in infos],
                 dtype=np.int64,
             ),
+            "env_index": np.arange(len(infos), dtype=np.int64),
+            "episode_step": np.asarray(episode_steps, dtype=np.int64),
         }
 
     collected = collect_batched_rollout_data(
@@ -149,9 +161,17 @@ def collect_probe_data(
         ),
         factor_beliefs=tuple(
             np.asarray(collected.targets[f"factor_{index}"], dtype=np.float64)
-            for index in range(N_FACTORS)
+            for index in range(n_factors)
         ),
         tokens=np.asarray(collected.targets["token"], dtype=np.int64),
+        env_indices=np.asarray(
+            collected.targets["env_index"],
+            dtype=np.int64,
+        ),
+        episode_steps=np.asarray(
+            collected.targets["episode_step"],
+            dtype=np.int64,
+        ),
         actions=np.asarray(collected.actions, dtype=np.int64).reshape(-1),
         rewards=np.asarray(collected.rewards, dtype=np.float64),
     )
@@ -183,7 +203,64 @@ def _fit_target(
     }
 
 
-def _plot_cev(metrics: dict[str, Any], *, path: Path) -> None:
+def _episode_clusters(data: ProbeData) -> np.ndarray:
+    """Return stable cluster IDs for complete environment episodes."""
+
+    clusters = np.empty(len(data.episode_steps), dtype=np.int64)
+    next_cluster = 0
+    for env_index in np.unique(data.env_indices):
+        members = np.flatnonzero(data.env_indices == env_index)
+        current = next_cluster
+        first = True
+        for index in members:
+            if not first and data.episode_steps[index] == 0:
+                current += 1
+            clusters[index] = current
+            first = False
+        next_cluster = current + 1
+    return clusters
+
+
+def _pcjr_bootstrap(
+    *,
+    direct_prediction: np.ndarray,
+    product_prediction: np.ndarray,
+    target: np.ndarray,
+    clusters: np.ndarray,
+    n_resamples: int,
+    seed: int,
+) -> dict[str, Any]:
+    """Bootstrap paired PCJR error differences over complete episodes."""
+
+    differences = (
+        np.square(product_prediction - target).mean(axis=1)
+        - np.square(direct_prediction - target).mean(axis=1)
+    )
+    estimates = cluster_bootstrap_statistics(
+        clusters,
+        lambda indices: float(differences[indices].mean()),
+        n_resamples=n_resamples,
+        seed=seed,
+    )
+    low, high = percentile_interval(estimates)
+    return {
+        "paired_error_difference": float(differences.mean()),
+        "paired_episode_bootstrap_ci95_low": low,
+        "paired_episode_bootstrap_ci95_high": high,
+        "paired_episode_bootstrap_n": n_resamples,
+        "reading": (
+            "positive means the direct joint probe has lower held-out MSE; "
+            "negative means product-constrained reconstruction is better"
+        ),
+    }
+
+
+def _plot_cev(
+    metrics: dict[str, Any],
+    *,
+    path: Path,
+    n_factors: int,
+) -> None:
     pca = metrics["geometry"]["activation_pca"]
     cumulative = np.asarray(pca["cumulative_explained_variance"])
     predictions = metrics["dimension_predictions"]
@@ -211,7 +288,7 @@ def _plot_cev(metrics: dict[str, Any], *, path: Path) -> None:
     axis.set_ylabel("Cumulative explained variance")
     axis.set_ylim(0.0, 1.01)
     axis.set_title(
-        f"Two-MESS3 belief geometry — step {metrics['checkpoint_step']}"
+        f"{n_factors}-MESS3 belief geometry — step {metrics['checkpoint_step']}"
     )
     axis.grid(alpha=0.2)
     axis.legend(fontsize=8)
@@ -225,6 +302,7 @@ def probe_checkpoint(
     *,
     checkpoint: Path,
     agent_steps: int,
+    n_factors: int,
 ) -> dict[str, Any]:
     """Fit held-out joint/factor probes and run paper-inspired geometry tests."""
 
@@ -262,6 +340,7 @@ def probe_checkpoint(
             "env_factory": make_environment,
             "device": device,
             "warmup": warmup,
+            "n_factors": n_factors,
         }
         train = collect_probe_data(
             n_steps=train_steps,
@@ -276,7 +355,7 @@ def probe_checkpoint(
 
     factor_targets = {
         f"factor_{index}": train.factor_beliefs[index]
-        for index in range(N_FACTORS)
+        for index in range(n_factors)
     }
     geometry = regression_factor_geometry(
         train.activations,
@@ -300,7 +379,7 @@ def probe_checkpoint(
                 test.factor_beliefs[index],
                 groups=test.tokens,
             )
-            for index in range(N_FACTORS)
+            for index in range(n_factors)
         },
     }
     observation_baselines = {
@@ -319,11 +398,48 @@ def probe_checkpoint(
                 test.factor_beliefs[index],
                 groups=test.tokens,
             )
-            for index in range(N_FACTORS)
+            for index in range(n_factors)
         },
     }
+    pcjr_probe = fit_product_constrained_joint_probe(
+        train.activations,
+        train.joint_belief,
+        train.factor_beliefs,
+        test.activations,
+        ridge=PROBE_RIDGE,
+    )
+    pcjr = {
+        **product_constrained_joint_metrics(
+            pcjr_probe,
+            test.joint_belief,
+        ),
+        **_pcjr_bootstrap(
+            direct_prediction=pcjr_probe.direct_prediction,
+            product_prediction=pcjr_probe.product_prediction,
+            target=test.joint_belief,
+            clusters=_episode_clusters(test),
+            n_resamples=100 if context.smoke else 1_000,
+            seed=int(streams["pcjr_bootstrap"].generate_state(1)[0]),
+        ),
+    }
+    crd_probe = fit_correlation_residual_probe(
+        train.activations,
+        train.joint_belief,
+        train.factor_beliefs,
+        test.activations,
+        test.joint_belief,
+        test.factor_beliefs,
+        ridge=PROBE_RIDGE,
+    )
+    crd = correlation_residual_metrics(crd_probe)
+    jres = joint_readout_excess_subspace(
+        pcjr_probe.direct_weight,
+        pcjr_probe.factor_weights,
+        joint_rank=FACTOR_SIZE**n_factors - 1,
+        factor_ranks=(FACTOR_SIZE - 1,) * n_factors,
+    )
     predictions = representation_dimension_predictions(
-        [FACTOR_SIZE] * N_FACTORS
+        [FACTOR_SIZE] * n_factors
     )
     metrics = {
         "checkpoint_step": int(agent_steps),
@@ -336,8 +452,24 @@ def probe_checkpoint(
         "n_test": test_steps,
         "n_envs": N_ENVS,
         "warmup": warmup,
+        "n_factors": n_factors,
         "targets": targets,
         "observation_only_baselines": observation_baselines,
+        "product_constrained_joint_reconstruction": pcjr,
+        "correlation_residual_decodability": crd,
+        "joint_readout_excess_subspace": jres,
+        "probe_degrees_of_freedom": {
+            "activation_width": int(train.activations.shape[1]),
+            "direct_joint_simplex_adjusted": (
+                (train.activations.shape[1] + 1)
+                * (FACTOR_SIZE**n_factors - 1)
+            ),
+            "all_factor_simplex_adjusted": (
+                (train.activations.shape[1] + 1)
+                * n_factors
+                * (FACTOR_SIZE - 1)
+            ),
+        },
         "geometry": geometry,
         "dimension_predictions": predictions,
         "behavior_reward_mean": float(test.rewards.mean()),
@@ -351,5 +483,9 @@ def probe_checkpoint(
     (context.results_dir / "probe_metrics.json").write_text(
         json.dumps(metrics, indent=2) + "\n"
     )
-    _plot_cev(metrics, path=context.results_dir / "cev.png")
+    _plot_cev(
+        metrics,
+        path=context.results_dir / "cev.png",
+        n_factors=n_factors,
+    )
     return metrics

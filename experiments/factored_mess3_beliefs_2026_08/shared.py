@@ -1,4 +1,4 @@
-"""Scientific recipe for transformer PPO on two independent MESS3 factors."""
+"""Scientific recipe for transformer PPO on independent MESS3 factors."""
 
 from __future__ import annotations
 
@@ -39,33 +39,40 @@ MODEL_CONFIG = TransformerModelConfig(
     context_len=32,
     max_seq_len=32,
 ).to_dict()
-ENV_CONFIG = {
-    "model": {
-        "factory": "envs.hmm:factored_model",
-        "kwargs": {
-            "factors": [
-                {
-                    "factory": "envs.mess3.model:passive_model",
-                    "kwargs": {"alpha": 0.85},
-                },
-                {
-                    "factory": "envs.mess3.model:passive_model",
-                    "kwargs": {"alpha": 0.85},
-                },
-            ],
+
+
+def environment_config(n_factors: int) -> dict[str, Any]:
+    """Return one Cartesian-token joint-state-guess environment."""
+
+    if n_factors < 2:
+        raise ValueError("the factored MESS3 study requires at least two factors")
+    return {
+        "model": {
+            "factory": "envs.hmm:factored_model",
+            "kwargs": {
+                "factors": [
+                    {
+                        "factory": "envs.mess3.model:passive_model",
+                        "kwargs": {"alpha": 0.85},
+                    }
+                    for _ in range(n_factors)
+                ],
+            },
         },
-    },
-    "task": {
-        "class": "envs.mess3.tasks.state_guess:StateGuessTask",
-    },
-    "observation": {
-        "token": {"offset": 0, "depth": 1},
-        "action": None,
-    },
-    "delay": 0,
-    "episode_length": EPISODE_LENGTH,
-    "randomize_first_episode_length": True,
-}
+        "task": {
+            "class": "envs.mess3.tasks.state_guess:StateGuessTask",
+        },
+        "observation": {
+            "token": {"offset": 0, "depth": 1},
+            "action": None,
+        },
+        "delay": 0,
+        "episode_length": EPISODE_LENGTH,
+        "randomize_first_episode_length": True,
+    }
+
+
+ENV_CONFIG = environment_config(2)
 
 
 def _save_initial_checkpoint(
@@ -106,14 +113,17 @@ def _apply_runtime_resources(
     )
 
 
-def build_config(context: RunContext) -> PPOConfig:
+def build_config(context: RunContext, *, n_factors: int = 2) -> PPOConfig:
     """Build a fresh gamma-zero transformer PPO configuration."""
 
     batch_size = SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
     profile = context.hardware or PROFILES["cpu"]
     config = (
         PPOConfig()
-        .environment(HMMEnv, env_config=ENV_CONFIG)
+        .environment(
+            HMMEnv,
+            env_config=environment_config(n_factors),
+        )
         .framework(
             "torch",
             torch_compile_learner=(
@@ -196,37 +206,59 @@ def _probe_summary(metrics: Mapping[str, Any]) -> dict[str, Any]:
         "factor_subspace_overlap": metrics["geometry"][
             "mean_pairwise_subspace_overlap"
         ],
+        "product_constrained_joint_reconstruction": metrics[
+            "product_constrained_joint_reconstruction"
+        ],
+        "correlation_residual_decodability": metrics[
+            "correlation_residual_decodability"
+        ],
+        "joint_readout_excess_subspace": metrics[
+            "joint_readout_excess_subspace"
+        ],
+        "probe_degrees_of_freedom": metrics["probe_degrees_of_freedom"],
     }
 
 
-def run_independent(context: RunContext) -> dict[str, Any]:
-    """Train one independent two-factor condition, then probe init and final."""
+def run_independent(
+    context: RunContext,
+    *,
+    n_factors: int = 2,
+) -> dict[str, Any]:
+    """Train one independent factored condition, then probe init and final."""
 
     if context.seed is None:
         raise ValueError("factored MESS3 training requires a resolved seed")
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
+    factored_dimension = n_factors * 2
+    joint_dimension = 3**n_factors - 1
+    joint_states = 3**n_factors
+    config_environment = environment_config(n_factors)
     outputs.write_json(
         "resolved_recipe.json",
         {
             "hypothesis": (
                 "PPO's 64-dimensional transformer will encode each independent "
                 "MESS3 belief in a linearly decodable, approximately orthogonal "
-                "two-dimensional subspace, using about four activation "
-                "dimensions rather than the eight-dimensional joint simplex."
+                f"two-dimensional subspace, using about {factored_dimension} "
+                "activation dimensions rather than the "
+                f"{joint_dimension}-dimensional joint simplex."
             ),
             "primary_comparison": "step_zero_initialization_vs_final_checkpoint",
-            "generator": "two independent passive MESS3 HMM factors",
+            "generator": f"{n_factors} independent passive MESS3 HMM factors",
             "observed_token": (
-                "one nine-way token in one-to-one correspondence with the "
-                "Cartesian pair of three-way factor subtokens"
+                f"one {joint_states}-way token in one-to-one correspondence "
+                "with the Cartesian tuple of three-way factor subtokens"
             ),
-            "task": "guess the current joint hidden state (nine actions)",
+            "task": (
+                "guess the current joint hidden state "
+                f"({joint_states} actions)"
+            ),
             "algorithm": "PPO",
             "gamma": 0.0,
             "lambda": 0.0,
-            "environment": ENV_CONFIG,
+            "environment": config_environment,
             "model": MODEL_CONFIG,
             "total_env_steps": target_steps,
             "train_batch_size_per_learner": (
@@ -240,12 +272,15 @@ def run_independent(context: RunContext) -> dict[str, Any]:
                 "disjoint train/test rollout seeds",
                 "current-token observation-only affine baseline",
                 "joint-versus-factored dimension predictions",
+                "Product-Constrained Joint Reconstruction (PCJR)",
+                "Correlation-Residual Decodability (CRD)",
+                "Joint Readout Excess Subspace (JRES)",
             ],
             "paper": "https://arxiv.org/abs/2602.02385",
         },
     )
 
-    config = build_config(context)
+    config = build_config(context, n_factors=n_factors)
     result_grid = run_tune(
         config,
         context,
@@ -262,9 +297,9 @@ def run_independent(context: RunContext) -> dict[str, Any]:
         raise RuntimeError(f"expected one Tune trial, got {len(results)}")
     result = results[0]
     if result.error is not None:
-        raise RuntimeError("two-factor PPO training failed") from result.error
+        raise RuntimeError("factored MESS3 PPO training failed") from result.error
     if result.checkpoint is None:
-        raise RuntimeError("two-factor PPO training produced no final checkpoint")
+        raise RuntimeError("factored MESS3 PPO produced no final checkpoint")
     initial_checkpoint = context.artifacts_dir / "initial_checkpoint"
     if not (initial_checkpoint / "rllib_checkpoint.json").is_file():
         raise RuntimeError("the exact initialization checkpoint was not saved")
@@ -281,6 +316,7 @@ def run_independent(context: RunContext) -> dict[str, Any]:
         context,
         checkpoint=initial_checkpoint,
         agent_steps=0,
+        n_factors=n_factors,
     )
     initial_probe_path = context.results_dir / "probe_metrics.json"
     initial_cev_path = context.results_dir / "cev.png"
@@ -293,6 +329,7 @@ def run_independent(context: RunContext) -> dict[str, Any]:
         context,
         checkpoint=final_checkpoint,
         agent_steps=final_steps,
+        n_factors=n_factors,
     )
     final_probe_path = context.results_dir / "probe_metrics.json"
     final_cev_path = context.results_dir / "cev.png"
@@ -306,6 +343,7 @@ def run_independent(context: RunContext) -> dict[str, Any]:
     summary = {
         "seed": context.seed,
         "smoke": context.smoke,
+        "n_factors": n_factors,
         "sampled_env_steps": final_steps,
         "training_episode_return_mean": _metric(
             result.metrics or {},
@@ -333,6 +371,14 @@ def run_independent(context: RunContext) -> dict[str, Any]:
                 final_summary["factor_subspace_overlap"]
                 - initial_summary["factor_subspace_overlap"]
             ),
+            "pcjr_product_minus_direct_mse_delta": (
+                final_summary["product_constrained_joint_reconstruction"][
+                    "product_minus_direct_mse"
+                ]
+                - initial_summary["product_constrained_joint_reconstruction"][
+                    "product_minus_direct_mse"
+                ]
+            ),
         },
         "conclusion_status": (
             "smoke_diagnostic_only"
@@ -341,9 +387,12 @@ def run_independent(context: RunContext) -> dict[str, Any]:
         ),
         "interpretation_rule": (
             "Evidence for native factoring requires both factor beliefs to be "
-            "linearly decodable, CEV near the four-dimensional direct-sum "
-            "prediction rather than the eight-dimensional joint prediction, "
-            "and low factor-subspace overlap."
+            "linearly decodable, CEV near the "
+            f"{factored_dimension}-dimensional direct-sum prediction rather "
+            f"than the {joint_dimension}-dimensional joint prediction, low "
+            "factor-subspace overlap, competitive PCJR product reconstruction, "
+            "degenerate CRD for this independent generator, and limited JRES "
+            "directions beyond the factor union."
         ),
     }
     outputs.write_json("condition_summary.json", summary)

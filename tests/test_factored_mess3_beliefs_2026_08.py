@@ -12,6 +12,7 @@ from experiments.factored_mess3_beliefs_2026_08.shared import (
     SMOKE_ENV_STEPS,
     TOTAL_ENV_STEPS,
     build_config,
+    environment_config,
 )
 from harness.context import RunContext
 from harness.hardware import PROFILES
@@ -81,3 +82,32 @@ def test_recipe_builds_fresh_64_dimensional_gamma_zero_ppo(tmp_path):
         "context_len": 32,
         "max_seq_len": 32,
     }
+
+
+def test_three_mess3_recipe_has_27_states_tokens_and_actions(tmp_path):
+    config = build_config(_context(tmp_path), n_factors=3)
+    environment = HMMEnv(
+        {
+            **environment_config(3),
+            "diagnostics": {"belief": True, "tokens": True},
+            "episode_length": 8,
+        }
+    )
+    try:
+        observation, info = environment.reset(seed=11)
+        assert environment.model.n_states == 27
+        assert environment.model.n_tokens == 27
+        assert environment.action_space.n == 27
+        assert observation.shape == (27,)
+        marginals = factor_marginals(info["belief_current"], (3, 3, 3))
+        assert len(marginals) == 3
+        np.testing.assert_allclose(
+            product_distribution(marginals),
+            info["belief_current"],
+            atol=1e-12,
+        )
+    finally:
+        environment.close()
+
+    assert len(config.env_config["model"]["kwargs"]["factors"]) == 3
+    assert config.rl_module_spec.module_class is TransformerModel
