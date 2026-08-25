@@ -15,6 +15,7 @@ from experiments.cassandra_belief_factoring_2026_08.qr_ppo_5m.shared import (
     NUM_QUANTILES,
     QUANTILE_HUBER_KAPPA,
     QUANTILE_LOSS_COEFFICIENT,
+    SCALAR_VF_CLIP_DIAGNOSTIC,
     TOTAL_ENV_STEPS,
 )
 from experiments.cassandra_belief_factoring_2026_08.qr_ppo_5m.targeted_qr.experiment import (
@@ -55,9 +56,10 @@ def test_qr_recipe_builds_matched_five_million_step_condition(
     assert config.env_config["action_scope"] == action_scope
     assert config.env_config["initial_state_distribution"] == "all_good"
     assert config.gamma == GAMMA == 0.990
-    assert config.entropy_coeff == ENTROPY_COEFF == 0.008
+    assert config.entropy_coeff == ENTROPY_COEFF == 0.03
     assert config.use_kl_loss is False
     assert config.vf_loss_coeff == 0.0
+    assert config.vf_clip_param == SCALAR_VF_CLIP_DIAGNOSTIC == 100.0
     assert config.learner_class is QRPPOTorchLearner
     assert config.learner_config_dict == {
         "qr_value/loss_coefficient": QUANTILE_LOSS_COEFFICIENT,
@@ -66,9 +68,12 @@ def test_qr_recipe_builds_matched_five_million_step_condition(
     assert config.rl_module_spec.module_class is CassandraQRTransformer
     assert config.rl_module_spec.model_config == MODEL_CONFIG
     assert config.rl_module_spec.model_config["d_model"] == 64
+    assert config.rl_module_spec.model_config["context_len"] == 64
+    assert config.rl_module_spec.model_config["max_seq_len"] == 64
     assert config.rl_module_spec.model_config["qr_value"] == {
         "num_quantiles": NUM_QUANTILES,
     }
+    assert QUANTILE_LOSS_COEFFICIENT == 0.01
 
 
 def test_qr_recipe_builds_fresh_configs(tmp_path):

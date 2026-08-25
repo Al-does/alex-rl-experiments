@@ -16,6 +16,7 @@ from experiments.cassandra_belief_factoring_2026_08.shared import (
     build_config as build_shared_config,
     environment_config,
 )
+from experiments.storage.training_curves import write_training_curves
 from harness.context import RunContext
 from harness.runners import run_tune
 from learners import QRPPOTorchLearner
@@ -27,18 +28,19 @@ from learners.models import (
 
 
 TOTAL_ENV_STEPS = 5_000_000
-ENTROPY_COEFF = 0.008
+ENTROPY_COEFF = 0.03
 GAMMA = 0.990
 NUM_QUANTILES = 64
 QUANTILE_HUBER_KAPPA = 10.0
-QUANTILE_LOSS_COEFFICIENT = 0.5
+QUANTILE_LOSS_COEFFICIENT = 0.01
+SCALAR_VF_CLIP_DIAGNOSTIC = 100.0
 MODEL_CONFIG: dict[str, Any] = {
     **TransformerModelConfig(
         d_model=64,
         n_layers=4,
         n_heads=1,
-        context_len=256,
-        max_seq_len=256,
+        context_len=64,
+        max_seq_len=64,
     ).to_dict(),
     "qr_value": {"num_quantiles": NUM_QUANTILES},
 }
@@ -72,6 +74,9 @@ def build_config(context: RunContext, *, action_scope: str) -> PPOConfig:
             # QR is the sole critic objective. The quantile mean still supplies
             # PPO's scalar baseline for GAE and bootstrapping.
             vf_loss_coeff=0.0,
+            # This only controls RLlib's zero-weight scalar VF diagnostic. QR's
+            # actual Huber objective is not hard-clipped.
+            vf_clip_param=SCALAR_VF_CLIP_DIAGNOSTIC,
         )
         .learners(
             learner_class=QRPPOTorchLearner,
@@ -93,7 +98,7 @@ def run_condition(context: RunContext, *, action_scope: str):
     """Train one QR-PPO condition for the matched budget."""
 
     target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
-    return run_tune(
+    result_grid = run_tune(
         build_config(context, action_scope=action_scope),
         context,
         stop={"env_runners/num_env_steps_sampled_lifetime": target_steps},
@@ -104,6 +109,8 @@ def run_condition(context: RunContext, *, action_scope: str):
             )
         },
     )
+    write_training_curves(context)
+    return result_grid
 
 
 __all__ = [
@@ -114,6 +121,7 @@ __all__ = [
     "NUM_QUANTILES",
     "QUANTILE_HUBER_KAPPA",
     "QUANTILE_LOSS_COEFFICIENT",
+    "SCALAR_VF_CLIP_DIAGNOSTIC",
     "TOTAL_ENV_STEPS",
     "build_config",
     "run_condition",

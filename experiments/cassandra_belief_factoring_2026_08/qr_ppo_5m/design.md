@@ -8,15 +8,15 @@ Train two otherwise matched seed-42 policies for 5,000,000 environment steps:
 2. component-targeted maintenance.
 
 Both use the successful narrow transformer (`d_model=64`, four layers, one
-head), all-good initial states, discount `0.990`, entropy coefficient `0.008`,
-and no KL penalty.
+head), the improved 64-step transformer context/BPTT window, all-good initial
+states, discount `0.990`, entropy coefficient `0.03`, and no KL penalty.
 
 ## Distributional critic
 
 The critic predicts 64 fixed return quantiles. Their mean remains PPO's scalar
 baseline for GAE and bootstrap values. PPO's scalar value MSE is excluded from
 the objective (`vf_loss_coeff=0.0`); quantile Huber regression, weighted by
-`0.5`, is the sole critic loss.
+`0.01`, is the sole critic loss.
 
 QR learns quantile locations, unlike C51, so it does not require fixed minimum
 or maximum support values. The environment's immediate reward ranges are:
@@ -32,8 +32,22 @@ bounds are approximately:
 
 The quantile Huber threshold is `10.0` return units for both conditions. This
 keeps a quadratic region spanning the order of the maintenance costs while
-making larger early-training return errors linear and robust. Keeping the same
-threshold and quantile count preserves the matched environment comparison.
+making larger early-training return errors linear and robust. Unlike RLlib's
+scalar squared-error clamp, Huber errors above this threshold retain a nonzero
+linear gradient; the QR objective is not hard-clipped.
+
+The original QR recipe used a loss coefficient of `0.5`. Observed raw QR loss
+was about `30` early and `6.6` after 2.8M steps, so its weighted contribution
+was roughly `15` to `3.3`—orders of magnitude larger than the policy and
+entropy terms. Coefficient `0.01` instead contributes roughly `0.30` to
+`0.066`, comparable to the successful scalar baseline's weighted critic
+update. This directly adopts the value-update scale lesson without importing
+scalar PPO's clipping mechanism into quantile regression.
+
+`vf_clip_param=100` is retained only for RLlib's scalar value-MSE diagnostic.
+Because `vf_loss_coeff=0.0`, it has no effect on gradients or the QR objective.
+Keeping the same threshold and quantile count preserves the matched
+environment comparison.
 
 ## Commands
 
