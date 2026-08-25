@@ -1,9 +1,10 @@
-"""Recover Tune training state from B2 for Cassandra best-critic continuations."""
+"""Recover Algorithm checkpoints from B2 for Cassandra best-critic continuations."""
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import tempfile
 from pathlib import Path
@@ -19,7 +20,7 @@ SOURCE_RUNS: dict[int, str] = {
     42: "20260825T062526Z-0452c263",
     43: "20260825T070342Z-fa83b069",
 }
-REQUIRED_ARTIFACT_PREFIXES = ("tune/", "metrics.jsonl")
+CHECKPOINT_NAME = re.compile(r"checkpoint_\d+")
 
 
 def source_run_id(seed: int) -> str:
@@ -78,52 +79,79 @@ def _download_atomic(
         temporary.unlink(missing_ok=True)
 
 
+def _walk_strings(value: Any):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for child in value.values():
+            yield from _walk_strings(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _walk_strings(child)
+
+
+def _final_checkpoint_name(tune_summary: dict[str, Any]) -> str:
+    names = {
+        match.group(0)
+        for value in _walk_strings(tune_summary)
+        for match in CHECKPOINT_NAME.finditer(value)
+    }
+    if not names:
+        raise ValueError("tune_summary.json contains no checkpoint name")
+    return max(names, key=lambda name: int(name.rsplit("_", 1)[1]))
+
+
 def _select_source_base(
     client: Any,
     bucket: str,
     bases: list[str],
-) -> tuple[str, list[str]]:
+) -> tuple[str, dict[str, Any]]:
     failures: list[Exception] = []
     for base in bases:
-        keys = _list_objects(client, bucket, f"{base}/")
-        tune_keys = [key for key in keys if "/tune/" in f"/{key}/"]
-        if tune_keys:
-            return base, keys
-        failures.append(FileNotFoundError(f"no tune objects under s3://{bucket}/{base}/"))
+        tune_key = f"{base}/compact-results/tune_summary.json"
+        try:
+            response = client.get_object(Bucket=bucket, Key=tune_key)
+            body = response["Body"]
+            try:
+                tune_summary = json.loads(body.read())
+            finally:
+                body.close()
+            return base, tune_summary
+        except Exception as error:
+            failures.append(error)
     raise FileNotFoundError(
-        "Tune artifacts were not found at any candidate B2 base"
+        "tune_summary.json was not found at any candidate B2 base"
     ) from (failures[-1] if failures else None)
 
 
-def _validate_recovered_tree(artifacts_dir: Path) -> Path:
-    tune_dir = artifacts_dir / "tune"
-    experiment_states = list(tune_dir.glob("experiment_state-*.json"))
-    if not experiment_states:
-        raise FileNotFoundError(
-            f"recovered Tune tree is missing experiment_state under {tune_dir}"
-        )
-    checkpoints = list(tune_dir.rglob("checkpoint_*"))
-    if not checkpoints:
-        raise FileNotFoundError(
-            f"recovered Tune tree is missing checkpoints under {tune_dir}"
-        )
-    return tune_dir
+def _validate_checkpoint(path: Path) -> None:
+    files = [candidate for candidate in path.rglob("*") if candidate.is_file()]
+    if not files:
+        raise ValueError(f"empty recovered checkpoint: {path}")
+    essential_names = {
+        "algorithm_state.pkl",
+        "rllib_checkpoint.json",
+        "metadata.json",
+        "class_and_ctor_args.pkl",
+    }
+    if not any(candidate.name in essential_names for candidate in files):
+        raise ValueError(f"checkpoint essentials not found under {path}")
 
 
-def recover_tune_artifacts(
+def recover_source_checkpoint(
     *,
     destination: Path,
     source_run_id: str,
 ) -> Path:
-    """Download Tune state for one completed targeted run into ``destination``."""
+    """Download the final Algorithm checkpoint for one completed targeted run."""
 
     config = B2StorageConfig.from_env()
     if config is None:
         raise RuntimeError(
-            "B2 credentials are required to recover source Tune checkpoints"
+            "B2 credentials are required to recover source checkpoints"
         )
     client = config.s3_client()
-    base, keys = _select_source_base(
+    base, tune_summary = _select_source_base(
         client,
         config.bucket,
         _candidate_bases(
@@ -131,20 +159,21 @@ def recover_tune_artifacts(
             source_run_id=source_run_id,
         ),
     )
+    final_name = _final_checkpoint_name(tune_summary)
+    all_keys = _list_objects(client, config.bucket, f"{base}/")
     selected: list[tuple[str, str]] = []
-    base_prefix = f"{base}/"
-    for key in keys:
-        if not key.startswith(base_prefix):
-            continue
-        relative = key[len(base_prefix) :]
-        if relative.startswith("tune/") or relative == "metrics.jsonl":
+    marker = f"/{final_name}/"
+    for key in all_keys:
+        if marker in key and "/compact-results/" not in key:
+            relative = key.split(marker, 1)[1]
             selected.append((key, relative))
     if not selected:
         raise FileNotFoundError(
-            f"no recoverable Tune objects found under s3://{config.bucket}/{base}/"
+            f"no checkpoint objects found for {final_name} under "
+            f"s3://{config.bucket}/{base}/"
         )
 
-    destination.mkdir(parents=True, exist_ok=True)
+    destination.parent.mkdir(parents=True, exist_ok=True)
     staging = Path(
         tempfile.mkdtemp(prefix=f".{destination.name}.", dir=destination.parent)
     )
@@ -156,16 +185,19 @@ def recover_tune_artifacts(
                 key=key,
                 destination=staging / relative,
             )
-        tune_dir = _validate_recovered_tree(staging)
-        provenance = {
-            "source_run_id": source_run_id,
-            "source_leaf": SOURCE_LEAF,
-            "b2_base": base,
-            "object_count": len(selected),
-            "tune_dir": str(tune_dir),
-        }
+        _validate_checkpoint(staging)
         (staging / "source_provenance.json").write_text(
-            json.dumps(provenance, indent=2, sort_keys=True) + "\n"
+            json.dumps(
+                {
+                    "source_run_id": source_run_id,
+                    "source_leaf": SOURCE_LEAF,
+                    "b2_base": base,
+                    "final_checkpoint_name": final_name,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
         )
         if destination.exists():
             shutil.rmtree(destination)
@@ -173,12 +205,12 @@ def recover_tune_artifacts(
     except BaseException:
         shutil.rmtree(staging, ignore_errors=True)
         raise
-    return destination / "tune"
+    return destination
 
 
 __all__ = [
     "SOURCE_LEAF",
     "SOURCE_RUNS",
-    "recover_tune_artifacts",
+    "recover_source_checkpoint",
     "source_run_id",
 ]
