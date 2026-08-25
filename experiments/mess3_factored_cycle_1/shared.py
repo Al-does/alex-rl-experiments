@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, replace
+import json
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,7 @@ from experiments.mess3_factored_cycle_1.dynamics import BASE_TRANSITION
 from experiments.mess3_factored_cycle_1.observation import (
     FactoredObservationHMMEnv,
 )
+from experiments.mess3_factored_cycle_1.probe import probe_checkpoint
 from experiments.mess3_factored_cycle_1.prediction import (
     train_prediction_twin,
     twin_context,
@@ -46,6 +48,9 @@ BASE_MODEL_CONFIG = TransformerModelConfig(
     n_heads=1,
     context_len=10,
 ).to_dict()
+FULL_REFERENCE_AUDIT_PATH = (
+    Path(__file__).parent / "results" / "reference_audits.json"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -218,6 +223,38 @@ def build_config(
     )
 
 
+def _pretraining_audits(context: RunContext) -> dict[str, Any]:
+    """Permit wiring smokes, but gate every research run on A1-A6 evidence."""
+
+    structural = structural_audit_report()
+    if structural["status"] != "passed":
+        raise RuntimeError("structural pre-training audits failed")
+    if context.smoke:
+        return {
+            **structural,
+            "training_authorization": "smoke_wiring_only",
+        }
+    if not FULL_REFERENCE_AUDIT_PATH.is_file():
+        raise RuntimeError(
+            "full factored-MESS3 training is blocked until the registered "
+            f"A1-A6 campaign is recorded at {FULL_REFERENCE_AUDIT_PATH}"
+        )
+    reference = json.loads(FULL_REFERENCE_AUDIT_PATH.read_text())
+    if (
+        reference.get("status") != "passed"
+        or reference.get("protocol", {}).get("n_chains", 0) < 4096
+        or reference.get("protocol", {}).get("n_steps", 0) < 6000
+        or reference.get("protocol", {}).get("burn_in", 0) < 500
+        or reference.get("max_standard_error", float("inf")) > 5e-4
+    ):
+        raise RuntimeError("registered A1-A6 reference campaign has not passed")
+    return {
+        **structural,
+        "training_authorization": "registered_A1_A6_passed",
+        "reference_campaign": reference,
+    }
+
+
 def run_condition(
     context: RunContext,
     condition: Condition,
@@ -229,9 +266,7 @@ def run_condition(
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
-    audit_report = structural_audit_report()
-    if audit_report["status"] != "passed":
-        raise RuntimeError("structural pre-training audits failed")
+    audit_report = _pretraining_audits(context)
     outputs.write_json("audit_status.json", audit_report)
     outputs.write_json(
         "resolved_recipe.json",
@@ -280,6 +315,12 @@ def run_condition(
     if result.checkpoint is None:
         raise RuntimeError(f"{condition.name} produced no final checkpoint")
     write_training_curves(context)
+    final_probe = probe_checkpoint(
+        context,
+        Path(result.checkpoint.path),
+        condition,
+    )
+    outputs.write_json("final_probe.json", final_probe)
 
     def twin_environment():
         return make_environment(condition, fixed_episode_length=True)
@@ -301,6 +342,10 @@ def run_condition(
         "target_env_steps": target_steps,
         "final_checkpoint": str(result.checkpoint.path),
         "prediction_twin": twin_summary,
+        "final_probe": {
+            "path": str(context.results_dir / "final_probe.json"),
+            "representation": final_probe["representation"],
+        },
         "structural_audits": audit_report["status"],
     }
     outputs.write_json("condition_summary.json", summary)

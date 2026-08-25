@@ -19,7 +19,9 @@ geometry APIs added in
 - Every RL run trains a matched next-joint-symbol predictor on trajectories
   sampled from its restored final stochastic policy. The predictor uses the
   same encoder, Adam at `3e-4`, one smoke epoch or six full epochs, and stores
-  its raw trajectory dataset under ignored `artifacts/`.
+  its raw trajectory dataset under ignored `artifacts/`. Its causal examples
+  are `(history through x_t, executed a_t) -> x_{t+1}`; a separate restored
+  policy episode supplies held-out metrics.
 
 ## Conditions
 
@@ -53,6 +55,9 @@ It must not be reported as exact belief-state bisimulation.
 value invariance, and E3 function-coupling checks. Smoke runs record the
 registered A3-A6 thresholds and reference targets but deliberately do not
 mislabel small simulations as the specified 4,096-chain acceptance campaign.
+Non-smoke training is blocked until the complete registered campaign is
+recorded at `results/reference_audits.json` with passing A1-A6 status and the
+specified chain/step/burn-in/standard-error protocol.
 
 `analysis.py` uses PR 35's:
 
@@ -63,6 +68,14 @@ mislabel small simulations as the specified 4,096-chain acceptance campaign.
   versus eight-dimensional joint baselines.
 
 Geometry is not interpreted until held-out probes establish decodability.
+E4 has no hard-coded four-dimensional quotient prediction: its report includes
+the full joint residual and relative-phase posterior because equal marginals
+need not imply equal gauge-control actions.
+
+Every completed RL run now writes `final_probe.json` from disjoint policy
+rollouts. It reports held-out joint/F1/F2/block/within-N/relative-phase probes,
+PR 35 CEV and subspace geometry, and (for E3) nested factor-only versus
+factor-plus-interaction readouts of exact QMDP and learned value/logit targets.
 
 ## Smoke examples
 

@@ -18,6 +18,7 @@ from experiments.mess3_factored_cycle_1.observation import (
     FactoredObservationHMMEnv,
 )
 from experiments.mess3_factored_cycle_1.prediction import (
+    _causal_prediction_examples,
     _joint_token_targets,
     _sequence_chunks,
 )
@@ -315,6 +316,8 @@ def test_prediction_targets_cover_factored_and_joint_presentations():
         joint[0, step, symbol] = 1.0
         factored[0, step, symbol // 3] = 1.0
         factored[0, step, 3 + symbol % 3] = 1.0
+    factored[0, 1, 7] = 1.0
+    factored[0, 2, 8] = 1.0
     np.testing.assert_array_equal(
         _joint_token_targets(joint, token_encoding="joint"),
         [symbols],
@@ -323,9 +326,17 @@ def test_prediction_targets_cover_factored_and_joint_presentations():
         _joint_token_targets(factored, token_encoding="factored"),
         [symbols],
     )
-    chunks = _sequence_chunks(
+    inputs, labels = _causal_prediction_examples(
         factored,
         np.asarray([symbols]),
+        token_width=6,
+    )
+    # The action suffix from t+1 is moved beside x_t, without leaking x_{t+1}.
+    assert inputs[0, 0, 7] == 1.0
+    assert inputs[0, 0, 3:6].argmax() == 1 % 3
+    chunks = _sequence_chunks(
+        inputs,
+        labels,
         lookback=2,
         chunk_length=2,
     )

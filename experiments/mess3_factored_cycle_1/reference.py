@@ -93,6 +93,18 @@ def factor_targets(joint_beliefs: np.ndarray) -> dict[str, np.ndarray]:
 
     first, second = factor_marginals(joint_beliefs, (3, 3))
     product = product_distribution((first, second))
+    non_goal_mass = second[..., :GOAL_STATE].sum(axis=-1, keepdims=True)
+    relative_phase = np.zeros((*np.asarray(joint_beliefs).shape[:-1], 3))
+    joint_grid = np.asarray(joint_beliefs, dtype=np.float64).reshape(
+        *np.asarray(joint_beliefs).shape[:-1],
+        3,
+        3,
+    )
+    for phase in range(3):
+        relative_phase[..., phase] = sum(
+            joint_grid[..., first_state, (first_state + phase) % 3]
+            for first_state in range(3)
+        )
     return {
         "joint": np.asarray(joint_beliefs, dtype=np.float64),
         "f1": first,
@@ -101,6 +113,12 @@ def factor_targets(joint_beliefs: np.ndarray) -> dict[str, np.ndarray]:
         "joint_residual": np.asarray(joint_beliefs, dtype=np.float64) - product,
         "f2_goal_block": second[..., GOAL_STATE : GOAL_STATE + 1],
         "f2_within_n": (second[..., 0] - second[..., 1])[..., None],
+        "f2_within_n_conditional": (
+            (second[..., 0] - second[..., 1])[..., None]
+            / np.maximum(non_goal_mass, 1e-12)
+        ),
+        "f2_non_goal_mass": non_goal_mass,
+        "relative_phase": relative_phase,
     }
 
 
@@ -188,6 +206,7 @@ def e2_lumpability_audit(
 ) -> dict[str, Any]:
     """Audit A1 across the registered dose-response sweep."""
 
+    expected = e2_action_transitions()
     worst = 0.0
     by_lambda: dict[str, float] = {}
     for coupling_lambda in lambdas:
@@ -196,7 +215,7 @@ def e2_lumpability_audit(
             coupling_lambda=coupling_lambda,
         )
         lambda_worst = 0.0
-        for action_kernel in kernels:
+        for action, action_kernel in enumerate(kernels):
             masses = np.empty((3, 3), dtype=np.float64)
             for first in range(3):
                 for second in range(3):
@@ -205,11 +224,11 @@ def e2_lumpability_audit(
                         source,
                         GOAL_STATE::3,
                     ].sum()
-            reference = masses[0]
+            reference = expected[action, :, GOAL_STATE]
             lambda_worst = max(
                 lambda_worst,
                 float(np.max(np.abs(masses - reference))),
-                float(abs(reference[0] - reference[1])),
+                float(np.max(np.abs(masses[:, 0] - masses[:, 1]))),
             )
         by_lambda[str(coupling_lambda)] = lambda_worst
         worst = max(worst, lambda_worst)

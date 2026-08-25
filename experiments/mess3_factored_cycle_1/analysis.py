@@ -43,12 +43,18 @@ def geometry_report(
         },
         target_ranks={"f1": 2, "f2": 2},
     )
+    relative_phase_geometry = regression_factor_geometry(
+        np.asarray(activations, dtype=np.float64),
+        {"relative_phase": _contrasts(targets["relative_phase"])},
+        target_ranks={"relative_phase": 2},
+    )
     report: dict[str, Any] = {
         "activation_geometry": variance_geometry(
             np.asarray(activations, dtype=np.float64),
             max_spectrum_entries=32,
         ),
         "factor_geometry": factor_geometry,
+        "relative_phase_geometry": relative_phase_geometry,
         "dimension_predictions": representation_dimension_predictions((3, 3)),
         "joint_product_mse": float(
             np.square(targets["joint_residual"]).mean()

@@ -108,7 +108,7 @@ def _joint_token_targets(
 
 
 def _sequence_chunks(
-    observations: np.ndarray,
+    inputs: np.ndarray,
     targets: np.ndarray,
     *,
     lookback: int,
@@ -117,10 +117,10 @@ def _sequence_chunks(
     """Build padded BPTT chunks with exact preceding transformer context."""
 
     contexts, lengths, chunks, chunk_targets, masks = [], [], [], [], []
-    width = observations.shape[-1]
-    for episode, episode_targets in zip(observations, targets):
-        for start in range(0, len(episode) - 1, chunk_length):
-            end = min(start + chunk_length, len(episode) - 1)
+    width = inputs.shape[-1]
+    for episode, episode_targets in zip(inputs, targets):
+        for start in range(0, len(episode), chunk_length):
+            end = min(start + chunk_length, len(episode))
             count = end - start
             history = episode[max(0, start - lookback) : start]
             context = np.zeros((lookback, width), dtype=np.float32)
@@ -129,7 +129,7 @@ def _sequence_chunks(
             chunk = np.zeros((chunk_length, width), dtype=np.float32)
             chunk[:count] = episode[start:end]
             labels = np.zeros(chunk_length, dtype=np.int64)
-            labels[:count] = episode_targets[start + 1 : end + 1]
+            labels[:count] = episode_targets[start:end]
             mask = np.zeros(chunk_length, dtype=bool)
             mask[:count] = True
             contexts.append(context)
@@ -144,6 +144,28 @@ def _sequence_chunks(
         np.stack(chunk_targets),
         np.stack(masks),
     )
+
+
+def _causal_prediction_examples(
+    observations: np.ndarray,
+    targets: np.ndarray,
+    *,
+    token_width: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Align ``(history through x_t, executed a_t) -> x_{t+1}``.
+
+    Policy observations at time ``t`` contain ``a_{t-1}``. The environment
+    places executed ``a_t`` in the action suffix of observation ``t+1``.
+    Moving only that suffix back one row gives the predictor the causal action
+    without exposing the next symbol.
+    """
+
+    values = np.asarray(observations, dtype=np.float32)
+    if not 0 < token_width < values.shape[-1]:
+        raise ValueError("token_width must leave a non-empty action suffix")
+    inputs = values[:, :-1].copy()
+    inputs[..., token_width:] = values[:, 1:, token_width:]
+    return inputs, np.asarray(targets, dtype=np.int64)[:, 1:]
 
 
 def train_prediction_twin(
@@ -171,7 +193,8 @@ def train_prediction_twin(
         episode_length = int(probe_env.unwrapped.config.episode_length)
     finally:
         probe_env.close()
-    n_episodes = max(1, math.ceil(data_steps / episode_length))
+    # Reserve the final policy episode as an untouched validation trajectory.
+    n_episodes = max(2, math.ceil(data_steps / episode_length) + 1)
     observations = collect_policy_episodes(
         checkpoint,
         env_factory,
@@ -195,14 +218,31 @@ def train_prediction_twin(
         model_config=resolved_model_config,
     ).to(device)
     optimizer = torch.optim.Adam(module.parameters(), lr=learning_rate)
-    targets = _joint_token_targets(
+    all_targets = _joint_token_targets(
         observations,
         token_encoding=token_encoding,
     )
+    token_width = 9 if token_encoding == "joint" else 6
+    train_inputs, train_targets = _causal_prediction_examples(
+        observations[:-1],
+        all_targets[:-1],
+        token_width=token_width,
+    )
+    validation_inputs, validation_targets = _causal_prediction_examples(
+        observations[-1:],
+        all_targets[-1:],
+        token_width=token_width,
+    )
     chunk_length = int(resolved_model_config.get("max_seq_len", 32))
     contexts, lengths, chunks, labels, masks = _sequence_chunks(
-        observations,
-        targets,
+        train_inputs,
+        train_targets,
+        lookback=module.sequence_lookback,
+        chunk_length=chunk_length,
+    )
+    validation = _sequence_chunks(
+        validation_inputs,
+        validation_targets,
         lookback=module.sequence_lookback,
         chunk_length=chunk_length,
     )
@@ -272,19 +312,65 @@ def train_prediction_twin(
                     + "\n"
                 )
     final_checkpoint = save("final", optimizer_step)
+
+    def evaluate(
+        arrays: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+    ) -> tuple[float, float, int]:
+        eval_contexts, eval_lengths, eval_chunks, eval_labels, eval_masks = arrays
+        total_loss = 0.0
+        total_correct = 0
+        total_count = 0
+        module.eval()
+        with torch.no_grad():
+            for start in range(0, len(eval_chunks), batch_chunks):
+                selection = slice(start, start + batch_chunks)
+                embeddings = module.encode_chunks(
+                    torch.from_numpy(eval_contexts[selection]).to(device),
+                    torch.from_numpy(eval_lengths[selection]).to(device),
+                    torch.from_numpy(eval_chunks[selection]).to(device),
+                )
+                logits = module.next_token_aux_head(embeddings)
+                label = torch.from_numpy(eval_labels[selection]).to(device)
+                mask = torch.from_numpy(eval_masks[selection]).to(device)
+                count = int(mask.sum())
+                total_loss += float(
+                    F.cross_entropy(
+                        logits[mask],
+                        label[mask],
+                        reduction="sum",
+                    )
+                )
+                total_correct += int(
+                    (logits[mask].argmax(dim=-1) == label[mask]).sum()
+                )
+                total_count += count
+        return (
+            total_loss / total_count,
+            total_correct / total_count,
+            total_count,
+        )
+
+    validation_loss, validation_accuracy, validation_count = evaluate(validation)
     summary = {
         "objective": "next_joint_symbol_prediction",
         "trajectory_source": "restored_stochastic_rl_policy",
+        "causal_alignment": "(history_through_x_t, executed_a_t) -> x_t_plus_1",
         "rl_checkpoint": str(checkpoint),
         "dataset": str(dataset_path),
-        "episodes": n_episodes,
-        "observations": int(observations.shape[0] * observations.shape[1]),
+        "training_episodes": n_episodes - 1,
+        "validation_episodes": 1,
+        "training_observations": int(
+            (observations.shape[0] - 1) * observations.shape[1]
+        ),
         "epochs": epochs,
         "optimizer": "Adam",
         "learning_rate": learning_rate,
         "optimizer_steps": optimizer_step,
-        "final_cross_entropy": final_loss,
-        "final_accuracy": final_accuracy,
+        "last_training_minibatch_cross_entropy": final_loss,
+        "last_training_minibatch_accuracy": final_accuracy,
+        "validation_cross_entropy": validation_loss,
+        "validation_accuracy": validation_accuracy,
+        "validation_targets": validation_count,
         "final_checkpoint": str(final_checkpoint),
     }
     outputs.write_json("prediction_twin_summary.json", summary)
