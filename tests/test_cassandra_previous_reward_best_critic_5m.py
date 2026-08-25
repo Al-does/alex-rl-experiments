@@ -50,5 +50,5 @@ def test_previous_reward_best_critic_rejects_mismatched_seed(tmp_path):
         hardware=PROFILES["cpu"],
     )
 
-    with pytest.raises(ValueError, match="require seed 42"):
+    with pytest.raises(ValueError, match="requires seed 42"):
         build_config(context)
