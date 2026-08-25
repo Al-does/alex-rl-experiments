@@ -1,0 +1,30 @@
+{
+  "control": {
+    "recipe": "targeted_ppo_entropy_0_03_gamma_0_990_small_4layer_all_good_10m",
+    "seed": 42,
+    "target_env_steps": 5000000,
+    "entropy_coeff": 0.03,
+    "vf_clip_param": 10,
+    "vf_loss_coeff": 0.5,
+    "final_return": 352.975318551481
+  },
+  "interventions_entropy_0_03": {
+    "bptt_64": {"final_return": 364.2224652747842, "delta_vs_control": 11.25},
+    "lambda_098": {"final_return": 277.2506133546518, "delta_vs_control": -75.72},
+    "vf_clip_100_coeff_0_5": {"final_return": 39.50476201261908, "delta_vs_control": -313.47},
+    "previous_reward": {"final_return": 31.601004102002868, "delta_vs_control": -321.37}
+  },
+  "vf_clip_grid_entropy_0_03": {
+    "vf100_coeff001": {"vf_clip_param": 100, "vf_loss_coeff": 0.01, "final_return": 495.301927394658, "delta_vs_control": 142.33},
+    "vf400_coeff00125": {"vf_clip_param": 400, "vf_loss_coeff": 0.0125, "final_return": 448.923, "delta_vs_control": 95.95},
+    "vf100_coeff005": {"vf_clip_param": 100, "vf_loss_coeff": 0.05, "final_return": 362.137, "delta_vs_control": 9.16},
+    "vf100_coeff0002": {"vf_clip_param": 100, "vf_loss_coeff": 0.002, "final_return": 32.537, "delta_vs_control": -320.44},
+    "vf400_coeff00025": {"vf_clip_param": 400, "vf_loss_coeff": 0.0025, "final_return": 32.029, "delta_vs_control": -320.95}
+  },
+  "recommended": {
+    "vf_clip_param": 100,
+    "vf_loss_coeff": 0.01,
+    "rationale": "Best 5M return (+142 vs control); balanced max weighted critic loss ~1"
+  },
+  "excluded": "Pre-ec003 intervention runs at entropy coefficient 0.008"
+}

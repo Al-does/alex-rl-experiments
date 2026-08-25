@@ -50,3 +50,29 @@ on silent rebases on the box.
 
 Do not use a shared orphan `results` branch unless you have a deliberate reason.
 Prefer one feature branch per campaign attempt so parallel agents stay isolated.
+
+## Storage conventions (this repo owns naming)
+
+The harness writes verbose per-iteration metrics to ignored
+`artifacts/<run-id>/metrics.jsonl`. **This repo** decides what compact projections
+land in Git-tracked `results/`. See `experiments/storage/training_curves.py`.
+
+| File | Location | Git? | Description |
+|------|----------|------|-------------|
+| `metrics.jsonl` | `artifacts/` | no | harness verbose flattened Ray metrics (B2) |
+| `training_curves.jsonl` | `results/` | yes | compact curves (`iteration`, `return_mean`, …) |
+| `progress.jsonl` | `results/` | **legacy — never commit** | pre-cleanup verbose dump; read from B2 instead |
+| `run_manifest.json`, `tune_summary.json` | `results/` | yes | provenance and final trial metrics |
+| `remote_artifacts.json`, `durability_manifest.json` | `results/` | **no** | full B2 file index (~190 KB/run); use `run_manifest.json` → `remote_artifacts`; full index on B2 |
+
+After `run_tune()`, call `write_training_curves(context)` from
+`experiments.storage.training_curves` to materialize compact curves.
+
+### Agent guide: what to read
+
+| Goal | Read | Avoid |
+|------|------|-------|
+| Final return | `tune_summary.json`, `*_summary.json` | bulk-reading all of `results/` |
+| Learning curve | `training_curves.jsonl` | `progress.jsonl`, `remote_artifacts.json`, `durability_manifest.json` |
+| Provenance / B2 prefix | `run_manifest.json` | full B2 manifest files |
+| Perf debugging | B2 `compact-results/progress.jsonl` or `artifacts/metrics.jsonl` | legacy Git `progress.jsonl` |

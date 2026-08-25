@@ -18,6 +18,7 @@ from experiments.cassandra_belief_factoring_2026_08.shared import (
     build_config as build_shared_config,
     environment_config,
 )
+from experiments.storage.training_curves import write_training_curves
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
 from harness.runners import run_tune
@@ -34,7 +35,7 @@ Intervention = Literal[
 TOTAL_ENV_STEPS = 5_000_000
 SMOKE_ENV_STEPS = 4_096
 EXPERIMENT_SEED = 42
-ENTROPY_COEFF = 0.008
+ENTROPY_COEFF = 0.03
 BASELINE_VF_CLIP = 10.0
 BASELINE_LAMBDA = 0.95
 BASELINE_MODEL_CONFIG = TransformerModelConfig(
@@ -205,6 +206,7 @@ def run_intervention(
     result = results[0]
     if result.error is not None:
         raise RuntimeError(f"{intervention} training failed") from result.error
+    write_training_curves(context)
     summary = {
         "condition": f"targeted_ppo_small_{intervention}",
         "seed": EXPERIMENT_SEED,

@@ -98,7 +98,7 @@ def test_intervention_changes_only_its_controlled_axis(
     assert first.gamma == pytest.approx(0.990)
     assert first.lambda_ == pytest.approx(gae_lambda)
     assert first.vf_clip_param == pytest.approx(vf_clip)
-    assert first.entropy_coeff == pytest.approx(0.008)
+    assert first.entropy_coeff == pytest.approx(0.03)
     assert first.use_kl_loss is False
     assert first.kl_coeff == 0.0
     assert first.rl_module_spec.model_config == {
