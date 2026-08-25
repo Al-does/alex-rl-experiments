@@ -25,6 +25,20 @@ rank four. Their normalized principal-angle overlap is 0.064, close to
 orthogonal. This is strong evidence that the model makes the two beliefs
 available through separate linear channels.
 
+The new joint-versus-factor controls strengthen that reading:
+
+- **PCJR:** multiplying the two decoded marginals reconstructs the joint belief
+  better than the larger direct joint affine probe (R² 0.963 versus 0.951; MSE
+  ratio 0.763). The paired episode-bootstrap MSE difference is -0.000744, with
+  95% CI [-0.000771, -0.000719].
+- **CRD:** the exact correlation residual is degenerate, as required for this
+  independent product-state process.
+- **JRES:** 67.6% of the direct joint probe's weight energy lies outside the
+  factor readout union, and those directions improve a *linear* joint readout.
+  This does not favor a joint belief representation: a linear map of only the
+  factor coordinates cannot form their tensor product, while PCJR performs
+  that nonlinear multiplication and outperforms the full direct probe.
+
 The global CEV result is mixed. The paper-inspired factored prediction is four
 dimensions and the full joint-simplex prediction is eight; the trained
 activation reaches 95% CEV at eight dimensions. It compressed substantially
