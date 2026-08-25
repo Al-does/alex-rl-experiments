@@ -31,6 +31,12 @@ from experiments.mess3_factored_cycle_1.reference import (
     structural_audit_report,
     value_invariance_audit,
 )
+from experiments.mess3_factored_cycle_1.reference_campaign import (
+    CampaignProtocol,
+    ConditionSpec,
+    run_reference_campaign,
+    simulate_condition,
+)
 from experiments.mess3_factored_cycle_1.shared import (
     BASE_MODEL_CONFIG,
     Condition,
@@ -392,3 +398,57 @@ def test_condition_validation_rejects_unknown_science():
             alpha1=0.55,
             alpha2=0.55,
         )
+
+
+def test_reference_simulator_is_deterministic_and_reports_chain_uncertainty():
+    protocol = CampaignProtocol(
+        n_chains=32,
+        n_steps=96,
+        burn_in=16,
+        seed=11,
+    )
+    spec = ConditionSpec(
+        "E1_test",
+        "diagonal",
+        "f2_goal",
+        0.55,
+        0.55,
+    )
+    first = simulate_condition(
+        spec,
+        protocol,
+        policy_kinds=("aware", "reactive", "greedy"),
+    )
+    second = simulate_condition(
+        spec,
+        protocol,
+        policy_kinds=("aware", "reactive", "greedy"),
+    )
+    assert first["policies"] == second["policies"]
+    assert first["policies"]["aware"]["standard_error"] >= 0.0
+    assert first["best_constant"]["estimate"] > 0.0
+    assert first["_chain_values"]["aware"].shape == (32,)
+
+
+def test_reduced_reference_campaign_has_complete_audit_schema():
+    report = run_reference_campaign(
+        CampaignProtocol(
+            n_chains=24,
+            n_steps=80,
+            burn_in=16,
+            seed=7,
+        )
+    )
+    assert report["schema_version"] == 1
+    assert set(report["audits"]) == {"A1", "A2", "A3", "A4", "A5", "A6"}
+    assert set(report["audits"]["A3"]["conditions"]) == {
+        "E1",
+        "E2",
+        "E3b",
+        "E3c",
+        "E4",
+    }
+    assert len(report["references"]["e2_lambda_sweep"]) == 5
+    assert report["protocol"]["reward_timing"] == (
+        "decision_state_before_transition"
+    )

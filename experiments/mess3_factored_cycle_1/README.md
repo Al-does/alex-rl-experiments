@@ -59,6 +59,20 @@ Non-smoke training is blocked until the complete registered campaign is
 recorded at `results/reference_audits.json` with passing A1-A6 status and the
 specified chain/step/burn-in/standard-error protocol.
 
+Run the reduced wiring check or the registered campaign with:
+
+```bash
+uv run rl-harness \
+  experiments.mess3_factored_cycle_1.reference_campaign.experiment --smoke
+
+uv run rl-harness \
+  experiments.mess3_factored_cycle_1.reference_campaign.experiment
+```
+
+The full command streams only chain accumulators, writes compact JSON, and
+promotes a passing/non-passing canonical result to
+`results/reference_audits.json`. It does not launch neural training.
+
 `analysis.py` uses PR 35's:
 
 - `factor_marginals` and `product_distribution` for exact targets;
