@@ -63,10 +63,10 @@ Run the reduced wiring check or the registered campaign with:
 
 ```bash
 uv run rl-harness \
-  experiments.mess3_factored_cycle_1.reference_campaign.experiment --smoke
+  experiments.mess3_factored_cycle_1.registered_audits.experiment --smoke
 
 uv run rl-harness \
-  experiments.mess3_factored_cycle_1.reference_campaign.experiment
+  experiments.mess3_factored_cycle_1.registered_audits.experiment
 ```
 
 The full command streams only chain accumulators, writes compact JSON, and
