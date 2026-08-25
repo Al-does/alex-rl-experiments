@@ -40,6 +40,7 @@ from experiments.mess3_factored_cycle_1.reference_campaign import (
 from experiments.mess3_factored_cycle_1.shared import (
     BASE_MODEL_CONFIG,
     Condition,
+    _pretraining_audits,
     build_config,
     environment_config,
     make_environment,
@@ -452,3 +453,18 @@ def test_reduced_reference_campaign_has_complete_audit_schema():
     assert report["protocol"]["reward_timing"] == (
         "decision_state_before_transition"
     )
+
+
+def test_passing_canonical_campaign_authorizes_non_smoke_training(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+    report = _pretraining_audits(context)
+    assert report["training_authorization"] == "registered_A1_A6_passed"
+    assert report["reference_campaign"]["status"] == "passed"
+    assert report["reference_campaign"]["max_standard_error"] <= 5e-4
