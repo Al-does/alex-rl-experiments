@@ -408,18 +408,27 @@ def run_factor_condition(
         factor_count=factor_count,
         path=context.results_dir / "probe_trajectory.png",
     )
-    summary = {
+    return {
         "condition": condition,
         "factor_count": factor_count,
         "seed": context.seed,
         "smoke": context.smoke,
-        "checkpoints": reports,
-        "initial": reports[0],
-        "final": reports[-1],
+        "checkpoint_reports": [
+            {
+                "agent_steps": report["agent_steps"],
+                "checkpoint": report["checkpoint"],
+                "training_iteration": report["training_iteration"],
+                "path": str(
+                    context.results_dir
+                    / "checkpoint_probes"
+                    / f"steps_{report['agent_steps']:09d}"
+                    / "probe_battery.json"
+                ),
+            }
+            for report in reports
+        ],
         "trajectory_figure": str(context.results_dir / "probe_trajectory.png"),
     }
-    outputs.write_json("condition_summary.json", summary)
-    return summary
 
 
 def run_arm(context: RunContext, condition: str) -> dict[str, Any]:
