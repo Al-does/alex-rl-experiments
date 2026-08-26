@@ -46,7 +46,9 @@ TOTAL_ENV_STEPS = 2_500_000
 SMOKE_ENV_STEPS = 1_024
 TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 1_024
-MINIBATCH_SIZE = 4_096
+# Live RTX 4090 profiling on the worst-case three-factor PPO+CE arm measured
+# 5,420 env steps/s at 32,768 with 76.7% CUDA memory reserved. 65,536 OOMed.
+MINIBATCH_SIZE = 32_768
 SMOKE_MINIBATCH_SIZE = 256
 MODEL_CONFIG = FactoredReproductionModelConfig().to_dict()
 CONDITIONS = ("ppo", "ppo_aux_ce")
@@ -295,6 +297,8 @@ def _resolved_recipe(
         "learning_rate": 1e-4,
         "clip_param": 0.2,
         "num_epochs": 6,
+        "train_batch_size_per_learner": TRAIN_BATCH_SIZE,
+        "minibatch_size": MINIBATCH_SIZE,
         "model": MODEL_CONFIG,
         "head_choice_rationale": (
             "The paper uses three heads at d_model=120. Four 16-dimensional "

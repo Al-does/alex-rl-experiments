@@ -35,7 +35,9 @@ uv run rl-harness \
   the paper's length-8 analysis and `n_ctx=9`.
 - PPO uses the controlled immediate-prediction recipe from
   `mess3_token_guess_cycle_2`: `gamma=0`, `lambda=0`, clipping `0.2`, six
-  epochs, and no entropy bonus.
+  epochs, and no entropy bonus. Both the learner train batch and minibatch are
+  32,768. On the three-factor PPO+CE arm, an RTX 4090 sustained 5,420 sampled
+  environment steps/s with 76.7% of CUDA memory reserved; 65,536 OOMed.
 - The transformer preserves the paper's four pre-LN blocks, ReLU MLP,
   `d_mlp=4*d_model`, learned absolute positions, and final-LN placement.
   Because 3 heads do not divide `d_model=64`, this study preregisters four
@@ -93,6 +95,11 @@ LayerNorm (`blocks.3.hook_resid_post` in the paper):
 These analyses establish decodability and geometry. They do **not** establish
 that PPO causally uses a decoded factor belief; that would require a separate
 intervention study.
+
+The batch benchmark estimates approximately 1,855 seconds (30.9 minutes) for
+10 million sampled environment steps, including one measured build/compile
+iteration. This is a training-only estimate; longitudinal checkpoint probes,
+artifact upload, provider variance, and startup/bootstrap are additional.
 
 ## Compact and large outputs
 

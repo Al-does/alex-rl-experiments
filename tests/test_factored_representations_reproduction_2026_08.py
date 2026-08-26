@@ -43,9 +43,11 @@ from experiments.factored_representations_reproduction_2026_08.process import (
     paper_mess3_model,
 )
 from experiments.factored_representations_reproduction_2026_08.shared import (
+    MINIBATCH_SIZE,
     MODEL_CONFIG,
     SMOKE_BATCH_SIZE,
     SMOKE_MINIBATCH_SIZE,
+    TRAIN_BATCH_SIZE,
     build_config,
 )
 from harness.context import RunContext
@@ -279,6 +281,9 @@ def test_tiny_vary_one_collection_centers_each_position_and_context():
 
 
 def test_batch_benchmark_selects_fast_safe_compiled_candidate():
+    assert TRAIN_BATCH_SIZE == 32_768
+    assert MINIBATCH_SIZE == 32_768
+
     eager = [
         {
             "batch_size": 4096,
