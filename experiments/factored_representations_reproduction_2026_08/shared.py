@@ -42,7 +42,7 @@ from harness.hardware import PROFILES, resolve_env_runners
 from harness.runners import run_tune
 
 
-TOTAL_ENV_STEPS = 2_500_000
+TOTAL_ENV_STEPS = 5_000_000
 SMOKE_ENV_STEPS = 1_024
 TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 1_024
