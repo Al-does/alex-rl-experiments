@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import os
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,34 @@ from .training import TrainingConfig, train
 
 FULL_TRAINING_CONFIG = TrainingConfig()
 SMOKE_TRAINING_CONFIG = TrainingConfig.smoke()
+
+
+def _training_config_for_run(*, smoke: bool) -> TrainingConfig:
+    """Resolve the training budget, honoring optional launch env overrides."""
+
+    if smoke:
+        return SMOKE_TRAINING_CONFIG
+    target_sequences = os.environ.get("FACTORED_NEXT_TOKEN_TARGET_SEQUENCES")
+    if target_sequences is not None:
+        sequences = int(target_sequences)
+        if sequences <= 0:
+            raise ValueError("FACTORED_NEXT_TOKEN_TARGET_SEQUENCES must be positive")
+        if sequences % FULL_TRAINING_CONFIG.batch_size != 0:
+            raise ValueError(
+                "FACTORED_NEXT_TOKEN_TARGET_SEQUENCES must divide batch size "
+                f"{FULL_TRAINING_CONFIG.batch_size}"
+            )
+        return replace(
+            FULL_TRAINING_CONFIG,
+            total_updates=sequences // FULL_TRAINING_CONFIG.batch_size,
+        )
+    total_updates = os.environ.get("FACTORED_NEXT_TOKEN_TOTAL_UPDATES")
+    if total_updates is not None:
+        return replace(
+            FULL_TRAINING_CONFIG,
+            total_updates=int(total_updates),
+        )
+    return FULL_TRAINING_CONFIG
 _STREAM_KEYS = {
     "model_initialization": (700,),
     "training_sampling": (701,),
@@ -158,9 +187,7 @@ def run_factor_count(
     )
     probe_seed = seed_sequence_to_int(streams["checkpoint_probes"])
     model_config = NextTokenModelConfig(factor_count=factor_count)
-    training_config = (
-        SMOKE_TRAINING_CONFIG if context.smoke else FULL_TRAINING_CONFIG
-    )
+    training_config = _training_config_for_run(smoke=context.smoke)
     outputs.write_json(
         "resolved_recipe.json",
         _resolved_recipe(
