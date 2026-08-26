@@ -5,6 +5,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import numpy as np
+from ray.rllib.core.columns import Columns
+import torch
 
 from envs.hmm import HMMEnv, factor_marginals, product_distribution
 from experiments.factored_mess3_beliefs_2026_08.analysis import (
@@ -21,6 +23,17 @@ from experiments.factored_mess3_beliefs_2026_08.shared import (
     TOTAL_ENV_STEPS,
     build_config,
     environment_config,
+)
+from experiments.factored_mess3_beliefs_2026_08.shared_longrun import (
+    ENTROPY_COEFF,
+    MODEL_CONFIG_120D,
+    MODEL_CONFIG_64D,
+    PREDICTIVE_LOSS_WEIGHT,
+    PredictiveLearner,
+    PredictiveModel,
+    TOTAL_ENV_STEPS as LONGRUN_ENV_STEPS,
+    build_config as build_longrun_config,
+    next_joint_token_targets,
 )
 from experiments.mess3_token_guess_cycle_2.model import PaperActorCriticModel
 from harness.context import RunContext
@@ -235,3 +248,64 @@ def test_six_mess3_recipe_builds_729_way_environment(tmp_path):
     assert full.minibatch_size == LARGE_JOINT_MINIBATCH_SIZE
     assert full.num_env_runners == 1
     assert full.num_envs_per_env_runner == 4
+
+
+def test_joint_token_auxiliary_targets_the_next_delayed_observation():
+    observations = torch.zeros((1, 4, 9))
+    observations[0, 1, 4] = 1.0
+    observations[0, 2, 7] = 1.0
+    observations[0, 3, 2] = 1.0
+    logits = torch.zeros((1, 4, 9))
+
+    aligned, targets, valid = next_joint_token_targets(
+        {
+            Columns.OBS: observations,
+            Columns.LOSS_MASK: torch.ones((1, 4), dtype=torch.bool),
+        },
+        logits,
+    )
+
+    assert aligned.shape == (1, 3, 9)
+    torch.testing.assert_close(targets, torch.tensor([[4, 7, 2]]))
+    assert valid.all()
+
+
+def test_longrun_predictive_configs_add_ce_without_changing_ppo(tmp_path):
+    context = _context(tmp_path)
+    conditions = (
+        (2, MODEL_CONFIG_64D, 9, 64),
+        (3, MODEL_CONFIG_64D, 27, 64),
+        (5, MODEL_CONFIG_64D, 243, 64),
+        (5, MODEL_CONFIG_120D, 243, 120),
+    )
+
+    for n_factors, model_config, num_classes, width in conditions:
+        config = build_longrun_config(
+            context,
+            n_factors=n_factors,
+            model_config=model_config,
+            predictive_auxiliary=True,
+        )
+
+        assert LONGRUN_ENV_STEPS == 50_000_000
+        assert config.gamma == 0.0
+        assert config.lambda_ == 0.0
+        assert config.entropy_coeff == ENTROPY_COEFF == 0.008
+        assert config.lr == 1e-4
+        assert config.vf_loss_coeff == 0.5
+        assert config.num_epochs == 6
+        assert config.rl_module_spec.module_class is PredictiveModel
+        assert config.rl_module_spec.model_config["d_model"] == width
+        assert config.rl_module_spec.model_config["next_token_aux"] == {
+            "num_classes": num_classes
+        }
+        assert config.learner_class is PredictiveLearner
+        assert (
+            config.learner_config_dict["next_token_aux/lambda"]
+            == PREDICTIVE_LOSS_WEIGHT
+            == 1.0
+        )
+        assert (
+            config.learner_config_dict["next_token_aux/target_extractor"]
+            is next_joint_token_targets
+        )
