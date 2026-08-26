@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from functools import partial
 from numbers import Real
 from pathlib import Path
@@ -187,13 +187,19 @@ def run_recipe(
     action_scope: ActionScope,
     condition: str,
     previous_reward_visible: bool = False,
+    config_builder: Callable[[RunContext], PPOConfig] | None = None,
+    recipe_metadata: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Train one long-horizon condition and emit compact summaries."""
 
-    config = build_config(
-        context,
-        action_scope=action_scope,
-        previous_reward_visible=previous_reward_visible,
+    config = (
+        config_builder(context)
+        if config_builder is not None
+        else build_config(
+            context,
+            action_scope=action_scope,
+            previous_reward_visible=previous_reward_visible,
+        )
     )
     target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
     outputs = RunArtifacts.from_context(context)
@@ -226,6 +232,8 @@ def run_recipe(
     }
     if previous_reward_visible:
         recipe["previous_reward_visible"] = True
+    if recipe_metadata is not None:
+        recipe.update(recipe_metadata)
     outputs.write_json("resolved_recipe.json", recipe)
     result_grid = run_tune(
         config,
@@ -261,6 +269,8 @@ def run_recipe(
             else None
         ),
     }
+    if recipe_metadata is not None:
+        summary.update(recipe_metadata)
     outputs.write_json("condition_summary.json", summary)
     return summary
 
