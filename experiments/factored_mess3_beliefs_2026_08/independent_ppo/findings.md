@@ -1,5 +1,9 @@
 # Independent two-MESS3 PPO finding
 
+> Historical result: this run used the former delay-zero hidden-state-guess
+> recipe. The current leaf uses delay-one joint-token prediction and the
+> 120-dimensional paper transformer; new runs are not directly comparable.
+
 Seed 42 completed 2,524,972 sampled environment steps with a 64-dimensional,
 two-layer transformer. Mean training return was 372.03 per 512-step episode
 (72.7% joint-state guessing accuracy; chance is 11.1%).
