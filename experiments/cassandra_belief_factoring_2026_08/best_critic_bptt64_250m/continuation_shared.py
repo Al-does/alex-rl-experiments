@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from numbers import Real
 from typing import Any
 
 from ray import tune
 from ray.rllib.algorithms.ppo import PPOConfig
+from ray.rllib.utils.schedules.scheduler import Scheduler
 
 from experiments.cassandra_belief_factoring_2026_08.best_critic_bptt64_250m.checkpoint_recovery import (
     recover_source_checkpoint,
@@ -30,12 +31,13 @@ from harness.runners import run_algorithm, run_tune
 
 PRIOR_LIFETIME_ENV_STEPS = 250_000_000
 CONTINUE_LIFETIME_ENV_STEPS = 500_000_000
-ANNEAL_LIFETIME_ENV_STEPS = 255_000_000
-ANNEAL_DURATION_ENV_STEPS = 5_000_000
+ANNEAL_LIFETIME_ENV_STEPS = 500_000_000
+ANNEAL_DURATION_ENV_STEPS = 250_000_000
 ANNEAL_FINAL_ENTROPY = 0.008
 ENTROPY_ANNEAL_SCHEDULE = [
     [0, ENTROPY_COEFF],
-    [ANNEAL_DURATION_ENV_STEPS, ANNEAL_FINAL_ENTROPY],
+    [PRIOR_LIFETIME_ENV_STEPS, ENTROPY_COEFF],
+    [ANNEAL_LIFETIME_ENV_STEPS, ANNEAL_FINAL_ENTROPY],
 ]
 ACTION_SCOPE = "targeted"
 LIFETIME_STEPS_KEY = "env_runners/num_env_steps_sampled_lifetime"
@@ -70,6 +72,31 @@ def _resolve_resume_context(context: RunContext) -> RunContext:
     return replace(context, resume_from=checkpoint)
 
 
+def apply_entropy_coeff_schedule(
+    algorithm: Any,
+    schedule: Sequence[Sequence[float | int]],
+    *,
+    lifetime_steps: int,
+) -> None:
+    """Replace restored fixed entropy schedulers with a lifetime schedule.
+
+    RLlib restores PPOLearner entropy schedulers from checkpoint state. Updating
+    ``config.entropy_coeff`` alone is not enough; the live scheduler objects must
+    be rebuilt so ``after_gradient_based_update`` uses the new schedule.
+    """
+
+    learner = algorithm.learner_group._learner
+    for module_id in learner.module.keys():
+        learner.entropy_coeff_schedulers_per_module[module_id] = Scheduler(
+            fixed_value_or_schedule=list(schedule),
+            framework=learner.framework,
+            device=learner._device,
+        )
+        learner.entropy_coeff_schedulers_per_module[module_id].update(
+            timestep=lifetime_steps
+        )
+
+
 def build_continue_config(context: RunContext) -> PPOConfig:
     """Best-critic targeted recipe resumed with fixed entropy."""
 
@@ -77,7 +104,7 @@ def build_continue_config(context: RunContext) -> PPOConfig:
 
 
 def build_anneal_config(context: RunContext) -> PPOConfig:
-    """Best-critic targeted recipe resumed with a 5M-step entropy anneal."""
+    """Best-critic targeted recipe resumed with a 250M-step entropy anneal."""
 
     config = build_base_config(context, action_scope=ACTION_SCOPE)
     return config.training(entropy_coeff=ENTROPY_ANNEAL_SCHEDULE)
@@ -108,6 +135,7 @@ def run_continuation(
     lifetime_env_steps: int,
     config_builder,
     extra_recipe: Mapping[str, Any] | None = None,
+    apply_entropy_anneal: bool = False,
 ) -> dict[str, Any]:
     """Resume one targeted agent and train to a lifetime step budget."""
 
@@ -141,6 +169,17 @@ def run_continuation(
         recipe.update(dict(extra_recipe))
     outputs.write_json("resolved_recipe.json", recipe)
 
+    on_algorithm_ready = None
+    if apply_entropy_anneal and context.resume_from is not None:
+        schedule = ENTROPY_ANNEAL_SCHEDULE
+
+        def on_algorithm_ready(algorithm: Any) -> None:
+            apply_entropy_coeff_schedule(
+                algorithm,
+                schedule,
+                lifetime_steps=PRIOR_LIFETIME_ENV_STEPS,
+            )
+
     if context.smoke:
         result_grid = run_tune(
             config,
@@ -171,6 +210,7 @@ def run_continuation(
             context,
             should_stop=_should_stop_at_lifetime(target_steps),
             checkpoint_at_end=True,
+            on_algorithm_ready=on_algorithm_ready,
         )
         final_metrics = flatten_scalar_metrics(dict(result))
         checkpoint_path = _final_checkpoint_path(outputs, context)
@@ -233,6 +273,7 @@ __all__ = [
     "CONTINUE_LIFETIME_ENV_STEPS",
     "ENTROPY_ANNEAL_SCHEDULE",
     "PRIOR_LIFETIME_ENV_STEPS",
+    "apply_entropy_coeff_schedule",
     "build_anneal_config",
     "build_continue_config",
     "run_continuation",
