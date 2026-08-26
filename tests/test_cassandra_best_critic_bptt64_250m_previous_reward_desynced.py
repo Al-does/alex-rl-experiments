@@ -20,6 +20,10 @@ from experiments.cassandra_belief_factoring_2026_08.best_critic_bptt64_250m.targ
     build_config,
     initial_episode_horizon,
 )
+from experiments.cassandra_belief_factoring_2026_08.best_critic_bptt64_250m.targeted_previous_reward_desynced_d120.experiment import (
+    D_MODEL,
+    build_config as build_d120_config,
+)
 from harness.context import RunContext
 from harness.hardware import PROFILES
 
@@ -98,6 +102,21 @@ def test_initial_horizons_evenly_cover_full_episode():
     ]
     assert min(circular_gaps) >= 15
     assert max(circular_gaps) <= 16
+
+
+def test_d120_desynced_recipe_changes_only_transformer_width(smoke_context):
+    desynced = build_config(smoke_context)
+    wider = build_d120_config(smoke_context)
+
+    assert wider.rl_module_spec.model_config["d_model"] == D_MODEL
+    assert desynced.rl_module_spec.model_config["d_model"] == 64
+    assert (
+        wider.rl_module_spec.model_config
+        | {"d_model": 64}
+        == desynced.rl_module_spec.model_config
+    )
+    assert wider.env is desynced.env
+    assert wider.entropy_coeff == desynced.entropy_coeff
 
 
 def test_only_first_episode_uses_staggered_horizon():

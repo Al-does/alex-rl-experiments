@@ -1,0 +1,19 @@
+{
+  "action_scope": "targeted",
+  "checkpoint": "/root/work/alex-rl-experiments/experiments/cassandra_belief_factoring_2026_08/best_critic_bptt64_250m/targeted_previous_reward_desynced/artifacts/20260826T061709Z-efc26d63/tune/PPO_CassandraDesyncedPreviousRewardObservationEnv_c7640_00000_0_2026-08-26_06-17-14/checkpoint_000000",
+  "condition": "best_critic_bptt64_250m_targeted_previous_reward_desynced",
+  "episode_desync": {
+    "enabled": true,
+    "mode": "deterministic_one_time_initial_horizon",
+    "subsequent_episode_length": 1000
+  },
+  "hypothesis": "A deterministic one-time stagger of the first episode will spread episode ages across each PPO batch, reducing phase-correlated gradient updates while preserving every subsequent 1,000-step episode.",
+  "previous_reward_visible": true,
+  "primary_comparison": "desynchronized versus synchronized targeted previous-reward BPTT-64 PPO under otherwise identical 250M-step best-critic settings",
+  "seed": 43,
+  "smoke": false,
+  "status": "completed",
+  "target_env_steps": 250000000,
+  "vf_clip_param": 100.0,
+  "vf_loss_coeff": 0.01
+}
