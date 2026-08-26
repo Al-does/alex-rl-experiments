@@ -102,7 +102,7 @@ def test_recipe_builds_fresh_paper_transformer_gamma_zero_ppo(tmp_path):
     second = build_config(context)
 
     assert first is not second
-    assert TOTAL_ENV_STEPS == 2_500_000
+    assert TOTAL_ENV_STEPS == 5_000_000
     assert SMOKE_ENV_STEPS == 4_096
     assert first.gamma == 0.0
     assert first.lambda_ == 0.0
