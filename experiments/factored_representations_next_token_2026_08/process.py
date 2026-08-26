@@ -44,7 +44,7 @@ def encode_joint_tokens(subtokens: torch.Tensor) -> torch.Tensor:
         device=subtokens.device,
         dtype=torch.long,
     )
-    return subtokens @ powers
+    return (subtokens * powers).sum(dim=-1)
 
 
 def decode_joint_tokens(tokens: torch.Tensor, factor_count: int) -> torch.Tensor:
