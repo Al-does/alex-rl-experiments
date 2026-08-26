@@ -79,8 +79,18 @@ def test_paper_actor_critic_config_matches_requested_architecture():
         "normalization": "layer_norm",
         "positional_embedding": "learned_absolute",
     }
-    with pytest.raises(ValueError, match="exactly one head"):
-        PaperActorCriticConfig(n_heads=2)
+    multi_head = PaperActorCriticConfig(
+        d_model=120,
+        n_layers=4,
+        n_heads=3,
+        d_head=40,
+        d_mlp=480,
+        context_length=11,
+        max_seq_len=11,
+    )
+    encoder = PaperResidualEncoder(9, multi_head)
+    assert encoder.blocks[0].attention.query.out_features == 120
+    assert encoder.blocks[0].attention.output.in_features == 120
 
 
 def test_vectorized_encoder_is_causal_and_matches_stepwise_windows():

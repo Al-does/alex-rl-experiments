@@ -30,8 +30,6 @@ class PaperActorCriticConfig:
     positional_embedding: str = "learned_absolute"
 
     def __post_init__(self) -> None:
-        if self.n_heads != 1:
-            raise ValueError("the paper architecture requires exactly one head")
         if min(
             self.d_model,
             self.n_layers,
@@ -60,29 +58,47 @@ class PaperActorCriticConfig:
 
 
 class SingleHeadCausalAttention(nn.Module):
-    """One attention head with an inner width independent of residual width."""
+    """Causal multi-head attention with explicit per-head width."""
 
     def __init__(self, config: PaperActorCriticConfig) -> None:
         super().__init__()
+        self.n_heads = config.n_heads
         self.d_head = config.d_head
-        self.query = nn.Linear(config.d_model, config.d_head)
-        self.key = nn.Linear(config.d_model, config.d_head)
-        self.value = nn.Linear(config.d_model, config.d_head)
-        self.output = nn.Linear(config.d_head, config.d_model)
+        inner_width = config.n_heads * config.d_head
+        self.query = nn.Linear(config.d_model, inner_width)
+        self.key = nn.Linear(config.d_model, inner_width)
+        self.value = nn.Linear(config.d_model, inner_width)
+        self.output = nn.Linear(inner_width, config.d_model)
 
     def forward(
         self,
         inputs: torch.Tensor,
         allowed: torch.Tensor,
     ) -> torch.Tensor:
-        query = self.query(inputs)
-        key = self.key(inputs)
-        value = self.value(inputs)
+        batch_size, length, _ = inputs.shape
+
+        def split_heads(tensor: torch.Tensor) -> torch.Tensor:
+            return tensor.reshape(
+                batch_size,
+                length,
+                self.n_heads,
+                self.d_head,
+            ).transpose(1, 2)
+
+        query = split_heads(self.query(inputs))
+        key = split_heads(self.key(inputs))
+        value = split_heads(self.value(inputs))
         scores = torch.matmul(query, key.transpose(-1, -2))
         scores = scores / math.sqrt(self.d_head)
-        scores = scores.masked_fill(~allowed, -torch.inf)
+        scores = scores.masked_fill(~allowed[:, None], -torch.inf)
         attention = torch.softmax(scores, dim=-1)
-        return self.output(torch.matmul(attention, value))
+        attended = torch.matmul(attention, value)
+        attended = attended.transpose(1, 2).reshape(
+            batch_size,
+            length,
+            self.n_heads * self.d_head,
+        )
+        return self.output(attended)
 
 
 class PaperTransformerBlock(nn.Module):
@@ -140,6 +156,8 @@ class PaperResidualEncoder(nn.Module):
         context: torch.Tensor,
         context_lengths: torch.Tensor,
         observations: torch.Tensor,
+        *,
+        apply_final_norm: bool = True,
     ) -> torch.Tensor:
         """Encode every observation from its own right-aligned context window."""
 
@@ -181,7 +199,9 @@ class PaperResidualEncoder(nn.Module):
         allowed = allowed | diagonal
         for block in self.blocks:
             hidden = block(hidden, allowed)
-        encoded = self.final_norm(hidden)[:, -1, :]
+        if apply_final_norm:
+            hidden = self.final_norm(hidden)
+        encoded = hidden[:, -1, :]
         return encoded.reshape(batch_size, steps, self.config.d_model)
 
 
@@ -224,6 +244,8 @@ class PaperActorCriticModel(BaseActorCriticModel):
     def _encode(
         self,
         batch: dict[str, Any],
+        *,
+        apply_final_norm: bool = True,
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         observations = batch[Columns.OBS]
         state = batch[Columns.STATE_IN]
@@ -231,6 +253,7 @@ class PaperActorCriticModel(BaseActorCriticModel):
             state["ctx"],
             state["len"].reshape(-1),
             observations,
+            apply_final_norm=apply_final_norm,
         )
         return embeddings, self._advance_context(observations, state)
 
@@ -257,5 +280,22 @@ class PaperActorCriticModel(BaseActorCriticModel):
                 Columns.OBS: observation.unsqueeze(1),
                 Columns.STATE_IN: state,
             }
+        )
+        return embeddings[:, 0, :], state_out
+
+    @torch.no_grad()
+    def encode_step_pre_final_norm(
+        self,
+        observation: torch.Tensor,
+        state: dict[str, torch.Tensor],
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+        """Return final-block residuals before the output LayerNorm."""
+
+        embeddings, state_out = self._encode(
+            {
+                Columns.OBS: observation.unsqueeze(1),
+                Columns.STATE_IN: state,
+            },
+            apply_final_norm=False,
         )
         return embeddings[:, 0, :], state_out
