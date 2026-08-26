@@ -13,6 +13,8 @@ from experiments.factored_mess3_beliefs_2026_08.analysis import (
 )
 from experiments.factored_mess3_beliefs_2026_08.shared import (
     ENV_CONFIG,
+    LARGE_JOINT_MINIBATCH_SIZE,
+    LARGE_JOINT_TRAIN_BATCH_SIZE,
     MODEL_CONFIG,
     SMOKE_BATCH_SIZE,
     SMOKE_ENV_STEPS,
@@ -178,3 +180,17 @@ def test_six_mess3_recipe_builds_729_way_environment(tmp_path):
         environment.close()
 
     assert len(config.env_config["model"]["kwargs"]["factors"]) == 6
+
+    full_context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "full_results",
+        artifacts_dir=tmp_path / "full_artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+    full = build_config(full_context, n_factors=6)
+    assert full.train_batch_size_per_learner == LARGE_JOINT_TRAIN_BATCH_SIZE
+    assert full.minibatch_size == LARGE_JOINT_MINIBATCH_SIZE
+    assert full.num_env_runners == 1
+    assert full.num_envs_per_env_runner == 4

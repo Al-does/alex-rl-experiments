@@ -31,6 +31,8 @@ TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 2_048
 MINIBATCH_SIZE = 8_192
 SMOKE_MINIBATCH_SIZE = 256
+LARGE_JOINT_TRAIN_BATCH_SIZE = 8_192
+LARGE_JOINT_MINIBATCH_SIZE = 2_048
 EPISODE_LENGTH = 512
 MODEL_CONFIG = TransformerModelConfig(
     d_model=64,
@@ -93,16 +95,25 @@ def _save_initial_checkpoint(
 def _apply_runtime_resources(
     config: PPOConfig,
     context: RunContext,
+    *,
+    n_factors: int,
 ) -> PPOConfig:
     profile = context.hardware or PROFILES["cpu"]
+    large_joint = n_factors >= 6
     return config.env_runners(
         num_env_runners=(
             0
             if context.smoke
-            else resolve_env_runners(profile, default=8)
+            else (
+                1
+                if large_joint
+                else resolve_env_runners(profile, default=8)
+            )
         ),
         num_envs_per_env_runner=(
-            1 if context.smoke else profile.num_envs_per_env_runner
+            1
+            if context.smoke
+            else (4 if large_joint else profile.num_envs_per_env_runner)
         ),
         num_gpus_per_env_runner=0,
         sample_timeout_s=600.0,
@@ -116,7 +127,25 @@ def _apply_runtime_resources(
 def build_config(context: RunContext, *, n_factors: int = 2) -> PPOConfig:
     """Build a fresh gamma-zero transformer PPO configuration."""
 
-    batch_size = SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
+    large_joint = n_factors >= 6
+    batch_size = (
+        SMOKE_BATCH_SIZE
+        if context.smoke
+        else (
+            LARGE_JOINT_TRAIN_BATCH_SIZE
+            if large_joint
+            else TRAIN_BATCH_SIZE
+        )
+    )
+    minibatch_size = (
+        SMOKE_MINIBATCH_SIZE
+        if context.smoke
+        else (
+            LARGE_JOINT_MINIBATCH_SIZE
+            if large_joint
+            else MINIBATCH_SIZE
+        )
+    )
     profile = context.hardware or PROFILES["cpu"]
     config = (
         PPOConfig()
@@ -143,9 +172,7 @@ def build_config(context: RunContext, *, n_factors: int = 2) -> PPOConfig:
             vf_loss_coeff=0.5,
             entropy_coeff=0.002,
             train_batch_size_per_learner=batch_size,
-            minibatch_size=(
-                SMOKE_MINIBATCH_SIZE if context.smoke else MINIBATCH_SIZE
-            ),
+            minibatch_size=minibatch_size,
             num_epochs=4,
             shuffle_batch_per_epoch=True,
         )
@@ -165,7 +192,11 @@ def build_config(context: RunContext, *, n_factors: int = 2) -> PPOConfig:
         )
         .debugging(seed=context.seed)
     )
-    return _apply_runtime_resources(config, context)
+    return _apply_runtime_resources(
+        config,
+        context,
+        n_factors=n_factors,
+    )
 
 
 def _metric(metrics: Mapping[str, Any], path: str) -> float | None:
@@ -262,10 +293,22 @@ def run_independent(
             "model": MODEL_CONFIG,
             "total_env_steps": target_steps,
             "train_batch_size_per_learner": (
-                SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
+                SMOKE_BATCH_SIZE
+                if context.smoke
+                else (
+                    LARGE_JOINT_TRAIN_BATCH_SIZE
+                    if n_factors >= 6
+                    else TRAIN_BATCH_SIZE
+                )
             ),
             "minibatch_size": (
-                SMOKE_MINIBATCH_SIZE if context.smoke else MINIBATCH_SIZE
+                SMOKE_MINIBATCH_SIZE
+                if context.smoke
+                else (
+                    LARGE_JOINT_MINIBATCH_SIZE
+                    if n_factors >= 6
+                    else MINIBATCH_SIZE
+                )
             ),
             "probe_controls": [
                 "exact step-zero checkpoint",
