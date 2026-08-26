@@ -21,6 +21,9 @@ from experiments.cassandra_belief_factoring_2026_08.shared import (
     build_config as build_shared_config,
     environment_config,
 )
+from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_small_interventions_5m.shared import (
+    CassandraPreviousRewardObservationEnv,
+)
 from experiments.storage.training_curves import write_training_curves
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
@@ -51,6 +54,15 @@ HYPOTHESIS = (
 PRIMARY_COMPARISON = (
     "global_aliases versus targeted actions under matched best-critic BPTT-64 "
     "recipe across two seeds"
+)
+PREVIOUS_REWARD_HYPOTHESIS = (
+    "Extend the vf100/coeff0.01 BPTT-64 targeted recipe to 250M steps with "
+    "visible previous reward in the observation, matching the 5M finding that "
+    "best-critic scaling makes previous reward neutral to slightly helpful."
+)
+PREVIOUS_REWARD_PRIMARY_COMPARISON = (
+    "targeted previous-reward BPTT-64 at 250M versus targeted BPTT-64 without "
+    "previous reward across seeds 42 and 43"
 )
 
 
@@ -122,17 +134,27 @@ def build_config(
     context: RunContext,
     *,
     action_scope: ActionScope,
+    previous_reward_visible: bool = False,
 ) -> PPOConfig:
     """Build one 250M-step recipe leaf for global-alias or targeted actions."""
 
     if context.seed is None:
         raise ValueError("best_critic_bptt64_250m requires a resolved seed")
+    if previous_reward_visible and action_scope != "targeted":
+        raise ValueError(
+            "previous_reward_visible is only supported for targeted action_scope"
+        )
     env_config = environment_config(action_scope=action_scope)
     env_config["initial_state_distribution"] = "all_good"
+    env_class = (
+        CassandraPreviousRewardObservationEnv
+        if previous_reward_visible
+        else CassandraActionObservationEnv
+    )
 
     return (
         build_shared_config(context, action_scope=action_scope)
-        .environment(CassandraActionObservationEnv, env_config=env_config)
+        .environment(env_class, env_config=env_config)
         .training(
             entropy_coeff=ENTROPY_COEFF,
             gamma=0.990,
@@ -164,36 +186,47 @@ def run_recipe(
     *,
     action_scope: ActionScope,
     condition: str,
+    previous_reward_visible: bool = False,
 ) -> dict[str, Any]:
     """Train one long-horizon condition and emit compact summaries."""
 
-    config = build_config(context, action_scope=action_scope)
+    config = build_config(
+        context,
+        action_scope=action_scope,
+        previous_reward_visible=previous_reward_visible,
+    )
     target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
-    outputs.write_json(
-        "resolved_recipe.json",
-        {
-            "condition": condition,
-            "hypothesis": HYPOTHESIS,
-            "primary_comparison": PRIMARY_COMPARISON,
-            "seed": context.seed,
-            "algorithm": "PPO",
-            "environment": environment_config(action_scope=action_scope)
-            | {"initial_state_distribution": "all_good"},
-            "transformer": dict(config.rl_module_spec.model_config),
-            "gamma": config.gamma,
-            "lambda": config.lambda_,
-            "vf_clip_param": config.vf_clip_param,
-            "vf_loss_coeff": config.vf_loss_coeff,
-            "entropy_coeff": config.entropy_coeff,
-            "use_kl_loss": config.use_kl_loss,
-            "total_env_steps": target_steps,
-            "checkpoint_schedule": (
-                f"every_{CHECKPOINT_STEP_INTERVAL}_env_steps"
-            ),
-        },
-    )
+    recipe = {
+        "condition": condition,
+        "hypothesis": (
+            PREVIOUS_REWARD_HYPOTHESIS
+            if previous_reward_visible
+            else HYPOTHESIS
+        ),
+        "primary_comparison": (
+            PREVIOUS_REWARD_PRIMARY_COMPARISON
+            if previous_reward_visible
+            else PRIMARY_COMPARISON
+        ),
+        "seed": context.seed,
+        "algorithm": "PPO",
+        "environment": environment_config(action_scope=action_scope)
+        | {"initial_state_distribution": "all_good"},
+        "transformer": dict(config.rl_module_spec.model_config),
+        "gamma": config.gamma,
+        "lambda": config.lambda_,
+        "vf_clip_param": config.vf_clip_param,
+        "vf_loss_coeff": config.vf_loss_coeff,
+        "entropy_coeff": config.entropy_coeff,
+        "use_kl_loss": config.use_kl_loss,
+        "total_env_steps": target_steps,
+        "checkpoint_schedule": f"every_{CHECKPOINT_STEP_INTERVAL}_env_steps",
+    }
+    if previous_reward_visible:
+        recipe["previous_reward_visible"] = True
+    outputs.write_json("resolved_recipe.json", recipe)
     result_grid = run_tune(
         config,
         context,
@@ -221,6 +254,7 @@ def run_recipe(
         "status": "completed",
         "vf_clip_param": BEST_VF_CLIP_PARAM,
         "vf_loss_coeff": BEST_VF_LOSS_COEFF,
+        "previous_reward_visible": previous_reward_visible,
         "checkpoint": (
             str(result.checkpoint.path)
             if result.checkpoint is not None
@@ -238,6 +272,8 @@ __all__ = [
     "CHECKPOINT_STEP_INTERVAL",
     "HYPOTHESIS",
     "MODEL_CONFIG",
+    "PREVIOUS_REWARD_HYPOTHESIS",
+    "PREVIOUS_REWARD_PRIMARY_COMPARISON",
     "PRIMARY_COMPARISON",
     "SMOKE_ENV_STEPS",
     "TOTAL_ENV_STEPS",
