@@ -8,6 +8,7 @@ import numpy as np
 
 from envs.hmm import HMMEnv, factor_marginals, product_distribution
 from experiments.factored_mess3_beliefs_2026_08.analysis import (
+    _advance_independent_factor_beliefs,
     _episode_clusters,
 )
 from experiments.factored_mess3_beliefs_2026_08.shared import (
@@ -59,6 +60,30 @@ def test_two_mess3_factory_exposes_one_nine_way_token_and_joint_state():
         np.testing.assert_allclose(
             product_distribution(marginals),
             info["belief_current"],
+            atol=1e-12,
+        )
+
+        scalable = np.zeros((1, 2, 3), dtype=np.float64)
+        filtered = _advance_independent_factor_beliefs(
+            scalable,
+            np.array([info["visible_token_current"]]),
+            np.array([0]),
+        )
+        np.testing.assert_allclose(filtered[0], np.stack(marginals), atol=1e-12)
+
+        _, _, _, _, next_info = environment.step(0)
+        next_marginals = factor_marginals(
+            next_info["belief_current"],
+            (3, 3),
+        )
+        filtered = _advance_independent_factor_beliefs(
+            scalable,
+            np.array([next_info["visible_token_current"]]),
+            np.array([1]),
+        )
+        np.testing.assert_allclose(
+            filtered[0],
+            np.stack(next_marginals),
             atol=1e-12,
         )
     finally:
@@ -131,3 +156,25 @@ def test_probe_bootstrap_clusters_detect_episode_step_resets_after_warmup():
     assert clusters[1] == clusters[3]
     assert clusters[4] != clusters[2]
     assert clusters[5] != clusters[3]
+
+
+def test_six_mess3_recipe_builds_729_way_environment(tmp_path):
+    config = build_config(_context(tmp_path), n_factors=6)
+    environment = HMMEnv(
+        {
+            **environment_config(6),
+            "diagnostics": {"tokens": True},
+            "episode_length": 2,
+        }
+    )
+    try:
+        observation, info = environment.reset(seed=13)
+        assert environment.model.n_states == 729
+        assert environment.model.n_tokens == 729
+        assert environment.action_space.n == 729
+        assert observation.shape == (729,)
+        assert info["visible_token_current"] == int(observation.argmax())
+    finally:
+        environment.close()
+
+    assert len(config.env_config["model"]["kwargs"]["factors"]) == 6

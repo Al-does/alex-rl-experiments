@@ -34,7 +34,8 @@ from analysis.probes import (
     representation_dimension_predictions,
 )
 from analysis.rollouts import PolicyRandomness, collect_batched_rollout_data
-from envs.hmm import factor_marginals
+from envs.hmm import product_distribution
+from envs.mess3.model import passive_model
 from harness.context import RunContext
 from harness.hardware import PROFILES
 from harness.seeding import named_seed_sequences
@@ -45,6 +46,8 @@ PROBE_RIDGE = 1e-6
 N_ENVS = 8
 FULL_TRAIN_STEPS = 30_000
 FULL_TEST_STEPS = 40_000
+LARGE_JOINT_TRAIN_STEPS = 12_000
+LARGE_JOINT_TEST_STEPS = 16_000
 SMOKE_STEPS = 1_024
 _STREAM_KEYS = {
     "probe_train": (610,),
@@ -56,7 +59,6 @@ _STREAM_KEYS = {
 @dataclass(frozen=True, slots=True)
 class ProbeData:
     activations: np.ndarray
-    observations: np.ndarray
     joint_belief: np.ndarray
     factor_beliefs: tuple[np.ndarray, ...]
     tokens: np.ndarray
@@ -76,6 +78,46 @@ def _initial_state(module: Any, batch_size: int, device: torch.device):
     }
 
 
+def _factor_subtokens(tokens: np.ndarray, n_factors: int) -> np.ndarray:
+    """Decode mixed-radix joint tokens into one MESS3 token per factor."""
+
+    values = np.asarray(tokens, dtype=np.int64)
+    return np.stack(
+        np.unravel_index(values, (FACTOR_SIZE,) * n_factors),
+        axis=-1,
+    )
+
+
+def _advance_independent_factor_beliefs(
+    beliefs: np.ndarray,
+    tokens: np.ndarray,
+    episode_steps: np.ndarray,
+) -> np.ndarray:
+    """Advance exact factor filters without constructing a dense joint filter."""
+
+    n_envs, n_factors, factor_size = beliefs.shape
+    if factor_size != FACTOR_SIZE:
+        raise ValueError("factor belief width does not match MESS3")
+    if np.asarray(tokens).shape != (n_envs,):
+        raise ValueError("tokens must contain one joint token per environment")
+    if np.asarray(episode_steps).shape != (n_envs,):
+        raise ValueError("episode_steps must align with environments")
+    model = passive_model(alpha=0.85)
+    prior = np.einsum(
+        "nfs,st->nft",
+        beliefs,
+        model.transition_matrix,
+    )
+    reset = np.asarray(episode_steps) == 0
+    prior[reset] = model.initial_distribution
+    subtokens = _factor_subtokens(tokens, n_factors)
+    likelihood = model.emission_matrix[:, subtokens].transpose(1, 2, 0)
+    posterior = prior * likelihood
+    posterior /= posterior.sum(axis=-1, keepdims=True)
+    beliefs[:] = posterior
+    return posterior.copy()
+
+
 @torch.inference_mode()
 def collect_probe_data(
     module: Any,
@@ -92,6 +134,10 @@ def collect_probe_data(
     device = torch.device(device)
     module = module.to(device).eval()
     stateful = module.is_stateful()
+    factor_beliefs = np.zeros(
+        (N_ENVS, n_factors, FACTOR_SIZE),
+        dtype=np.float64,
+    )
 
     def initial_state(batch_size: int):
         return _initial_state(module, batch_size, device)
@@ -124,18 +170,27 @@ def collect_probe_data(
 
     def target_adapter(observations, infos, episode_steps):
         del observations
-        joint = np.stack([info["belief_current"] for info in infos])
-        factors = factor_marginals(joint, (FACTOR_SIZE,) * n_factors)
+        tokens = np.asarray(
+            [info["visible_token_current"] for info in infos],
+            dtype=np.int64,
+        )
+        factors_array = _advance_independent_factor_beliefs(
+            factor_beliefs,
+            tokens,
+            episode_steps,
+        )
+        factors = tuple(
+            factors_array[:, index]
+            for index in range(n_factors)
+        )
+        joint = product_distribution(factors)
         return {
             "joint_belief": joint,
             **{
                 f"factor_{index}": belief
                 for index, belief in enumerate(factors)
             },
-            "token": np.asarray(
-                [info["visible_token_current"] for info in infos],
-                dtype=np.int64,
-            ),
+            "token": tokens,
             "env_index": np.arange(len(infos), dtype=np.int64),
             "episode_step": np.asarray(episode_steps, dtype=np.int64),
         }
@@ -150,13 +205,10 @@ def collect_probe_data(
         initial_state=initial_state if stateful else None,
         reset_state=reset_state if stateful else None,
         warmup=warmup,
-        store_observations=True,
+        store_observations=False,
     )
-    if collected.observations is None:
-        raise AssertionError("probe collection requested policy observations")
     return ProbeData(
         activations=np.asarray(collected.representations, dtype=np.float64),
-        observations=np.asarray(collected.observations, dtype=np.float64),
         joint_belief=np.asarray(
             collected.targets["joint_belief"],
             dtype=np.float64,
@@ -200,6 +252,33 @@ def _fit_target(
             predicted,
             test_target,
             groups,
+            min_group_size=20,
+        ),
+    }
+
+
+def _fit_token_baseline(
+    train_tokens: np.ndarray,
+    test_tokens: np.ndarray,
+    train_target: np.ndarray,
+    test_target: np.ndarray,
+) -> dict[str, float | int]:
+    """Fit the exact affine one-hot baseline via per-token target centroids."""
+
+    global_mean = train_target.mean(axis=0)
+    prediction = np.repeat(global_mean[None, :], len(test_target), axis=0)
+    for token in np.unique(train_tokens):
+        train_members = train_tokens == token
+        test_members = test_tokens == token
+        if test_members.any():
+            prediction[test_members] = train_target[train_members].mean(axis=0)
+    return {
+        **global_mse_metrics(prediction, test_target),
+        "r_squared": r2_score(prediction, test_target),
+        **conditional_mse_metrics(
+            prediction,
+            test_target,
+            test_tokens,
             min_group_size=20,
         ),
     }
@@ -318,8 +397,16 @@ def probe_checkpoint(
     context.results_dir.mkdir(parents=True, exist_ok=True)
     streams = named_seed_sequences(context.seed, _STREAM_KEYS)
     n_steps = SMOKE_STEPS if context.smoke else None
-    train_steps = n_steps or FULL_TRAIN_STEPS
-    test_steps = n_steps or FULL_TEST_STEPS
+    train_steps = n_steps or (
+        LARGE_JOINT_TRAIN_STEPS
+        if n_factors >= 6
+        else FULL_TRAIN_STEPS
+    )
+    test_steps = n_steps or (
+        LARGE_JOINT_TEST_STEPS
+        if n_factors >= 6
+        else FULL_TEST_STEPS
+    )
     warmup = 4 if context.smoke else 64
     profile = context.hardware or PROFILES["cpu"]
     device = (
@@ -335,7 +422,6 @@ def probe_checkpoint(
         env_class = algorithm.config.env
         env_config = dict(algorithm.config.env_config)
         env_config["diagnostics"] = {
-            "belief": True,
             "tokens": True,
         }
 
@@ -390,20 +476,18 @@ def probe_checkpoint(
         },
     }
     observation_baselines = {
-        "joint_belief": _fit_target(
-            train.observations,
-            test.observations,
+        "joint_belief": _fit_token_baseline(
+            train.tokens,
+            test.tokens,
             train.joint_belief,
             test.joint_belief,
-            groups=test.tokens,
         ),
         **{
-            f"factor_{index}": _fit_target(
-                train.observations,
-                test.observations,
+            f"factor_{index}": _fit_token_baseline(
+                train.tokens,
+                test.tokens,
                 train.factor_beliefs[index],
                 test.factor_beliefs[index],
-                groups=test.tokens,
             )
             for index in range(n_factors)
         },
