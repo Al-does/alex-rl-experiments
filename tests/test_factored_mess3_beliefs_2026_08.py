@@ -22,9 +22,9 @@ from experiments.factored_mess3_beliefs_2026_08.shared import (
     build_config,
     environment_config,
 )
+from experiments.mess3_token_guess_cycle_2.model import PaperActorCriticModel
 from harness.context import RunContext
 from harness.hardware import PROFILES
-from learners.models import TransformerModel
 
 
 def _context(tmp_path) -> RunContext:
@@ -38,7 +38,7 @@ def _context(tmp_path) -> RunContext:
     )
 
 
-def test_two_mess3_factory_exposes_one_nine_way_token_and_joint_state():
+def test_two_mess3_factory_delays_one_nine_way_token_and_scores_prediction():
     environment = HMMEnv(
         {
             **ENV_CONFIG,
@@ -52,8 +52,8 @@ def test_two_mess3_factory_exposes_one_nine_way_token_and_joint_state():
         assert environment.model.n_tokens == 9
         assert environment.observation_space.shape == (9,)
         assert environment.action_space.n == 9
-        assert observation.sum() == 1.0
-        assert info["visible_token_current"] == int(observation.argmax())
+        assert observation.sum() == 0.0
+        assert info["visible_token_current"] is None
 
         marginals = factor_marginals(info["belief_current"], (3, 3))
         assert len(marginals) == 2
@@ -68,12 +68,16 @@ def test_two_mess3_factory_exposes_one_nine_way_token_and_joint_state():
         scalable = np.zeros((1, 2, 3), dtype=np.float64)
         filtered = _advance_independent_factor_beliefs(
             scalable,
-            np.array([info["visible_token_current"]]),
+            np.array([-1]),
             np.array([0]),
         )
         np.testing.assert_allclose(filtered[0], np.stack(marginals), atol=1e-12)
 
-        _, _, _, _, next_info = environment.step(0)
+        emitted = info["raw_token_current"]
+        next_observation, reward, _, _, next_info = environment.step(emitted)
+        assert reward == 1.0
+        assert next_info["visible_token_current"] == emitted
+        assert next_observation[emitted] == 1.0
         next_marginals = factor_marginals(
             next_info["belief_current"],
             (3, 3),
@@ -92,7 +96,7 @@ def test_two_mess3_factory_exposes_one_nine_way_token_and_joint_state():
         environment.close()
 
 
-def test_recipe_builds_fresh_64_dimensional_gamma_zero_ppo(tmp_path):
+def test_recipe_builds_fresh_paper_transformer_gamma_zero_ppo(tmp_path):
     context = _context(tmp_path)
     first = build_config(context)
     second = build_config(context)
@@ -106,14 +110,22 @@ def test_recipe_builds_fresh_64_dimensional_gamma_zero_ppo(tmp_path):
     assert first.minibatch_size == 256
     assert first.num_env_runners == 0
     assert first.num_gpus_per_learner == 0
-    assert first.rl_module_spec.module_class is TransformerModel
+    assert first.rl_module_spec.module_class is PaperActorCriticModel
     assert MODEL_CONFIG == {
-        "d_model": 64,
-        "n_layers": 2,
-        "n_heads": 4,
-        "context_len": 32,
-        "max_seq_len": 32,
+        "d_model": 120,
+        "n_layers": 4,
+        "n_heads": 3,
+        "d_head": 40,
+        "d_mlp": 480,
+        "context_length": 11,
+        "max_seq_len": 11,
+        "activation": "relu",
+        "normalization": "layer_norm",
+        "positional_embedding": "learned_absolute",
     }
+    assert first.env_config["delay"] == 1
+    assert first.lr == 1e-4
+    assert first.num_epochs == 6
 
 
 def test_three_mess3_recipe_has_27_states_tokens_and_actions(tmp_path):
@@ -131,6 +143,7 @@ def test_three_mess3_recipe_has_27_states_tokens_and_actions(tmp_path):
         assert environment.model.n_tokens == 27
         assert environment.action_space.n == 27
         assert observation.shape == (27,)
+        assert observation.sum() == 0.0
         marginals = factor_marginals(info["belief_current"], (3, 3, 3))
         assert len(marginals) == 3
         np.testing.assert_allclose(
@@ -142,7 +155,7 @@ def test_three_mess3_recipe_has_27_states_tokens_and_actions(tmp_path):
         environment.close()
 
     assert len(config.env_config["model"]["kwargs"]["factors"]) == 3
-    assert config.rl_module_spec.module_class is TransformerModel
+    assert config.rl_module_spec.module_class is PaperActorCriticModel
 
 
 def test_probe_bootstrap_clusters_detect_episode_step_resets_after_warmup():
@@ -160,6 +173,33 @@ def test_probe_bootstrap_clusters_detect_episode_step_resets_after_warmup():
     assert clusters[5] != clusters[3]
 
 
+def test_five_mess3_recipe_builds_243_way_delayed_token_task(tmp_path):
+    config = build_config(_context(tmp_path), n_factors=5)
+    environment = HMMEnv(
+        {
+            **environment_config(5),
+            "diagnostics": {"tokens": True},
+            "episode_length": 2,
+        }
+    )
+    try:
+        observation, info = environment.reset(seed=12)
+        assert environment.model.n_states == 243
+        assert environment.model.n_tokens == 243
+        assert environment.action_space.n == 243
+        assert observation.shape == (243,)
+        assert observation.sum() == 0.0
+        emitted = info["raw_token_current"]
+        _, reward, _, _, step_info = environment.step(emitted)
+        assert reward == 1.0
+        assert step_info["visible_token_current"] == emitted
+    finally:
+        environment.close()
+
+    assert len(config.env_config["model"]["kwargs"]["factors"]) == 5
+    assert config.rl_module_spec.module_class is PaperActorCriticModel
+
+
 def test_six_mess3_recipe_builds_729_way_environment(tmp_path):
     config = build_config(_context(tmp_path), n_factors=6)
     environment = HMMEnv(
@@ -175,7 +215,8 @@ def test_six_mess3_recipe_builds_729_way_environment(tmp_path):
         assert environment.model.n_tokens == 729
         assert environment.action_space.n == 729
         assert observation.shape == (729,)
-        assert info["visible_token_current"] == int(observation.argmax())
+        assert observation.sum() == 0.0
+        assert info["visible_token_current"] is None
     finally:
         environment.close()
 

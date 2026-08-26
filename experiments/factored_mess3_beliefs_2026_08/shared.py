@@ -18,33 +18,38 @@ from envs.hmm import HMMEnv
 from experiments.factored_mess3_beliefs_2026_08.analysis import (
     probe_checkpoint,
 )
+from experiments.mess3_token_guess_cycle_2.model import (
+    PaperActorCriticConfig,
+    PaperActorCriticModel,
+)
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
 from harness.hardware import PROFILES, resolve_env_runners
 from harness.runners import run_tune
-from learners.models import TransformerModel, TransformerModelConfig
 
 
 TOTAL_ENV_STEPS = 2_500_000
 SMOKE_ENV_STEPS = 4_096
 TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 2_048
-MINIBATCH_SIZE = 8_192
+MINIBATCH_SIZE = 4_096
 SMOKE_MINIBATCH_SIZE = 256
 LARGE_JOINT_TRAIN_BATCH_SIZE = 8_192
 LARGE_JOINT_MINIBATCH_SIZE = 2_048
 EPISODE_LENGTH = 512
-MODEL_CONFIG = TransformerModelConfig(
-    d_model=64,
-    n_layers=2,
-    n_heads=4,
-    context_len=32,
-    max_seq_len=32,
+MODEL_CONFIG = PaperActorCriticConfig(
+    d_model=120,
+    n_layers=4,
+    n_heads=3,
+    d_head=40,
+    d_mlp=480,
+    context_length=11,
+    max_seq_len=11,
 ).to_dict()
 
 
 def environment_config(n_factors: int) -> dict[str, Any]:
-    """Return one Cartesian-token joint-state-guess environment."""
+    """Return one delayed Cartesian-token prediction environment."""
 
     if n_factors < 2:
         raise ValueError("the factored MESS3 study requires at least two factors")
@@ -62,13 +67,16 @@ def environment_config(n_factors: int) -> dict[str, Any]:
             },
         },
         "task": {
-            "class": "envs.mess3.tasks.state_guess:StateGuessTask",
+            "class": (
+                "experiments.mess3_token_guess_cycle_2.task:"
+                "NextTokenGuessTask"
+            ),
         },
         "observation": {
             "token": {"offset": 0, "depth": 1},
             "action": None,
         },
-        "delay": 0,
+        "delay": 1,
         "episode_length": EPISODE_LENGTH,
         "randomize_first_episode_length": True,
     }
@@ -164,21 +172,21 @@ def build_config(context: RunContext, *, n_factors: int = 2) -> PPOConfig:
             torch_compile_worker=False,
         )
         .training(
-            lr=3e-4,
+            lr=1e-4,
             gamma=0.0,
             lambda_=0.0,
             clip_param=0.2,
             use_kl_loss=False,
             vf_loss_coeff=0.5,
-            entropy_coeff=0.002,
+            entropy_coeff=0.0,
             train_batch_size_per_learner=batch_size,
             minibatch_size=minibatch_size,
-            num_epochs=4,
+            num_epochs=6,
             shuffle_batch_per_epoch=True,
         )
         .rl_module(
             rl_module_spec=RLModuleSpec(
-                module_class=TransformerModel,
+                module_class=PaperActorCriticModel,
                 model_config=dict(MODEL_CONFIG),
             )
         )
@@ -270,7 +278,8 @@ def run_independent(
         "resolved_recipe.json",
         {
             "hypothesis": (
-                "PPO's 64-dimensional transformer will encode each independent "
+                "PPO's 120-dimensional paper transformer will encode each "
+                "independent "
                 "MESS3 belief in a linearly decodable, approximately orthogonal "
                 f"two-dimensional subspace, using about {factored_dimension} "
                 "activation dimensions rather than the "
@@ -280,10 +289,11 @@ def run_independent(
             "generator": f"{n_factors} independent passive MESS3 HMM factors",
             "observed_token": (
                 f"one {joint_states}-way token in one-to-one correspondence "
-                "with the Cartesian tuple of three-way factor subtokens"
+                "with the Cartesian tuple of three-way factor subtokens, "
+                "delivered one decision late"
             ),
             "task": (
-                "guess the current joint hidden state "
+                "guess the currently withheld joint emitted token "
                 f"({joint_states} actions)"
             ),
             "algorithm": "PPO",

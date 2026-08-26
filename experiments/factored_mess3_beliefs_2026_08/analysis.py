@@ -93,7 +93,7 @@ def _advance_independent_factor_beliefs(
     tokens: np.ndarray,
     episode_steps: np.ndarray,
 ) -> np.ndarray:
-    """Advance exact factor filters without constructing a dense joint filter."""
+    """Advance exact delay-one factor filters without a dense joint filter."""
 
     n_envs, n_factors, factor_size = beliefs.shape
     if factor_size != FACTOR_SIZE:
@@ -103,19 +103,23 @@ def _advance_independent_factor_beliefs(
     if np.asarray(episode_steps).shape != (n_envs,):
         raise ValueError("episode_steps must align with environments")
     model = passive_model(alpha=0.85)
-    prior = np.einsum(
-        "nfs,st->nft",
-        beliefs,
-        model.transition_matrix,
-    )
     reset = np.asarray(episode_steps) == 0
-    prior[reset] = model.initial_distribution
-    subtokens = _factor_subtokens(tokens, n_factors)
-    likelihood = model.emission_matrix[:, subtokens].transpose(1, 2, 0)
-    posterior = prior * likelihood
-    posterior /= posterior.sum(axis=-1, keepdims=True)
-    beliefs[:] = posterior
-    return posterior.copy()
+    beliefs[reset] = model.initial_distribution
+    active = ~reset
+    if active.any():
+        active_tokens = np.asarray(tokens)[active]
+        if (active_tokens < 0).any():
+            raise ValueError("post-reset delay-one tokens must be visible")
+        subtokens = _factor_subtokens(active_tokens, n_factors)
+        likelihood = model.emission_matrix[:, subtokens].transpose(1, 2, 0)
+        measured = beliefs[active] * likelihood
+        measured /= measured.sum(axis=-1, keepdims=True)
+        beliefs[active] = np.einsum(
+            "nfs,st->nft",
+            measured,
+            model.transition_matrix,
+        )
+    return beliefs.copy()
 
 
 @torch.inference_mode()
@@ -171,7 +175,12 @@ def collect_probe_data(
     def target_adapter(observations, infos, episode_steps):
         del observations
         tokens = np.asarray(
-            [info["visible_token_current"] for info in infos],
+            [
+                -1
+                if info["visible_token_current"] is None
+                else int(info["visible_token_current"])
+                for info in infos
+            ],
             dtype=np.int64,
         )
         factors_array = _advance_independent_factor_beliefs(
