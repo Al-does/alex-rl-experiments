@@ -48,6 +48,8 @@ from envs.cassandra_machine.model import (
 DEFAULT_HORIZON = 1_000
 DEFAULT_EPISODES = 512
 DEFAULT_SEED = 42
+DEFAULT_TUNING_EPISODES = 128
+INSPECTION_INTERVAL_GRID = (4, 8, 16, 32, 64, 128, 256, None)
 _ACTION_SCOPE = "targeted"
 
 
@@ -314,11 +316,19 @@ def simulate_bayesian_policy(
     episodes: int,
     seed: int,
     previous_reward_observed: bool,
+    policy: str = "observable_after_next",
+    inspection_interval: int | None = None,
 ) -> dict[str, Any]:
-    """Evaluate the admissible observable-after-next greedy belief policy."""
+    """Evaluate one admissible policy driven by the exact Bayesian belief."""
 
     if episodes <= 1:
         raise ValueError("episodes must exceed one to estimate uncertainty")
+    if policy not in {"observable_after_next", "periodic_inspection_qmdp"}:
+        raise ValueError("unsupported Bayesian policy")
+    if policy == "periodic_inspection_qmdp" and (
+        inspection_interval is not None and inspection_interval <= 0
+    ):
+        raise ValueError("inspection_interval must be positive or None")
     rng = np.random.default_rng(seed)
     beliefs = np.full((episodes, N_STATES), 1.0 / N_STATES)
     components = rng.integers(
@@ -334,16 +344,32 @@ def simulate_bayesian_policy(
         "repair": _empty_maintenance_accumulator(),
         "replace": _empty_maintenance_accumulator(),
     }
+    steps_since_inspection = np.full(
+        episodes,
+        inspection_interval if inspection_interval is not None else 0,
+        dtype=np.int64,
+    )
 
     for step in range(horizon):
         remaining = horizon - step
-        action_values = observable_after_next_values(
-            model,
-            beliefs,
-            mdp_q[remaining - 1],
-            previous_reward_observed=previous_reward_observed,
-        )
+        if policy == "observable_after_next":
+            action_values = observable_after_next_values(
+                model,
+                beliefs,
+                mdp_q[remaining - 1],
+                previous_reward_observed=previous_reward_observed,
+            )
+        else:
+            action_values = beliefs @ mdp_q[remaining].T
         actions = action_values.argmax(axis=1)
+        if (
+            policy == "periodic_inspection_qmdp"
+            and inspection_interval is not None
+            and remaining > 1
+        ):
+            actions[
+                steps_since_inspection >= inspection_interval
+            ] = TargetedAction.INSPECT
         action_counts += np.bincount(
             actions,
             minlength=len(TargetedAction),
@@ -377,6 +403,8 @@ def simulate_bayesian_policy(
             components,
             actions,
         )
+        steps_since_inspection += 1
+        steps_since_inspection[actions == TargetedAction.INSPECT] = 0
         if step + 1 < horizon:
             reward_classes = (
                 model.reward_class_by_state[states_before]
@@ -395,6 +423,8 @@ def simulate_bayesian_policy(
     return {
         "episodes": episodes,
         "seed": seed,
+        "policy": policy,
+        "inspection_interval": inspection_interval,
         "previous_reward_observed": previous_reward_observed,
         "return_mean": float(returns.mean()),
         "return_standard_deviation": float(returns.std(ddof=1)),
@@ -551,11 +581,46 @@ def idealized_break_even_operates() -> dict[str, float]:
     }
 
 
+def tune_inspection_interval(
+    model: TargetedModel,
+    mdp_q: np.ndarray,
+    *,
+    horizon: int,
+    episodes: int,
+    seed: int,
+    previous_reward_observed: bool,
+) -> tuple[int | None, list[dict[str, Any]]]:
+    """Select a periodic-inspection interval on a separate simulation stream."""
+
+    records = []
+    for interval in INSPECTION_INTERVAL_GRID:
+        result = simulate_bayesian_policy(
+            model,
+            mdp_q,
+            horizon=horizon,
+            episodes=episodes,
+            seed=seed,
+            previous_reward_observed=previous_reward_observed,
+            policy="periodic_inspection_qmdp",
+            inspection_interval=interval,
+        )
+        records.append(
+            {
+                "inspection_interval": interval,
+                "return_mean": result["return_mean"],
+                "return_standard_error": result["return_standard_error"],
+            }
+        )
+    best = max(records, key=lambda record: record["return_mean"])
+    return best["inspection_interval"], records
+
+
 def run_analysis(
     *,
     horizon: int,
     episodes: int,
     seed: int,
+    tuning_episodes: int = DEFAULT_TUNING_EPISODES,
 ) -> dict[str, Any]:
     """Run both observation variants and return a JSON-serializable report."""
 
@@ -576,24 +641,38 @@ def run_analysis(
         )
         for reward_observed in (False, True)
     }
-    evaluations = {
-        "without_previous_reward": simulate_bayesian_policy(
+    evaluations = {}
+    tuning = {}
+    for offset, (name, reward_observed) in enumerate(
+        (
+            ("without_previous_reward", False),
+            ("with_previous_reward", True),
+        )
+    ):
+        best_interval, records = tune_inspection_interval(
+            model,
+            mdp_q,
+            horizon=horizon,
+            episodes=tuning_episodes,
+            seed=seed + 10_000 + offset,
+            previous_reward_observed=reward_observed,
+        )
+        tuning[name] = {
+            "episodes_per_candidate": tuning_episodes,
+            "seed": seed + 10_000 + offset,
+            "selected_inspection_interval": best_interval,
+            "candidates": records,
+        }
+        evaluations[name] = simulate_bayesian_policy(
             model,
             mdp_q,
             horizon=horizon,
             episodes=episodes,
-            seed=seed,
-            previous_reward_observed=False,
-        ),
-        "with_previous_reward": simulate_bayesian_policy(
-            model,
-            mdp_q,
-            horizon=horizon,
-            episodes=episodes,
-            seed=seed + 1,
-            previous_reward_observed=True,
-        ),
-    }
+            seed=seed + 20_000 + offset,
+            previous_reward_observed=reward_observed,
+            policy="periodic_inspection_qmdp",
+            inspection_interval=best_interval,
+        )
     all_good_per_step = float(OPERATE_COMPONENT_REWARD[-1] ** N_COMPONENTS)
     return {
         "analysis": "targeted Cassandra exact-belief reward analysis",
@@ -623,6 +702,7 @@ def run_analysis(
                 "with_previous_reward": observable_after_next["true"],
             },
         },
+        "policy_tuning": tuning,
         "feasible_exact_belief_policy": evaluations,
         "idealized_break_even_future_operates": idealized_break_even_operates(),
         "method": {
@@ -631,8 +711,8 @@ def run_analysis(
                 "conditions on float32(previous_reward) before transition"
             ),
             "policy": (
-                "receding observable-after-next upper-bound greedy action; "
-                "its simulated return is a feasible lower bound"
+                "periodic exact-belief inspection plus QMDP maintenance; "
+                "inspection interval selected on separate simulation seeds"
             ),
             "optimality_statement": (
                 "the exact Bayes-optimal return lies between the feasible "
@@ -658,6 +738,11 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--horizon", type=int, default=DEFAULT_HORIZON)
     parser.add_argument("--episodes", type=int, default=DEFAULT_EPISODES)
+    parser.add_argument(
+        "--tuning-episodes",
+        type=int,
+        default=DEFAULT_TUNING_EPISODES,
+    )
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument(
         "--output",
@@ -674,6 +759,7 @@ def main() -> None:
         horizon=args.horizon,
         episodes=args.episodes,
         seed=args.seed,
+        tuning_episodes=args.tuning_episodes,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
