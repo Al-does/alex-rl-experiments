@@ -11,6 +11,9 @@ scientific changes:
 The second objective arm adds next-joint-token cross entropy with coefficient
 `1.0` to the same PPO loss. Each arm runs both factor counts:
 
+The completed seed-42 results, Bayes baselines, checkpoint trajectories, CEV
+dimension counts, and interpretation are in [`FINDINGS.md`](FINDINGS.md).
+
 ```bash
 uv run rl-harness \
   experiments.factored_representations_reproduction_2026_08.ppo.experiment \
