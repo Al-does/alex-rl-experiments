@@ -14,6 +14,10 @@ from experiments.factored_representations_reproduction_2026_08.analysis import (
     _predict,
     cross_validated_svd_affine,
 )
+from experiments.factored_representations_reproduction_2026_08.benchmark_batch_size import (
+    choose_finalists,
+    recommendation,
+)
 from experiments.factored_representations_reproduction_2026_08.learning import (
     AUXILIARY_COEFFICIENT,
     ActorCriticWithNextJointTokenAux,
@@ -272,3 +276,55 @@ def test_tiny_vary_one_collection_centers_each_position_and_context():
                 0.0,
                 atol=1e-10,
             )
+
+
+def test_batch_benchmark_selects_fast_safe_compiled_candidate():
+    eager = [
+        {
+            "batch_size": 4096,
+            "status": "completed",
+            "steady_state_steps_per_second": 1000.0,
+            "max_peak_reserved_fraction": 0.2,
+        },
+        {
+            "batch_size": 8192,
+            "status": "completed",
+            "steady_state_steps_per_second": 1500.0,
+            "max_peak_reserved_fraction": 0.4,
+        },
+        {
+            "batch_size": 16384,
+            "status": "oom",
+        },
+    ]
+    assert choose_finalists(eager) == [8192, 4096]
+
+    compiled = [
+        {
+            "batch_size": 4096,
+            "status": "completed",
+            "steady_state_steps_per_second": 1200.0,
+            "max_peak_cuda_reserved_bytes": 4_000,
+            "max_peak_reserved_fraction": 0.2,
+            "build_seconds": 10.0,
+            "iterations": [
+                {"sampled_env_steps": 4096, "duration_seconds": 20.0}
+            ],
+        },
+        {
+            "batch_size": 8192,
+            "status": "completed",
+            "steady_state_steps_per_second": 1800.0,
+            "max_peak_cuda_reserved_bytes": 8_000,
+            "max_peak_reserved_fraction": 0.4,
+            "build_seconds": 12.0,
+            "iterations": [
+                {"sampled_env_steps": 8192, "duration_seconds": 25.0}
+            ],
+        },
+    ]
+    selected = recommendation(compiled)
+    assert selected is not None
+    assert selected["batch_size"] == 8192
+    assert selected["steady_state_steps_per_second"] == 1800.0
+    assert selected["estimated_10m_env_steps_hours"] > 0.0
