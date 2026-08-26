@@ -49,7 +49,20 @@ DEFAULT_HORIZON = 1_000
 DEFAULT_EPISODES = 512
 DEFAULT_SEED = 42
 DEFAULT_TUNING_EPISODES = 128
-INSPECTION_INTERVAL_GRID = (4, 8, 16, 32, 64, 128, 256, None)
+INSPECTION_INTERVAL_GRID = (
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    32,
+    48,
+    64,
+    128,
+    256,
+    None,
+)
 _ACTION_SCOPE = "targeted"
 
 
