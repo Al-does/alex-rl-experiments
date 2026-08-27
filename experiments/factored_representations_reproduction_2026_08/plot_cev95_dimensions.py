@@ -28,10 +28,11 @@ PANEL_SPECS = (
     ("PPO + CE, 3 factors", "ppo_aux_ce_3_factors", 3),
 )
 BAYES_ACCURACY_BY_FACTOR_COUNT = {
-    # 50,000-episode, process-weighted estimates from
-    # estimate_bayes_accuracy.py with seed 123.
-    2: 0.2304,
-    3: 0.1106,
+    # Exact process-weighted ceilings. The one-factor expected maximum
+    # predictive token probability is 0.392 at every scored position, and
+    # independent joint-token probabilities multiply.
+    2: 0.392**2,
+    3: 0.392**3,
 }
 
 

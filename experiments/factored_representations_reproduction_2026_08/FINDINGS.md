@@ -40,6 +40,10 @@ checkpoint corruption. No values were imputed or discarded.
 | PPO + CE | 3 | 5,010,167 | 0.0519 | 5.78 | 6/7/18 | 0.032/0.047 | 0.099 |
 | PPO + CE | 3 | 33,752,686 | 0.0566 | 9.16 | 9/12/17 | 0.054/0.026 | 0.183 |
 
+With the corrected exact Bayes ceilings, the latest greedy accuracies attain
+98.6% and 98.5% of Bayes for two-factor PPO and PPO+CE, respectively. The
+three-factor PPO and PPO+CE checkpoints attain 92.2% and 94.0%.
+
 The continuation does **not** support the hypothesis that more PPO training
 drives global CEV dimensionality toward the algebraic factored predictions
 (four dimensions for two factors and six for three). The two-factor d99 tails
@@ -60,10 +64,16 @@ globally factored.
 ## Task-performance baselines
 
 Random guessing has accuracy \(1/3^F\), where \(F\) is the number of factors.
-The Bayes policy chooses the largest component of the environment's exact
-predictive distribution. A 50,000-episode Monte Carlo evaluation of those
-diagnostic beliefs, with the same randomized initial episode length and BOS
-exclusion as the probes, gave the following process-weighted ceilings:
+The Bayes policy chooses the largest component of the emitted-token
+distribution, computed from the decision-time hidden-state belief \(b\) as
+\(bE\), where \(E\) is the emission matrix. An earlier calculation incorrectly
+maximized \(b\) itself and therefore reported the easier hidden-state
+classification ceiling rather than the rewarded token-prediction ceiling.
+
+Exact enumeration gives a one-factor expected maximum token probability of
+0.392 at every scored position. Because the factors are independent, the joint
+ceilings are \(0.392^F\). A 100,000-episode Monte Carlo evaluation of \(bE\)
+confirmed the exact values to sampling error.
 
 Reproduce the estimate with:
 
@@ -72,23 +82,23 @@ uv run python -m \
   experiments.factored_representations_reproduction_2026_08.estimate_bayes_accuracy
 ```
 
-| Factors | Joint classes | Chance | Estimated Bayes optimal |
+| Factors | Joint classes | Chance | Exact Bayes optimal |
 |---:|---:|---:|---:|
-| 2 | 9 | 0.1111 | 0.2304 |
-| 3 | 27 | 0.0370 | 0.1106 |
+| 2 | 9 | 0.1111 | 0.153664 |
+| 3 | 27 | 0.0370 | 0.060236288 |
 
 Final held-out greedy policy accuracy was:
 
 | Objective | Factors | Init | Final | Final / Bayes | Fraction of chance-to-Bayes gap closed |
 |---|---:|---:|---:|---:|---:|
-| PPO | 2 | 0.1099 | 0.1506 | 65.4% | 33.1% |
-| PPO + CE | 2 | 0.1099 | 0.1517 | 65.8% | 34.0% |
-| PPO | 3 | 0.0376 | 0.0541 | 48.9% | 23.1% |
-| PPO + CE | 3 | 0.0376 | 0.0519 | 46.9% | 20.1% |
+| PPO | 2 | 0.1099 | 0.1506 | 98.0% | 92.7% |
+| PPO + CE | 2 | 0.1099 | 0.1517 | 98.7% | 95.3% |
+| PPO | 3 | 0.0376 | 0.0541 | 89.7% | 73.3% |
+| PPO + CE | 3 | 0.0376 | 0.0519 | 86.1% | 63.9% |
 
 The auxiliary loss therefore changed representation geometry without improving
-the task policy at this budget. All four agents remained substantially below
-Bayes-optimal prediction.
+the task policy at this budget. The two-factor agents were already near
+Bayes-optimal prediction; the three-factor agents retained a modest gap.
 
 ## How to read the representation metrics
 

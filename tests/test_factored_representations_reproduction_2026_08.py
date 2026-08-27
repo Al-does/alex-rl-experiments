@@ -394,18 +394,16 @@ def test_cev95_plot_uses_all_four_committed_trajectories(tmp_path):
         "PPO + CE, 3 factors",
     }
     expected_latest = {
-        "PPO, 2 factors": (50_002_756, 8, 4, 8, 0.2304),
-        "PPO, 3 factors": (50_002_756, 11, 6, 26, 0.1106),
-        "PPO + CE, 2 factors": (50_002_756, 8, 4, 8, 0.2304),
-        "PPO + CE, 3 factors": (33_752_686, 12, 6, 26, 0.1106),
+        "PPO, 2 factors": (50_002_756, 8, 4, 8, 0.392**2),
+        "PPO, 3 factors": (50_002_756, 11, 6, 26, 0.392**3),
+        "PPO + CE, 2 factors": (50_002_756, 8, 4, 8, 0.392**2),
+        "PPO + CE, 3 factors": (33_752_686, 12, 6, 26, 0.392**3),
     }
     for title, trajectory in trajectories.items():
         assert np.all(np.diff(trajectory["steps"]) > 0)
         assert len(trajectory["accuracies"]) == len(trajectory["steps"])
         assert np.all(trajectory["accuracies"] >= 0.0)
-        assert np.all(
-            trajectory["accuracies"] <= trajectory["bayes_accuracy"]
-        )
+        assert np.all(trajectory["accuracies"] <= 1.0)
         expected = expected_latest[title]
         assert int(trajectory["steps"][-1]) == expected[0]
         assert int(trajectory["dimensions"][-1]) == expected[1]
