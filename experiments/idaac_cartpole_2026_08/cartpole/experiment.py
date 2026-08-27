@@ -61,8 +61,12 @@ def build_config(context: RunContext) -> IDAACConfig:
             rl_module_spec=RLModuleSpec(
                 module_class=IDAACModel,
                 model_config={
-                    "encoder_type": "mlp",
-                    "hidden_dims": (64, 64),
+                    "encoder_type": "transformer",
+                    "d_model": 64,
+                    "n_layers": 4,
+                    "n_heads": 1,
+                    "context_len": 10,
+                    "max_seq_len": 32,
                     "order_hidden_dims": (),
                 },
             )
