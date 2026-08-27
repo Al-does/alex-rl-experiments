@@ -1,0 +1,65 @@
+{
+  "activation_location": "final transformer block residual, after MLP and before final LN",
+  "algorithm": "PPO",
+  "analysis": [
+    "held-out joint regression to concatenated factor beliefs",
+    "activation/factored-target/joint-target CEV",
+    "vary-one per-position-centered PCA",
+    "effective-dimension additivity",
+    "principal-angle overlap curves",
+    "rank-2 projected belief regression",
+    "token-embedding CEV, factor subspaces, and PC attribution"
+  ],
+  "checkpoint_schedule": "initial, powers of two iterations, final",
+  "clip_param": 0.2,
+  "condition": "ppo_aux_ce",
+  "environment": {
+    "delay": 1,
+    "episode_length": 9,
+    "model": {
+      "factory": "envs.hmm:factored_model",
+      "kwargs": {
+        "factors": [
+          {
+            "factory": "experiments.factored_representations_reproduction_2026_08.process:paper_mess3_model"
+          },
+          {
+            "factory": "experiments.factored_representations_reproduction_2026_08.process:paper_mess3_model"
+          }
+        ]
+      }
+    },
+    "observation": {
+      "action": null
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "experiments.factored_representations_reproduction_2026_08.task:NextJointTokenGuessTask"
+    }
+  },
+  "factor_count": 2,
+  "factors": "conditionally independent MESS3(alpha=0.6, x=0.15)",
+  "gamma": 0.0,
+  "head_choice_rationale": "The paper uses three heads at d_model=120. Four 16-dimensional heads are the closest divisor-compatible choice at d_model=64.",
+  "joint_token_count": 9,
+  "lambda": 0.0,
+  "learning_rate": 0.0001,
+  "minibatch_size": 32768,
+  "model": {
+    "activation": "relu",
+    "context_length": 9,
+    "d_mlp": 256,
+    "d_model": 64,
+    "max_seq_len": 32,
+    "n_heads": 4,
+    "n_layers": 4,
+    "normalization": "layer_norm",
+    "positional_embedding": "learned_absolute"
+  },
+  "next_token_aux_coefficient": 1.0,
+  "num_epochs": 6,
+  "objective": "PPO correctness reward plus next-joint-token CE",
+  "paper": "Transformers learn factored representations (arXiv:2602.02385)",
+  "total_env_steps": 50000000,
+  "train_batch_size_per_learner": 32768
+}
