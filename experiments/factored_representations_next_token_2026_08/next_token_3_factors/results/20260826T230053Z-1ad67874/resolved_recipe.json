@@ -1,0 +1,81 @@
+{
+  "analysis": [
+    "held-out affine factor-belief regression",
+    "activation/factored-target/joint-target CEV",
+    "vary-one per-position-centered factor PCA",
+    "effective-dimension additivity and principal-angle overlap",
+    "rank-two projected factor-belief recovery",
+    "joint-token embedding geometry",
+    "validation cross-entropy gap to sampled exact Bayes loss"
+  ],
+  "checkpoint_schedule": "initialization, powers of two, final",
+  "condition": "pure_next_token_prediction",
+  "factor_count": 3,
+  "factors": {
+    "alpha": 0.6,
+    "state_dimension": 3,
+    "subtoken_cardinality": 3,
+    "type": "independent_MESS3",
+    "x": 0.15
+  },
+  "head_choice_rationale": "PR #59 reduced the paper's d_model=120 to 64. Four 16-dimensional heads preserve that controlled adaptation because three heads do not divide 64.",
+  "joint_token_count": 27,
+  "model": {
+    "activation": "relu",
+    "base_vocab_size": 27,
+    "bos_token": 27,
+    "context_length": 9,
+    "d_mlp": 256,
+    "d_model": 64,
+    "factor_count": 3,
+    "n_heads": 4,
+    "n_layers": 4,
+    "normalization": "layer_norm",
+    "positional_embedding": "learned_absolute",
+    "vocab_size": 28
+  },
+  "objective": {
+    "policy_loss": null,
+    "reinforcement_learning": false,
+    "reward": null,
+    "target": "next_joint_token",
+    "type": "cross_entropy",
+    "value_function": null
+  },
+  "optimizer": {
+    "betas": [
+      0.9,
+      0.999
+    ],
+    "epsilon": 1e-08,
+    "learning_rate": 0.0005,
+    "type": "AdamW",
+    "weight_decay": 0.0
+  },
+  "paper": "Transformers learn factored representations (arXiv:2602.02385)",
+  "runtime": {
+    "compiled_training": true,
+    "device": "cuda",
+    "seed": 42,
+    "smoke": false
+  },
+  "scientific_scope": "This isolates the paper's supervised pretraining mechanism. There is no Gym environment, action, reward, policy, critic, RLlib Algorithm, or PPO loss.",
+  "sequence": {
+    "context_capacity": 9,
+    "generated_tokens": 8,
+    "input_shift": "[BOS, x1, ..., x7] -> [x1, ..., x8]"
+  },
+  "source_implementation": "https://github.com/Astera-org/factored-reps",
+  "training": {
+    "batch_size": 25000,
+    "beta_1": 0.9,
+    "beta_2": 0.999,
+    "epsilon": 1e-08,
+    "learning_rate": 0.0005,
+    "log_every": 1000,
+    "sequence_length": 8,
+    "total_updates": 500000,
+    "validation_batch_size": 4096,
+    "weight_decay": 0.0
+  }
+}
