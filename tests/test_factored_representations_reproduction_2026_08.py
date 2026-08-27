@@ -27,6 +27,10 @@ from experiments.factored_representations_reproduction_2026_08.model import (
     FactoredReproductionActorCritic,
     FactoredReproductionModelConfig,
 )
+from experiments.factored_representations_reproduction_2026_08.plot_cev95_dimensions import (
+    load_cev95_trajectories,
+    plot_cev95_dimensions,
+)
 from experiments.factored_representations_reproduction_2026_08.probe import (
     collect_vary_one_data,
 )
@@ -333,3 +337,30 @@ def test_batch_benchmark_selects_fast_safe_compiled_candidate():
     assert selected["batch_size"] == 8192
     assert selected["steady_state_steps_per_second"] == 1800.0
     assert selected["estimated_10m_env_steps_hours"] > 0.0
+
+
+def test_cev95_plot_uses_all_four_committed_trajectories(tmp_path):
+    trajectories = load_cev95_trajectories()
+
+    assert set(trajectories) == {
+        "PPO, 2 factors",
+        "PPO, 3 factors",
+        "PPO + CE, 2 factors",
+        "PPO + CE, 3 factors",
+    }
+    expected_latest = {
+        "PPO, 2 factors": (50_002_756, 8, 4, 8),
+        "PPO, 3 factors": (50_002_756, 11, 6, 26),
+        "PPO + CE, 2 factors": (50_002_756, 8, 4, 8),
+        "PPO + CE, 3 factors": (33_752_686, 12, 6, 26),
+    }
+    for title, trajectory in trajectories.items():
+        assert np.all(np.diff(trajectory["steps"]) > 0)
+        expected = expected_latest[title]
+        assert int(trajectory["steps"][-1]) == expected[0]
+        assert int(trajectory["dimensions"][-1]) == expected[1]
+        assert trajectory["factored_prediction"] == expected[2]
+        assert trajectory["joint_prediction"] == expected[3]
+
+    output = plot_cev95_dimensions(tmp_path / "cev95.png")
+    assert output.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
