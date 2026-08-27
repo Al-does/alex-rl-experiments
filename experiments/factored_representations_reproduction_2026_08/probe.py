@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+import json
+import os
+import time
 from typing import Any
 
 import numpy as np
@@ -44,6 +47,164 @@ class VaryOneData:
 
     activations: dict[str, np.ndarray]
     groups: dict[str, np.ndarray]
+
+
+def _tensor_summary(value: torch.Tensor) -> dict[str, Any]:
+    tensor = value.detach()
+    finite = torch.isfinite(tensor)
+    bad_indices = (~finite).nonzero()[:16]
+    bad_rows = (
+        torch.unique(bad_indices[:, 0])[:16]
+        if tensor.ndim and len(bad_indices)
+        else torch.empty(0, dtype=torch.long, device=tensor.device)
+    )
+    return {
+        "shape": list(tensor.shape),
+        "dtype": str(tensor.dtype),
+        "device": str(tensor.device),
+        "nan_count": int(torch.isnan(tensor).sum().item()),
+        "posinf_count": int(torch.isposinf(tensor).sum().item()),
+        "neginf_count": int(torch.isneginf(tensor).sum().item()),
+        "first_bad_indices": bad_indices.cpu().tolist(),
+        "first_bad_rows": bad_rows.cpu().tolist(),
+    }
+
+
+def _array_summary(value: Any) -> dict[str, Any]:
+    array = np.asarray(value)
+    finite = np.isfinite(array)
+    bad_indices = np.argwhere(~finite)[:16]
+    bad_rows = (
+        np.unique(bad_indices[:, 0])[:16].tolist()
+        if array.ndim and len(bad_indices)
+        else []
+    )
+    return {
+        "shape": list(array.shape),
+        "dtype": str(array.dtype),
+        "nan_count": int(np.isnan(array).sum()),
+        "posinf_count": int(np.isposinf(array).sum()),
+        "neginf_count": int(np.isneginf(array).sum()),
+        "first_bad_indices": bad_indices.tolist(),
+        "first_bad_rows": bad_rows,
+    }
+
+
+def _contains_nonfinite(summary: Mapping[str, Any]) -> bool:
+    return any(
+        int(summary[key]) > 0
+        for key in ("nan_count", "posinf_count", "neginf_count")
+    )
+
+
+def _module_state_summary(module: Any) -> dict[str, Any]:
+    bad_parameters = {
+        name: summary
+        for name, parameter in module.named_parameters()
+        if _contains_nonfinite(summary := _tensor_summary(parameter))
+    }
+    bad_buffers = {
+        name: summary
+        for name, buffer in module.named_buffers()
+        if _contains_nonfinite(summary := _tensor_summary(buffer))
+    }
+    return {
+        "class": f"{type(module).__module__}.{type(module).__qualname__}",
+        "training": bool(module.training),
+        "optimized_module": hasattr(module, "_orig_mod"),
+        "parameter_count": sum(parameter.numel() for parameter in module.parameters()),
+        "bad_parameters": bad_parameters,
+        "bad_buffers": bad_buffers,
+    }
+
+
+def _debug_log(
+    hypothesis_id: str,
+    location: str,
+    message: str,
+    data: dict[str, Any],
+) -> None:
+    with open("/opt/cursor/logs/debug.log", "a", encoding="utf-8") as log:
+        log.write(
+            json.dumps(
+                {
+                    "hypothesisId": hypothesis_id,
+                    "location": location,
+                    "message": message,
+                    "data": data,
+                    "timestamp": int(time.time() * 1000),
+                }
+            )
+            + "\n"
+        )
+
+
+def _first_nonfinite_forward_stage(
+    module: Any,
+    observation: torch.Tensor,
+    state: dict[str, torch.Tensor],
+) -> dict[str, Any]:
+    first_bad: dict[str, Any] | None = None
+    last_finite: dict[str, Any] | None = None
+    handles = []
+
+    def inspect(name: str):
+        def hook(_submodule: Any, inputs: tuple[Any, ...], output: Any) -> None:
+            nonlocal first_bad, last_finite
+            tensors = (
+                [output]
+                if isinstance(output, torch.Tensor)
+                else [value for value in output if isinstance(value, torch.Tensor)]
+                if isinstance(output, (tuple, list))
+                else []
+            )
+            for index, tensor in enumerate(tensors):
+                summary = _tensor_summary(tensor)
+                record = {
+                    "module": name,
+                    "output_index": index,
+                    "output": summary,
+                }
+                if _contains_nonfinite(summary):
+                    if first_bad is None:
+                        record["inputs"] = [
+                            _tensor_summary(value)
+                            for value in inputs
+                            if isinstance(value, torch.Tensor)
+                        ]
+                        record["last_finite_stage"] = last_finite
+                        first_bad = record
+                else:
+                    last_finite = record
+
+        return hook
+
+    for name, submodule in module.named_modules():
+        if name:
+            handles.append(submodule.register_forward_hook(inspect(name)))
+    try:
+        replay_residual, replay_state = module.encode_step_pre_final_norm(
+            observation,
+            state,
+        )
+        replay_normalized = module.encoder.final_norm(replay_residual)
+        replay_logits = module.action_distribution_inputs(replay_normalized)
+        replay = {
+            "residual": _tensor_summary(replay_residual),
+            "state": {
+                key: _tensor_summary(value) for key, value in replay_state.items()
+            },
+            "normalized": _tensor_summary(replay_normalized),
+            "logits": _tensor_summary(replay_logits),
+        }
+    finally:
+        for handle in handles:
+            handle.remove()
+    return {
+        "first_bad_stage": first_bad,
+        "last_finite_stage": last_finite,
+        "replay": replay,
+    }
 
 
 def _initial_state(
@@ -96,7 +257,32 @@ def collect_probe_data(
 
     device = torch.device(device)
     module = module.to(device).eval()
+    module_summary = _module_state_summary(module)
+    # region agent log
+    _debug_log(
+        "A,D,E",
+        "probe.py:collect_probe_data:entry",
+        "Probe collector runtime and module state",
+        {
+            "n_steps": n_steps,
+            "n_envs": n_envs,
+            "warmup": warmup,
+            "device": str(device),
+            "torch_version": torch.__version__,
+            "inference_mode": torch.is_inference_mode_enabled(),
+            "torch_threads": torch.get_num_threads(),
+            "torch_interop_threads": torch.get_num_interop_threads(),
+            "host_load_average": list(os.getloadavg()),
+            "module": module_summary,
+        },
+    )
+    # endregion
+    if module_summary["bad_parameters"] or module_summary["bad_buffers"]:
+        raise FloatingPointError(
+            "probe module contains non-finite parameters or buffers; see debug.log"
+        )
     factor_sizes = (FACTOR_CARDINALITY,) * factor_count
+    inference_batches = 0
 
     def initial_state(batch_size: int):
         return _initial_state(module, batch_size, device)
@@ -117,18 +303,80 @@ def collect_probe_data(
         randomness: PolicyRandomness,
         action_spaces: Any,
     ):
+        nonlocal inference_batches
         del randomness, action_spaces
         observation_tensor = torch.from_numpy(observations).float().to(device)
-        residual, state = module.encode_step_pre_final_norm(
+        state_in = state
+        residual, state_out = module.encode_step_pre_final_norm(
             observation_tensor,
-            state,
+            state_in,
         )
         normalized = module.encoder.final_norm(residual)
         logits = module.action_distribution_inputs(normalized)
+        stage_summaries = {
+            "observations": _tensor_summary(observation_tensor),
+            "state_in": {
+                key: _tensor_summary(value) for key, value in state_in.items()
+            },
+            "residual": _tensor_summary(residual),
+            "state_out": {
+                key: _tensor_summary(value) for key, value in state_out.items()
+            },
+            "normalized": _tensor_summary(normalized),
+            "logits": _tensor_summary(logits),
+        }
+        if inference_batches == 0:
+            # region agent log
+            _debug_log(
+                "B,D",
+                "probe.py:collect_probe_data:step_adapter:first_batch",
+                "First inference batch stage summaries",
+                stage_summaries,
+            )
+            # endregion
+        bad_stages = {
+            name: summary
+            for name, summary in stage_summaries.items()
+            if (
+                any(
+                    _contains_nonfinite(item)
+                    for item in summary.values()
+                )
+                if name in {"state_in", "state_out"}
+                else _contains_nonfinite(summary)
+            )
+        }
+        if bad_stages:
+            replay = _first_nonfinite_forward_stage(
+                module,
+                observation_tensor,
+                state_in,
+            )
+            # region agent log
+            _debug_log(
+                "A,B,D,E",
+                "probe.py:collect_probe_data:step_adapter:nonfinite",
+                "Non-finite inference batch detected",
+                {
+                    "inference_batch": inference_batches,
+                    "bad_stages": bad_stages,
+                    "observation_token_rows": observation_tensor.argmax(
+                        dim=-1
+                    ).cpu().tolist(),
+                    "state_lengths": state_in["len"].reshape(-1).cpu().tolist(),
+                    "replay_trace": replay,
+                    "host_load_average": list(os.getloadavg()),
+                },
+            )
+            # endregion
+            raise FloatingPointError(
+                "probe inference produced non-finite values; see debug.log"
+            )
+        inference_batches += 1
         actions = logits.argmax(dim=-1)
         return (
             actions.cpu().numpy(),
-            state,
+            state_out,
             residual.cpu().numpy(),
         )
 
@@ -158,6 +406,22 @@ def collect_probe_data(
         warmup=warmup,
         store_observations=True,
     )
+    collected_summary = _array_summary(collected.representations)
+    # region agent log
+    _debug_log(
+        "C",
+        "probe.py:collect_probe_data:assembled",
+        "Collector assembled representation matrix",
+        {
+            "representations": collected_summary,
+            "inference_batches": inference_batches,
+        },
+    )
+    # endregion
+    if _contains_nonfinite(collected_summary):
+        raise FloatingPointError(
+            "probe collector assembled non-finite representations; see debug.log"
+        )
     if collected.observations is None:
         raise AssertionError("probe collection requested observations")
     joint = np.asarray(collected.targets["joint_belief"], dtype=np.float64)
@@ -171,7 +435,7 @@ def collect_probe_data(
         collected.targets["episode_step"],
         dtype=np.int64,
     )
-    return FactorProbeData(
+    result = FactorProbeData(
         activations=np.asarray(collected.representations, dtype=np.float64),
         joint_beliefs=joint,
         factor_beliefs=factors,
@@ -183,6 +447,20 @@ def collect_probe_data(
         rewards=np.asarray(collected.rewards, dtype=np.float64),
         product_consistency_max_abs=consistency,
     )
+    result_summary = _array_summary(result.activations)
+    # region agent log
+    _debug_log(
+        "C",
+        "probe.py:collect_probe_data:exit",
+        "Final factor probe activation matrix",
+        {"activations": result_summary},
+    )
+    # endregion
+    if _contains_nonfinite(result_summary):
+        raise FloatingPointError(
+            "probe conversion produced non-finite activations; see debug.log"
+        )
+    return result
 
 
 def _sample_factor_sequences(
