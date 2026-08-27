@@ -52,6 +52,7 @@ class VaryOneData:
 def _tensor_summary(value: torch.Tensor) -> dict[str, Any]:
     tensor = value.detach()
     finite = torch.isfinite(tensor)
+    finite_values = tensor[finite]
     bad_indices = (~finite).nonzero()[:16]
     bad_rows = (
         torch.unique(bad_indices[:, 0])[:16]
@@ -65,6 +66,9 @@ def _tensor_summary(value: torch.Tensor) -> dict[str, Any]:
         "nan_count": int(torch.isnan(tensor).sum().item()),
         "posinf_count": int(torch.isposinf(tensor).sum().item()),
         "neginf_count": int(torch.isneginf(tensor).sum().item()),
+        "finite_abs_max": (
+            float(finite_values.abs().max().item()) if finite_values.numel() else None
+        ),
         "first_bad_indices": bad_indices.cpu().tolist(),
         "first_bad_rows": bad_rows.cpu().tolist(),
     }
@@ -73,6 +77,7 @@ def _tensor_summary(value: torch.Tensor) -> dict[str, Any]:
 def _array_summary(value: Any) -> dict[str, Any]:
     array = np.asarray(value)
     finite = np.isfinite(array)
+    finite_values = array[finite]
     bad_indices = np.argwhere(~finite)[:16]
     bad_rows = (
         np.unique(bad_indices[:, 0])[:16].tolist()
@@ -85,6 +90,9 @@ def _array_summary(value: Any) -> dict[str, Any]:
         "nan_count": int(np.isnan(array).sum()),
         "posinf_count": int(np.isposinf(array).sum()),
         "neginf_count": int(np.isneginf(array).sum()),
+        "finite_abs_max": (
+            float(np.abs(finite_values).max()) if finite_values.size else None
+        ),
         "first_bad_indices": bad_indices.tolist(),
         "first_bad_rows": bad_rows,
     }
@@ -98,21 +106,41 @@ def _contains_nonfinite(summary: Mapping[str, Any]) -> bool:
 
 
 def _module_state_summary(module: Any) -> dict[str, Any]:
+    parameter_summaries = {
+        name: _tensor_summary(parameter)
+        for name, parameter in module.named_parameters()
+    }
+    buffer_summaries = {
+        name: _tensor_summary(buffer) for name, buffer in module.named_buffers()
+    }
     bad_parameters = {
         name: summary
-        for name, parameter in module.named_parameters()
-        if _contains_nonfinite(summary := _tensor_summary(parameter))
+        for name, summary in parameter_summaries.items()
+        if _contains_nonfinite(summary)
     }
     bad_buffers = {
         name: summary
-        for name, buffer in module.named_buffers()
-        if _contains_nonfinite(summary := _tensor_summary(buffer))
+        for name, summary in buffer_summaries.items()
+        if _contains_nonfinite(summary)
     }
+    largest_parameter = max(
+        parameter_summaries,
+        key=lambda name: parameter_summaries[name]["finite_abs_max"] or 0.0,
+        default=None,
+    )
     return {
         "class": f"{type(module).__module__}.{type(module).__qualname__}",
         "training": bool(module.training),
         "optimized_module": hasattr(module, "_orig_mod"),
         "parameter_count": sum(parameter.numel() for parameter in module.parameters()),
+        "largest_parameter": (
+            {
+                "name": largest_parameter,
+                "summary": parameter_summaries[largest_parameter],
+            }
+            if largest_parameter is not None
+            else None
+        ),
         "bad_parameters": bad_parameters,
         "bad_buffers": bad_buffers,
     }
