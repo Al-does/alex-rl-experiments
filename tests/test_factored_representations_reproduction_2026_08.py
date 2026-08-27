@@ -349,18 +349,24 @@ def test_cev95_plot_uses_all_four_committed_trajectories(tmp_path):
         "PPO + CE, 3 factors",
     }
     expected_latest = {
-        "PPO, 2 factors": (50_002_756, 8, 4, 8),
-        "PPO, 3 factors": (50_002_756, 11, 6, 26),
-        "PPO + CE, 2 factors": (50_002_756, 8, 4, 8),
-        "PPO + CE, 3 factors": (33_752_686, 12, 6, 26),
+        "PPO, 2 factors": (50_002_756, 8, 4, 8, 0.2304),
+        "PPO, 3 factors": (50_002_756, 11, 6, 26, 0.1106),
+        "PPO + CE, 2 factors": (50_002_756, 8, 4, 8, 0.2304),
+        "PPO + CE, 3 factors": (33_752_686, 12, 6, 26, 0.1106),
     }
     for title, trajectory in trajectories.items():
         assert np.all(np.diff(trajectory["steps"]) > 0)
+        assert len(trajectory["accuracies"]) == len(trajectory["steps"])
+        assert np.all(trajectory["accuracies"] >= 0.0)
+        assert np.all(
+            trajectory["accuracies"] <= trajectory["bayes_accuracy"]
+        )
         expected = expected_latest[title]
         assert int(trajectory["steps"][-1]) == expected[0]
         assert int(trajectory["dimensions"][-1]) == expected[1]
         assert trajectory["factored_prediction"] == expected[2]
         assert trajectory["joint_prediction"] == expected[3]
+        assert trajectory["bayes_accuracy"] == expected[4]
 
     output = plot_cev95_dimensions(tmp_path / "cev95.png")
     assert output.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
