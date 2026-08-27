@@ -43,10 +43,10 @@ def test_idaac_cartpole_builds_fresh_paper_algorithm_configs(tmp_path):
     assert first.advantage_loss_coeff == 0.25
     assert first.invariance_loss_coeff == 0.001
     assert first.num_gpus_per_learner == 0
-    assert first.rl_module_spec.model_config_dict["encoder_type"] == "transformer"
-    assert first.rl_module_spec.model_config_dict["d_model"] == 64
-    assert first.rl_module_spec.model_config_dict["n_layers"] == 4
-    assert first.rl_module_spec.model_config_dict["n_heads"] == 1
+    assert first.rl_module_spec.model_config["encoder_type"] == "transformer"
+    assert first.rl_module_spec.model_config["d_model"] == 64
+    assert first.rl_module_spec.model_config["n_layers"] == 4
+    assert first.rl_module_spec.model_config["n_heads"] == 1
 
 
 def test_idaac_cartpole_smoke_reduces_batch_and_value_epochs(tmp_path):
