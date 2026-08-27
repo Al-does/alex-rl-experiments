@@ -18,6 +18,9 @@ from experiments.factored_representations_reproduction_2026_08.benchmark_batch_s
     choose_finalists,
     recommendation,
 )
+from experiments.factored_representations_reproduction_2026_08.estimate_bayes_accuracy import (
+    estimate_bayes_accuracy,
+)
 from experiments.factored_representations_reproduction_2026_08.learning import (
     AUXILIARY_COEFFICIENT,
     ActorCriticWithNextJointTokenAux,
@@ -136,6 +139,48 @@ def test_delayed_environment_scores_hidden_joint_token(factor_count):
         assert next_observation.argmax() == hidden_joint_token
     finally:
         environment.close()
+
+
+def test_one_factor_exact_predictive_token_ceiling_is_constant_by_position():
+    model = paper_mess3_model()
+    histories = [(1.0, model.initial_distribution)]
+    expected_accuracies = []
+
+    for _ in range(8):
+        next_histories = []
+        expected_accuracy = 0.0
+        for history_probability, belief in histories:
+            token_probabilities = belief @ model.emission_matrix
+            for token, token_probability in enumerate(token_probabilities):
+                posterior = (
+                    belief * model.emission_matrix[:, token] / token_probability
+                )
+                next_belief = posterior @ model.transition_matrix
+                next_probability = history_probability * token_probability
+                expected_accuracy += next_probability * np.max(
+                    next_belief @ model.emission_matrix
+                )
+                next_histories.append((next_probability, next_belief))
+        expected_accuracies.append(expected_accuracy)
+        histories = next_histories
+
+    np.testing.assert_allclose(expected_accuracies, np.full(8, 0.392), atol=1e-12)
+
+
+@pytest.mark.parametrize(
+    ("factor_count", "exact_ceiling"),
+    [(2, 0.392**2), (3, 0.392**3)],
+)
+def test_estimated_bayes_accuracy_matches_exact_token_ceiling(
+    factor_count,
+    exact_ceiling,
+):
+    report = estimate_bayes_accuracy(factor_count, episodes=200, seed=123)
+
+    assert report["estimated_bayes_accuracy"] == pytest.approx(
+        exact_ceiling,
+        abs=5e-4,
+    )
 
 
 def test_model_is_64d_pre_ln_causal_and_has_learned_bos():
