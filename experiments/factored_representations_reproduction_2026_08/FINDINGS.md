@@ -16,13 +16,64 @@ samples. The PPO and PPO+CE comparisons share the same seed and initialization
 within each factor count. This makes the objective comparison controlled, but
 one seed does not provide trained-seed uncertainty.
 
+## Continuation snapshot
+
+The seed-42 agents were continued from their 5-million-step checkpoints toward
+50 million lifetime environment steps. This is an interim snapshot: PPO reached
+50 million steps, PPO+CE with two factors was still training, and PPO+CE with
+three factors stopped at 38.7 million steps after a CUDA out-of-memory error.
+The latest stable PPO+CE checkpoints were therefore both at 33,752,686 steps.
+
+Probe analysis intermittently produced non-finite activations on the original
+Vast hosts. Repeating the unchanged full probe battery on fresh hosts produced
+finite results for all three recovered checkpoints, rejecting deterministic
+checkpoint corruption. No values were imputed or discarded.
+
+| Objective | Factors | Steps | Accuracy | Activation PR | CEV d90/d95/d99 | CEV RMSE factored/joint | Vary overlap |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| PPO | 2 | 5,010,167 | 0.1505 | 7.43 | 7/8/16 | 0.072/0.060 | 0.029 |
+| PPO | 2 | 50,002,756 | 0.1515 | 7.74 | 7/8/8 | 0.081/0.070 | 0.194 |
+| PPO | 3 | 5,010,167 | 0.0541 | 7.83 | 9/11/27 | 0.048/0.027 | 0.286 |
+| PPO | 3 | 50,002,756 | 0.0556 | 8.30 | 10/11/13 | 0.058/0.033 | 0.487 |
+| PPO + CE | 2 | 5,010,167 | 0.1517 | 7.59 | 7/8/10 | 0.075/0.063 | 0.022 |
+| PPO + CE | 2 | 33,752,686 | 0.1517 | 7.44 | 7/8/8 | 0.073/0.062 | 0.006 |
+| PPO + CE | 3 | 5,010,167 | 0.0519 | 5.78 | 6/7/18 | 0.032/0.047 | 0.099 |
+| PPO + CE | 3 | 33,752,686 | 0.0566 | 9.16 | 9/12/17 | 0.054/0.026 | 0.183 |
+
+With the corrected exact Bayes ceilings, the latest greedy accuracies attain
+98.6% and 98.5% of Bayes for two-factor PPO and PPO+CE, respectively. The
+three-factor PPO and PPO+CE checkpoints attain 92.2% and 94.0%.
+
+The continuation does **not** support the hypothesis that more PPO training
+drives global CEV dimensionality toward the algebraic factored predictions
+(four dimensions for two factors and six for three). The two-factor d99 tails
+compressed, but d95 remained at the eight-dimensional joint prediction. For
+three-factor PPO, d99 compressed from 27 to 13 while d90 increased and d95
+stayed at 11, so this is tail compression rather than convergence to six
+dimensions. Most notably, three-factor PPO+CE moved away from its factored-like
+5-million-step geometry: PR rose from 5.78 to 9.16, d95 rose from 7 to 12, and
+the full CEV curve switched from closer-to-factored to closer-to-joint.
+
+The vary-one probes give a more nuanced result. PPO+CE with two factors retained
+an exceptionally separated factor core (overlap 0.006) despite its
+eight-dimensional global CEV, whereas both three-factor continuations increased
+factor-subspace overlap. Longer training can therefore preserve local
+factor-separated directions without making the complete activation distribution
+globally factored.
+
 ## Task-performance baselines
 
 Random guessing has accuracy \(1/3^F\), where \(F\) is the number of factors.
-The Bayes policy chooses the largest component of the environment's exact
-predictive distribution. A 50,000-episode Monte Carlo evaluation of those
-diagnostic beliefs, with the same randomized initial episode length and BOS
-exclusion as the probes, gave the following process-weighted ceilings:
+The Bayes policy chooses the largest component of the emitted-token
+distribution, computed from the decision-time hidden-state belief \(b\) as
+\(bE\), where \(E\) is the emission matrix. An earlier calculation incorrectly
+maximized \(b\) itself and therefore reported the easier hidden-state
+classification ceiling rather than the rewarded token-prediction ceiling.
+
+Exact enumeration gives a one-factor expected maximum token probability of
+0.392 at every scored position. Because the factors are independent, the joint
+ceilings are \(0.392^F\). A 100,000-episode Monte Carlo evaluation of \(bE\)
+confirmed the exact values to sampling error.
 
 Reproduce the estimate with:
 
@@ -31,23 +82,23 @@ uv run python -m \
   experiments.factored_representations_reproduction_2026_08.estimate_bayes_accuracy
 ```
 
-| Factors | Joint classes | Chance | Estimated Bayes optimal |
+| Factors | Joint classes | Chance | Exact Bayes optimal |
 |---:|---:|---:|---:|
-| 2 | 9 | 0.1111 | 0.2304 |
-| 3 | 27 | 0.0370 | 0.1106 |
+| 2 | 9 | 0.1111 | 0.153664 |
+| 3 | 27 | 0.0370 | 0.060236288 |
 
 Final held-out greedy policy accuracy was:
 
 | Objective | Factors | Init | Final | Final / Bayes | Fraction of chance-to-Bayes gap closed |
 |---|---:|---:|---:|---:|---:|
-| PPO | 2 | 0.1099 | 0.1506 | 65.4% | 33.1% |
-| PPO + CE | 2 | 0.1099 | 0.1517 | 65.8% | 34.0% |
-| PPO | 3 | 0.0376 | 0.0541 | 48.9% | 23.1% |
-| PPO + CE | 3 | 0.0376 | 0.0519 | 46.9% | 20.1% |
+| PPO | 2 | 0.1099 | 0.1506 | 98.0% | 92.7% |
+| PPO + CE | 2 | 0.1099 | 0.1517 | 98.7% | 95.3% |
+| PPO | 3 | 0.0376 | 0.0541 | 89.7% | 73.3% |
+| PPO + CE | 3 | 0.0376 | 0.0519 | 86.1% | 63.9% |
 
 The auxiliary loss therefore changed representation geometry without improving
-the task policy at this budget. All four agents remained substantially below
-Bayes-optimal prediction.
+the task policy at this budget. The two-factor agents were already near
+Bayes-optimal prediction; the three-factor agents retained a modest gap.
 
 ## How to read the representation metrics
 

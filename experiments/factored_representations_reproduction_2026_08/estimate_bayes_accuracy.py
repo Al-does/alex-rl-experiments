@@ -39,7 +39,10 @@ def estimate_bayes_accuracy(
             _, _ = environment.reset(seed=int(rng.integers(2**32)))
             _, _, terminated, truncated, info = environment.step(0)
             while not (terminated or truncated):
-                optimal_probabilities.append(float(np.max(info["belief_current"])))
+                token_probabilities = (
+                    info["belief_current"] @ environment.model.emission_matrix
+                )
+                optimal_probabilities.append(float(np.max(token_probabilities)))
                 _, _, terminated, truncated, info = environment.step(0)
     finally:
         environment.close()
