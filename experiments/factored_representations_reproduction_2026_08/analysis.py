@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from itertools import combinations
 import json
-import time
 from pathlib import Path
 from typing import Any
 
@@ -58,47 +57,6 @@ _STREAM_KEYS = {
     "vary_one": (602,),
     "regression_cv": (603,),
 }
-
-
-def _array_summary(values: Any) -> dict[str, Any]:
-    array = np.asarray(values)
-    finite = np.isfinite(array)
-    finite_values = array[finite]
-    bad_indices = np.argwhere(~finite)[:12]
-    return {
-        "shape": list(array.shape),
-        "dtype": str(array.dtype),
-        "nan_count": int(np.isnan(array).sum()),
-        "posinf_count": int(np.isposinf(array).sum()),
-        "neginf_count": int(np.isneginf(array).sum()),
-        "finite_min": float(finite_values.min()) if finite_values.size else None,
-        "finite_max": float(finite_values.max()) if finite_values.size else None,
-        "first_bad_indices": bad_indices.tolist(),
-        "first_bad_values": [str(array[tuple(index)]) for index in bad_indices],
-    }
-
-
-# region agent log
-def _debug_log(
-    hypothesis_id: str,
-    location: str,
-    message: str,
-    data: dict[str, Any],
-) -> None:
-    with open("/opt/cursor/logs/debug.log", "a", encoding="utf-8") as log:
-        log.write(
-            json.dumps(
-                {
-                    "hypothesisId": hypothesis_id,
-                    "location": location,
-                    "message": message,
-                    "data": data,
-                    "timestamp": int(time.time() * 1000),
-                }
-            )
-            + "\n"
-        )
-# endregion
 
 
 def _json_write(path: Path, value: Any) -> None:
@@ -195,20 +153,6 @@ def _regression_report(
         seed=seed,
     )
     predicted = _predict(weight, bias, test.activations)
-    # region agent log
-    _debug_log(
-        "C",
-        "analysis.py:_regression_report",
-        "Regression inputs and outputs",
-        {
-            "train_activations": _array_summary(train.activations),
-            "train_target": _array_summary(train_target),
-            "weight": _array_summary(weight),
-            "bias": _array_summary(bias),
-            "predicted": _array_summary(predicted),
-        },
-    )
-    # endregion
     report: dict[str, Any] = {
         "target": "concatenated_exact_factor_predictive_vectors",
         "fit": selection,
@@ -269,18 +213,6 @@ def _variance_report(
     *,
     factor_count: int,
 ) -> dict[str, Any]:
-    # region agent log
-    _debug_log(
-        "A,B",
-        "analysis.py:_variance_report",
-        "Variance geometry inputs",
-        {
-            "activations": _array_summary(test.activations),
-            "factor_beliefs": _array_summary(_concatenated_factors(test)),
-            "joint_beliefs": _array_summary(test.joint_beliefs),
-        },
-    )
-    # endregion
     activation = variance_geometry(test.activations)
     factored_target = variance_geometry(_concatenated_factors(test))
     joint_target = variance_geometry(test.joint_beliefs)
@@ -332,17 +264,6 @@ def _vary_one_report(
         sequence_length=SEQUENCE_LENGTH,
         seed=seed,
     )
-    # region agent log
-    _debug_log(
-        "D",
-        "analysis.py:_vary_one_report",
-        "Vary-one activation inputs",
-        {
-            name: _array_summary(values)
-            for name, values in varied.activations.items()
-        },
-    )
-    # endregion
     centered = {
         name: center_within_groups(values, varied.groups[name])
         for name, values in varied.activations.items()
@@ -423,14 +344,6 @@ def _embedding_report(module: Any, *, factor_count: int) -> dict[str, Any]:
         .numpy()
         .astype(np.float64, copy=False)
     )
-    # region agent log
-    _debug_log(
-        "E",
-        "analysis.py:_embedding_report",
-        "Token embedding inputs",
-        {"embeddings": _array_summary(embeddings)},
-    )
-    # endregion
     subtokens = decode_joint_tokens(
         np.arange(joint_token_count(factor_count)),
         factor_count,
@@ -501,21 +414,6 @@ def analyze_checkpoint(
 ) -> dict[str, Any]:
     """Run the full complementary analysis battery on one checkpoint."""
 
-    # region agent log
-    _debug_log(
-        "A,B,C,D,E",
-        "analysis.py:analyze_checkpoint",
-        "Checkpoint analysis entry",
-        {
-            "checkpoint": str(checkpoint),
-            "factor_count": factor_count,
-            "checkpoint_label": checkpoint_label,
-            "agent_steps": agent_steps,
-            "training_iteration": training_iteration,
-            "smoke": context.smoke,
-        },
-    )
-    # endregion
     if context.seed is None:
         raise ValueError("factor analysis requires a resolved seed")
     streams = named_seed_sequences(context.seed, _STREAM_KEYS)
@@ -561,23 +459,6 @@ def analyze_checkpoint(
             seed=streams["probe_test"],
             **common,
         )
-        # region agent log
-        _debug_log(
-            "A,B",
-            "analysis.py:analyze_checkpoint",
-            "Collected train and test probe data",
-            {
-                "train_activations": _array_summary(train.activations),
-                "test_activations": _array_summary(test.activations),
-                "train_joint_beliefs": _array_summary(train.joint_beliefs),
-                "test_joint_beliefs": _array_summary(test.joint_beliefs),
-                "train_factor_beliefs": _array_summary(train.factor_beliefs),
-                "test_factor_beliefs": _array_summary(test.factor_beliefs),
-                "train_rewards": _array_summary(train.rewards),
-                "test_rewards": _array_summary(test.rewards),
-            },
-        )
-        # endregion
         consistency = max(
             train.product_consistency_max_abs,
             test.product_consistency_max_abs,
