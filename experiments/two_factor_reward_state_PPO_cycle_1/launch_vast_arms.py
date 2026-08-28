@@ -35,6 +35,21 @@ def _resolve_harness(explicit: Path | None) -> Path:
     raise FileNotFoundError("could not locate rl-harness checkout")
 
 
+def _git_ref(repo: Path) -> str:
+    branch = subprocess.check_output(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=repo,
+        text=True,
+    ).strip()
+    if branch != "HEAD":
+        return branch
+    return subprocess.check_output(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo,
+        text=True,
+    ).strip()
+
+
 def _git_sha(repo: Path) -> str:
     return subprocess.check_output(
         ["git", "rev-parse", "HEAD"],
@@ -90,7 +105,7 @@ def provision_arm(
         "ondemand",
         "--experiment-repo",
         str(experiment_repo),
-        "--commit",
+        "--branch",
         experiment_ref,
         "--library-commit",
         library_ref,
@@ -169,7 +184,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     harness = _resolve_harness(args.harness)
     experiment_repo = args.experiment_repo.expanduser().resolve()
-    experiment_ref = args.experiment_ref or _git_sha(experiment_repo)
+    experiment_ref = args.experiment_ref or _git_ref(experiment_repo)
     library_ref = args.library_ref or _git_sha(harness)
     plan = {
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
