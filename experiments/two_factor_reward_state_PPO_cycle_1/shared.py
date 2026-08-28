@@ -51,11 +51,11 @@ from harness.runners import run_tune
 
 TOTAL_ENV_STEPS = 10_000_000
 SMOKE_ENV_STEPS = 1_024
-# A 64-frame action-aware transformer OOMs at the factored-reproduction 32k
-# batch on a single RTX 4090; these sizes match other long-context PPO arms.
-TRAIN_BATCH_SIZE = 8_192
+# A 64-frame action-aware transformer OOMs at 8k batch on some 4090 hosts;
+# 4k/1k fits reliably across the fleet.
+TRAIN_BATCH_SIZE = 4_096
 SMOKE_BATCH_SIZE = 1_024
-MINIBATCH_SIZE = 2_048
+MINIBATCH_SIZE = 1_024
 SMOKE_MINIBATCH_SIZE = 256
 LEARNING_RATE = 3e-4
 GAE_LAMBDA = 0.95
