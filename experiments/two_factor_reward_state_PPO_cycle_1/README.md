@@ -25,7 +25,7 @@ reward.
   observation therefore contains one aligned joint-token/action frame rather
   than a flattened copy of all 64 frames.
 - PPO uses `gamma=0.99`, GAE `lambda=0.95`, learning rate `3e-4`, six epochs,
-  a 32,768 train batch, and 4,096-sample minibatches.
+  an 8,192 train batch, and 2,048-sample minibatches on GPU.
 
 ## Required pretraining audit
 
