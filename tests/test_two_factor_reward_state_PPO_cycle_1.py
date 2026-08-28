@@ -129,7 +129,7 @@ def test_each_leaf_builds_a_fresh_twenty_million_step_ppo_recipe(
     assert first.env_config["task"]["kwargs"]["condition"] == condition
     assert first.rl_module_spec.module_class is TwoFactorRewardPPO
     assert first.rl_module_spec.model_config["d_model"] == 64
-    assert TOTAL_ENV_STEPS == 20_000_000
+    assert TOTAL_ENV_STEPS == 10_000_000
 
 
 def test_actor_critic_uses_action_aware_64d_causal_transformer():

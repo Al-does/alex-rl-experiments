@@ -8,9 +8,11 @@ reward.
 
 ## Preregistered design
 
-- The process, flat nine-action product, reward arms, 20,000,000-step budget,
-  seed policy, demand audit, checkpoint schedule, and probe targets are the
-  same as `two_factor_reward_state_SAC_cycle_1`.
+- The process, flat nine-action product, reward arms, seed policy, demand
+  audit, checkpoint schedule, and probe targets match
+  `two_factor_reward_state_SAC_cycle_1`.
+- Cycle 1 trains PPO for 10,000,000 environment steps at seed 42 unless the
+  runtime supplies another seed.
 - Two independent three-state MESS3 factors use emission accuracy `alpha=0.55`
   and baseline transition rows
   `[[.75,.15,.10],[.15,.75,.10],[.30,.30,.40]]`.
