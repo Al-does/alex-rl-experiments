@@ -23,11 +23,11 @@ from harness.hardware import PROFILES
 MINIBATCH_COUNT = 8
 DEFAULT_CANDIDATES = (
     65_536,
-    131_072,
-    262_144,
-    524_288,
-    1_048_576,
-    2_097_152,
+    73_728,
+    75_776,
+    77_824,
+    77_952,
+    78_080,
 )
 
 

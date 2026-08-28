@@ -144,11 +144,11 @@ def test_capacity_candidates_split_into_exactly_eight_minibatches():
     assert all(batch_size % MINIBATCH_COUNT == 0 for batch_size in DEFAULT_CANDIDATES)
     assert [batch_size // MINIBATCH_COUNT for batch_size in DEFAULT_CANDIDATES] == [
         8_192,
-        16_384,
-        32_768,
-        65_536,
-        131_072,
-        262_144,
+        9_216,
+        9_472,
+        9_728,
+        9_744,
+        9_760,
     ]
 
 
