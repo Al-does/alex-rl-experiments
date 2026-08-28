@@ -1,0 +1,73 @@
+{
+  "activation_location": "actor final transformer block residual, after MLP and before final LN",
+  "actor_learning_rate": 3e-05,
+  "algorithm": "discrete SAC",
+  "alpha_learning_rate": 0.0003,
+  "analysis": [
+    "actor-only held-out joint regression to factor beliefs",
+    "actor activation/factored-target/joint-target CEV",
+    "actor vary-one per-position-centered PCA",
+    "actor subspace additivity and principal-angle overlap",
+    "actor token-embedding geometry"
+  ],
+  "architecture": "independent actor, critic, and twin-critic paper transformers; one linear head per network",
+  "checkpoint_schedule": "initial, powers of two iterations, final",
+  "condition": "sac",
+  "critic_learning_rate": 0.0003,
+  "environment": {
+    "delay": 1,
+    "episode_length": 9,
+    "model": {
+      "factory": "envs.hmm:factored_model",
+      "kwargs": {
+        "factors": [
+          {
+            "factory": "experiments.factored_representations_reproduction_SAC_2026_08.process:paper_mess3_model"
+          },
+          {
+            "factory": "experiments.factored_representations_reproduction_SAC_2026_08.process:paper_mess3_model"
+          },
+          {
+            "factory": "experiments.factored_representations_reproduction_SAC_2026_08.process:paper_mess3_model"
+          }
+        ]
+      }
+    },
+    "observation": {
+      "action": null,
+      "token": {
+        "depth": 9
+      }
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "experiments.factored_representations_reproduction_SAC_2026_08.task:NextJointTokenGuessTask"
+    }
+  },
+  "factor_count": 3,
+  "factors": "conditionally independent MESS3(alpha=0.6, x=0.15)",
+  "gamma": 0.0,
+  "joint_token_count": 27,
+  "learning_starts": 1500,
+  "model": {
+    "activation": "relu",
+    "context_length": 9,
+    "d_mlp": 256,
+    "d_model": 64,
+    "head_fcnet_hiddens": [],
+    "max_seq_len": 32,
+    "n_heads": 4,
+    "n_layers": 4,
+    "normalization": "layer_norm",
+    "positional_embedding": "learned_absolute"
+  },
+  "n_step": 1,
+  "next_token_aux_coefficient": 0.0,
+  "objective": "discrete SAC correctness reward",
+  "paper": "Transformers learn factored representations (arXiv:2602.02385)",
+  "replay_capacity": 1000000,
+  "tau": 0.005,
+  "total_env_steps": 10000000,
+  "train_batch_size_per_learner": 256,
+  "twin_q": true
+}
