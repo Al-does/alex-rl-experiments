@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import importlib
 import math
+from types import SimpleNamespace
 
 import pytest
+from ray.rllib.algorithms.sac import SAC
 from ray.rllib.algorithms.sac.torch.sac_torch_learner import SACTorchLearner
 
 from experiments.factored_representations_reproduction_SAC_2026_08.learning import (
@@ -18,7 +20,10 @@ from experiments.factored_representations_reproduction_SAC_cycle_2_2026_08.bench
 )
 from experiments.factored_representations_reproduction_SAC_cycle_2_2026_08.shared import (
     AUXILIARY_COEFFICIENTS,
+    EightMinibatchSAC,
     LEARNING_STARTS,
+    LEARNER_MINIBATCH_COUNT,
+    LEARNER_MINIBATCH_SIZE,
     PRIORITIZED_REPLAY_ALPHA,
     PRIORITIZED_REPLAY_BETA,
     TARGET_ENTROPY_FRACTIONS,
@@ -57,7 +62,10 @@ def test_reward_only_cells_resolve_preregistered_cycle_2_values(
         target_entropy_fraction=entropy_fraction,
     )
 
-    assert config.train_batch_size_per_learner == TRAIN_BATCH_SIZE == 256
+    assert config.train_batch_size_per_learner == TRAIN_BATCH_SIZE == 65_536
+    assert LEARNER_MINIBATCH_COUNT == 8
+    assert LEARNER_MINIBATCH_SIZE == 8_192
+    assert config.algo_class is EightMinibatchSAC
     assert config.num_steps_sampled_before_learning_starts == LEARNING_STARTS == 10_000
     assert config.training_intensity == TRAINING_INTENSITY == 1.0
     assert config.replay_buffer_config["alpha"] == PRIORITIZED_REPLAY_ALPHA == 0.6
@@ -159,3 +167,43 @@ def test_largest_completed_ignores_failed_larger_candidate():
         {"batch_size": 262_144, "status": "oom"},
     ]
     assert largest_completed(results) == results[1]
+
+
+@pytest.mark.parametrize(
+    ("total_batch_size", "expected_minibatch_size"),
+    [(65_536, 8_192), (64, 64)],
+)
+def test_custom_sac_passes_minibatch_size_to_learner(
+    monkeypatch,
+    total_batch_size,
+    expected_minibatch_size,
+):
+    calls = []
+
+    class LearnerGroup:
+        def update(self, *args, **kwargs):
+            calls.append((args, kwargs))
+            return {"updated": True}
+
+    def parent_training_step(self):
+        self.learner_group.update(episodes=["episode"])
+        return {"complete": True}
+
+    monkeypatch.setattr(SAC, "training_step", parent_training_step)
+    algorithm = object.__new__(EightMinibatchSAC)
+    algorithm.learner_group = LearnerGroup()
+    algorithm.config = SimpleNamespace(total_train_batch_size=total_batch_size)
+    original_update = algorithm.learner_group.update
+
+    assert algorithm.training_step() == {"complete": True}
+    assert calls == [
+        (
+            (),
+            {
+                "episodes": ["episode"],
+                "num_epochs": 1,
+                "minibatch_size": expected_minibatch_size,
+            },
+        )
+    ]
+    assert algorithm.learner_group.update == original_update

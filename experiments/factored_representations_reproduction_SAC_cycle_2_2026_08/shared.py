@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from ray import tune
-from ray.rllib.algorithms.sac import SACConfig
+from ray.rllib.algorithms.sac import SAC, SACConfig
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
 from envs.hmm import HMMEnv
@@ -46,7 +46,9 @@ from losses.next_token import LAMBDA_KEY
 
 TOTAL_ENV_STEPS = 50_000_000
 SMOKE_ENV_STEPS = 128
-TRAIN_BATCH_SIZE = 256
+TRAIN_BATCH_SIZE = 65_536
+LEARNER_MINIBATCH_COUNT = 8
+LEARNER_MINIBATCH_SIZE = TRAIN_BATCH_SIZE // LEARNER_MINIBATCH_COUNT
 SMOKE_BATCH_SIZE = 64
 LEARNING_STARTS = 10_000
 SMOKE_LEARNING_STARTS = 32
@@ -62,6 +64,28 @@ MODEL_CONFIG = {
     **FactoredReproductionModelConfig().to_dict(),
     "head_fcnet_hiddens": [],
 }
+
+
+class EightMinibatchSAC(SAC):
+    """Process each full replay batch as eight sequential learner updates."""
+
+    def training_step(self) -> dict[str, Any]:
+        original_update = self.learner_group.update
+        minibatch_size = min(
+            LEARNER_MINIBATCH_SIZE,
+            self.config.total_train_batch_size,
+        )
+
+        def update_with_minibatches(*args: Any, **kwargs: Any) -> Any:
+            kwargs.setdefault("num_epochs", 1)
+            kwargs.setdefault("minibatch_size", minibatch_size)
+            return original_update(*args, **kwargs)
+
+        self.learner_group.update = update_with_minibatches
+        try:
+            return super().training_step()
+        finally:
+            self.learner_group.update = original_update
 
 
 def _validate_cell(
@@ -123,7 +147,7 @@ def build_config(
         }
 
     config = (
-        SACConfig()
+        SACConfig(algo_class=EightMinibatchSAC)
         .environment(
             HMMEnv,
             env_config=environment_config(factor_count),
@@ -257,6 +281,8 @@ def _resolved_recipe(
         "critic_learning_rate": 3e-4,
         "alpha_learning_rate": 3e-4,
         "train_batch_size_per_learner": TRAIN_BATCH_SIZE,
+        "learner_minibatch_count": LEARNER_MINIBATCH_COUNT,
+        "learner_minibatch_size": LEARNER_MINIBATCH_SIZE,
         "training_intensity": TRAINING_INTENSITY,
         "learning_starts": LEARNING_STARTS,
         "replay_capacity": REPLAY_CAPACITY,

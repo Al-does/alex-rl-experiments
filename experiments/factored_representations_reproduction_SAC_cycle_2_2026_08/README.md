@@ -1,9 +1,10 @@
 # Discrete-SAC factored-representation reproduction, cycle 2
 
 This cycle keeps PR #63's task, architecture, probes, 50-million-step budget,
-batch size 256, learning rates, discount, target update, and prioritized replay
-capacity. It changes only the preregistered hyperparameters below:
+learning rates, discount, target update, and prioritized replay capacity. Its
+preregistered hyperparameter changes are:
 
+- replay batch: `65,536`, processed as eight sequential `8,192` minibatches;
 - replay warm-up: `1,500` → `10,000` environment steps;
 - replay intensity: explicit `1.0` trained transition per sampled transition;
 - prioritized replay beta: fixed at `0.6`;
@@ -13,6 +14,11 @@ capacity. It changes only the preregistered hyperparameters below:
 The entropy target is recorded both as its dimensionless fraction and as the
 resolved positive entropy value. This avoids RLlib's action-space-dependent
 `"auto"` resolution from becoming an unrecorded experimental variable.
+
+The batch size is the conservative result of an RTX 4090 capacity sweep. It
+reserved 81.8% of GPU memory for the largest three-factor auxiliary cell;
+`77,952` fit at 97.8%, while `78,080` OOMed. Eight minibatches amortize replay
+and learner coordination while bounding activation memory.
 
 ## Arms
 
