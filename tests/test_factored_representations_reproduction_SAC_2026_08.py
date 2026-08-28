@@ -72,7 +72,9 @@ def _module(*, token_count: int = 9, auxiliary: bool = False):
 @pytest.mark.parametrize("factor_count", FACTOR_COUNTS)
 def test_history_observation_preserves_bos_and_revealed_tokens(factor_count):
     token_count = joint_token_count(factor_count)
-    environment = HMMEnv(environment_config(factor_count))
+    config = environment_config(factor_count)
+    config["diagnostics"] = {"tokens": True}
+    environment = HMMEnv(config)
     try:
         observation, info = environment.reset(seed=7)
         assert observation.shape == (CONTEXT_LENGTH * token_count,)
