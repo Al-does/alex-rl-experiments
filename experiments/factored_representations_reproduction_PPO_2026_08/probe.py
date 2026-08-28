@@ -223,7 +223,9 @@ def _sequence_activations(
     *,
     device: torch.device,
 ) -> np.ndarray:
-    token_count = int(module.observation_space.shape[0])
+    token_count = int(
+        getattr(module.encoder, "obs_dim", module.observation_space.shape[0])
+    )
     expected = joint_token_count(
         int(round(np.log(token_count) / np.log(FACTOR_CARDINALITY)))
     )

@@ -19,6 +19,9 @@ from experiments.factored_representations_reproduction_SAC_2026_08.model import 
     FactoredReproductionSAC,
     ReproductionSACEncoder,
 )
+from experiments.factored_representations_reproduction_SAC_2026_08.probe import (
+    collect_vary_one_data,
+)
 from experiments.factored_representations_reproduction_SAC_2026_08.process import (
     CONTEXT_LENGTH,
     FACTOR_COUNTS,
@@ -133,6 +136,21 @@ def test_actor_hidden_probe_is_pre_final_norm_and_drives_policy_only():
     )
     assert actor_hidden.shape == (2, 64)
     assert not torch.allclose(actor_hidden, normalized)
+
+
+def test_vary_one_probe_uses_actor_token_width_not_flat_history_width():
+    module = _module()
+    varied = collect_vary_one_data(
+        module,
+        factor_count=2,
+        frozen_contexts=1,
+        realizations_per_context=2,
+        sequence_length=2,
+        seed=5,
+    )
+
+    assert set(varied.activations) == {"factor_0", "factor_1"}
+    assert all(values.shape == (4, 64) for values in varied.activations.values())
 
 
 @pytest.mark.parametrize("factor_count", FACTOR_COUNTS)
