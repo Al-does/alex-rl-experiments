@@ -1,0 +1,1 @@
+"""Both-factor reward arm."""
