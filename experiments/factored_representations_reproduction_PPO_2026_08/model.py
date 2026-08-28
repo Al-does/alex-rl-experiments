@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import asdict, dataclass, fields
 from typing import Any
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 from ray.rllib.core.columns import Columns
 from torch import nn
 
@@ -87,13 +87,11 @@ class MultiHeadCausalAttention(nn.Module):
             self.d_head,
         )
         query, key, value = qkv.permute(2, 0, 3, 1, 4).unbind(0)
-        attended = F.scaled_dot_product_attention(
-            query,
-            key,
-            value,
-            attn_mask=allowed[:, None, :, :],
-            dropout_p=0.0,
-        )
+        scores = torch.matmul(query, key.transpose(-1, -2))
+        scores = scores / math.sqrt(self.d_head)
+        scores = scores.masked_fill(~allowed[:, None, :, :], -torch.inf)
+        attention = torch.softmax(scores, dim=-1)
+        attended = torch.matmul(attention, value)
         attended = attended.transpose(1, 2).reshape(batch, length, width)
         return self.output(attended)
 

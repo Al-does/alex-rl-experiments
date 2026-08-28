@@ -32,6 +32,7 @@ from experiments.factored_representations_reproduction_SAC_2026_08.shared import
     MODEL_CONFIG,
     SMOKE_BATCH_SIZE,
     SMOKE_LEARNING_STARTS,
+    TRAIN_BATCH_SIZE,
     build_config,
 )
 from harness.context import RunContext
@@ -205,6 +206,24 @@ def test_smoke_configs_are_fresh_and_resolve_each_sac_design_cell(
         )
     else:
         assert first.learner_class is SACTorchLearner
+
+
+def test_cuda_config_uses_profile_invariant_batched_replay(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cuda4090_gpuinfer"],
+    )
+    config = build_config(context, factor_count=2, condition="sac")
+
+    assert config.train_batch_size_per_learner == TRAIN_BATCH_SIZE == 4_096
+    assert config.training_intensity == 1.0
+    assert config.rollout_fragment_length == CONTEXT_LENGTH
+    assert config.min_sample_timesteps_per_iteration == TRAIN_BATCH_SIZE
+    assert config.torch_compile_learner is False
 
 
 def test_auxiliary_head_uses_actor_embedding_and_next_history_token():

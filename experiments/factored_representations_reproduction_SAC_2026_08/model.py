@@ -183,15 +183,7 @@ class FactoredReproductionSAC(DefaultSACTorchRLModule):
         batch_curr = {Columns.OBS: batch[Columns.OBS]}
         batch_next = {Columns.OBS: batch[Columns.NEXT_OBS]}
 
-        current_batch_size = batch[Columns.OBS].shape[0]
-        actor_current, actor_next = self.pi_encoder(
-            {
-                Columns.OBS: torch.cat(
-                    [batch[Columns.OBS], batch[Columns.NEXT_OBS]],
-                    dim=0,
-                )
-            }
-        )[ENCODER_OUT].split(current_batch_size, dim=0)
+        actor_next = self.pi_encoder(batch_next)[ENCODER_OUT]
         next_logits = self.pi(actor_next)
         next_log_probs = F.log_softmax(next_logits, dim=-1)
         output = {
@@ -213,6 +205,7 @@ class FactoredReproductionSAC(DefaultSACTorchRLModule):
                 squeeze=False,
             )
 
+        actor_current = self.pi_encoder(batch_curr)[ENCODER_OUT]
         current_logits = self.pi(actor_current)
         current_log_probs = F.log_softmax(current_logits, dim=-1)
         output[Columns.EMBEDDINGS] = actor_current

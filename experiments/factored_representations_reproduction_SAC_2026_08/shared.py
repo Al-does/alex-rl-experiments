@@ -33,6 +33,7 @@ from experiments.factored_representations_reproduction_SAC_2026_08.model import 
     ReproductionSACCatalog,
 )
 from experiments.factored_representations_reproduction_SAC_2026_08.process import (
+    CONTEXT_LENGTH,
     FACTOR_COUNTS,
     environment_config,
     joint_token_count,
@@ -45,7 +46,7 @@ from harness.runners import run_tune
 
 TOTAL_ENV_STEPS = 50_000_000
 SMOKE_ENV_STEPS = 128
-TRAIN_BATCH_SIZE = 256
+TRAIN_BATCH_SIZE = 4_096
 SMOKE_BATCH_SIZE = 64
 LEARNING_STARTS = 1_500
 SMOKE_LEARNING_STARTS = 32
@@ -103,6 +104,9 @@ def build_config(
             train_batch_size_per_learner=(
                 SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
             ),
+            # Keep replay-to-environment exposure invariant across hardware
+            # profiles instead of inheriting RLlib's runner-dependent ratio.
+            training_intensity=1.0,
             num_steps_sampled_before_learning_starts=(
                 SMOKE_LEARNING_STARTS if context.smoke else LEARNING_STARTS
             ),
@@ -143,7 +147,7 @@ def build_config(
                 1 if context.smoke else profile.num_envs_per_env_runner
             ),
             num_gpus_per_env_runner=0,
-            rollout_fragment_length=1,
+            rollout_fragment_length=(1 if context.smoke else CONTEXT_LENGTH),
             sample_timeout_s=600.0,
         )
         .learners(
@@ -153,7 +157,7 @@ def build_config(
         )
         .reporting(
             min_sample_timesteps_per_iteration=(
-                64 if context.smoke else 100
+                64 if context.smoke else TRAIN_BATCH_SIZE
             ),
             min_time_s_per_iteration=0 if context.smoke else 1,
         )
@@ -199,6 +203,8 @@ def _resolved_recipe(
         "critic_learning_rate": 3e-4,
         "alpha_learning_rate": 3e-4,
         "train_batch_size_per_learner": TRAIN_BATCH_SIZE,
+        "training_intensity": 1.0,
+        "rollout_fragment_length": CONTEXT_LENGTH,
         "learning_starts": LEARNING_STARTS,
         "replay_capacity": REPLAY_CAPACITY,
         "model": MODEL_CONFIG,
