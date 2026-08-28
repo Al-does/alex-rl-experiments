@@ -87,12 +87,9 @@ def build_config(
         )
         .framework(
             "torch",
-            torch_compile_learner=(
-                not context.smoke and profile.learner_device == "cuda"
-            ),
-            torch_compile_learner_what_to_compile="forward_train",
-            torch_compile_learner_dynamo_backend="inductor",
-            torch_compile_learner_dynamo_mode="reduce-overhead",
+            # This small fixed-window SAC graph benchmarks faster in eager mode
+            # on an RTX 4090; compile overhead does not amortize per update.
+            torch_compile_learner=False,
             torch_compile_worker=False,
         )
         .training(
