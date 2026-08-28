@@ -5,10 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+import gymnasium as gym
 import torch
 from ray.rllib.core.columns import Columns
 from ray.rllib.core.models.base import ENCODER_OUT, Encoder
+from ray.rllib.core.models.torch.base import TorchModel
 
+from experiments.factored_representations_reproduction_PPO_2026_08.model import (
+    FactoredReproductionModelConfig,
+    ReproductionResidualEncoder,
+)
 from experiments.factored_representations_reproduction_SAC_2026_08.model import (
     FactoredReproductionSAC,
     ReproductionSACCatalog,
@@ -42,7 +48,20 @@ class TwoFactorSACEncoder(ReproductionSACEncoder):
     def __init__(self, config: TwoFactorSACEncoderConfig) -> None:
         if config.token_count != FRAME_WIDTH:
             raise ValueError(f"frame width must be {FRAME_WIDTH}")
-        super().__init__(config)
+        TorchModel.__init__(self, config)
+        Encoder.__init__(self, config)
+        self.reproduction_config = FactoredReproductionModelConfig.from_dict(
+            config.transformer
+        )
+        if self.reproduction_config.context_length != CONTEXT_LENGTH:
+            raise ValueError(
+                "transformer context length must match the observation history"
+            )
+        self.token_count = config.token_count
+        self.encoder = ReproductionResidualEncoder(
+            config.token_count,
+            self.reproduction_config,
+        )
 
     @staticmethod
     def _frames(observations: torch.Tensor) -> torch.Tensor:
@@ -84,6 +103,27 @@ class TwoFactorSACEncoder(ReproductionSACEncoder):
 
 class TwoFactorSACCatalog(ReproductionSACCatalog):
     """Build independent action-aware transformers for actor and critics."""
+
+    def __init__(
+        self,
+        observation_space: gym.Space,
+        action_space: gym.Space,
+        model_config_dict: dict[str, Any],
+        view_requirements: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(
+            observation_space,
+            action_space,
+            model_config_dict,
+            view_requirements,
+        )
+        if tuple(observation_space.shape) != (FLAT_OBSERVATION_WIDTH,):
+            raise ValueError(
+                "two-factor SAC observation does not match its history contract"
+            )
+        # The parent catalog targets the nine-position reproduction study.
+        # This study has 64 aligned token/action frames instead.
+        self.token_count = FRAME_WIDTH
 
     def _make_encoder_config(self, *, actor: bool) -> TwoFactorSACEncoderConfig:
         return TwoFactorSACEncoderConfig(
