@@ -11,6 +11,11 @@ from ray.rllib.algorithms.sac.torch.sac_torch_learner import SACTorchLearner
 from experiments.factored_representations_reproduction_SAC_2026_08.learning import (
     SACWithNextJointTokenAux,
 )
+from experiments.factored_representations_reproduction_SAC_cycle_2_2026_08.benchmark_minibatch_capacity import (
+    DEFAULT_CANDIDATES,
+    MINIBATCH_COUNT,
+    largest_completed,
+)
 from experiments.factored_representations_reproduction_SAC_cycle_2_2026_08.shared import (
     AUXILIARY_COEFFICIENTS,
     LEARNING_STARTS,
@@ -132,3 +137,25 @@ def test_each_preregistered_arm_exports_run(arm):
         f"{arm}.experiment"
     )
     assert callable(module.run)
+
+
+def test_capacity_candidates_split_into_exactly_eight_minibatches():
+    assert MINIBATCH_COUNT == 8
+    assert all(batch_size % MINIBATCH_COUNT == 0 for batch_size in DEFAULT_CANDIDATES)
+    assert [batch_size // MINIBATCH_COUNT for batch_size in DEFAULT_CANDIDATES] == [
+        8_192,
+        16_384,
+        32_768,
+        65_536,
+        131_072,
+        262_144,
+    ]
+
+
+def test_largest_completed_ignores_failed_larger_candidate():
+    results = [
+        {"batch_size": 65_536, "status": "completed"},
+        {"batch_size": 131_072, "status": "completed"},
+        {"batch_size": 262_144, "status": "oom"},
+    ]
+    assert largest_completed(results) == results[1]
