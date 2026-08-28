@@ -1,14 +1,15 @@
-"""Discrete-SAC recipe and actor-representation checkpoint analysis."""
+"""Cycle-2 discrete-SAC recipe with focused entropy and auxiliary sweeps."""
 
 from __future__ import annotations
 
 from dataclasses import replace
 from functools import partial
+import math
 from pathlib import Path
 from typing import Any
 
 from ray import tune
-from ray.rllib.algorithms.sac import SACConfig
+from ray.rllib.algorithms.sac import SAC, SACConfig
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
 from envs.hmm import HMMEnv
@@ -25,7 +26,6 @@ from experiments.factored_representations_reproduction_SAC_2026_08.analysis impo
     plot_probe_trajectory,
 )
 from experiments.factored_representations_reproduction_SAC_2026_08.learning import (
-    AUXILIARY_COEFFICIENT,
     SACWithNextJointTokenAux,
 )
 from experiments.factored_representations_reproduction_SAC_2026_08.model import (
@@ -33,7 +33,6 @@ from experiments.factored_representations_reproduction_SAC_2026_08.model import 
     ReproductionSACCatalog,
 )
 from experiments.factored_representations_reproduction_SAC_2026_08.process import (
-    CONTEXT_LENGTH,
     FACTOR_COUNTS,
     environment_config,
     joint_token_count,
@@ -43,21 +42,84 @@ from harness.artifacts import RunArtifacts
 from harness.context import RunContext
 from harness.hardware import PROFILES, resolve_env_runners
 from harness.runners import run_tune
+from losses.next_token import LAMBDA_KEY
 
 TOTAL_ENV_STEPS = 50_000_000
 SMOKE_ENV_STEPS = 128
-TRAIN_BATCH_SIZE = 4_096
+TRAIN_BATCH_SIZE = 65_536
+LEARNER_MINIBATCH_COUNT = 8
+LEARNER_MINIBATCH_SIZE = TRAIN_BATCH_SIZE // LEARNER_MINIBATCH_COUNT
 SMOKE_BATCH_SIZE = 64
-LEARNING_STARTS = 1_500
+LEARNING_STARTS = 10_000
 SMOKE_LEARNING_STARTS = 32
 REPLAY_CAPACITY = 1_000_000
 SMOKE_REPLAY_CAPACITY = 1_024
+PRIORITIZED_REPLAY_ALPHA = 0.6
+PRIORITIZED_REPLAY_BETA = 0.6
+TRAINING_INTENSITY = 1.0
+TARGET_ENTROPY_FRACTIONS = (0.3, 0.6)
+AUXILIARY_COEFFICIENTS = (0.1, 0.3)
+CONDITIONS = ("sac", "sac_aux_ce")
 MODEL_CONFIG = {
     **FactoredReproductionModelConfig().to_dict(),
-    # Empty RLlib head stacks make both actor and Q heads single linear maps.
     "head_fcnet_hiddens": [],
 }
-CONDITIONS = ("sac", "sac_aux_ce")
+
+
+class EightMinibatchSAC(SAC):
+    """Process each full replay batch as eight sequential learner updates."""
+
+    def training_step(self) -> dict[str, Any]:
+        original_update = self.learner_group.update
+        minibatch_size = min(
+            LEARNER_MINIBATCH_SIZE,
+            self.config.total_train_batch_size,
+        )
+
+        def update_with_minibatches(*args: Any, **kwargs: Any) -> Any:
+            kwargs.setdefault("num_epochs", 1)
+            kwargs.setdefault("minibatch_size", minibatch_size)
+            return original_update(*args, **kwargs)
+
+        self.learner_group.update = update_with_minibatches
+        try:
+            return super().training_step()
+        finally:
+            self.learner_group.update = original_update
+
+
+def _validate_cell(
+    *,
+    factor_count: int,
+    condition: str,
+    target_entropy_fraction: float,
+    auxiliary_coefficient: float | None,
+) -> None:
+    if factor_count not in FACTOR_COUNTS:
+        raise ValueError(f"factor_count must be one of {FACTOR_COUNTS}")
+    if condition not in CONDITIONS:
+        raise ValueError(f"condition must be one of {CONDITIONS}")
+    if target_entropy_fraction not in TARGET_ENTROPY_FRACTIONS:
+        raise ValueError(
+            f"target_entropy_fraction must be one of {TARGET_ENTROPY_FRACTIONS}"
+        )
+    if condition == "sac_aux_ce":
+        if auxiliary_coefficient not in AUXILIARY_COEFFICIENTS:
+            raise ValueError(
+                f"auxiliary_coefficient must be one of {AUXILIARY_COEFFICIENTS}"
+            )
+    elif auxiliary_coefficient is not None:
+        raise ValueError("reward-only SAC does not accept an auxiliary coefficient")
+
+
+def target_entropy(factor_count: int, fraction: float) -> float:
+    """Return a positive entropy target as a fraction of categorical maximum."""
+
+    if factor_count not in FACTOR_COUNTS:
+        raise ValueError(f"factor_count must be one of {FACTOR_COUNTS}")
+    if fraction not in TARGET_ENTROPY_FRACTIONS:
+        raise ValueError(f"fraction must be one of {TARGET_ENTROPY_FRACTIONS}")
+    return fraction * math.log(joint_token_count(factor_count))
 
 
 def build_config(
@@ -65,13 +127,17 @@ def build_config(
     *,
     factor_count: int,
     condition: str,
+    target_entropy_fraction: float,
+    auxiliary_coefficient: float | None = None,
 ) -> SACConfig:
-    """Build one fresh discrete-SAC objective-by-environment configuration."""
+    """Build one cycle-2 objective-by-entropy-by-environment configuration."""
 
-    if condition not in CONDITIONS:
-        raise ValueError(f"condition must be one of {CONDITIONS}")
-    if factor_count not in FACTOR_COUNTS:
-        raise ValueError(f"factor_count must be one of {FACTOR_COUNTS}")
+    _validate_cell(
+        factor_count=factor_count,
+        condition=condition,
+        target_entropy_fraction=target_entropy_fraction,
+        auxiliary_coefficient=auxiliary_coefficient,
+    )
     profile = context.hardware or PROFILES["cpu"]
     auxiliary = condition == "sac_aux_ce"
     model_config = dict(MODEL_CONFIG)
@@ -81,16 +147,19 @@ def build_config(
         }
 
     config = (
-        SACConfig()
+        SACConfig(algo_class=EightMinibatchSAC)
         .environment(
             HMMEnv,
             env_config=environment_config(factor_count),
         )
         .framework(
             "torch",
-            # This small fixed-window SAC graph benchmarks faster in eager mode
-            # on an RTX 4090; compile overhead does not amortize per update.
-            torch_compile_learner=False,
+            torch_compile_learner=(
+                not context.smoke and profile.learner_device == "cuda"
+            ),
+            torch_compile_learner_what_to_compile="forward_train",
+            torch_compile_learner_dynamo_backend="inductor",
+            torch_compile_learner_dynamo_mode="reduce-overhead",
             torch_compile_worker=False,
         )
         .training(
@@ -101,12 +170,14 @@ def build_config(
             actor_lr=3e-5,
             critic_lr=3e-4,
             alpha_lr=3e-4,
+            target_entropy=target_entropy(
+                factor_count,
+                target_entropy_fraction,
+            ),
             train_batch_size_per_learner=(
                 SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
             ),
-            # Keep replay-to-environment exposure invariant across hardware
-            # profiles instead of inheriting RLlib's runner-dependent ratio.
-            training_intensity=1.0,
+            training_intensity=TRAINING_INTENSITY,
             num_steps_sampled_before_learning_starts=(
                 SMOKE_LEARNING_STARTS if context.smoke else LEARNING_STARTS
             ),
@@ -115,8 +186,8 @@ def build_config(
                 "capacity": (
                     SMOKE_REPLAY_CAPACITY if context.smoke else REPLAY_CAPACITY
                 ),
-                "alpha": 0.6,
-                "beta": 0.4,
+                "alpha": PRIORITIZED_REPLAY_ALPHA,
+                "beta": PRIORITIZED_REPLAY_BETA,
             },
         )
         .rl_module(
@@ -147,7 +218,7 @@ def build_config(
                 1 if context.smoke else profile.num_envs_per_env_runner
             ),
             num_gpus_per_env_runner=0,
-            rollout_fragment_length=(1 if context.smoke else CONTEXT_LENGTH),
+            rollout_fragment_length=1,
             sample_timeout_s=600.0,
         )
         .learners(
@@ -156,9 +227,7 @@ def build_config(
             ),
         )
         .reporting(
-            min_sample_timesteps_per_iteration=(
-                64 if context.smoke else TRAIN_BATCH_SIZE
-            ),
+            min_sample_timesteps_per_iteration=(64 if context.smoke else 100),
             min_time_s_per_iteration=0 if context.smoke else 1,
         )
     )
@@ -166,7 +235,7 @@ def build_config(
         config = config.learners(
             learner_class=SACWithNextJointTokenAux,
             learner_config_dict={
-                "next_token_aux/lambda": AUXILIARY_COEFFICIENT,
+                LAMBDA_KEY: auxiliary_coefficient,
             },
         )
     return config
@@ -176,10 +245,14 @@ def _resolved_recipe(
     *,
     factor_count: int,
     condition: str,
+    target_entropy_fraction: float,
+    auxiliary_coefficient: float | None,
     context: RunContext,
 ) -> dict[str, Any]:
     auxiliary = condition == "sac_aux_ce"
     return {
+        "cycle": 2,
+        "source_recipe": "PR #63",
         "paper": "Transformers learn factored representations (arXiv:2602.02385)",
         "condition": condition,
         "factor_count": factor_count,
@@ -193,7 +266,12 @@ def _resolved_recipe(
             else "discrete SAC correctness reward"
         ),
         "next_token_aux_coefficient": (
-            AUXILIARY_COEFFICIENT if auxiliary else 0.0
+            auxiliary_coefficient if auxiliary else 0.0
+        ),
+        "target_entropy_fraction_of_categorical_maximum": target_entropy_fraction,
+        "target_entropy": target_entropy(
+            factor_count,
+            target_entropy_fraction,
         ),
         "gamma": 0.0,
         "n_step": 1,
@@ -203,10 +281,13 @@ def _resolved_recipe(
         "critic_learning_rate": 3e-4,
         "alpha_learning_rate": 3e-4,
         "train_batch_size_per_learner": TRAIN_BATCH_SIZE,
-        "training_intensity": 1.0,
-        "rollout_fragment_length": CONTEXT_LENGTH,
+        "learner_minibatch_count": LEARNER_MINIBATCH_COUNT,
+        "learner_minibatch_size": LEARNER_MINIBATCH_SIZE,
+        "training_intensity": TRAINING_INTENSITY,
         "learning_starts": LEARNING_STARTS,
         "replay_capacity": REPLAY_CAPACITY,
+        "prioritized_replay_alpha": PRIORITIZED_REPLAY_ALPHA,
+        "prioritized_replay_beta": PRIORITIZED_REPLAY_BETA,
         "model": MODEL_CONFIG,
         "architecture": (
             "independent actor, critic, and twin-critic paper transformers; "
@@ -234,13 +315,21 @@ def run_factor_condition(
     *,
     factor_count: int,
     condition: str,
+    target_entropy_fraction: float,
+    auxiliary_coefficient: float | None = None,
 ) -> dict[str, Any]:
-    """Train and analyze one cell of the SAC objective-by-factor design."""
+    """Train and analyze one cycle-2 design cell."""
 
+    _validate_cell(
+        factor_count=factor_count,
+        condition=condition,
+        target_entropy_fraction=target_entropy_fraction,
+        auxiliary_coefficient=auxiliary_coefficient,
+    )
     if context.seed is None:
         raise ValueError("the reproduction requires a resolved seed")
     if context.resume_from is not None:
-        raise ValueError("SAC continuation is not defined for this new recipe")
+        raise ValueError("SAC continuation is not defined for this recipe")
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     outputs.write_json(
@@ -248,6 +337,8 @@ def run_factor_condition(
         _resolved_recipe(
             factor_count=factor_count,
             condition=condition,
+            target_entropy_fraction=target_entropy_fraction,
+            auxiliary_coefficient=auxiliary_coefficient,
             context=context,
         ),
     )
@@ -256,6 +347,8 @@ def run_factor_condition(
             context,
             factor_count=factor_count,
             condition=condition,
+            target_entropy_fraction=target_entropy_fraction,
+            auxiliary_coefficient=auxiliary_coefficient,
         ),
         context,
         stop={
@@ -275,7 +368,7 @@ def run_factor_condition(
         raise RuntimeError(f"expected one Tune trial, found {len(results)}")
     result = results[0]
     if result.error is not None:
-        raise RuntimeError("discrete SAC training failed") from result.error
+        raise RuntimeError("cycle-2 discrete SAC training failed") from result.error
     write_training_curves(context)
 
     records = [
@@ -323,6 +416,12 @@ def run_factor_condition(
         "factor_count": factor_count,
         "seed": context.seed,
         "smoke": context.smoke,
+        "target_entropy_fraction": target_entropy_fraction,
+        "target_entropy": target_entropy(
+            factor_count,
+            target_entropy_fraction,
+        ),
+        "auxiliary_coefficient": auxiliary_coefficient,
         "checkpoint_reports": [
             {
                 "agent_steps": report["agent_steps"],
@@ -341,11 +440,21 @@ def run_factor_condition(
     }
 
 
-def run_arm(context: RunContext, condition: str) -> dict[str, Any]:
-    """Run both factor counts for one SAC objective arm."""
+def run_arm(
+    context: RunContext,
+    *,
+    condition: str,
+    target_entropy_fraction: float,
+    auxiliary_coefficient: float | None = None,
+) -> dict[str, Any]:
+    """Run both factor counts for one cycle-2 hyperparameter arm."""
 
-    if condition not in CONDITIONS:
-        raise ValueError(f"condition must be one of {CONDITIONS}")
+    _validate_cell(
+        factor_count=FACTOR_COUNTS[0],
+        condition=condition,
+        target_entropy_fraction=target_entropy_fraction,
+        auxiliary_coefficient=auxiliary_coefficient,
+    )
     summaries = {}
     for factor_count in FACTOR_COUNTS:
         factor_context = replace(
@@ -358,13 +467,18 @@ def run_arm(context: RunContext, condition: str) -> dict[str, Any]:
             factor_context,
             factor_count=factor_count,
             condition=condition,
+            target_entropy_fraction=target_entropy_fraction,
+            auxiliary_coefficient=auxiliary_coefficient,
         )
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     result = {
+        "cycle": 2,
         "condition": condition,
         "seed": context.seed,
         "smoke": context.smoke,
+        "target_entropy_fraction": target_entropy_fraction,
+        "auxiliary_coefficient": auxiliary_coefficient,
         "factor_conditions": summaries,
     }
     outputs.write_json("arm_summary.json", result)
