@@ -15,6 +15,7 @@ import numpy as np  # noqa: E402
 from matplotlib.ticker import FuncFormatter, MaxNLocator, PercentFormatter  # noqa: E402
 
 STUDY_ROOT = Path(__file__).resolve().parent
+DEFAULT_OUTPUT = STUDY_ROOT / "results" / "sac_cev95_accuracy_over_training.png"
 BAYES_ACCURACY_BY_FACTOR_COUNT = {
     2: 0.392**2,
     3: 0.392**3,
@@ -25,6 +26,8 @@ PANEL_SPECS = (
 )
 CEV_COLOR = "#1f77b4"
 ACCURACY_COLOR = "#ff7f0e"
+FACTORED_COLOR = "#2d7d46"
+JOINT_COLOR = "#9a3c3c"
 
 
 def _load_trajectory(
@@ -76,22 +79,28 @@ def _load_trajectory(
     }
 
 
-def plot_panel(
+def load_sac_trajectories(
+    study_root: Path = STUDY_ROOT,
+) -> dict[str, dict[str, Any]]:
+    return {
+        title: _load_trajectory(study_root, condition_dir, factor_count)
+        for title, condition_dir, factor_count in PANEL_SPECS
+    }
+
+
+def _plot_panel(
+    axis: plt.Axes,
     trajectory: dict[str, Any],
     *,
     title: str,
-    output: Path,
-) -> Path:
+    step_formatter: FuncFormatter,
+) -> None:
     steps = trajectory["steps"]
     dimensions = trajectory["dimensions"]
     accuracies = trajectory["accuracies"]
+    factored = trajectory["factored_prediction"]
     joint = trajectory["joint_prediction"]
     bayes_accuracy = trajectory["bayes_accuracy"]
-
-    figure, axis = plt.subplots(figsize=(8.4, 5.2))
-    step_formatter = FuncFormatter(
-        lambda value, _: "0" if value == 0 else f"{value / 1_000_000:g}M"
-    )
 
     dimension_line = axis.plot(
         steps,
@@ -102,6 +111,21 @@ def plot_panel(
         markersize=4.5,
         label="95% CEV dimensions",
     )[0]
+    factored_line = axis.axhline(
+        factored,
+        color=FACTORED_COLOR,
+        linestyle="--",
+        linewidth=1.7,
+        label=f"factored prediction ({factored})",
+    )
+    joint_line = axis.axhline(
+        joint,
+        color=JOINT_COLOR,
+        linestyle=":",
+        linewidth=1.9,
+        label=f"joint prediction ({joint})",
+    )
+
     accuracy_axis = axis.twinx()
     accuracy_line = accuracy_axis.plot(
         steps,
@@ -122,6 +146,7 @@ def plot_panel(
     axis.set_xlim(left=0)
     axis.set_ylim(0, max(joint, int(dimensions.max())) + 2)
     axis.grid(alpha=0.2)
+    axis.set_title(title)
 
     accuracy_axis.set_ylim(0.0, bayes_accuracy)
     accuracy_axis.set_yticks(np.linspace(0.0, bayes_accuracy, 5))
@@ -133,10 +158,35 @@ def plot_panel(
     accuracy_axis.tick_params(axis="y", colors=ACCURACY_COLOR)
     accuracy_axis.spines["right"].set_color(ACCURACY_COLOR)
 
-    axis.set_title(title)
     axis.legend(
-        handles=[dimension_line, accuracy_line],
+        handles=[dimension_line, accuracy_line, factored_line, joint_line],
+        fontsize=7.5,
         loc="best",
+    )
+
+
+def plot_sac_cev95_accuracy(
+    output: Path = DEFAULT_OUTPUT,
+    *,
+    study_root: Path = STUDY_ROOT,
+) -> Path:
+    trajectories = load_sac_trajectories(study_root)
+    figure, axes = plt.subplots(1, 2, figsize=(13.2, 5.0), squeeze=False)
+    step_formatter = FuncFormatter(
+        lambda value, _: "0" if value == 0 else f"{value / 1_000_000:g}M"
+    )
+
+    for axis, (title, _, _) in zip(axes.flat, PANEL_SPECS, strict=True):
+        _plot_panel(
+            axis,
+            trajectories[title],
+            title=title,
+            step_formatter=step_formatter,
+        )
+
+    figure.suptitle(
+        "SAC activation dimensionality and task accuracy over training",
+        fontsize=14,
     )
     figure.tight_layout()
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -145,31 +195,11 @@ def plot_panel(
     return output
 
 
-def plot_sac_cev95_accuracy(
-    output_dir: Path,
-    *,
-    study_root: Path = STUDY_ROOT,
-) -> list[Path]:
-    outputs: list[Path] = []
-    for title, condition_dir, factor_count in PANEL_SPECS:
-        trajectory = _load_trajectory(study_root, condition_dir, factor_count)
-        slug = condition_dir.replace("_", "-")
-        output = output_dir / f"{slug}_cev95_accuracy_over_training.png"
-        plot_panel(trajectory, title=title, output=output)
-        outputs.append(output)
-    return outputs
-
-
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--output-dir",
-        type=Path,
-        default=STUDY_ROOT / "results",
-    )
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args(argv)
-    for path in plot_sac_cev95_accuracy(args.output_dir):
-        print(path)
+    print(plot_sac_cev95_accuracy(args.output))
 
 
 if __name__ == "__main__":
