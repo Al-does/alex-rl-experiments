@@ -71,7 +71,8 @@ def test_recipe_sets_previous_reward_uniform_and_transformer(
         "context_len": CONTEXT_LEN,
         "max_seq_len": CONTEXT_LEN,
     }
-    assert first.num_env_runners == 0
+    assert first.num_env_runners == (0 if smoke_context.smoke else 8)
+    assert first.num_envs_per_env_runner == (1 if smoke_context.smoke else 2)
 
 
 def test_long_run_budget_and_checkpoint_interval():

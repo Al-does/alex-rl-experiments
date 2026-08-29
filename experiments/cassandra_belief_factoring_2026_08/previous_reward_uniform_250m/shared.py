@@ -39,6 +39,8 @@ BASELINE_LAMBDA = 0.95
 BEST_VF_CLIP_PARAM = 100.0
 BEST_VF_LOSS_COEFF = 0.01
 CONTEXT_LEN = 256
+LONG_RUN_ENV_RUNNERS = 8
+LONG_RUN_ENVS_PER_RUNNER = 2
 HYPOTHESIS = (
     "Scale the best previous-reward targeted PPO recipe to 250M steps with "
     "uniform initial machine states and milestone checkpoints every 50M steps."
@@ -169,6 +171,14 @@ def build_config(
                     context.artifacts_dir / "milestone_checkpoints"
                 ),
             )
+        )
+        .env_runners(
+            num_env_runners=(
+                0 if context.smoke else LONG_RUN_ENV_RUNNERS
+            ),
+            num_envs_per_env_runner=(
+                1 if context.smoke else LONG_RUN_ENVS_PER_RUNNER
+            ),
         )
     )
 
