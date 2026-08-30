@@ -12,6 +12,10 @@ from experiments.cassandra_belief_factoring_2026_08.previous_reward_uniform_250m
     D_MODEL as D96,
     build_config as build_d96,
 )
+from experiments.cassandra_belief_factoring_2026_08.previous_reward_uniform_250m.global_alias_d64_3layer_4head.experiment import (
+    ACTION_SCOPE as GLOBAL_ALIAS_ACTION_SCOPE,
+    build_config as build_global_alias_d64,
+)
 from experiments.cassandra_belief_factoring_2026_08.previous_reward_uniform_250m.shared import (
     BEST_VF_CLIP_PARAM,
     BEST_VF_LOSS_COEFF,
@@ -78,3 +82,22 @@ def test_recipe_sets_previous_reward_uniform_and_transformer(
 def test_long_run_budget_and_checkpoint_interval():
     assert TOTAL_ENV_STEPS == 250_000_000
     assert CHECKPOINT_STEP_INTERVAL == 50_000_000
+
+
+def test_global_alias_d64_matches_targeted_recipe_except_action_scope(smoke_context):
+    targeted = build_d64(smoke_context)
+    global_alias = build_global_alias_d64(smoke_context)
+
+    assert global_alias.env is CassandraPreviousRewardObservationEnv
+    assert global_alias.env_config["action_scope"] == GLOBAL_ALIAS_ACTION_SCOPE
+    assert targeted.env_config["action_scope"] == "targeted"
+    assert global_alias.env_config["initial_state_distribution"] == "uniform"
+    assert global_alias.rl_module_spec.model_config == targeted.rl_module_spec.model_config
+    assert global_alias.gamma == targeted.gamma
+    assert global_alias.lambda_ == targeted.lambda_
+    assert global_alias.vf_clip_param == targeted.vf_clip_param
+    assert global_alias.vf_loss_coeff == targeted.vf_loss_coeff
+    assert global_alias.entropy_coeff == targeted.entropy_coeff
+    assert global_alias.num_env_runners == targeted.num_env_runners
+    assert global_alias.num_envs_per_env_runner == targeted.num_envs_per_env_runner
+

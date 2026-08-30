@@ -30,6 +30,7 @@ from learners.models.transformer import TransformerModel, TransformerModelConfig
 
 
 ModelWidth = Literal[64, 96]
+ActionScope = Literal["targeted", "global_aliases"]
 
 TOTAL_ENV_STEPS = 250_000_000
 SMOKE_ENV_STEPS = 4_096
@@ -158,15 +159,16 @@ def build_config(
     context: RunContext,
     *,
     d_model: ModelWidth,
+    action_scope: ActionScope = "targeted",
 ) -> PPOConfig:
-    """Build targeted PPO with previous reward, uniform starts, and milestones."""
+    """Build PPO with previous reward, uniform starts, and milestones."""
 
     _require_comparison_seed(context)
-    env_config = environment_config(action_scope="targeted")
+    env_config = environment_config(action_scope=action_scope)
     env_config["initial_state_distribution"] = "uniform"
 
     return (
-        build_shared_config(context, action_scope="targeted")
+        build_shared_config(context, action_scope=action_scope)
         .environment(CassandraPreviousRewardObservationEnv, env_config=env_config)
         .training(
             entropy_coeff=ENTROPY_COEFF,
@@ -207,10 +209,11 @@ def run_recipe(
     *,
     d_model: ModelWidth,
     condition: str,
+    action_scope: ActionScope = "targeted",
 ) -> dict[str, Any]:
     """Train one long-horizon width variant and emit compact summaries."""
 
-    config = build_config(context, d_model=d_model)
+    config = build_config(context, d_model=d_model, action_scope=action_scope)
     target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
     transformer = model_config(d_model=d_model)
     outputs = RunArtifacts.from_context(context)
@@ -223,7 +226,7 @@ def run_recipe(
             "primary_comparison": PRIMARY_COMPARISON,
             "seed": EXPERIMENT_SEED,
             "algorithm": "PPO",
-            "environment": environment_config(action_scope="targeted")
+            "environment": environment_config(action_scope=action_scope)
             | {"initial_state_distribution": "uniform"},
             "transformer": transformer,
             "gamma": config.gamma,
@@ -290,6 +293,7 @@ def run_recipe(
         "vf_loss_coeff": BEST_VF_LOSS_COEFF,
         "previous_reward_visible": True,
         "initial_state_distribution": "uniform",
+        "action_scope": action_scope,
         "checkpoint": (
             str(result.checkpoint.path)
             if result.checkpoint is not None
@@ -307,6 +311,7 @@ __all__ = [
     "CONTEXT_LEN",
     "EXPERIMENT_SEED",
     "HYPOTHESIS",
+    "ActionScope",
     "ModelWidth",
     "PRIMARY_COMPARISON",
     "SMOKE_ENV_STEPS",
