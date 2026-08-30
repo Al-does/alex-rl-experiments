@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from functools import partial
 from numbers import Real
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Literal
 
 from ray import tune
@@ -24,7 +25,7 @@ from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_small_intervent
 from experiments.storage.training_curves import write_training_curves
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
-from harness.runners import run_tune
+from harness.runners import run_algorithm, run_tune
 from learners.models.transformer import TransformerModel, TransformerModelConfig
 
 
@@ -127,6 +128,24 @@ def _save_milestone_checkpoint(
     temporary.replace(index_path)
 
 
+def _reached_env_step_target(
+    target_steps: int,
+) -> Callable[[Mapping[str, Any]], bool]:
+    def _should_stop(metrics: Mapping[str, Any]) -> bool:
+        steps = _metric(metrics, "env_runners/num_env_steps_sampled_lifetime")
+        return steps is not None and steps >= target_steps
+
+    return _should_stop
+
+
+def _latest_algorithm_checkpoint(context: RunContext) -> Path:
+    root = context.artifacts_dir / "checkpoints"
+    candidates = sorted(root.glob("iteration_*"))
+    if not candidates:
+        raise RuntimeError(f"no algorithm checkpoints under {root}")
+    return candidates[-1]
+
+
 def _require_comparison_seed(context: RunContext) -> None:
     if context.seed != EXPERIMENT_SEED:
         raise ValueError(
@@ -221,25 +240,44 @@ def run_recipe(
             "checkpoint_schedule": (
                 f"every_{CHECKPOINT_STEP_INTERVAL}_env_steps_after_first_milestone"
             ),
+            "resume_from": (
+                str(context.resume_from)
+                if context.resume_from is not None
+                else None
+            ),
         },
     )
-    result_grid = run_tune(
-        config,
-        context,
-        stop={"env_runners/num_env_steps_sampled_lifetime": target_steps},
-        run_config_kwargs={
-            "checkpoint_config": tune.CheckpointConfig(
-                num_to_keep=1,
-                checkpoint_at_end=True,
-            )
-        },
-    )
-    results = list(result_grid)
-    if len(results) != 1:
-        raise RuntimeError(f"{condition} expected one trial, got {len(results)}")
-    result = results[0]
-    if result.error is not None:
-        raise RuntimeError(f"{condition} training failed") from result.error
+    if context.resume_from is not None:
+        final_metrics = run_algorithm(
+            config,
+            context,
+            should_stop=_reached_env_step_target(target_steps),
+            checkpoint_at_end=True,
+        )
+        final_checkpoint = _latest_algorithm_checkpoint(context)
+        result = SimpleNamespace(
+            checkpoint=SimpleNamespace(path=str(final_checkpoint)),
+            metrics=final_metrics,
+            error=None,
+        )
+    else:
+        result_grid = run_tune(
+            config,
+            context,
+            stop={"env_runners/num_env_steps_sampled_lifetime": target_steps},
+            run_config_kwargs={
+                "checkpoint_config": tune.CheckpointConfig(
+                    num_to_keep=1,
+                    checkpoint_at_end=True,
+                )
+            },
+        )
+        results = list(result_grid)
+        if len(results) != 1:
+            raise RuntimeError(f"{condition} expected one trial, got {len(results)}")
+        result = results[0]
+        if result.error is not None:
+            raise RuntimeError(f"{condition} training failed") from result.error
     write_training_curves(context)
     summary = {
         "condition": condition,
