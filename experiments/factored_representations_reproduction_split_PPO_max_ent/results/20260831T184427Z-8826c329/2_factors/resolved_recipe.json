@@ -1,0 +1,69 @@
+{
+  "activation_location": "actor final transformer block residual, after MLP and before final LN",
+  "algorithm": "PPO",
+  "analysis": [
+    "actor-only held-out joint regression to factor beliefs",
+    "actor activation/factored-target/joint-target CEV",
+    "actor vary-one per-position-centered PCA",
+    "actor subspace additivity and principal-angle overlap",
+    "actor token-embedding geometry"
+  ],
+  "architecture": "independent actor and critic paper transformers with separate linear policy and value heads",
+  "batch_size_rationale": "Halved from the shared-encoder PPO recipe because separate actor and critic transformers OOM at 32,768 on RTX 4090.",
+  "checkpoint_schedule": "initial, powers of two iterations, final",
+  "clip_param": 0.2,
+  "condition": "ppo_max_entropy",
+  "cycle": 2,
+  "entropy_design": "Detached behavior-policy entropy is added before GAE so the critic fits entropy-augmented returns. PPO's differentiable actor entropy coefficient remains zero to match the comparison runs. Because gamma=0, transitions are action-independent, and actor/critic parameters are disjoint, this is a reward-stream ablation rather than a direct actor maximum-entropy gradient.",
+  "entropy_reward_coefficient": 0.5,
+  "environment": {
+    "delay": 1,
+    "episode_length": 9,
+    "model": {
+      "factory": "envs.hmm:factored_model",
+      "kwargs": {
+        "factors": [
+          {
+            "factory": "experiments.factored_representations_reproduction_PPO_2026_08.process:paper_mess3_model"
+          },
+          {
+            "factory": "experiments.factored_representations_reproduction_PPO_2026_08.process:paper_mess3_model"
+          }
+        ]
+      }
+    },
+    "observation": {
+      "action": null
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "experiments.factored_representations_reproduction_PPO_2026_08.task:NextJointTokenGuessTask"
+    }
+  },
+  "factor_count": 2,
+  "factors": "conditionally independent MESS3(alpha=0.6, x=0.15)",
+  "gamma": 0.0,
+  "joint_token_count": 9,
+  "lambda": 0.0,
+  "learning_rate": 0.0001,
+  "minibatch_size": 16384,
+  "model": {
+    "activation": "relu",
+    "context_length": 9,
+    "d_mlp": 256,
+    "d_model": 64,
+    "max_seq_len": 32,
+    "n_heads": 4,
+    "n_layers": 4,
+    "normalization": "layer_norm",
+    "positional_embedding": "learned_absolute"
+  },
+  "next_token_aux_coefficient": 0.0,
+  "num_epochs": 6,
+  "objective": "PPO with detached behavior-policy entropy added to rewards before GAE",
+  "paper": "Transformers learn factored representations (arXiv:2602.02385)",
+  "ppo_entropy_coefficient": 0.0,
+  "source_recipe": "factored_representations_reproduction_PPO_2026_08",
+  "total_env_steps": 10000000,
+  "train_batch_size_per_learner": 16384
+}
