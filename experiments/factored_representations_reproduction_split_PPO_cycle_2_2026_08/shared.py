@@ -35,8 +35,6 @@ from experiments.factored_representations_reproduction_PPO_2026_08.shared import
 )
 from experiments.factored_representations_reproduction_split_PPO_cycle_2_2026_08.learning import (
     AUXILIARY_COEFFICIENT,
-    ENTROPY_REWARD_COEFFICIENT_KEY,
-    EntropyRewardPPOTorchLearner,
     PPOWithNextJointTokenAux,
     next_joint_token_targets,
 )
@@ -52,9 +50,7 @@ from harness.runners import run_tune
 
 
 MODEL_CONFIG = FactoredReproductionModelConfig().to_dict()
-ENTROPY_REWARD_COEFFICIENT = 0.5
-PPO_ENTROPY_COEFFICIENT = 0.0
-CONDITIONS = ("ppo", "ppo_aux_ce", "ppo_max_entropy")
+CONDITIONS = ("ppo", "ppo_aux_ce")
 # Independent actor and critic transformers roughly double learner activation
 # memory versus the shared-encoder PPO reproduction at the same batch size.
 TRAIN_BATCH_SIZE = 16_384
@@ -75,7 +71,6 @@ def build_config(
         raise ValueError(f"factor_count must be one of {FACTOR_COUNTS}")
     profile = context.hardware or PROFILES["cpu"]
     auxiliary = condition == "ppo_aux_ce"
-    maximum_entropy = condition == "ppo_max_entropy"
     model_config = dict(MODEL_CONFIG)
     if auxiliary:
         model_config["next_token_aux"] = {
@@ -102,7 +97,7 @@ def build_config(
             clip_param=0.2,
             use_kl_loss=False,
             vf_loss_coeff=0.5,
-            entropy_coeff=PPO_ENTROPY_COEFFICIENT,
+            entropy_coeff=0.0,
             train_batch_size_per_learner=(
                 SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
             ),
@@ -158,13 +153,6 @@ def build_config(
                 "next_token_aux/target_extractor": next_joint_token_targets,
             },
         )
-    elif maximum_entropy:
-        config = config.learners(
-            learner_class=EntropyRewardPPOTorchLearner,
-            learner_config_dict={
-                ENTROPY_REWARD_COEFFICIENT_KEY: ENTROPY_REWARD_COEFFICIENT,
-            },
-        )
     return config
 
 
@@ -187,29 +175,10 @@ def _resolved_recipe(
         "objective": (
             "PPO correctness reward plus actor next-joint-token CE"
             if condition == "ppo_aux_ce"
-            else (
-                "PPO with detached behavior-policy entropy added to rewards "
-                "before GAE"
-                if condition == "ppo_max_entropy"
-                else "PPO correctness reward"
-            )
+            else "PPO correctness reward"
         ),
         "next_token_aux_coefficient": (
             AUXILIARY_COEFFICIENT if condition == "ppo_aux_ce" else 0.0
-        ),
-        "entropy_reward_coefficient": (
-            ENTROPY_REWARD_COEFFICIENT if condition == "ppo_max_entropy" else 0.0
-        ),
-        "ppo_entropy_coefficient": PPO_ENTROPY_COEFFICIENT,
-        "entropy_design": (
-            "Detached behavior-policy entropy is added before GAE so the critic "
-            "fits entropy-augmented returns. PPO's differentiable actor entropy "
-            "coefficient remains zero to match the comparison runs. Because "
-            "gamma=0, transitions are action-independent, and actor/critic "
-            "parameters are disjoint, this is a reward-stream ablation rather "
-            "than a direct actor maximum-entropy gradient."
-            if condition == "ppo_max_entropy"
-            else None
         ),
         "gamma": 0.0,
         "lambda": 0.0,
