@@ -46,7 +46,11 @@ CYCLE_ROOT = _SCRIPT_DIR
 # Historical B2 uploads used the pre-rename study slug.
 B2_STUDY = "mess3_reward_state_action_asymmetry_cycle_5"
 SEEDS = (42, 43, 44, 45, 46)
-RETURN_METRIC = "env_runners/episode_return_mean"
+RETURN_METRICS = (
+    "env_runners/episode_return_mean",
+    "env_runners/agent_episode_return_mean/default_agent",
+    "env_runners/module_episode_return_mean/default_policy",
+)
 _STREAM_KEYS = {
     "probe_train": (300,),
     "probe_test": (301,),
@@ -94,44 +98,30 @@ def _download_json(s3, bucket: str, key: str) -> dict[str, Any]:
         body.close()
 
 
-def _metric(metrics: dict[str, Any], path: str) -> float:
-    value: Any = metrics
-    for part in path.split("/"):
-        if not isinstance(value, dict) or part not in value:
-            raise KeyError(f"missing metric {path!r}")
-        value = value[part]
-    return float(value)
+def _metric(metrics: dict[str, Any], paths: tuple[str, ...]) -> float:
+    for path in paths:
+        value: Any = metrics
+        missing = False
+        for part in path.split("/"):
+            if not isinstance(value, dict) or part not in value:
+                missing = True
+                break
+            value = value[part]
+        if not missing:
+            return float(value)
+    raise KeyError(f"missing metrics {paths!r}")
 
 
-def _select_best_seed_by_reward(
-    variant: int,
-    s3,
-    bucket: str,
-) -> tuple[int, str, float, str]:
-    best_seed = None
-    best_run_id = None
-    best_return = None
-    best_checkpoint = None
-    for seed in SEEDS:
-        run_id = f"mess3-rsa-c5-v{variant}-seed{seed}"
-        tune_key = f"{_b2_base(variant, run_id)}/compact-results/tune_summary.json"
-        tune_summary = _download_json(s3, bucket, tune_key)
-        trial = tune_summary["trials"][0]
-        episode_return = _metric(trial["metrics"], RETURN_METRIC)
-        checkpoint_name = _final_checkpoint_name(tune_summary)
-        if best_return is None or episode_return > best_return:
-            best_seed = seed
-            best_run_id = run_id
-            best_return = episode_return
-            best_checkpoint = checkpoint_name
-    if (
-        best_seed is None
-        or best_run_id is None
-        or best_return is None
-        or best_checkpoint is None
-    ):
-        raise RuntimeError(f"variant {variant} has no tune summaries on B2")
-    return best_seed, best_run_id, best_return, best_checkpoint
+def _load_multi_seed_summary() -> dict[str, Any]:
+    path = CYCLE_ROOT / "multi_seed_summary.json"
+    return json.loads(path.read_text())
+
+
+def _select_best_seed_by_reward(variant: int) -> tuple[int, str, float]:
+    payload = _load_multi_seed_summary()
+    arm = payload["arms"][f"variant_{variant}"]["per_seed"]
+    best = max(arm, key=lambda item: float(item["mean_episode_return"]))
+    return int(best["seed"]), str(best["run_id"]), float(best["mean_episode_return"])
 
 
 def _download_checkpoints(
@@ -259,13 +249,12 @@ def _probe_module(
 
 def generate_variant_plot(variant: int) -> dict[str, Any]:
     _install_checkpoint_import_aliases(cycle=5)
+    seed, run_id, episode_return = _select_best_seed_by_reward(variant)
     s3 = _s3_client()
     bucket = os.environ["B2_BUCKET"]
-    seed, run_id, episode_return, checkpoint_name = _select_best_seed_by_reward(
-        variant,
-        s3,
-        bucket,
-    )
+    tune_key = f"{_b2_base(variant, run_id)}/compact-results/tune_summary.json"
+    tune_summary = _download_json(s3, bucket, tune_key)
+    checkpoint_name = _final_checkpoint_name(tune_summary)
     artifacts_dir = CYCLE_ROOT / f"variant_{variant}" / "artifacts" / run_id
     checkpoint = _download_checkpoints(
         s3,
@@ -276,10 +265,11 @@ def generate_variant_plot(variant: int) -> dict[str, Any]:
         artifacts_dir,
     )
     env_class, env_config = _load_env_config(checkpoint)
-    tune_key = f"{_b2_base(variant, run_id)}/compact-results/tune_summary.json"
-    tune_summary = _download_json(s3, bucket, tune_key)
     agent_steps = int(
-        _metric(tune_summary["trials"][0]["metrics"], "num_env_steps_sampled_lifetime")
+        _metric(
+            tune_summary["trials"][0]["metrics"],
+            ("num_env_steps_sampled_lifetime", "env_runners/num_env_steps_sampled_lifetime"),
+        )
     )
     probe = _probe_module(
         seed=seed,
@@ -326,7 +316,7 @@ def main() -> None:
         print(json.dumps(summary, indent=2))
     combined = {
         "study": "mess3_reward_state_action_symmetry_cycle_5",
-        "selection_metric": RETURN_METRIC,
+        "selection_metric": RETURN_METRICS[0],
         "variants": summaries,
     }
     output = CYCLE_ROOT / "results" / "best_reward_simplex" / "summaries.json"
