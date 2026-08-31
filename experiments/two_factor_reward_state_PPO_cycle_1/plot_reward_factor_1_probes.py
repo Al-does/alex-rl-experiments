@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 from matplotlib.ticker import FuncFormatter, PercentFormatter  # noqa: E402
 
-from experiments.two_factor_reward_state_PPO_cycle_1.design import (
-    REFERENCE_VALUES,
+from experiments.two_factor_reward_state_PPO_cycle_1.reference import (
+    bayes_max_reward_factor_1,
 )
 
 STUDY_ROOT = Path(__file__).resolve().parent
@@ -25,7 +25,8 @@ DEFAULT_OUTPUT = (
     DEFAULT_RESULTS_ROOT / "reward_factor_1_probe_mse_and_accuracy.png"
 )
 DEFAULT_SEEDS = (42, 43, 44, 45, 46)
-BAYES_MAX_ACCURACY = REFERENCE_VALUES["fully_observed"]
+# First log-spaced checkpoint strictly after 2,000,000 environment steps.
+DEFAULT_MAX_CHECKPOINT_INDEX = 10
 
 
 def _load_seed_reports(results_root: Path, seed: int) -> list[dict[str, Any]]:
@@ -49,12 +50,18 @@ def load_trajectory(
     *,
     results_root: Path = DEFAULT_RESULTS_ROOT,
     seeds: tuple[int, ...] = DEFAULT_SEEDS,
+    max_checkpoint_index: int | None = DEFAULT_MAX_CHECKPOINT_INDEX,
 ) -> dict[str, Any]:
     """Aggregate checkpoint-aligned probe trajectories across seeds."""
 
     by_index: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for seed in seeds:
         for checkpoint_index, report in enumerate(_load_seed_reports(results_root, seed)):
+            if (
+                max_checkpoint_index is not None
+                and checkpoint_index > max_checkpoint_index
+            ):
+                continue
             by_index[checkpoint_index].append(
                 {
                     "seed": seed,
@@ -98,7 +105,8 @@ def load_trajectory(
         )
     return {
         "seeds": list(seeds),
-        "bayes_max_accuracy": BAYES_MAX_ACCURACY,
+        "max_checkpoint_index": max_checkpoint_index,
+        "bayes_max_reward": bayes_max_reward_factor_1(),
         "points": points,
     }
 
@@ -108,11 +116,18 @@ def plot_reward_factor_1_probes(
     *,
     results_root: Path = DEFAULT_RESULTS_ROOT,
     seeds: tuple[int, ...] = DEFAULT_SEEDS,
+    max_checkpoint_index: int | None = DEFAULT_MAX_CHECKPOINT_INDEX,
 ) -> Path:
     """Write dual-axis probe MSE and greedy occupancy trajectory."""
 
-    trajectory = load_trajectory(results_root=results_root, seeds=seeds)
+    trajectory = load_trajectory(
+        results_root=results_root,
+        seeds=seeds,
+        max_checkpoint_index=max_checkpoint_index,
+    )
     points = trajectory["points"]
+    if not points:
+        raise ValueError("no checkpoint probes matched the requested step window")
     steps = np.asarray([point["agent_steps_mean"] for point in points])
     factor_1_mean = np.asarray([point["factor_1_mse_mean"] for point in points])
     factor_1_sd = np.asarray([point["factor_1_mse_sd"] for point in points])
@@ -120,7 +135,7 @@ def plot_reward_factor_1_probes(
     factor_2_sd = np.asarray([point["factor_2_mse_sd"] for point in points])
     accuracy_mean = np.asarray([point["task_accuracy_mean"] for point in points])
     accuracy_sd = np.asarray([point["task_accuracy_sd"] for point in points])
-    bayes_max = float(trajectory["bayes_max_accuracy"])
+    bayes_max = float(trajectory["bayes_max_reward"])
 
     figure, left = plt.subplots(figsize=(8.4, 4.8))
     right = left.twinx()
@@ -137,7 +152,7 @@ def plot_reward_factor_1_probes(
         upper = mean + sd
         left.fill_between(steps, lower, upper, color=color, alpha=0.12, linewidth=0)
 
-    factor_1_line = left.plot(
+    left.plot(
         steps,
         factor_1_mean,
         color=factor_1_color,
@@ -145,8 +160,8 @@ def plot_reward_factor_1_probes(
         markersize=4.5,
         linewidth=2.0,
         label="Factor 1 probe MSE",
-    )[0]
-    factor_2_line = left.plot(
+    )
+    left.plot(
         steps,
         factor_2_mean,
         color=factor_2_color,
@@ -154,7 +169,7 @@ def plot_reward_factor_1_probes(
         markersize=4.0,
         linewidth=2.0,
         label="Factor 2 probe MSE",
-    )[0]
+    )
 
     right.fill_between(
         steps,
@@ -164,7 +179,7 @@ def plot_reward_factor_1_probes(
         alpha=0.12,
         linewidth=0,
     )
-    accuracy_line = right.plot(
+    right.plot(
         steps,
         accuracy_mean,
         color=accuracy_color,
@@ -172,13 +187,6 @@ def plot_reward_factor_1_probes(
         markersize=4.5,
         linewidth=1.9,
         label="Greedy task accuracy",
-    )[0]
-    bayes_line = right.axhline(
-        bayes_max,
-        color="#666666",
-        linestyle=(0, (4, 2)),
-        linewidth=1.4,
-        label=f"Bayes max ({bayes_max:.1%})",
     )
 
     left.set_yscale("log")
@@ -189,7 +197,7 @@ def plot_reward_factor_1_probes(
         color="#a85d0b",
     )
     right.set_ylim(0.0, bayes_max)
-    right.set_yticks(np.linspace(0.0, bayes_max, 6))
+    right.set_yticks(np.linspace(0.0, bayes_max, 5))
     right.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
     right.tick_params(axis="y", colors="#a85d0b")
     right.spines["right"].set_color(accuracy_color)
@@ -198,10 +206,12 @@ def plot_reward_factor_1_probes(
         lambda value, _: "0" if value == 0 else f"{value / 1_000_000:g}M"
     )
     left.xaxis.set_major_formatter(step_formatter)
-    left.set_xlim(left=0.0)
+    left.set_xlim(left=0.0, right=float(steps.max()) * 1.02)
     left.grid(alpha=0.22, which="both")
+    last = points[-1]
     left.set_title(
-        "reward_factor_1 PPO: factor probe fit and rewarded-factor occupancy "
+        "reward_factor_1 PPO through "
+        f"{last['agent_steps_mean'] / 1_000_000:.2f}M steps "
         f"(seeds {min(seeds)}–{max(seeds)}, n={len(seeds)})"
     )
 
@@ -232,11 +242,21 @@ def main(argv: list[str] | None = None) -> None:
         nargs="+",
         default=list(DEFAULT_SEEDS),
     )
+    parser.add_argument(
+        "--max-checkpoint-index",
+        type=int,
+        default=DEFAULT_MAX_CHECKPOINT_INDEX,
+        help=(
+            "Include checkpoints up to this index (10 is the first checkpoint "
+            "just north of 2M steps)."
+        ),
+    )
     args = parser.parse_args(argv)
     path = plot_reward_factor_1_probes(
         args.output,
         results_root=args.results_root,
         seeds=tuple(args.seeds),
+        max_checkpoint_index=args.max_checkpoint_index,
     )
     print(path)
 
