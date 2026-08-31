@@ -579,7 +579,7 @@ def _plot_coarse_b2_overlay(summary: dict[str, Any], output_stem: Path) -> None:
         plot_x=coarse_x,
         curve=coarse_curve,
         color=COARSE_B2_COLOR,
-        label="coarse b2 (variant 2, every checkpoint)",
+        label="two-state HMM target (variant 2, every checkpoint)",
     )
     all_mse.extend(series_mse)
     init_mse.append(series_init)
@@ -602,7 +602,7 @@ def _plot_coarse_b2_overlay(summary: dict[str, Any], output_stem: Path) -> None:
         agent_steps=coarse_curve["agent_steps"],
         ylabel="Held-out affine-probe MSE (lower is better)",
         title=(
-            f"Cycle {summary['cycle']} — coarse b2 vs full 3-state belief (variant 2)"
+            f"Cycle {summary['cycle']} — two-state HMM target vs full 3-state belief (variant 2)"
         ),
     )
     axis.set_xlabel("Environment steps (0 = untrained initialization)")
