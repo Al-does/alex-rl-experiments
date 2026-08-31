@@ -87,3 +87,56 @@ class CassandraActionObservationEnv(gym.Wrapper):
             truncated,
             info,
         )
+
+
+class CassandraFullyObservablePreviousRewardEnv(gym.Wrapper):
+    """Expose exact joint-state one-hot plus preceding scalar reward."""
+
+    def __init__(self, config: Mapping[str, Any] | None = None) -> None:
+        values = dict(config or {})
+        values["observation_mode"] = "state"
+        environment = CassandraMachineEnv(values)
+        super().__init__(environment)
+        base_space = environment.observation_space
+        if not isinstance(base_space, gym.spaces.Box):
+            raise TypeError("Cassandra state observations must use a Box space")
+        self.observation_space = gym.spaces.Box(
+            low=np.concatenate(
+                [base_space.low, np.array([-np.inf], dtype=np.float32)]
+            ),
+            high=np.concatenate(
+                [base_space.high, np.array([np.inf], dtype=np.float32)]
+            ),
+            dtype=np.float32,
+        )
+
+    @staticmethod
+    def _with_reward(observation: np.ndarray, reward: float) -> np.ndarray:
+        return np.concatenate(
+            [
+                np.asarray(observation, dtype=np.float32),
+                np.asarray([reward], dtype=np.float32),
+            ]
+        )
+
+    def reset(
+        self,
+        *,
+        seed: int | None = None,
+        options: Mapping[str, Any] | None = None,
+    ) -> tuple[np.ndarray, dict[str, Any]]:
+        observation, info = self.env.reset(seed=seed, options=options)
+        return self._with_reward(observation, 0.0), info
+
+    def step(
+        self,
+        action: Any,
+    ) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
+        observation, reward, terminated, truncated, info = self.env.step(action)
+        return (
+            self._with_reward(observation, reward),
+            reward,
+            terminated,
+            truncated,
+            info,
+        )

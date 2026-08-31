@@ -11,6 +11,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Literal
 
+import gymnasium as gym
 from ray import tune
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
@@ -18,6 +19,9 @@ from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 from experiments.cassandra_belief_factoring_2026_08.shared import (
     build_config as build_shared_config,
     environment_config,
+)
+from experiments.cassandra_belief_factoring_2026_08.environment import (
+    CassandraFullyObservablePreviousRewardEnv,
 )
 from experiments.cassandra_belief_factoring_2026_08.targeted_ppo_small_interventions_5m.shared import (
     CassandraPreviousRewardObservationEnv,
@@ -31,6 +35,7 @@ from learners.models.transformer import TransformerModel, TransformerModelConfig
 
 ModelWidth = Literal[64, 96]
 ActionScope = Literal["targeted", "global_aliases"]
+ObservationVariant = Literal["symbol", "state"]
 
 TOTAL_ENV_STEPS = 250_000_000
 SMOKE_ENV_STEPS = 4_096
@@ -51,6 +56,31 @@ PRIMARY_COMPARISON = (
     "dim-64 versus dim-96 transformers (both 3 layers, 4 heads) under "
     "previous-reward visibility, best critic, and uniform episode starts"
 )
+
+
+def _observation_env_class(
+    observation_variant: ObservationVariant,
+) -> type[gym.Env]:
+    if observation_variant == "state":
+        return CassandraFullyObservablePreviousRewardEnv
+    return CassandraPreviousRewardObservationEnv
+
+
+def _policy_observation_description(
+    *,
+    action_scope: ActionScope,
+    observation_variant: ObservationVariant,
+) -> str:
+    if observation_variant == "state":
+        return (
+            "256-way joint-state one-hot plus preceding scalar reward; "
+            "fully observable diagnostic"
+        )
+    action_count = 10
+    return (
+        f"16-way symbol one-hot plus previous {action_count}-way "
+        "action one-hot plus preceding scalar reward"
+    )
 
 
 def model_config(*, d_model: ModelWidth) -> dict[str, Any]:
@@ -160,16 +190,18 @@ def build_config(
     *,
     d_model: ModelWidth,
     action_scope: ActionScope = "targeted",
+    observation_variant: ObservationVariant = "symbol",
 ) -> PPOConfig:
     """Build PPO with previous reward, uniform starts, and milestones."""
 
     _require_comparison_seed(context)
     env_config = environment_config(action_scope=action_scope)
     env_config["initial_state_distribution"] = "uniform"
+    env_class = _observation_env_class(observation_variant)
 
     return (
         build_shared_config(context, action_scope=action_scope)
-        .environment(CassandraPreviousRewardObservationEnv, env_config=env_config)
+        .environment(env_class, env_config=env_config)
         .training(
             entropy_coeff=ENTROPY_COEFF,
             gamma=0.990,
@@ -210,10 +242,16 @@ def run_recipe(
     d_model: ModelWidth,
     condition: str,
     action_scope: ActionScope = "targeted",
+    observation_variant: ObservationVariant = "symbol",
 ) -> dict[str, Any]:
     """Train one long-horizon width variant and emit compact summaries."""
 
-    config = build_config(context, d_model=d_model, action_scope=action_scope)
+    config = build_config(
+        context,
+        d_model=d_model,
+        action_scope=action_scope,
+        observation_variant=observation_variant,
+    )
     target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
     transformer = model_config(d_model=d_model)
     outputs = RunArtifacts.from_context(context)
@@ -228,6 +266,11 @@ def run_recipe(
             "algorithm": "PPO",
             "environment": environment_config(action_scope=action_scope)
             | {"initial_state_distribution": "uniform"},
+            "observation_variant": observation_variant,
+            "policy_observation": _policy_observation_description(
+                action_scope=action_scope,
+                observation_variant=observation_variant,
+            ),
             "transformer": transformer,
             "gamma": config.gamma,
             "lambda": config.lambda_,
@@ -292,6 +335,7 @@ def run_recipe(
         "vf_clip_param": BEST_VF_CLIP_PARAM,
         "vf_loss_coeff": BEST_VF_LOSS_COEFF,
         "previous_reward_visible": True,
+        "observation_variant": observation_variant,
         "initial_state_distribution": "uniform",
         "action_scope": action_scope,
         "checkpoint": (
@@ -311,6 +355,7 @@ __all__ = [
     "CONTEXT_LEN",
     "EXPERIMENT_SEED",
     "HYPOTHESIS",
+    "ObservationVariant",
     "ActionScope",
     "ModelWidth",
     "PRIMARY_COMPARISON",
