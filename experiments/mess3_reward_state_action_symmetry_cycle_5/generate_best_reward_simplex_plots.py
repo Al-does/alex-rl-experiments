@@ -45,7 +45,6 @@ from harness.seeding import named_seed_sequences
 CYCLE_ROOT = _SCRIPT_DIR
 # Historical B2 uploads used the pre-rename study slug.
 B2_STUDY = "mess3_reward_state_action_asymmetry_cycle_5"
-SEEDS = (42, 43, 44, 45, 46)
 RETURN_METRICS = (
     "env_runners/episode_return_mean",
     "env_runners/agent_episode_return_mean/default_agent",
@@ -279,6 +278,7 @@ def generate_variant_plot(variant: int) -> dict[str, Any]:
         env_config=env_config,
     )
     figures_dir = CYCLE_ROOT / "results" / "best_reward_simplex"
+    figures_dir.mkdir(parents=True, exist_ok=True)
     output_path = figures_dir / f"variant_{variant}.png"
     plot_probe(
         probe,
@@ -300,7 +300,6 @@ def generate_variant_plot(variant: int) -> dict[str, Any]:
         "figure": str(output_path),
     }
     summary_path = figures_dir / f"variant_{variant}_summary.json"
-    figures_dir.mkdir(parents=True, exist_ok=True)
     summary_path.write_text(json.dumps(summary, indent=2) + "\n")
     return summary
 
@@ -320,6 +319,7 @@ def main() -> None:
         "variants": summaries,
     }
     output = CYCLE_ROOT / "results" / "best_reward_simplex" / "summaries.json"
+    output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(combined, indent=2) + "\n")
 
 
