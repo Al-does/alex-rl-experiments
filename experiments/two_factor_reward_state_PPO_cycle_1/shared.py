@@ -81,9 +81,7 @@ def build_config(context: RunContext, condition: str) -> PPOConfig:
         .environment(HMMEnv, env_config=environment_config(condition))
         .framework(
             "torch",
-            torch_compile_learner=(
-                not context.smoke and profile.learner_device == "cuda"
-            ),
+            torch_compile_learner=False,
             torch_compile_learner_what_to_compile="forward_train",
             torch_compile_learner_dynamo_backend="inductor",
             torch_compile_learner_dynamo_mode="reduce-overhead",
