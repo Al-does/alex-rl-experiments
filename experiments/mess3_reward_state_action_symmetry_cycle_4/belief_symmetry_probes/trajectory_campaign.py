@@ -19,6 +19,9 @@ from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_prob
 )
 
 PLOT_MAX_ENV_STEPS = 750_000
+BOOTSTRAP_N = 10_000
+BOOTSTRAP_CI = 0.95
+BOOTSTRAP_SEED = 42
 PLOT_VARIANTS: dict[str, tuple[int, ...]] = {
     "symmetric_b2": (2, 3),
     "antisymmetric_b0_minus_b1": (2, 3),
@@ -168,6 +171,31 @@ def _truncate_to_plot_window(
     )
 
 
+def _bootstrap_mean_ci(
+    values: np.ndarray,
+    *,
+    n_resamples: int = BOOTSTRAP_N,
+    ci: float = BOOTSTRAP_CI,
+    seed: int = BOOTSTRAP_SEED,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Bootstrap CI for the seed-mean MSE at each checkpoint."""
+
+    if values.ndim != 2:
+        raise ValueError("expected seed-by-checkpoint array")
+    n_seeds, n_checkpoints = values.shape
+    if n_seeds < 2:
+        raise ValueError("bootstrap CI requires at least two seeds")
+    rng = np.random.default_rng(seed)
+    indices = rng.integers(0, n_seeds, size=(n_resamples, n_seeds, n_checkpoints))
+    col_idx = np.arange(n_checkpoints)[None, None, :]
+    resampled = values[indices, col_idx]
+    boot_means = resampled.mean(axis=1)
+    alpha = (1.0 - ci) / 2.0
+    ci_low = np.percentile(boot_means, 100.0 * alpha, axis=0)
+    ci_high = np.percentile(boot_means, 100.0 * (1.0 - alpha), axis=0)
+    return values.mean(axis=0), ci_low, ci_high
+
+
 def _aggregate_variant(
     root: Path,
     *,
@@ -217,13 +245,15 @@ def _aggregate_variant(
         seed_curves,
     )
     values = np.asarray(list(seed_curves.values()), dtype=np.float64)
+    mean, ci_low, ci_high = _bootstrap_mean_ci(values)
     return {
         "checkpoint_labels": labels,
         "training_iterations": iterations,
         "agent_steps": agent_steps,
         "seed_curves": seed_curves,
-        "mean": values.mean(axis=0).tolist(),
-        "stdev": values.std(axis=0, ddof=1).tolist(),
+        "mean": mean.tolist(),
+        "ci_95_low": ci_low.tolist(),
+        "ci_95_high": ci_high.tolist(),
     }
 
 
@@ -255,6 +285,13 @@ def aggregate(root: Path, *, cycle: int, target: str) -> dict[str, Any]:
         "variants": variants,
         "seeds": list(SEEDS),
         "metric": "held-out affine probe MSE",
+        "uncertainty_band": {
+            "method": "bootstrap_across_seeds",
+            "statistic": "mean",
+            "n_resamples": BOOTSTRAP_N,
+            "ci": BOOTSTRAP_CI,
+            "seed": BOOTSTRAP_SEED,
+        },
         "plot_max_env_steps": PLOT_MAX_ENV_STEPS,
         "plot_variants": list(PLOT_VARIANTS[target]),
         "checkpoint_scope": (
@@ -318,7 +355,8 @@ def _plot_variant_curve(
             label=None,
         )
     mean = np.asarray(curve["mean"], dtype=np.float64)
-    stdev = np.asarray(curve["stdev"], dtype=np.float64)
+    ci_low = np.asarray(curve["ci_95_low"], dtype=np.float64)
+    ci_high = np.asarray(curve["ci_95_high"], dtype=np.float64)
     all_mse.extend(mean.tolist())
     axis.plot(
         plot_x,
@@ -331,8 +369,8 @@ def _plot_variant_curve(
     )
     axis.fill_between(
         plot_x,
-        mean - stdev,
-        mean + stdev,
+        ci_low,
+        ci_high,
         color=color,
         alpha=0.13,
     )
