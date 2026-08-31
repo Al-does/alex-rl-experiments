@@ -564,10 +564,12 @@ def test_trajectory_campaign_aggregates_and_plots_every_checkpoint(tmp_path):
             run_dir.mkdir(parents=True)
             checkpoints = {}
             for index, point in enumerate(schedule):
+                mse = 0.01 / (index + 1) + variant * 0.001 + seed / 10_000
                 checkpoints[point["label"]] = {
                     "targets": {
                         target: {
-                            "global_mse_ratio": variant + seed / 100 + index / 10
+                            "mse": mse,
+                            "global_mse_ratio": variant + seed / 100 + index / 10,
                         }
                     }
                 }
@@ -582,18 +584,21 @@ def test_trajectory_campaign_aggregates_and_plots_every_checkpoint(tmp_path):
             )
 
     summary = aggregate_trajectories(tmp_path, cycle=5, target=target)
-    assert summary["checkpoint_scope"] == (
-        "initialization and every saved training checkpoint"
-    )
+    assert summary["metric"] == "held-out affine probe MSE"
+    assert "750,000 environment steps" in summary["checkpoint_scope"]
     assert set(summary["variants"]) == {"variant_1", "variant_2", "variant_3"}
     assert all(
         curve["training_iterations"] == [0, 1, 2]
         for curve in summary["variants"].values()
     )
+    assert all(
+        curve["agent_steps"] == [0, 33_000, 66_000]
+        for curve in summary["variants"].values()
+    )
 
     png = write_campaign(tmp_path, cycle=5, target=target)
     assert png.is_file()
-    assert png.with_suffix(".pdf").is_file()
+    assert not png.with_suffix(".pdf").exists()
 
 
 @pytest.mark.parametrize("cycle", (4, 5))
