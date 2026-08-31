@@ -415,6 +415,29 @@ def test_campaign_run_paths_prefer_suffix_and_accept_legacy_results(tmp_path):
     assert legacy.parent.name == "mess3-rsa-c4-belief-symmetry-probe-v2-seed43"
 
 
+def test_subset_preserves_optional_observations_none():
+    data = SimpleNamespace(
+        activations=np.arange(6, dtype=np.float64).reshape(3, 2),
+        beliefs=np.zeros((3, 3)),
+        diagnostic_beliefs=np.zeros((3, 3)),
+        tokens=np.zeros(3, dtype=np.int64),
+        previous_tokens=np.zeros(3, dtype=np.int64),
+        env_indices=np.zeros(3, dtype=np.int64),
+        episode_steps=np.arange(3),
+        states=np.zeros(3, dtype=np.int64),
+        actions=np.zeros((3, 1), dtype=np.int64),
+        rewards=np.zeros(3, dtype=np.float64),
+        observations=None,
+    )
+    from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_probes import (
+        analysis as probe_analysis,
+    )
+
+    subset = probe_analysis._subset(data, np.asarray([0, 2]))
+    assert subset.observations is None
+    assert subset.activations.shape == (2, 2)
+
+
 def test_checkpoint_manifest_includes_init_and_every_saved_checkpoint(tmp_path):
     manifest = {
         "checkpoints": [

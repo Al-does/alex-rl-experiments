@@ -182,12 +182,11 @@ def _coarse_targets(
 
 
 def _subset(data: ProbeData, indices: np.ndarray) -> ProbeData:
-    return ProbeData(
-        **{
-            field: getattr(data, field)[indices]
-            for field in ProbeData.__dataclass_fields__
-        }
-    )
+    kwargs: dict[str, Any] = {}
+    for field in ProbeData.__dataclass_fields__:
+        value = getattr(data, field)
+        kwargs[field] = value[indices] if value is not None else None
+    return ProbeData(**kwargs)
 
 
 def _collect_with_history(
