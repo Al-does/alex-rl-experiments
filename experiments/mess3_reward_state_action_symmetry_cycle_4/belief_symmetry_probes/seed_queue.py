@@ -120,21 +120,46 @@ def _select_source_base(
     ) from (failures[-1] if failures else None)
 
 
-def _download_atomic(client: Any, bucket: str, key: str, destination: Path) -> None:
+def _download_atomic(
+    client: Any,
+    bucket: str,
+    key: str,
+    destination: Path,
+    *,
+    max_attempts: int = 5,
+) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(dir=destination.parent, delete=False) as handle:
-        temporary = Path(handle.name)
-    try:
-        response = client.get_object(Bucket=bucket, Key=key)
-        body = response["Body"]
+    last_error: Exception | None = None
+    for attempt in range(max_attempts):
+        temporary = Path(
+            tempfile.mkstemp(
+                dir=destination.parent,
+                prefix=f".{destination.name}.",
+            )[1]
+        )
         try:
-            with temporary.open("wb") as output:
-                shutil.copyfileobj(body, output, length=8 * 1024 * 1024)
-        finally:
-            body.close()
-        os.replace(temporary, destination)
-    finally:
-        temporary.unlink(missing_ok=True)
+            response = client.get_object(Bucket=bucket, Key=key)
+            body = response["Body"]
+            try:
+                with temporary.open("wb") as output:
+                    shutil.copyfileobj(body, output, length=8 * 1024 * 1024)
+            finally:
+                body.close()
+            os.replace(temporary, destination)
+            return
+        except Exception as error:
+            last_error = error
+            temporary.unlink(missing_ok=True)
+            if attempt + 1 >= max_attempts:
+                break
+            delay = min(60.0, 4.0 * (2**attempt))
+            print(
+                f"[seed_queue] retrying B2 download for {key} "
+                f"after {error!r} (attempt {attempt + 2}/{max_attempts})",
+                flush=True,
+            )
+            time.sleep(delay)
+    raise RuntimeError(f"B2 download failed for {key}") from last_error
 
 
 def _validate_checkpoint(path: Path) -> None:

@@ -147,3 +147,19 @@ def write_campaign(root: Path, *, cycle: int, target: str) -> Path:
     )
     _plot(summary, output / "probe_trajectory")
     return output / "probe_trajectory.png"
+
+
+def main(argv: list[str] | None = None, *, cycle: int = 4) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--target", required=True, choices=tuple(TARGET_VARIANTS))
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parent)
+    args = parser.parse_args(argv)
+    output = write_campaign(args.root, cycle=cycle, target=args.target)
+    print(output, flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
