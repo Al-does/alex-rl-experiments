@@ -20,8 +20,9 @@ from experiments.factored_representations_reproduction_split_PPO_cycle_2_2026_08
     EntropyRewardPPOTorchLearner,
 )
 from experiments.factored_representations_reproduction_split_PPO_cycle_2_2026_08.shared import (
-    MAX_ENTROPY_TEMPERATURE,
+    ENTROPY_REWARD_COEFFICIENT,
     MODEL_CONFIG,
+    PPO_ENTROPY_COEFFICIENT,
     SMOKE_BATCH_SIZE,
     SMOKE_MINIBATCH_SIZE,
     build_config,
@@ -130,11 +131,12 @@ def test_smoke_configs_are_fresh_and_select_split_modules(
         else SplitFactoredReproductionActorCritic
     )
     if condition == "ppo_max_entropy":
-        assert first.entropy_coeff == MAX_ENTROPY_TEMPERATURE == 0.05
+        assert first.entropy_coeff == PPO_ENTROPY_COEFFICIENT == 0.0
         assert first.learner_class is EntropyRewardPPOTorchLearner
         assert (
             first.learner_config_dict[ENTROPY_REWARD_COEFFICIENT_KEY]
-            == MAX_ENTROPY_TEMPERATURE
+            == ENTROPY_REWARD_COEFFICIENT
+            == 0.5
         )
     else:
         assert first.entropy_coeff == 0.0

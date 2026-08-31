@@ -52,7 +52,8 @@ from harness.runners import run_tune
 
 
 MODEL_CONFIG = FactoredReproductionModelConfig().to_dict()
-MAX_ENTROPY_TEMPERATURE = 0.05
+ENTROPY_REWARD_COEFFICIENT = 0.5
+PPO_ENTROPY_COEFFICIENT = 0.0
 CONDITIONS = ("ppo", "ppo_aux_ce", "ppo_max_entropy")
 # Independent actor and critic transformers roughly double learner activation
 # memory versus the shared-encoder PPO reproduction at the same batch size.
@@ -101,9 +102,7 @@ def build_config(
             clip_param=0.2,
             use_kl_loss=False,
             vf_loss_coeff=0.5,
-            entropy_coeff=(
-                MAX_ENTROPY_TEMPERATURE if maximum_entropy else 0.0
-            ),
+            entropy_coeff=PPO_ENTROPY_COEFFICIENT,
             train_batch_size_per_learner=(
                 SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
             ),
@@ -163,7 +162,7 @@ def build_config(
         config = config.learners(
             learner_class=EntropyRewardPPOTorchLearner,
             learner_config_dict={
-                ENTROPY_REWARD_COEFFICIENT_KEY: MAX_ENTROPY_TEMPERATURE,
+                ENTROPY_REWARD_COEFFICIENT_KEY: ENTROPY_REWARD_COEFFICIENT,
             },
         )
     return config
@@ -189,8 +188,8 @@ def _resolved_recipe(
             "PPO correctness reward plus actor next-joint-token CE"
             if condition == "ppo_aux_ce"
             else (
-                "maximum-entropy PPO with entropy in the soft reward target "
-                "and actor objective"
+                "PPO with detached behavior-policy entropy added to rewards "
+                "before GAE"
                 if condition == "ppo_max_entropy"
                 else "PPO correctness reward"
             )
@@ -198,20 +197,17 @@ def _resolved_recipe(
         "next_token_aux_coefficient": (
             AUXILIARY_COEFFICIENT if condition == "ppo_aux_ce" else 0.0
         ),
-        "entropy_temperature": (
-            MAX_ENTROPY_TEMPERATURE if condition == "ppo_max_entropy" else 0.0
-        ),
         "entropy_reward_coefficient": (
-            MAX_ENTROPY_TEMPERATURE if condition == "ppo_max_entropy" else 0.0
+            ENTROPY_REWARD_COEFFICIENT if condition == "ppo_max_entropy" else 0.0
         ),
-        "ppo_entropy_coefficient": (
-            MAX_ENTROPY_TEMPERATURE if condition == "ppo_max_entropy" else 0.0
-        ),
+        "ppo_entropy_coefficient": PPO_ENTROPY_COEFFICIENT,
         "entropy_design": (
             "Detached behavior-policy entropy is added before GAE so the critic "
-            "fits soft returns; the same temperature multiplies PPO's "
-            "differentiable actor entropy. Both terms are required because "
-            "gamma=0 and actor/critic parameters are disjoint."
+            "fits entropy-augmented returns. PPO's differentiable actor entropy "
+            "coefficient remains zero to match the comparison runs. Because "
+            "gamma=0, transitions are action-independent, and actor/critic "
+            "parameters are disjoint, this is a reward-stream ablation rather "
+            "than a direct actor maximum-entropy gradient."
             if condition == "ppo_max_entropy"
             else None
         ),
