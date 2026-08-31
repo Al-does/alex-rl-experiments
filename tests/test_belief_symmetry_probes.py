@@ -38,6 +38,7 @@ from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_prob
     _select_source_base,
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_probes.trajectory_campaign import (
+    _bootstrap_mean_ci,
     aggregate as aggregate_trajectories,
     write_campaign,
 )
@@ -547,6 +548,23 @@ def test_target_campaign_assigns_requested_variants_and_all_seeds():
     assert SEEDS == (42, 43, 44, 45, 46)
 
 
+def test_bootstrap_mean_ci_brackets_empirical_mean():
+    values = np.asarray(
+        [
+            [1.0, 2.0],
+            [1.2, 2.2],
+            [0.8, 1.8],
+            [1.1, 2.1],
+            [0.9, 1.9],
+        ],
+        dtype=np.float64,
+    )
+    mean, ci_low, ci_high = _bootstrap_mean_ci(values, n_resamples=5000, seed=42)
+    assert mean.tolist() == pytest.approx(values.mean(axis=0).tolist())
+    assert np.all(ci_low <= mean)
+    assert np.all(ci_high >= mean)
+
+
 def test_trajectory_campaign_aggregates_and_plots_every_checkpoint(tmp_path):
     target = "symmetric_b2"
     schedule = [
@@ -585,6 +603,7 @@ def test_trajectory_campaign_aggregates_and_plots_every_checkpoint(tmp_path):
 
     summary = aggregate_trajectories(tmp_path, cycle=5, target=target)
     assert summary["metric"] == "held-out affine probe MSE"
+    assert summary["uncertainty_band"]["n_resamples"] == 10_000
     assert "750,000 environment steps" in summary["checkpoint_scope"]
     assert set(summary["variants"]) == {"variant_1", "variant_2", "variant_3"}
     assert all(
@@ -595,6 +614,15 @@ def test_trajectory_campaign_aggregates_and_plots_every_checkpoint(tmp_path):
         curve["agent_steps"] == [0, 33_000, 66_000]
         for curve in summary["variants"].values()
     )
+    for curve in summary["variants"].values():
+        assert len(curve["ci_95_low"]) == len(curve["mean"])
+        assert len(curve["ci_95_high"]) == len(curve["mean"])
+        assert all(
+            low <= mean <= high
+            for low, mean, high in zip(
+                curve["ci_95_low"], curve["mean"], curve["ci_95_high"], strict=True
+            )
+        )
 
     png = write_campaign(tmp_path, cycle=5, target=target)
     assert png.is_file()
