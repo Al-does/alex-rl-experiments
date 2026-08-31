@@ -7,6 +7,7 @@ import importlib
 import json
 from pathlib import Path
 import sys
+from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
@@ -53,6 +54,11 @@ STREAMS = {
     "permutation_sample_antisymmetric_b0_minus_b1": (541,),
     "permutation_sample_coarse_b2": (542,),
 }
+TARGET_NAMES = (
+    "symmetric_b2",
+    "antisymmetric_b0_minus_b1",
+    "coarse_b2",
+)
 
 
 def decompose_belief(beliefs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -327,6 +333,7 @@ def probe_checkpoint(
     cycle: int,
     variant: int,
     label: str,
+    target_names: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     if context.seed is None:
         raise ValueError("belief symmetry probing requires a resolved seed")
@@ -335,6 +342,17 @@ def probe_checkpoint(
     train_steps, test_steps = (steps, steps) if steps else (60_000, 80_000)
     warmup = 4 if context.smoke else 64
     n_resamples = 100 if context.smoke else 1000
+
+    requested_targets = (
+        tuple(target_names)
+        if target_names is not None
+        else TARGET_NAMES[:2] + (("coarse_b2",) if variant in (1, 2) else ())
+    )
+    unknown_targets = set(requested_targets) - set(TARGET_NAMES)
+    if unknown_targets:
+        raise ValueError(f"unknown probe targets: {sorted(unknown_targets)}")
+    if "coarse_b2" in requested_targets and variant not in (1, 2):
+        raise ValueError("coarse_b2 is defined only for variants 1 and 2")
 
     _install_checkpoint_import_aliases(cycle)
     with load_algorithm(checkpoint) as algorithm:
@@ -353,7 +371,11 @@ def probe_checkpoint(
         environment = make_environment()
         try:
             initial, action_outcome, initial_outcome = make_transducer_target(environment)
-            coarse_spec = _coarse_spec(environment) if variant in (1, 2) else None
+            coarse_spec = (
+                _coarse_spec(environment)
+                if "coarse_b2" in requested_targets
+                else None
+            )
         finally:
             environment.close()
         common = {
@@ -389,13 +411,14 @@ def probe_checkpoint(
         raise AssertionError(f"full target disagrees with diagnostic belief: {consistency:.3e}")
     train_symmetric, train_antisymmetric = decompose_belief(train.beliefs)
     test_symmetric, test_antisymmetric = decompose_belief(test.beliefs)
-    targets = {
-        "symmetric_b2": (train_symmetric, test_symmetric),
-        "antisymmetric_b0_minus_b1": (
+    targets = {}
+    if "symmetric_b2" in requested_targets:
+        targets["symmetric_b2"] = (train_symmetric, test_symmetric)
+    if "antisymmetric_b0_minus_b1" in requested_targets:
+        targets["antisymmetric_b0_minus_b1"] = (
             train_antisymmetric,
             test_antisymmetric,
-        ),
-    }
+        )
     if coarse_spec is not None:
         assert train_coarse is not None and test_coarse is not None
         coarse_projection_differences = np.concatenate(
@@ -451,14 +474,39 @@ def _source_provenance(bundle: Path) -> dict[str, Any]:
     return {"source_run_id": bundle.name, "bundle": str(bundle.resolve())}
 
 
+def _checkpoint_requests(bundle: Path) -> list[dict[str, Any]]:
+    manifest_path = bundle / "checkpoint_manifest.json"
+    if not manifest_path.is_file():
+        return [
+            {
+                "label": "initial",
+                "training_iteration": 0,
+                "path": "initial_checkpoint",
+            },
+            {
+                "label": "final",
+                "training_iteration": None,
+                "path": "final_checkpoint",
+            },
+        ]
+    payload = json.loads(manifest_path.read_text())
+    checkpoints = payload.get("checkpoints")
+    if not isinstance(checkpoints, list) or not checkpoints:
+        raise ValueError(f"{manifest_path} contains no checkpoints")
+    return checkpoints
+
+
 def run_probe_condition(context: RunContext, *, cycle: int, variant: int) -> dict[str, Any]:
     bundle = context.resume_from
     if bundle is None:
         raise ValueError("resume_from must name a bundle containing initial_checkpoint/ and final_checkpoint/")
     bundle = Path(bundle)
-    initial_checkpoint = bundle / "initial_checkpoint"
-    final_checkpoint = bundle / "final_checkpoint"
-    for checkpoint in (initial_checkpoint, final_checkpoint):
+    source = _source_provenance(bundle)
+    requested_target = source.get("requested_target")
+    target_names = (requested_target,) if requested_target else None
+    checkpoint_requests = _checkpoint_requests(bundle)
+    for request in checkpoint_requests:
+        checkpoint = bundle / request["path"]
         if not checkpoint.is_dir() or not any(checkpoint.rglob("*")):
             raise FileNotFoundError(f"missing checkpoint bundle member: {checkpoint}")
     context.results_dir.mkdir(parents=True, exist_ok=True)
@@ -468,7 +516,7 @@ def run_probe_condition(context: RunContext, *, cycle: int, variant: int) -> dic
         "cycle": cycle,
         "variant": variant,
         "seed": context.seed,
-        "source": _source_provenance(bundle),
+        "source": source,
         "target_definitions": {
             "symmetric_b2": "b2",
             "antisymmetric_b0_minus_b1": "b0-b1",
@@ -482,23 +530,33 @@ def run_probe_condition(context: RunContext, *, cycle: int, variant: int) -> dic
             "The restored initial checkpoint estimates the affine random-network floor; "
             "it is a baseline, not evidence that an untrained network computes belief."
         ),
-        "checkpoints": {
-            "initial": probe_checkpoint(
-                replace(context, resume_from=initial_checkpoint),
-                initial_checkpoint,
-                cycle=cycle,
-                variant=variant,
-                label="initial",
-            ),
-            "final": probe_checkpoint(
-                replace(context, resume_from=final_checkpoint),
-                final_checkpoint,
-                cycle=cycle,
-                variant=variant,
-                label="final",
-            ),
-        },
+        "requested_target": requested_target,
+        "checkpoint_schedule": [
+            {
+                "label": request["label"],
+                "training_iteration": request.get("training_iteration"),
+            }
+            for request in checkpoint_requests
+        ],
+        "checkpoints": {},
     }
+    for request in checkpoint_requests:
+        checkpoint = bundle / request["path"]
+        result = probe_checkpoint(
+            replace(context, resume_from=checkpoint),
+            checkpoint,
+            cycle=cycle,
+            variant=variant,
+            label=request["label"],
+            target_names=target_names,
+        )
+        result["training_iteration"] = request.get("training_iteration")
+        summary["checkpoints"][request["label"]] = result
+        # Persist after every checkpoint so a preempted remote job retains
+        # compact progress and can be diagnosed without checkpoint artifacts.
+        (context.results_dir / "condition_summary.json").write_text(
+            json.dumps(summary, indent=2) + "\n"
+        )
     (context.results_dir / "condition_summary.json").write_text(
         json.dumps(summary, indent=2) + "\n"
     )

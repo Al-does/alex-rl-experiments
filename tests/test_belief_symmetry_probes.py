@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -17,6 +18,7 @@ from experiments.mess3_belief_geometry_2026_07.probe import (
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_probes.analysis import (
     RIDGE,
+    _checkpoint_requests,
     _coarse_spec,
     _coarse_targets,
     _install_checkpoint_import_aliases,
@@ -27,9 +29,16 @@ from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_prob
     _run_paths,
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_probes.seed_queue import (
+    SEEDS,
+    TARGET_VARIANTS,
+    TRAJECTORY_SUFFIX,
     _candidate_bases,
     _final_checkpoint_name,
     _select_source_base,
+)
+from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_probes.trajectory_campaign import (
+    aggregate as aggregate_trajectories,
+    write_campaign,
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_4.token_swap_diagnostic.analysis import (
     _validate_intervention_environment,
@@ -402,6 +411,87 @@ def test_campaign_run_paths_prefer_suffix_and_accept_legacy_results(tmp_path):
     assert current.name == "condition_summary.json"
     assert current.parent.name == "mess3-rsa-c4-belief-symmetry-probe-0035-v2-seed43"
     assert legacy.parent.name == "mess3-rsa-c4-belief-symmetry-probe-v2-seed43"
+
+
+def test_checkpoint_manifest_includes_init_and_every_saved_checkpoint(tmp_path):
+    manifest = {
+        "checkpoints": [
+            {
+                "label": "initial",
+                "training_iteration": 0,
+                "path": "initial_checkpoint",
+            },
+            {
+                "label": "checkpoint_000000",
+                "training_iteration": 1,
+                "path": "checkpoints/checkpoint_000000",
+            },
+            {
+                "label": "checkpoint_000001",
+                "training_iteration": 2,
+                "path": "checkpoints/checkpoint_000001",
+            },
+        ]
+    }
+    (tmp_path / "checkpoint_manifest.json").write_text(json.dumps(manifest))
+
+    assert _checkpoint_requests(tmp_path) == manifest["checkpoints"]
+
+
+def test_target_campaign_assigns_requested_variants_and_all_seeds():
+    assert TARGET_VARIANTS["symmetric_b2"] == (1, 2, 3)
+    assert TARGET_VARIANTS["antisymmetric_b0_minus_b1"] == (1, 2, 3)
+    assert TARGET_VARIANTS["coarse_b2"] == (2,)
+    assert SEEDS == (42, 43, 44, 45, 46)
+
+
+def test_trajectory_campaign_aggregates_and_plots_every_checkpoint(tmp_path):
+    target = "symmetric_b2"
+    schedule = [
+        {"label": "initial", "training_iteration": 0},
+        {"label": "checkpoint_000000", "training_iteration": 1},
+        {"label": "checkpoint_000001", "training_iteration": 2},
+    ]
+    for variant in TARGET_VARIANTS[target]:
+        for seed in SEEDS:
+            run_id = (
+                f"mess3-rsa-c5-belief-trajectory-{TRAJECTORY_SUFFIX}-"
+                f"symmetric-b2-v{variant}-seed{seed}"
+            )
+            run_dir = tmp_path / f"variant_{variant}" / "results" / run_id
+            run_dir.mkdir(parents=True)
+            checkpoints = {}
+            for index, point in enumerate(schedule):
+                checkpoints[point["label"]] = {
+                    "targets": {
+                        target: {
+                            "global_mse_ratio": variant + seed / 100 + index / 10
+                        }
+                    }
+                }
+            (run_dir / "condition_summary.json").write_text(
+                json.dumps(
+                    {
+                        "requested_target": target,
+                        "checkpoint_schedule": schedule,
+                        "checkpoints": checkpoints,
+                    }
+                )
+            )
+
+    summary = aggregate_trajectories(tmp_path, cycle=5, target=target)
+    assert summary["checkpoint_scope"] == (
+        "initialization and every saved training checkpoint"
+    )
+    assert set(summary["variants"]) == {"variant_1", "variant_2", "variant_3"}
+    assert all(
+        curve["training_iterations"] == [0, 1, 2]
+        for curve in summary["variants"].values()
+    )
+
+    png = write_campaign(tmp_path, cycle=5, target=target)
+    assert png.is_file()
+    assert png.with_suffix(".pdf").is_file()
 
 
 @pytest.mark.parametrize("cycle", (4, 5))
