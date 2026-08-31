@@ -30,6 +30,11 @@ PLOT_VARIANTS: dict[str, tuple[int, ...]] = {
 COMPARISON_TARGETS: dict[str, tuple[str, str]] = {
     "coarse_b2": ("symmetric_b2", "full belief P(state=2)"),
 }
+VARIANT_COLORS: dict[int, str] = {
+    2: "#ff7f0e",
+    3: "#2ca02c",
+}
+COMPARISON_COLOR = "#1f77b4"
 
 
 def _run_id(cycle: int, target: str, variant: int, seed: int) -> str:
@@ -379,11 +384,25 @@ def _plot_variant_curve(
 
 def _plotted_variants(summary: dict[str, Any]) -> dict[str, Any]:
     allowed = set(PLOT_VARIANTS[summary["target"]])
-    return {
+    selected = {
         name: curve
         for name, curve in summary["variants"].items()
         if int(name.split("_", 1)[1]) in allowed
     }
+    return dict(
+        sorted(
+            selected.items(),
+            key=lambda item: int(item[0].split("_", 1)[1]),
+        )
+    )
+
+
+def _variant_color(variant_name: str) -> str:
+    variant = int(variant_name.split("_", 1)[1])
+    try:
+        return VARIANT_COLORS[variant]
+    except KeyError as exc:
+        raise ValueError(f"no standard color configured for {variant_name}") from exc
 
 
 def _plot(summary: dict[str, Any], output_stem: Path) -> None:
@@ -399,20 +418,15 @@ def _plot(summary: dict[str, Any], output_stem: Path) -> None:
     ]
 
     comparison = summary.get("comparison")
-    series_count = len(plotted) + (1 if comparison is not None else 0)
-    colors = plt.cm.tab10(np.linspace(0, 1, max(series_count, 1)))
     figure, axis = plt.subplots(figsize=(9.2, 5.4))
     all_mse: list[float] = []
     init_mse: list[float] = []
-    color_index = 0
     for variant_name, curve in plotted.items():
-        color = colors[color_index]
-        color_index += 1
         series_mse, series_init = _plot_variant_curve(
             axis,
             plot_x=plot_x,
             curve=curve,
-            color=color,
+            color=_variant_color(variant_name),
             label=variant_name.replace("_", " "),
         )
         all_mse.extend(series_mse)
@@ -423,12 +437,11 @@ def _plot(summary: dict[str, Any], output_stem: Path) -> None:
             key for key in comparison if key.startswith("variant_")
         )
         comparison_curve = comparison[comparison_key]
-        comparison_color = colors[color_index]
         series_mse, series_init = _plot_variant_curve(
             axis,
             plot_x=plot_x,
             curve=comparison_curve,
-            color=comparison_color,
+            color=COMPARISON_COLOR,
             label=comparison["label"],
             linestyle="--",
             seed_alpha=0.18,
@@ -455,6 +468,25 @@ def _plot(summary: dict[str, Any], output_stem: Path) -> None:
 
     axis.grid(alpha=0.25, which="both")
     axis.legend()
+    axis.text(
+        0.02,
+        0.02,
+        (
+            f"Shaded bands: bootstrapped 95% CI for mean MSE across seeds "
+            f"(n={BOOTSTRAP_N:,})"
+        ),
+        transform=axis.transAxes,
+        ha="left",
+        va="bottom",
+        fontsize=8,
+        color="0.35",
+        bbox={
+            "boxstyle": "round,pad=0.25",
+            "facecolor": "white",
+            "edgecolor": "0.85",
+            "alpha": 0.92,
+        },
+    )
     figure.tight_layout()
     figure.savefig(output_stem.with_suffix(".png"), dpi=200)
     plt.close(figure)
