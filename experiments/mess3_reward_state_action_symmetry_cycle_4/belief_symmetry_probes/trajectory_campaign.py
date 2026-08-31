@@ -34,6 +34,8 @@ VARIANT_COLORS: dict[int, str] = {
     2: "#ff7f0e",
     3: "#2ca02c",
 }
+COARSE_B2_COLOR = "#ff7f0e"
+FULL_BELIEF_COLOR = "#1f77b4"
 
 
 def _run_id(cycle: int, target: str, variant: int, seed: int) -> str:
@@ -557,68 +559,62 @@ def _add_bootstrap_note(axis: plt.Axes) -> None:
     )
 
 
-def _plot_coarse_b2_panels(summary: dict[str, Any], output_stem: Path) -> None:
+def _plot_coarse_b2_overlay(summary: dict[str, Any], output_stem: Path) -> None:
     coarse_curve = summary["variants"]["variant_2"]
     full_curve = summary["comparison"]["variant_2"]
     full_source = summary["comparison"]["source"]
-    color = VARIANT_COLORS[2]
+    full_checkpoint_note = (
+        "log-spaced training checkpoints"
+        if full_source == "training_checkpoint_probe_curve"
+        else "every saved training checkpoint"
+    )
 
-    figure, axes = plt.subplots(2, 1, figsize=(9.2, 8.8))
-    panels = [
-        (
-            axes[0],
-            coarse_curve,
-            "coarse b2 (variant 2)",
-            "Every saved training checkpoint",
-        ),
-        (
-            axes[1],
-            full_curve,
-            "full 3-state belief (variant 2)",
-            (
-                "Log-spaced training checkpoints"
-                if full_source == "training_checkpoint_probe_curve"
-                else "Every saved training checkpoint"
-            ),
-        ),
-    ]
-
+    figure, axis = plt.subplots(figsize=(9.2, 5.4))
     all_mse: list[float] = []
     init_mse: list[float] = []
-    for axis, curve, title, subtitle in panels:
-        plot_x = np.asarray(curve["agent_steps"], dtype=np.float64)
-        series_mse, series_init = _plot_variant_curve(
-            axis,
-            plot_x=plot_x,
-            curve=curve,
-            color=color,
-            label="mean (5 seeds)",
-        )
-        all_mse.extend(series_mse)
-        init_mse.append(series_init)
-        _configure_linear_log_axis(
-            axis,
-            agent_steps=curve["agent_steps"],
-            ylabel="Held-out affine-probe MSE (lower is better)",
-            title=f"{title} — {subtitle}",
-        )
 
-    axes[1].set_xlabel("Environment steps (0 = untrained initialization)")
-    figure.suptitle(
-        f"Cycle {summary['cycle']} — coarse b2 vs full 3-state belief",
-        y=0.995,
+    coarse_x = np.asarray(coarse_curve["agent_steps"], dtype=np.float64)
+    series_mse, series_init = _plot_variant_curve(
+        axis,
+        plot_x=coarse_x,
+        curve=coarse_curve,
+        color=COARSE_B2_COLOR,
+        label="two-state HMM target (variant 2, every checkpoint)",
     )
+    all_mse.extend(series_mse)
+    init_mse.append(series_init)
+
+    full_x = np.asarray(full_curve["agent_steps"], dtype=np.float64)
+    series_mse, series_init = _plot_variant_curve(
+        axis,
+        plot_x=full_x,
+        curve=full_curve,
+        color=FULL_BELIEF_COLOR,
+        label=f"full 3-state belief (variant 2, {full_checkpoint_note})",
+        linestyle="--",
+        seed_alpha=0.18,
+    )
+    all_mse.extend(series_mse)
+    init_mse.append(series_init)
+
+    _configure_linear_log_axis(
+        axis,
+        agent_steps=coarse_curve["agent_steps"],
+        ylabel="Held-out affine-probe MSE (lower is better)",
+        title=(
+            f"Cycle {summary['cycle']} — two-state HMM target vs full 3-state belief (variant 2)"
+        ),
+    )
+    axis.set_xlabel("Environment steps (0 = untrained initialization)")
 
     positive_mse = [value for value in all_mse if value > 0]
     if positive_mse:
         ymin = min(positive_mse) * 0.75
         ymax = max(max(init_mse) * 4.0, max(positive_mse) * 1.05)
-        for axis in axes:
-            axis.set_ylim(ymin, ymax)
+        axis.set_ylim(ymin, ymax)
 
-    for axis in axes:
-        axis.legend(loc="upper right")
-    _add_bootstrap_note(axes[1])
+    axis.legend(loc="upper right")
+    _add_bootstrap_note(axis)
     figure.tight_layout()
     figure.savefig(output_stem.with_suffix(".png"), dpi=200)
     plt.close(figure)
@@ -626,7 +622,7 @@ def _plot_coarse_b2_panels(summary: dict[str, Any], output_stem: Path) -> None:
 
 def _plot(summary: dict[str, Any], output_stem: Path) -> None:
     if summary["target"] == "coarse_b2":
-        _plot_coarse_b2_panels(summary, output_stem)
+        _plot_coarse_b2_overlay(summary, output_stem)
         return
 
     plotted = _plotted_variants(summary)
