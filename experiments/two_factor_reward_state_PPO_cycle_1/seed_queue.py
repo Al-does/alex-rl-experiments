@@ -116,7 +116,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=list(DEFAULT_SEEDS),
     )
-    parser.add_argument("--hardware-profile", default="cuda4090")
+    parser.add_argument(
+        "--hardware-profile",
+        default="auto",
+        help="match rl-harness --hardware auto (cuda4090_gpuinfer on 4090 hosts)",
+    )
     parser.add_argument(
         "--upload-artifacts",
         action=argparse.BooleanOptionalAction,
