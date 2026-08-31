@@ -15,7 +15,12 @@ from experiments.factored_representations_reproduction_split_PPO_cycle_2_2026_08
     SplitActorCriticWithNextJointTokenAux,
     SplitFactoredReproductionActorCritic,
 )
+from experiments.factored_representations_reproduction_split_PPO_cycle_2_2026_08.learning import (
+    ENTROPY_REWARD_COEFFICIENT_KEY,
+    EntropyRewardPPOTorchLearner,
+)
 from experiments.factored_representations_reproduction_split_PPO_cycle_2_2026_08.shared import (
+    MAX_ENTROPY_TEMPERATURE,
     MODEL_CONFIG,
     SMOKE_BATCH_SIZE,
     SMOKE_MINIBATCH_SIZE,
@@ -104,7 +109,7 @@ def test_policy_and_probe_use_actor_while_values_use_critic():
 
 
 @pytest.mark.parametrize("factor_count", FACTOR_COUNTS)
-@pytest.mark.parametrize("condition", ["ppo", "ppo_aux_ce"])
+@pytest.mark.parametrize("condition", ["ppo", "ppo_aux_ce", "ppo_max_entropy"])
 def test_smoke_configs_are_fresh_and_select_split_modules(
     tmp_path,
     factor_count,
@@ -124,3 +129,12 @@ def test_smoke_configs_are_fresh_and_select_split_modules(
         if condition == "ppo_aux_ce"
         else SplitFactoredReproductionActorCritic
     )
+    if condition == "ppo_max_entropy":
+        assert first.entropy_coeff == MAX_ENTROPY_TEMPERATURE == 0.05
+        assert first.learner_class is EntropyRewardPPOTorchLearner
+        assert (
+            first.learner_config_dict[ENTROPY_REWARD_COEFFICIENT_KEY]
+            == MAX_ENTROPY_TEMPERATURE
+        )
+    else:
+        assert first.entropy_coeff == 0.0
