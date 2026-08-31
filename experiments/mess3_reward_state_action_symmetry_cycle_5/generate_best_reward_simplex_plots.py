@@ -6,7 +6,6 @@ import argparse
 import json
 import os
 import pickle
-import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -289,8 +288,8 @@ def generate_variant_plot(variant: int) -> dict[str, Any]:
         env_class=env_class,
         env_config=env_config,
     )
-    figures_dir = CYCLE_ROOT / f"variant_{variant}" / "figures"
-    output_path = figures_dir / "belief_simplex_best_reward.png"
+    figures_dir = CYCLE_ROOT / "results" / "best_reward_simplex"
+    output_path = figures_dir / f"variant_{variant}.png"
     plot_probe(
         probe,
         title=(
@@ -310,7 +309,7 @@ def generate_variant_plot(variant: int) -> dict[str, Any]:
         "probe_device": probe.metrics["device"],
         "figure": str(output_path),
     }
-    summary_path = figures_dir / "best_reward_simplex_summary.json"
+    summary_path = figures_dir / f"variant_{variant}_summary.json"
     figures_dir.mkdir(parents=True, exist_ok=True)
     summary_path.write_text(json.dumps(summary, indent=2) + "\n")
     return summary
@@ -330,7 +329,7 @@ def main() -> None:
         "selection_metric": RETURN_METRIC,
         "variants": summaries,
     }
-    output = CYCLE_ROOT / "best_reward_simplex_summaries.json"
+    output = CYCLE_ROOT / "results" / "best_reward_simplex" / "summaries.json"
     output.write_text(json.dumps(combined, indent=2) + "\n")
 
 
