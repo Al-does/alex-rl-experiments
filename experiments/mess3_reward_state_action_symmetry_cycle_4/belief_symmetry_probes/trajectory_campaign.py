@@ -26,11 +26,13 @@ PLOT_VARIANTS: dict[str, tuple[int, ...]] = {
     "symmetric_b2": (2, 3),
     "antisymmetric_b0_minus_b1": (2, 3),
     "coarse_b2": (2,),
+    "full_belief": (1, 2, 3),
 }
 COMPARISON_VARIANTS: dict[str, int] = {
     "coarse_b2": 2,
 }
 VARIANT_COLORS: dict[int, str] = {
+    1: "#1f77b4",
     2: "#ff7f0e",
     3: "#2ca02c",
 }
@@ -394,6 +396,7 @@ def aggregate(root: Path, *, cycle: int, target: str) -> dict[str, Any]:
             "coarse_b2": (
                 "separate two-state HMM filter over A={state0,state1}, B={state2}"
             ),
+            "full_belief": "exact full-filter 3-state belief vector",
         }[target],
         "variants": variants,
         "seeds": list(SEEDS),

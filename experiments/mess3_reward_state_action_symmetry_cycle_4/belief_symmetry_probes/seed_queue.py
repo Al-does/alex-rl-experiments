@@ -40,7 +40,7 @@ TARGET_VARIANTS = {
     # two-state HMM filter. Variant 1 is lumpable too, but is not part of this
     # graph's preregistered comparison.
     "coarse_b2": (2,),
-    "full_belief": (2,),
+    "full_belief": (1, 2, 3),
 }
 
 
