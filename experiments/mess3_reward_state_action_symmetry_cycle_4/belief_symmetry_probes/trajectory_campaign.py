@@ -27,14 +27,13 @@ PLOT_VARIANTS: dict[str, tuple[int, ...]] = {
     "antisymmetric_b0_minus_b1": (2, 3),
     "coarse_b2": (2,),
 }
-COMPARISON_TARGETS: dict[str, tuple[str, str]] = {
-    "coarse_b2": ("symmetric_b2", "full belief P(state=2)"),
+COMPARISON_VARIANTS: dict[str, int] = {
+    "coarse_b2": 2,
 }
 VARIANT_COLORS: dict[int, str] = {
     2: "#ff7f0e",
     3: "#2ca02c",
 }
-COMPARISON_COLOR = "#1f77b4"
 
 
 def _run_id(cycle: int, target: str, variant: int, seed: int) -> str:
@@ -262,6 +261,113 @@ def _aggregate_variant(
     }
 
 
+def _aggregate_training_full_belief_curve(
+    study_root: Path,
+    *,
+    cycle: int,
+    variant: int,
+) -> dict[str, Any]:
+    """Aggregate held-out 3-vector belief MSE from training probe curves."""
+
+    reference_labels: list[str] | None = None
+    reference_iterations: list[int] | None = None
+    reference_steps: list[int] | None = None
+    seed_curves: dict[str, list[float]] = {}
+    schedule_seed = SEEDS[len(SEEDS) // 2]
+    for seed in SEEDS:
+        curve_path = (
+            study_root
+            / f"variant_{variant}"
+            / "results"
+            / f"mess3-rsa-c{cycle}-v{variant}-seed{seed}"
+            / "checkpoint_probe_curve.json"
+        )
+        if not curve_path.is_file():
+            raise FileNotFoundError(f"missing training probe curve: {curve_path}")
+        payload = json.loads(curve_path.read_text())
+        labels: list[str] = []
+        iterations: list[int] = []
+        agent_steps: list[int] = []
+        mse_values: list[float] = []
+        for point in payload["checkpoints"]:
+            step = int(point["agent_steps"])
+            agent_steps.append(step)
+            if step == 0:
+                labels.append("initial")
+                iterations.append(0)
+            else:
+                checkpoint_name = point.get("checkpoint_name")
+                if not isinstance(checkpoint_name, str):
+                    raise ValueError(f"{curve_path}: missing checkpoint_name")
+                labels.append(checkpoint_name)
+                iterations.append(int(point["training_iteration"]))
+            probe = point.get("probe", {})
+            if probe.get("target") != "exact_predictive_bayesian_belief":
+                raise ValueError(
+                    f"{curve_path}: expected exact_predictive_bayesian_belief probe"
+                )
+            mse_values.append(float(point["mse"]))
+        if reference_labels is None:
+            reference_labels = labels
+            reference_iterations = iterations
+        elif labels != reference_labels or iterations != reference_iterations:
+            raise ValueError(
+                f"variant {variant} seed {seed} training probe schedule differs"
+            )
+        if seed == schedule_seed:
+            reference_steps = agent_steps
+        seed_curves[str(seed)] = mse_values
+    assert reference_labels is not None
+    assert reference_iterations is not None
+    assert reference_steps is not None
+    labels, iterations, agent_steps, seed_curves = _truncate_to_plot_window(
+        reference_labels,
+        reference_iterations,
+        reference_steps,
+        seed_curves,
+    )
+    values = np.asarray(list(seed_curves.values()), dtype=np.float64)
+    mean, ci_low, ci_high = _bootstrap_mean_ci(values)
+    return {
+        "checkpoint_labels": labels,
+        "training_iterations": iterations,
+        "agent_steps": agent_steps,
+        "seed_curves": seed_curves,
+        "mean": mean.tolist(),
+        "ci_95_low": ci_low.tolist(),
+        "ci_95_high": ci_high.tolist(),
+    }
+
+
+def _aggregate_full_belief_comparison(
+    root: Path,
+    study_root: Path,
+    *,
+    cycle: int,
+    variant: int,
+) -> tuple[dict[str, Any], str]:
+    try:
+        return (
+            _aggregate_variant(
+                root,
+                cycle=cycle,
+                target="full_belief",
+                variant=variant,
+                study_root=study_root,
+            ),
+            "belief_symmetry_trajectory_campaign",
+        )
+    except FileNotFoundError:
+        return (
+            _aggregate_training_full_belief_curve(
+                study_root,
+                cycle=cycle,
+                variant=variant,
+            ),
+            "training_checkpoint_probe_curve",
+        )
+
+
 def aggregate(root: Path, *, cycle: int, target: str) -> dict[str, Any]:
     if target not in TARGET_VARIANTS:
         raise ValueError(f"unknown trajectory target: {target}")
@@ -304,19 +410,19 @@ def aggregate(root: Path, *, cycle: int, target: str) -> dict[str, Any]:
             f"{PLOT_MAX_ENV_STEPS:,} environment steps"
         ),
     }
-    if target in COMPARISON_TARGETS:
-        comparison_target, comparison_label = COMPARISON_TARGETS[target]
-        comparison_variant = next(iter(PLOT_VARIANTS[target]))
+    if target in COMPARISON_VARIANTS:
+        comparison_variant = COMPARISON_VARIANTS[target]
+        comparison_curve, comparison_source = _aggregate_full_belief_comparison(
+            root,
+            study_root,
+            cycle=cycle,
+            variant=comparison_variant,
+        )
         summary["comparison"] = {
-            "target": comparison_target,
-            "label": comparison_label,
-            f"variant_{comparison_variant}": _aggregate_variant(
-                root,
-                cycle=cycle,
-                target=comparison_target,
-                variant=comparison_variant,
-                study_root=study_root,
-            ),
+            "target": "full_belief",
+            "label": "full 3-state belief vector",
+            "source": comparison_source,
+            f"variant_{comparison_variant}": comparison_curve,
         }
     return summary
 
@@ -405,7 +511,124 @@ def _variant_color(variant_name: str) -> str:
         raise ValueError(f"no standard color configured for {variant_name}") from exc
 
 
+def _configure_linear_log_axis(
+    axis: plt.Axes,
+    *,
+    agent_steps: list[int],
+    ylabel: str,
+    title: str,
+) -> None:
+    plot_x = np.asarray(agent_steps, dtype=np.float64)
+    tick_indices = _linear_tick_indices(agent_steps)
+    tick_positions = plot_x[tick_indices]
+    tick_labels = [
+        "init" if agent_steps[index] == 0 else _format_step_label(agent_steps[index])
+        for index in tick_indices
+    ]
+    axis.set_xscale("linear")
+    axis.set_yscale("log")
+    axis.set_xticks(tick_positions, tick_labels)
+    axis.set_xlim(-25_000, float(agent_steps[-1]) * 1.02)
+    axis.tick_params(axis="x", labelrotation=0)
+    axis.set_ylabel(ylabel)
+    axis.set_title(title)
+    axis.grid(alpha=0.25, which="both")
+
+
+def _add_bootstrap_note(axis: plt.Axes) -> None:
+    axis.text(
+        0.02,
+        0.02,
+        (
+            f"Shaded bands: bootstrapped 95% CI for mean MSE across seeds "
+            f"(n={BOOTSTRAP_N:,})"
+        ),
+        transform=axis.transAxes,
+        ha="left",
+        va="bottom",
+        fontsize=8,
+        color="0.35",
+        bbox={
+            "boxstyle": "round,pad=0.25",
+            "facecolor": "white",
+            "edgecolor": "0.85",
+            "alpha": 0.92,
+        },
+    )
+
+
+def _plot_coarse_b2_panels(summary: dict[str, Any], output_stem: Path) -> None:
+    coarse_curve = summary["variants"]["variant_2"]
+    full_curve = summary["comparison"]["variant_2"]
+    full_source = summary["comparison"]["source"]
+    color = VARIANT_COLORS[2]
+
+    figure, axes = plt.subplots(2, 1, figsize=(9.2, 8.8))
+    panels = [
+        (
+            axes[0],
+            coarse_curve,
+            "coarse b2 (variant 2)",
+            "Every saved training checkpoint",
+        ),
+        (
+            axes[1],
+            full_curve,
+            "full 3-state belief (variant 2)",
+            (
+                "Log-spaced training checkpoints"
+                if full_source == "training_checkpoint_probe_curve"
+                else "Every saved training checkpoint"
+            ),
+        ),
+    ]
+
+    all_mse: list[float] = []
+    init_mse: list[float] = []
+    for axis, curve, title, subtitle in panels:
+        plot_x = np.asarray(curve["agent_steps"], dtype=np.float64)
+        series_mse, series_init = _plot_variant_curve(
+            axis,
+            plot_x=plot_x,
+            curve=curve,
+            color=color,
+            label="mean (5 seeds)",
+        )
+        all_mse.extend(series_mse)
+        init_mse.append(series_init)
+        _configure_linear_log_axis(
+            axis,
+            agent_steps=curve["agent_steps"],
+            ylabel="Held-out affine-probe MSE (lower is better)",
+            title=f"{title} — {subtitle}",
+        )
+
+    axes[1].set_xlabel("Environment steps (0 = untrained initialization)")
+    figure.suptitle(
+        f"Cycle {summary['cycle']} — coarse b2 vs full 3-state belief",
+        y=0.995,
+    )
+
+    positive_mse = [value for value in all_mse if value > 0]
+    if positive_mse:
+        ymin = min(positive_mse) * 0.75
+        ymax = max(max(init_mse) * 4.0, max(positive_mse) * 1.05)
+        for axis in axes:
+            axis.set_ylim(ymin, ymax)
+
+    for axis in axes:
+        axis.legend(loc="upper right")
+    _add_bootstrap_note(axes[1])
+    figure.tight_layout()
+    figure.savefig(output_stem.with_suffix(".png"), dpi=200)
+    plt.close(figure)
+
+
 def _plot(summary: dict[str, Any], output_stem: Path) -> None:
+    if summary["target"] == "coarse_b2":
+        _plot_coarse_b2_panels(summary, output_stem)
+        return
+
     plotted = _plotted_variants(summary)
     reference_curve = next(iter(plotted.values()))
     agent_steps = reference_curve["agent_steps"]
@@ -417,7 +640,6 @@ def _plot(summary: dict[str, Any], output_stem: Path) -> None:
         for index in tick_indices
     ]
 
-    comparison = summary.get("comparison")
     figure, axis = plt.subplots(figsize=(9.2, 5.4))
     all_mse: list[float] = []
     init_mse: list[float] = []
@@ -428,23 +650,6 @@ def _plot(summary: dict[str, Any], output_stem: Path) -> None:
             curve=curve,
             color=_variant_color(variant_name),
             label=variant_name.replace("_", " "),
-        )
-        all_mse.extend(series_mse)
-        init_mse.append(series_init)
-
-    if comparison is not None:
-        comparison_key = next(
-            key for key in comparison if key.startswith("variant_")
-        )
-        comparison_curve = comparison[comparison_key]
-        series_mse, series_init = _plot_variant_curve(
-            axis,
-            plot_x=plot_x,
-            curve=comparison_curve,
-            color=COMPARISON_COLOR,
-            label=comparison["label"],
-            linestyle="--",
-            seed_alpha=0.18,
         )
         all_mse.extend(series_mse)
         init_mse.append(series_init)
@@ -468,25 +673,7 @@ def _plot(summary: dict[str, Any], output_stem: Path) -> None:
 
     axis.grid(alpha=0.25, which="both")
     axis.legend()
-    axis.text(
-        0.02,
-        0.02,
-        (
-            f"Shaded bands: bootstrapped 95% CI for mean MSE across seeds "
-            f"(n={BOOTSTRAP_N:,})"
-        ),
-        transform=axis.transAxes,
-        ha="left",
-        va="bottom",
-        fontsize=8,
-        color="0.35",
-        bbox={
-            "boxstyle": "round,pad=0.25",
-            "facecolor": "white",
-            "edgecolor": "0.85",
-            "alpha": 0.92,
-        },
-    )
+    _add_bootstrap_note(axis)
     figure.tight_layout()
     figure.savefig(output_stem.with_suffix(".png"), dpi=200)
     plt.close(figure)
