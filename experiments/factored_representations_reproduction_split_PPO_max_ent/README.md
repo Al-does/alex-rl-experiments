@@ -17,7 +17,7 @@ maximum-entropy actor gradient.
 
 At a uniform policy, the added reward is approximately `1.10` for the
 two-factor 9-action environment and `1.65` for the three-factor 27-action
-environment.
+environment. Each factor cell trains for `10_000_000` environment steps.
 
 Run both factor counts with:
 

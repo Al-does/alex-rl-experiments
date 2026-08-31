@@ -18,7 +18,6 @@ from experiments.factored_representations_reproduction_PPO_2026_08.process impor
 )
 from experiments.factored_representations_reproduction_PPO_2026_08.shared import (
     SMOKE_ENV_STEPS,
-    TOTAL_ENV_STEPS,
     checkpoint_records,
 )
 from experiments.factored_representations_reproduction_split_PPO_cycle_2_2026_08 import (
@@ -35,6 +34,7 @@ from harness.runners import run_tune
 
 
 CONDITION = "ppo_max_entropy"
+TOTAL_ENV_STEPS = 10_000_000
 ENTROPY_REWARD_COEFFICIENT = 0.5
 PPO_ENTROPY_COEFFICIENT = 0.0
 
@@ -70,6 +70,7 @@ def _resolved_recipe(
     return {
         **recipe,
         "condition": CONDITION,
+        "total_env_steps": SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS,
         "objective": (
             "PPO with detached behavior-policy entropy added to rewards before GAE"
         ),

@@ -58,6 +58,6 @@ def test_configs_are_fresh_matched_split_ppo_with_reward_entropy(
     )
 
     recipe = _resolved_recipe(factor_count=factor_count, context=context)
-    assert recipe["condition"] == CONDITION
+    assert recipe["total_env_steps"] == (1024 if context.smoke else 10_000_000)
     assert recipe["entropy_reward_coefficient"] == 0.5
     assert recipe["ppo_entropy_coefficient"] == 0.0
