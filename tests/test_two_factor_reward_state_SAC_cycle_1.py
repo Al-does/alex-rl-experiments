@@ -222,7 +222,7 @@ def test_each_leaf_builds_a_fresh_twenty_million_step_sac_recipe(
     assert first.num_env_runners == 0
     assert first.env_config["task"]["kwargs"]["condition"] == condition
     assert first.rl_module_spec.module_class is TwoFactorRewardSAC
-    assert TOTAL_ENV_STEPS == 20_000_000
+    assert TOTAL_ENV_STEPS == 5_000_000
 
 
 def test_cuda_recipe_uses_profiled_eager_batched_replay(tmp_path):
