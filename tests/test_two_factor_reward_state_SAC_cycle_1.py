@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import importlib
+import math
+from types import SimpleNamespace
 
 import gymnasium as gym
 import numpy as np
 import pytest
 import torch
+from ray.rllib.algorithms.sac import SAC
 from ray.rllib.core.columns import Columns
 
 from envs.hmm import HMMEnv
@@ -28,10 +31,18 @@ from experiments.two_factor_reward_state_SAC_cycle_1.process import (
     environment_config,
 )
 from experiments.two_factor_reward_state_SAC_cycle_1.shared import (
+    EightMinibatchSAC,
+    LEARNER_MINIBATCH_COUNT,
+    LEARNER_MINIBATCH_SIZE,
     MODEL_CONFIG,
     SMOKE_BATCH_SIZE,
     SMOKE_LEARNING_STARTS,
+    TARGET_ENTROPY,
+    TARGET_ENTROPY_FRACTION,
     TOTAL_ENV_STEPS,
+    TRAIN_BATCH_SIZE,
+    TRAINING_INTENSITY,
+    _resolved_recipe,
 )
 from experiments.two_factor_reward_state_SAC_cycle_1.task import (
     ACTION_PAIRS,
@@ -212,6 +223,89 @@ def test_each_leaf_builds_a_fresh_twenty_million_step_sac_recipe(
     assert first.env_config["task"]["kwargs"]["condition"] == condition
     assert first.rl_module_spec.module_class is TwoFactorRewardSAC
     assert TOTAL_ENV_STEPS == 20_000_000
+
+
+def test_cuda_recipe_uses_profiled_eager_batched_replay(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cuda4090_gpuinfer"],
+    )
+    config = importlib.import_module(
+        "experiments.two_factor_reward_state_SAC_cycle_1."
+        "reward_both.experiment"
+    ).build_config(context)
+
+    assert config.algo_class is EightMinibatchSAC
+    assert config.train_batch_size_per_learner == TRAIN_BATCH_SIZE == 8_192
+    assert LEARNER_MINIBATCH_COUNT == 8
+    assert LEARNER_MINIBATCH_SIZE == 1_024
+    assert config.training_intensity == TRAINING_INTENSITY == 1.0
+    assert config.target_entropy == pytest.approx(0.6 * math.log(9))
+    assert config.target_entropy == TARGET_ENTROPY
+    assert config.rollout_fragment_length == CONTEXT_LENGTH == 64
+    assert config.min_sample_timesteps_per_iteration == TRAIN_BATCH_SIZE
+    assert config.torch_compile_learner is False
+
+
+@pytest.mark.parametrize(
+    ("total_batch_size", "expected_minibatch_size"),
+    [(TRAIN_BATCH_SIZE, LEARNER_MINIBATCH_SIZE), (SMOKE_BATCH_SIZE, SMOKE_BATCH_SIZE)],
+)
+def test_custom_sac_passes_gpu_sized_minibatches_to_learner(
+    monkeypatch,
+    total_batch_size,
+    expected_minibatch_size,
+):
+    calls = []
+
+    class LearnerGroup:
+        def update(self, *args, **kwargs):
+            calls.append((args, kwargs))
+            return {"updated": True}
+
+    def parent_training_step(self):
+        self.learner_group.update(episodes=["episode"])
+        return {"complete": True}
+
+    monkeypatch.setattr(SAC, "training_step", parent_training_step)
+    algorithm = object.__new__(EightMinibatchSAC)
+    algorithm.learner_group = LearnerGroup()
+    algorithm.config = SimpleNamespace(total_train_batch_size=total_batch_size)
+    original_update = algorithm.learner_group.update
+
+    assert algorithm.training_step() == {"complete": True}
+    assert calls == [
+        (
+            (),
+            {
+                "episodes": ["episode"],
+                "num_epochs": 1,
+                "minibatch_size": expected_minibatch_size,
+            },
+        )
+    ]
+    assert algorithm.learner_group.update == original_update
+
+
+def test_resolved_recipe_records_throughput_and_entropy_choices(tmp_path):
+    recipe = _resolved_recipe(_context(tmp_path), "reward_both", {})
+
+    assert recipe["train_batch_size_per_learner"] == TRAIN_BATCH_SIZE
+    assert recipe["learner_minibatch_count"] == LEARNER_MINIBATCH_COUNT
+    assert recipe["learner_minibatch_size"] == LEARNER_MINIBATCH_SIZE
+    assert recipe["learner_num_epochs"] == 1
+    assert recipe["training_intensity"] == TRAINING_INTENSITY
+    assert recipe["target_entropy_fraction_of_categorical_maximum"] == (
+        TARGET_ENTROPY_FRACTION
+    )
+    assert recipe["target_entropy"] == TARGET_ENTROPY
+    assert recipe["rollout_fragment_length"] == CONTEXT_LENGTH
+    assert recipe["torch_compile_learner"] is False
+    assert recipe["min_sample_timesteps_per_iteration"] == TRAIN_BATCH_SIZE
 
 
 def test_actor_and_critics_use_separate_action_aware_transformers():

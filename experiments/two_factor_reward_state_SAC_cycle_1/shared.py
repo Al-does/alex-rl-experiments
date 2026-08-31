@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from dataclasses import replace
 from functools import partial
+import math
 from pathlib import Path
 from typing import Any
 
 from ray import tune
-from ray.rllib.algorithms.sac import SACConfig
+from ray.rllib.algorithms.sac import SAC, SACConfig
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
 from envs.hmm import HMMEnv
@@ -54,12 +55,17 @@ from harness.runners import run_tune
 
 TOTAL_ENV_STEPS = 20_000_000
 SMOKE_ENV_STEPS = 128
-TRAIN_BATCH_SIZE = 256
+TRAIN_BATCH_SIZE = 8_192
+LEARNER_MINIBATCH_COUNT = 8
+LEARNER_MINIBATCH_SIZE = TRAIN_BATCH_SIZE // LEARNER_MINIBATCH_COUNT
 SMOKE_BATCH_SIZE = 64
 LEARNING_STARTS = 1_500
 SMOKE_LEARNING_STARTS = 32
 REPLAY_CAPACITY = 1_000_000
 SMOKE_REPLAY_CAPACITY = 1_024
+TRAINING_INTENSITY = 1.0
+TARGET_ENTROPY_FRACTION = 0.6
+TARGET_ENTROPY = TARGET_ENTROPY_FRACTION * math.log(JOINT_TOKEN_COUNT)
 MODEL_CONFIG = {
     **FactoredReproductionModelConfig(
         d_model=64,
@@ -73,6 +79,28 @@ MODEL_CONFIG = {
 }
 
 
+class EightMinibatchSAC(SAC):
+    """Process each replay batch as eight GPU-sized learner minibatches."""
+
+    def training_step(self) -> dict[str, Any]:
+        original_update = self.learner_group.update
+        minibatch_size = min(
+            LEARNER_MINIBATCH_SIZE,
+            self.config.total_train_batch_size,
+        )
+
+        def update_with_minibatches(*args: Any, **kwargs: Any) -> Any:
+            kwargs.setdefault("num_epochs", 1)
+            kwargs.setdefault("minibatch_size", minibatch_size)
+            return original_update(*args, **kwargs)
+
+        self.learner_group.update = update_with_minibatches
+        try:
+            return super().training_step()
+        finally:
+            self.learner_group.update = original_update
+
+
 def build_config(context: RunContext, condition: str) -> SACConfig:
     """Build one fresh nine-action discrete-SAC configuration."""
 
@@ -80,16 +108,11 @@ def build_config(context: RunContext, condition: str) -> SACConfig:
         raise ValueError(f"condition must be one of {CONDITIONS}")
     profile = context.hardware or PROFILES["cpu"]
     return (
-        SACConfig()
+        SACConfig(algo_class=EightMinibatchSAC)
         .environment(HMMEnv, env_config=environment_config(condition))
         .framework(
             "torch",
-            torch_compile_learner=(
-                not context.smoke and profile.learner_device == "cuda"
-            ),
-            torch_compile_learner_what_to_compile="forward_train",
-            torch_compile_learner_dynamo_backend="inductor",
-            torch_compile_learner_dynamo_mode="reduce-overhead",
+            torch_compile_learner=False,
             torch_compile_worker=False,
         )
         .training(
@@ -100,9 +123,11 @@ def build_config(context: RunContext, condition: str) -> SACConfig:
             actor_lr=3e-5,
             critic_lr=3e-4,
             alpha_lr=3e-4,
+            target_entropy=TARGET_ENTROPY,
             train_batch_size_per_learner=(
                 SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
             ),
+            training_intensity=TRAINING_INTENSITY,
             num_steps_sampled_before_learning_starts=(
                 SMOKE_LEARNING_STARTS if context.smoke else LEARNING_STARTS
             ),
@@ -143,7 +168,7 @@ def build_config(context: RunContext, condition: str) -> SACConfig:
                 1 if context.smoke else profile.num_envs_per_env_runner
             ),
             num_gpus_per_env_runner=0,
-            rollout_fragment_length=1,
+            rollout_fragment_length=(1 if context.smoke else CONTEXT_LENGTH),
             sample_timeout_s=600.0,
         )
         .learners(
@@ -152,7 +177,9 @@ def build_config(context: RunContext, condition: str) -> SACConfig:
             ),
         )
         .reporting(
-            min_sample_timesteps_per_iteration=64 if context.smoke else 100,
+            min_sample_timesteps_per_iteration=(
+                64 if context.smoke else TRAIN_BATCH_SIZE
+            ),
             min_time_s_per_iteration=0 if context.smoke else 1,
         )
     )
@@ -187,7 +214,16 @@ def _resolved_recipe(
         "critic_learning_rate": 3e-4,
         "alpha_learning_rate": 3e-4,
         "train_batch_size_per_learner": TRAIN_BATCH_SIZE,
+        "learner_minibatch_count": LEARNER_MINIBATCH_COUNT,
+        "learner_minibatch_size": LEARNER_MINIBATCH_SIZE,
+        "learner_num_epochs": 1,
+        "training_intensity": TRAINING_INTENSITY,
+        "target_entropy_fraction_of_categorical_maximum": TARGET_ENTROPY_FRACTION,
+        "target_entropy": TARGET_ENTROPY,
         "learning_starts": LEARNING_STARTS,
+        "rollout_fragment_length": CONTEXT_LENGTH,
+        "torch_compile_learner": False,
+        "min_sample_timesteps_per_iteration": TRAIN_BATCH_SIZE,
         "replay_capacity": REPLAY_CAPACITY,
         "model": MODEL_CONFIG,
         "total_env_steps": (
