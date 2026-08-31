@@ -24,6 +24,7 @@ from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_prob
     _install_checkpoint_import_aliases,
     decompose_belief,
     reconstruct_belief,
+    run_probe_condition,
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_probes.campaign_analysis import (
     _run_paths,
@@ -47,6 +48,7 @@ from experiments.mess3_reward_state_action_symmetry_cycle_4.token_swap_diagnosti
     swap_state_0_1_tokens,
 )
 from learners.models import TransformerModel
+from harness.context import RunContext
 
 
 def _environment(cycle: int, variant: int) -> HMMEnv:
@@ -436,6 +438,83 @@ def test_checkpoint_manifest_includes_init_and_every_saved_checkpoint(tmp_path):
     (tmp_path / "checkpoint_manifest.json").write_text(json.dumps(manifest))
 
     assert _checkpoint_requests(tmp_path) == manifest["checkpoints"]
+
+
+def test_requested_target_runs_at_init_and_every_manifest_checkpoint(
+    tmp_path, monkeypatch
+):
+    bundle = tmp_path / "bundle"
+    schedule = [
+        {
+            "label": "initial",
+            "training_iteration": 0,
+            "path": "initial_checkpoint",
+        },
+        {
+            "label": "checkpoint_000000",
+            "training_iteration": 1,
+            "path": "checkpoints/checkpoint_000000",
+        },
+        {
+            "label": "checkpoint_000001",
+            "training_iteration": 2,
+            "path": "checkpoints/checkpoint_000001",
+        },
+    ]
+    for request in schedule:
+        checkpoint = bundle / request["path"]
+        checkpoint.mkdir(parents=True)
+        (checkpoint / "rllib_checkpoint.json").write_text("{}")
+    (bundle / "checkpoint_manifest.json").write_text(
+        json.dumps({"checkpoints": schedule})
+    )
+    (bundle / "source_provenance.json").write_text(
+        json.dumps({"requested_target": "antisymmetric_b0_minus_b1"})
+    )
+    calls = []
+
+    def fake_probe(context, checkpoint, *, cycle, variant, label, target_names):
+        calls.append(
+            {
+                "checkpoint": checkpoint,
+                "cycle": cycle,
+                "variant": variant,
+                "label": label,
+                "target_names": target_names,
+            }
+        )
+        return {
+            "checkpoint": label,
+            "targets": {"antisymmetric_b0_minus_b1": {"global_mse_ratio": 0.5}},
+        }
+
+    module = importlib.import_module(
+        "experiments.mess3_reward_state_action_symmetry_cycle_4."
+        "belief_symmetry_probes.analysis"
+    )
+    monkeypatch.setattr(module, "probe_checkpoint", fake_probe)
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        run_id="trajectory-test",
+        resume_from=bundle,
+    )
+
+    summary = run_probe_condition(context, cycle=5, variant=3)
+
+    assert list(summary["checkpoints"]) == [
+        "initial",
+        "checkpoint_000000",
+        "checkpoint_000001",
+    ]
+    assert [call["target_names"] for call in calls] == [
+        ("antisymmetric_b0_minus_b1",)
+    ] * 3
+    assert json.loads(
+        (context.results_dir / "condition_summary.json").read_text()
+    ) == summary
 
 
 def test_target_campaign_assigns_requested_variants_and_all_seeds():
