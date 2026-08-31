@@ -629,6 +629,70 @@ def test_trajectory_campaign_aggregates_and_plots_every_checkpoint(tmp_path):
     assert not png.with_suffix(".pdf").exists()
 
 
+def test_coarse_campaign_aggregates_full_belief_from_training_curves(tmp_path):
+    target = "coarse_b2"
+    schedule = [
+        {"label": "initial", "training_iteration": 0},
+        {"label": "checkpoint_000000", "training_iteration": 1},
+    ]
+    probes_root = tmp_path / "study" / "belief_symmetry_probes"
+    study_root = tmp_path / "study"
+    for seed in SEEDS:
+        run_id = (
+            f"mess3-rsa-c5-belief-trajectory-{TRAJECTORY_SUFFIX}-"
+            f"coarse-b2-v2-seed{seed}"
+        )
+        run_dir = probes_root / "variant_2" / "results" / run_id
+        run_dir.mkdir(parents=True)
+        checkpoints = {}
+        for index, point in enumerate(schedule):
+            checkpoints[point["label"]] = {
+                "targets": {
+                    target: {
+                        "mse": 0.01 / (index + 1) + seed / 10_000,
+                    }
+                }
+            }
+        (run_dir / "condition_summary.json").write_text(
+            json.dumps(
+                {
+                    "requested_target": target,
+                    "checkpoint_schedule": schedule,
+                    "checkpoints": checkpoints,
+                }
+            )
+        )
+        training_points = []
+        for index, point in enumerate(schedule):
+            step = index * 33_000
+            training_points.append(
+                {
+                    "agent_steps": step,
+                    **(
+                        {}
+                        if step == 0
+                        else {"checkpoint_name": point["label"]}
+                    ),
+                    "training_iteration": point["training_iteration"],
+                    "mse": 0.02 / (index + 1) + seed / 10_000,
+                    "probe": {"target": "exact_predictive_bayesian_belief"},
+                }
+            )
+        training_dir = study_root / "variant_2" / "results" / f"mess3-rsa-c5-v2-seed{seed}"
+        training_dir.mkdir(parents=True)
+        (training_dir / "checkpoint_probe_curve.json").write_text(
+            json.dumps({"checkpoints": training_points})
+        )
+
+    summary = aggregate_trajectories(probes_root, cycle=5, target=target)
+    assert summary["comparison"]["target"] == "full_belief"
+    assert summary["comparison"]["source"] == "training_checkpoint_probe_curve"
+    assert summary["comparison"]["variant_2"]["agent_steps"] == [0, 33_000]
+
+    png = write_campaign(probes_root, cycle=5, target=target)
+    assert png.is_file()
+
+
 @pytest.mark.parametrize("cycle", (4, 5))
 @pytest.mark.parametrize("variant", (1, 2, 3))
 def test_all_probe_leaves_import_and_encode_cycle_variant(cycle, variant):

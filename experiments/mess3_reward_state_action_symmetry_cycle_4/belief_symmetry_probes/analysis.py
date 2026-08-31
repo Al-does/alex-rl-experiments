@@ -47,17 +47,21 @@ STREAMS = {
     "bootstrap_symmetric_b2": (520,),
     "bootstrap_antisymmetric_b0_minus_b1": (521,),
     "bootstrap_coarse_b2": (522,),
+    "bootstrap_full_belief": (523,),
     "permutation_symmetric_b2": (530,),
     "permutation_antisymmetric_b0_minus_b1": (531,),
     "permutation_coarse_b2": (532,),
+    "permutation_full_belief": (533,),
     "permutation_sample_symmetric_b2": (540,),
     "permutation_sample_antisymmetric_b0_minus_b1": (541,),
     "permutation_sample_coarse_b2": (542,),
+    "permutation_sample_full_belief": (543,),
 }
 TARGET_NAMES = (
     "symmetric_b2",
     "antisymmetric_b0_minus_b1",
     "coarse_b2",
+    "full_belief",
 )
 
 
@@ -275,8 +279,14 @@ def _evaluate_target(
     *,
     n_resamples: int,
 ) -> dict[str, Any]:
-    train_target = np.asarray(train_target, dtype=np.float64).reshape(-1, 1)
-    test_target = np.asarray(test_target, dtype=np.float64).reshape(-1, 1)
+    train_target = np.asarray(train_target, dtype=np.float64)
+    test_target = np.asarray(test_target, dtype=np.float64)
+    if name == "full_belief":
+        if train_target.ndim != 2 or train_target.shape[1] != 3:
+            raise ValueError("full_belief requires belief targets with shape (N, 3)")
+    else:
+        train_target = train_target.reshape(-1, 1)
+        test_target = test_target.reshape(-1, 1)
     variance = float(np.square(test_target - test_target.mean(axis=0)).mean())
     if variance <= np.finfo(np.float64).eps:
         return {"status": "degenerate", "target_variance": variance}
@@ -295,6 +305,7 @@ def _evaluate_target(
             "symmetric_b2": "exact full-filter P(state=2)",
             "antisymmetric_b0_minus_b1": "exact full-filter P(state=0)-P(state=1)",
             "coarse_b2": "separate exact lumped-filter P(B={state2})",
+            "full_belief": "exact full-filter 3-state belief vector",
         }[name],
         **global_mse_metrics(predicted, test_target),
         "r_squared": r2_score(predicted, test_target),
@@ -418,7 +429,7 @@ def probe_checkpoint(
             train_antisymmetric,
             test_antisymmetric,
         )
-    if coarse_spec is not None:
+    if "coarse_b2" in requested_targets:
         assert train_coarse is not None and test_coarse is not None
         coarse_projection_differences = np.concatenate(
             (
@@ -436,6 +447,8 @@ def probe_checkpoint(
     else:
         coarse_projection_mse = None
         coarse_projection_max_abs_difference = None
+    if "full_belief" in requested_targets:
+        targets["full_belief"] = (train.beliefs, test.beliefs)
 
     return {
         "checkpoint": label,
@@ -520,6 +533,7 @@ def run_probe_condition(context: RunContext, *, cycle: int, variant: int) -> dic
             "symmetric_b2": "b2",
             "antisymmetric_b0_minus_b1": "b0-b1",
             **({"coarse_b2": "separate A={0,1}, B={2} lumped Bayes filter"} if variant in (1, 2) else {}),
+            **({"full_belief": "exact 3-state predictive Bayes filter belief"}),
         },
         "filter_definitions": {
             "full": "delay-0 initial measurement; later transition@measurement using action-dependent transitions",
