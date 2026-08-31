@@ -25,12 +25,10 @@ from experiments.factored_representations_reproduction_PPO_2026_08.process impor
     joint_token_count,
 )
 from experiments.factored_representations_reproduction_PPO_2026_08.shared import (
-    MINIBATCH_SIZE,
     SMOKE_BATCH_SIZE,
     SMOKE_ENV_STEPS,
     SMOKE_MINIBATCH_SIZE,
     TOTAL_ENV_STEPS,
-    TRAIN_BATCH_SIZE,
     _save_initial_checkpoint,
     _save_log_spaced_checkpoint,
     checkpoint_records,
@@ -53,6 +51,10 @@ from harness.runners import run_tune
 
 MODEL_CONFIG = FactoredReproductionModelConfig().to_dict()
 CONDITIONS = ("ppo", "ppo_aux_ce")
+# Independent actor and critic transformers roughly double learner activation
+# memory versus the shared-encoder PPO reproduction at the same batch size.
+TRAIN_BATCH_SIZE = 16_384
+MINIBATCH_SIZE = 16_384
 
 
 def build_config(
@@ -185,6 +187,10 @@ def _resolved_recipe(
         "num_epochs": 6,
         "train_batch_size_per_learner": TRAIN_BATCH_SIZE,
         "minibatch_size": MINIBATCH_SIZE,
+        "batch_size_rationale": (
+            "Halved from the shared-encoder PPO recipe because separate actor "
+            "and critic transformers OOM at 32,768 on RTX 4090."
+        ),
         "model": MODEL_CONFIG,
         "architecture": (
             "independent actor and critic paper transformers with separate "
