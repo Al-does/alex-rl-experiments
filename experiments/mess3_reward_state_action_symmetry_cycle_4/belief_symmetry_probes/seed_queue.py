@@ -31,6 +31,16 @@ SOURCE_RUN_PATTERNS = {
 }
 CHECKPOINT_NAME = re.compile(r"checkpoint_\d+")
 CAMPAIGN_SUFFIX = "0035"
+TRAJECTORY_SUFFIX = "0036"
+SEEDS = (42, 43, 44, 45, 46)
+TARGET_VARIANTS = {
+    "symmetric_b2": (1, 2, 3),
+    "antisymmetric_b0_minus_b1": (1, 2, 3),
+    # This campaign asks whether variant 2 learns the explicitly coarsened
+    # two-state HMM filter. Variant 1 is lumpable too, but is not part of this
+    # graph's preregistered comparison.
+    "coarse_b2": (2,),
+}
 
 
 def _walk_strings(value: Any):
@@ -110,21 +120,46 @@ def _select_source_base(
     ) from (failures[-1] if failures else None)
 
 
-def _download_atomic(client: Any, bucket: str, key: str, destination: Path) -> None:
+def _download_atomic(
+    client: Any,
+    bucket: str,
+    key: str,
+    destination: Path,
+    *,
+    max_attempts: int = 5,
+) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(dir=destination.parent, delete=False) as handle:
-        temporary = Path(handle.name)
-    try:
-        response = client.get_object(Bucket=bucket, Key=key)
-        body = response["Body"]
+    last_error: Exception | None = None
+    for attempt in range(max_attempts):
+        temporary = Path(
+            tempfile.mkstemp(
+                dir=destination.parent,
+                prefix=f".{destination.name}.",
+            )[1]
+        )
         try:
-            with temporary.open("wb") as output:
-                shutil.copyfileobj(body, output, length=8 * 1024 * 1024)
-        finally:
-            body.close()
-        os.replace(temporary, destination)
-    finally:
-        temporary.unlink(missing_ok=True)
+            response = client.get_object(Bucket=bucket, Key=key)
+            body = response["Body"]
+            try:
+                with temporary.open("wb") as output:
+                    shutil.copyfileobj(body, output, length=8 * 1024 * 1024)
+            finally:
+                body.close()
+            os.replace(temporary, destination)
+            return
+        except Exception as error:
+            last_error = error
+            temporary.unlink(missing_ok=True)
+            if attempt + 1 >= max_attempts:
+                break
+            delay = min(60.0, 4.0 * (2**attempt))
+            print(
+                f"[seed_queue] retrying B2 download for {key} "
+                f"after {error!r} (attempt {attempt + 2}/{max_attempts})",
+                flush=True,
+            )
+            time.sleep(delay)
+    raise RuntimeError(f"B2 download failed for {key}") from last_error
 
 
 def _validate_checkpoint(path: Path) -> None:
@@ -147,8 +182,9 @@ def recover_bundle(
     variant: int,
     seed: int,
     destination: Path,
+    requested_target: str | None = None,
 ) -> Path:
-    """Download only initial and actual final checkpoints from B2."""
+    """Download the requested source checkpoint sequence from B2."""
     config = B2StorageConfig.from_env()
     if config is None:
         raise RuntimeError("B2 credentials are required to recover source checkpoints")
@@ -174,15 +210,40 @@ def recover_bundle(
     final_name = _final_checkpoint_name(tune_summary)
     all_keys = _objects(client, config.bucket, f"{base}/")
     selected: list[tuple[str, str, str]] = []
+    checkpoint_names = sorted(
+        {
+            part
+            for key in all_keys
+            for part in key.split("/")
+            if CHECKPOINT_NAME.fullmatch(part)
+        },
+        key=lambda name: int(name.rsplit("_", 1)[1]),
+    )
     for key in all_keys:
         if "/initial_checkpoint/" in key:
             relative = key.split("/initial_checkpoint/", 1)[1]
             selected.append((key, "initial_checkpoint", relative))
-        elif f"/{final_name}/" in key and "/compact-results/" not in key:
-            relative = key.split(f"/{final_name}/", 1)[1]
-            selected.append((key, "final_checkpoint", relative))
+        elif requested_target is None:
+            if f"/{final_name}/" in key and "/compact-results/" not in key:
+                relative = key.split(f"/{final_name}/", 1)[1]
+                selected.append((key, "final_checkpoint", relative))
+        else:
+            for checkpoint_name in checkpoint_names:
+                marker = f"/{checkpoint_name}/"
+                if marker in key and "/compact-results/" not in key:
+                    relative = key.split(marker, 1)[1]
+                    selected.append(
+                        (
+                            key,
+                            f"checkpoints/{checkpoint_name}",
+                            relative,
+                        )
+                    )
+                    break
     if not selected:
         raise FileNotFoundError(f"no checkpoint objects found under s3://{config.bucket}/{base}")
+    if requested_target is not None and not checkpoint_names:
+        raise FileNotFoundError(f"no training checkpoints found under s3://{config.bucket}/{base}")
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     staging = Path(
@@ -192,7 +253,38 @@ def recover_bundle(
         for key, member, relative in selected:
             _download_atomic(client, config.bucket, key, staging / member / relative)
         _validate_checkpoint(staging / "initial_checkpoint")
-        _validate_checkpoint(staging / "final_checkpoint")
+        if requested_target is None:
+            _validate_checkpoint(staging / "final_checkpoint")
+        else:
+            for checkpoint_name in checkpoint_names:
+                _validate_checkpoint(staging / "checkpoints" / checkpoint_name)
+            (staging / "checkpoint_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "checkpoints": [
+                            {
+                                "label": "initial",
+                                "training_iteration": 0,
+                                "path": "initial_checkpoint",
+                            },
+                            *[
+                                {
+                                    "label": checkpoint_name,
+                                    # RLlib's zero-based checkpoint suffix is
+                                    # one behind training_iteration.
+                                    "training_iteration": (
+                                        int(checkpoint_name.rsplit("_", 1)[1]) + 1
+                                    ),
+                                    "path": f"checkpoints/{checkpoint_name}",
+                                }
+                                for checkpoint_name in checkpoint_names
+                            ],
+                        ]
+                    },
+                    indent=2,
+                )
+                + "\n"
+            )
         (staging / "source_provenance.json").write_text(
             json.dumps(
                 {
@@ -203,6 +295,12 @@ def recover_bundle(
                     "seed": seed,
                     "b2_base": base,
                     "final_checkpoint_name": final_name,
+                    "requested_target": requested_target,
+                    "checkpoint_count": (
+                        len(checkpoint_names) + 1
+                        if requested_target is not None
+                        else 2
+                    ),
                 },
                 indent=2,
             )
@@ -240,13 +338,27 @@ def _parse_job(job: str) -> tuple[int, int]:
     return int(match.group(1)), int(match.group(2))
 
 
-def run_job(*, cycle: int, variant: int, seed: int, push_each: bool) -> int:
+def run_job(
+    *,
+    cycle: int,
+    variant: int,
+    seed: int,
+    target: str | None,
+    push_each: bool,
+) -> int:
     package = f"mess3_reward_state_action_symmetry_cycle_{cycle}"
     module = f"experiments.{package}.belief_symmetry_probes.variant_{variant}.experiment"
-    run_id = (
-        f"mess3-rsa-c{cycle}-belief-symmetry-probe-{CAMPAIGN_SUFFIX}-"
-        f"v{variant}-seed{seed}"
-    )
+    if target is None:
+        run_id = (
+            f"mess3-rsa-c{cycle}-belief-symmetry-probe-{CAMPAIGN_SUFFIX}-"
+            f"v{variant}-seed{seed}"
+        )
+    else:
+        target_slug = target.replace("_", "-")
+        run_id = (
+            f"mess3-rsa-c{cycle}-belief-trajectory-{TRAJECTORY_SUFFIX}-"
+            f"{target_slug}-v{variant}-seed{seed}"
+        )
     experiment = load_experiment(module)
     context = make_run_context(
         experiment,
@@ -261,6 +373,7 @@ def run_job(*, cycle: int, variant: int, seed: int, push_each: bool) -> int:
             variant=variant,
             seed=seed,
             destination=bundle,
+            requested_target=target,
         )
         context = make_run_context(
             experiment,
@@ -280,6 +393,7 @@ def run_job(*, cycle: int, variant: int, seed: int, push_each: bool) -> int:
                 "hardware_profile": "cuda4090",
                 "seed": seed,
                 "resume_from": str(bundle),
+                "probe_target": target,
                 "upload_artifacts": False,
             },
             upload_artifacts=False,
@@ -290,6 +404,8 @@ def run_job(*, cycle: int, variant: int, seed: int, push_each: bool) -> int:
         if push_each:
             _push_results(f"{run_id}-failed")
         return 1
+    finally:
+        shutil.rmtree(bundle, ignore_errors=True)
     if push_each and not _push_results(run_id):
         return 2
     return 0
@@ -297,20 +413,65 @@ def run_job(*, cycle: int, variant: int, seed: int, push_each: bool) -> int:
 
 def main(argv: Sequence[str] | None = None, *, cycle: int = 4) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("jobs", nargs="+", type=_parse_job)
+    parser.add_argument("jobs", nargs="*", type=_parse_job)
+    parser.add_argument("--target", choices=tuple(TARGET_VARIANTS))
+    parser.add_argument(
+        "--all-seeds",
+        action="store_true",
+        help="Run the target's complete variant x seeds 42-46 graph campaign.",
+    )
     parser.add_argument("--fail-fast", action="store_true")
     parser.add_argument(
         "--push-each", action=argparse.BooleanOptionalAction, default=True
     )
     args = parser.parse_args(argv)
+    if args.all_seeds:
+        if args.target is None:
+            parser.error("--all-seeds requires --target")
+        if args.jobs:
+            parser.error("explicit jobs cannot be combined with --all-seeds")
+        jobs = [
+            (variant, seed)
+            for variant in TARGET_VARIANTS[args.target]
+            for seed in SEEDS
+        ]
+    else:
+        jobs = list(args.jobs)
+    if not jobs:
+        parser.error("provide jobs or use --target TARGET --all-seeds")
+    if args.target == "coarse_b2" and any(variant != 2 for variant, _ in jobs):
+        parser.error("the coarse_b2 graph campaign is restricted to variant 2")
     codes: dict[str, int] = {}
-    for variant, seed in args.jobs:
+    for variant, seed in jobs:
         label = f"v{variant}:{seed}"
         codes[label] = run_job(
-            cycle=cycle, variant=variant, seed=seed, push_each=args.push_each
+            cycle=cycle,
+            variant=variant,
+            seed=seed,
+            target=args.target,
+            push_each=args.push_each,
         )
         if codes[label] and args.fail_fast:
             break
+    if args.target is not None and not any(codes.values()):
+        from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_probes.trajectory_campaign import (
+            write_campaign,
+        )
+
+        package = Path(__file__).resolve().parents[1].name.replace(
+            "cycle_4", f"cycle_{cycle}"
+        )
+        root = (
+            Path(__file__).resolve().parents[1].parent
+            / package
+            / "belief_symmetry_probes"
+        )
+        output = write_campaign(root, cycle=cycle, target=args.target)
+        print(f"[seed_queue] wrote campaign graph to {output}", flush=True)
+        if args.push_each and not _push_results(
+            f"mess3-rsa-c{cycle}-belief-trajectory-{TRAJECTORY_SUFFIX}-{args.target}"
+        ):
+            return 2
     print({"job_exit_codes": codes}, flush=True)
     return 1 if any(codes.values()) else 0
 
