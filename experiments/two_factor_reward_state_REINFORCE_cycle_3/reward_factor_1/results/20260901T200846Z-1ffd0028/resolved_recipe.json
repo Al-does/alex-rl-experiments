@@ -1,0 +1,142 @@
+{
+  "action_labels_by_flat_index": [
+    "factor_1_noop_factor_2_noop",
+    "factor_1_positive_factor_2_positive",
+    "factor_1_positive_factor_2_negative",
+    "factor_1_noop_factor_2_positive",
+    "factor_1_noop_factor_2_negative",
+    "factor_1_negative_factor_2_positive",
+    "factor_1_negative_factor_2_negative",
+    "factor_1_positive_factor_2_noop",
+    "factor_1_negative_factor_2_noop"
+  ],
+  "action_pairs_by_flat_index": [
+    [
+      0,
+      0
+    ],
+    [
+      1,
+      1
+    ],
+    [
+      1,
+      2
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      2
+    ],
+    [
+      2,
+      1
+    ],
+    [
+      2,
+      2
+    ],
+    [
+      1,
+      0
+    ],
+    [
+      2,
+      0
+    ]
+  ],
+  "algorithm": "REINFORCE",
+  "algorithm_variant": "Monte-Carlo policy gradient with learned value baseline",
+  "analytic_design": {
+    "effect_size": 1.5,
+    "emission_alpha": 0.85,
+    "factor_action_semantics": "action-symmetry cycle 5 variant 3",
+    "oracle_gap": 0.08017165223389883,
+    "oracle_policy_by_state": [
+      1,
+      2,
+      0
+    ],
+    "oracle_single_factor_state_2_occupancy": 0.356518584849733,
+    "reward_both_oracle_mean_reward": 0.713037169699466,
+    "reward_factor_1_oracle_mean_reward": 0.356518584849733,
+    "runner_up_single_factor_state_2_occupancy": 0.27634693261583415
+  },
+  "checkpoint_schedule": "initial, powers of two iterations, final",
+  "condition": "reward_factor_1",
+  "emission_alpha": 0.85,
+  "entropy_coeff": 0.0,
+  "environment": {
+    "delay": 0,
+    "episode_length": 1024,
+    "model": {
+      "factory": "envs.hmm:factored_model",
+      "kwargs": {
+        "factors": [
+          {
+            "factory": "experiments.two_factor_reward_state_SAC_cycle_2.process:controlled_factor_model"
+          },
+          {
+            "factory": "experiments.two_factor_reward_state_SAC_cycle_2.process:controlled_factor_model"
+          }
+        ]
+      }
+    },
+    "observation": {
+      "action": {
+        "depth": 1
+      },
+      "token": {
+        "depth": 1
+      }
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "experiments.two_factor_reward_state_SAC_cycle_2.task:TwoFactorVariant3Task",
+      "kwargs": {
+        "condition": "reward_factor_1"
+      }
+    }
+  },
+  "factor_count": 2,
+  "factor_transition_matrix": [
+    [
+      0.75,
+      0.15,
+      0.1
+    ],
+    [
+      0.15,
+      0.75,
+      0.1
+    ],
+    [
+      0.3,
+      0.3,
+      0.4
+    ]
+  ],
+  "gamma": 0.99,
+  "hypothesis": "selective reward makes the rewarded factor belief more linearly accessible under independent variant-3 control when optimized by Monte-Carlo REINFORCE",
+  "joint_token_count": 9,
+  "lambda": 1.0,
+  "learning_rate": 0.00042,
+  "minibatch_size": 2048,
+  "model": {
+    "context_len": 10,
+    "d_model": 64,
+    "max_seq_len": 32,
+    "n_heads": 1,
+    "n_layers": 4
+  },
+  "num_epochs": 1,
+  "primary_comparison": "reward_both versus reward_factor_1",
+  "study": "two_factor_reward_state_REINFORCE_cycle_3",
+  "total_env_steps": 5000000,
+  "train_batch_size_per_learner": 32768,
+  "transformer_raw_observation_lookback": 40,
+  "value_loss_coeff": 0.5
+}
