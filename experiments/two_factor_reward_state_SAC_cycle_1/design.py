@@ -81,6 +81,46 @@ def constant_occupancies() -> np.ndarray:
     )
 
 
+def uniform_random_task_accuracy(
+    condition: str,
+    *,
+    seed: int = 20260828,
+    steps: int = 200_000,
+    burn_in: int = 500,
+) -> float:
+    """Return the task metric under i.i.d. uniform flat actions."""
+
+    from experiments.two_factor_reward_state_SAC_cycle_1.process import (
+        decode_joint_indices,
+    )
+    from experiments.two_factor_reward_state_SAC_cycle_1.task import (
+        CONDITIONS,
+        joint_transition,
+        N_ACTIONS,
+    )
+
+    if condition not in CONDITIONS:
+        raise ValueError(f"condition must be one of {CONDITIONS}")
+    if steps <= burn_in:
+        raise ValueError("simulation needs post-burn-in steps")
+
+    rng = np.random.default_rng(seed)
+    state = 0
+    total = 0.0
+    for step in range(steps):
+        transition = joint_transition(int(rng.integers(N_ACTIONS)))
+        if step >= burn_in:
+            first, second = decode_joint_indices(state)
+            if condition == "reward_both":
+                total += float(first == 2) + float(second == 2)
+            elif condition == "reward_factor_1":
+                total += float(first == 2)
+            else:
+                total += float(second == 2)
+        state = int(_sample_rows(rng, transition[state : state + 1])[0])
+    return float(total / (steps - burn_in))
+
+
 def _sample_rows(
     rng: np.random.Generator,
     probabilities: np.ndarray,
