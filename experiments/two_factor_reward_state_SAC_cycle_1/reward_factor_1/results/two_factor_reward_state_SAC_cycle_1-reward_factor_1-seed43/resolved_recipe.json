@@ -1,0 +1,174 @@
+{
+  "action_labels_by_flat_index": [
+    "noop_noop",
+    "factor_1_forward_factor_2_forward",
+    "factor_1_forward_factor_2_backward",
+    "factor_1_noop_factor_2_forward",
+    "factor_1_noop_factor_2_backward",
+    "factor_1_backward_factor_2_forward",
+    "factor_1_backward_factor_2_backward",
+    "factor_1_forward_factor_2_noop",
+    "factor_1_backward_factor_2_noop"
+  ],
+  "action_pairs_by_flat_index": [
+    [
+      0,
+      0
+    ],
+    [
+      1,
+      1
+    ],
+    [
+      1,
+      2
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      2
+    ],
+    [
+      2,
+      1
+    ],
+    [
+      2,
+      2
+    ],
+    [
+      1,
+      0
+    ],
+    [
+      2,
+      0
+    ]
+  ],
+  "actor_learning_rate": 3e-05,
+  "algorithm": "discrete SAC",
+  "alpha_learning_rate": 0.0003,
+  "analysis": {
+    "metrics": [
+      "held-out MSE/RMSE/R2",
+      "PCA dimensions at 95% CEV"
+    ],
+    "representation": "actor final transformer block residual before final LayerNorm",
+    "targets": [
+      "exact action-conditioned joint predictive belief",
+      "exact action-conditioned factor-1 predictive belief",
+      "exact action-conditioned factor-2 predictive belief"
+    ]
+  },
+  "checkpoint_schedule": "initial, powers of two iterations, final",
+  "condition": "reward_factor_1",
+  "critic_learning_rate": 0.0003,
+  "emission_alpha": 0.55,
+  "environment": {
+    "delay": 0,
+    "episode_length": 1024,
+    "model": {
+      "factory": "envs.hmm:factored_model",
+      "kwargs": {
+        "factors": [
+          {
+            "factory": "experiments.two_factor_reward_state_SAC_cycle_1.process:controlled_factor_model"
+          },
+          {
+            "factory": "experiments.two_factor_reward_state_SAC_cycle_1.process:controlled_factor_model"
+          }
+        ]
+      }
+    },
+    "observation": {
+      "action": {
+        "depth": 64
+      },
+      "token": {
+        "depth": 64
+      }
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "experiments.two_factor_reward_state_SAC_cycle_1.task:TwoFactorShiftTask",
+      "kwargs": {
+        "condition": "reward_factor_1"
+      }
+    }
+  },
+  "factor_count": 2,
+  "factor_transition_matrix": [
+    [
+      0.75,
+      0.15,
+      0.1
+    ],
+    [
+      0.15,
+      0.75,
+      0.1
+    ],
+    [
+      0.3,
+      0.3,
+      0.4
+    ]
+  ],
+  "gamma": 0.99,
+  "hypothesis": "rewarding one versus both controlled factors changes which exact factor beliefs become linearly accessible in the SAC actor",
+  "joint_token_count": 9,
+  "learner_minibatch_count": 8,
+  "learner_minibatch_size": 1024,
+  "learner_num_epochs": 1,
+  "learning_starts": 1500,
+  "min_sample_timesteps_per_iteration": 8192,
+  "model": {
+    "activation": "relu",
+    "context_length": 64,
+    "d_mlp": 256,
+    "d_model": 64,
+    "head_fcnet_hiddens": [],
+    "max_seq_len": 64,
+    "n_heads": 4,
+    "n_layers": 4,
+    "normalization": "layer_norm",
+    "positional_embedding": "learned_absolute"
+  },
+  "n_step": 1,
+  "pretraining_demand_audit": {
+    "alpha": 0.55,
+    "best_constant": 0.42331288343558277,
+    "burn_in": 500,
+    "chains": 4096,
+    "constant_occupancies": [
+      0.1428571428571429,
+      0.42331288343558277,
+      0.42331288343558277
+    ],
+    "demand_gap": 0.020556212800212692,
+    "demand_gap_standard_error": 0.00012298952267850795,
+    "fully_observed": 0.5555555555555556,
+    "maximum_standard_error": 0.0005,
+    "minimum_demand_gap": 0.015,
+    "qmdp": 0.44386909623579546,
+    "qmdp_standard_error": 7.92173996814645e-05,
+    "reactive": 0.4209134854403409,
+    "reactive_standard_error": 9.40798930505043e-05,
+    "steps": 6000
+  },
+  "replay_capacity": 1000000,
+  "reward_state": 2,
+  "rollout_fragment_length": 64,
+  "study": "two_factor_reward_state_SAC_cycle_1",
+  "target_entropy": 1.3183347464017316,
+  "target_entropy_fraction_of_categorical_maximum": 0.6,
+  "tau": 0.005,
+  "torch_compile_learner": false,
+  "total_env_steps": 5000000,
+  "train_batch_size_per_learner": 8192,
+  "training_intensity": 1.0,
+  "twin_q": true
+}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -17,19 +18,29 @@ from experiments.mess3_belief_geometry_2026_07.probe import (
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_probes.analysis import (
     RIDGE,
+    _checkpoint_requests,
     _coarse_spec,
     _coarse_targets,
     _install_checkpoint_import_aliases,
     decompose_belief,
     reconstruct_belief,
+    run_probe_condition,
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_probes.campaign_analysis import (
     _run_paths,
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_probes.seed_queue import (
+    SEEDS,
+    TARGET_VARIANTS,
+    TRAJECTORY_SUFFIX,
     _candidate_bases,
     _final_checkpoint_name,
     _select_source_base,
+)
+from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_probes.trajectory_campaign import (
+    _bootstrap_mean_ci,
+    aggregate as aggregate_trajectories,
+    write_campaign,
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_4.token_swap_diagnostic.analysis import (
     _validate_intervention_environment,
@@ -38,6 +49,7 @@ from experiments.mess3_reward_state_action_symmetry_cycle_4.token_swap_diagnosti
     swap_state_0_1_tokens,
 )
 from learners.models import TransformerModel
+from harness.context import RunContext
 
 
 def _environment(cycle: int, variant: int) -> HMMEnv:
@@ -402,6 +414,283 @@ def test_campaign_run_paths_prefer_suffix_and_accept_legacy_results(tmp_path):
     assert current.name == "condition_summary.json"
     assert current.parent.name == "mess3-rsa-c4-belief-symmetry-probe-0035-v2-seed43"
     assert legacy.parent.name == "mess3-rsa-c4-belief-symmetry-probe-v2-seed43"
+
+
+def test_subset_preserves_optional_observations_none():
+    data = SimpleNamespace(
+        activations=np.arange(6, dtype=np.float64).reshape(3, 2),
+        beliefs=np.zeros((3, 3)),
+        diagnostic_beliefs=np.zeros((3, 3)),
+        tokens=np.zeros(3, dtype=np.int64),
+        previous_tokens=np.zeros(3, dtype=np.int64),
+        env_indices=np.zeros(3, dtype=np.int64),
+        episode_steps=np.arange(3),
+        states=np.zeros(3, dtype=np.int64),
+        actions=np.zeros((3, 1), dtype=np.int64),
+        rewards=np.zeros(3, dtype=np.float64),
+        observations=None,
+    )
+    from experiments.mess3_reward_state_action_symmetry_cycle_4.belief_symmetry_probes import (
+        analysis as probe_analysis,
+    )
+
+    subset = probe_analysis._subset(data, np.asarray([0, 2]))
+    assert subset.observations is None
+    assert subset.activations.shape == (2, 2)
+
+
+def test_checkpoint_manifest_includes_init_and_every_saved_checkpoint(tmp_path):
+    manifest = {
+        "checkpoints": [
+            {
+                "label": "initial",
+                "training_iteration": 0,
+                "path": "initial_checkpoint",
+            },
+            {
+                "label": "checkpoint_000000",
+                "training_iteration": 1,
+                "path": "checkpoints/checkpoint_000000",
+            },
+            {
+                "label": "checkpoint_000001",
+                "training_iteration": 2,
+                "path": "checkpoints/checkpoint_000001",
+            },
+        ]
+    }
+    (tmp_path / "checkpoint_manifest.json").write_text(json.dumps(manifest))
+
+    assert _checkpoint_requests(tmp_path) == manifest["checkpoints"]
+
+
+def test_requested_target_runs_at_init_and_every_manifest_checkpoint(
+    tmp_path, monkeypatch
+):
+    bundle = tmp_path / "bundle"
+    schedule = [
+        {
+            "label": "initial",
+            "training_iteration": 0,
+            "path": "initial_checkpoint",
+        },
+        {
+            "label": "checkpoint_000000",
+            "training_iteration": 1,
+            "path": "checkpoints/checkpoint_000000",
+        },
+        {
+            "label": "checkpoint_000001",
+            "training_iteration": 2,
+            "path": "checkpoints/checkpoint_000001",
+        },
+    ]
+    for request in schedule:
+        checkpoint = bundle / request["path"]
+        checkpoint.mkdir(parents=True)
+        (checkpoint / "rllib_checkpoint.json").write_text("{}")
+    (bundle / "checkpoint_manifest.json").write_text(
+        json.dumps({"checkpoints": schedule})
+    )
+    (bundle / "source_provenance.json").write_text(
+        json.dumps({"requested_target": "antisymmetric_b0_minus_b1"})
+    )
+    calls = []
+
+    def fake_probe(context, checkpoint, *, cycle, variant, label, target_names):
+        calls.append(
+            {
+                "checkpoint": checkpoint,
+                "cycle": cycle,
+                "variant": variant,
+                "label": label,
+                "target_names": target_names,
+            }
+        )
+        return {
+            "checkpoint": label,
+            "targets": {"antisymmetric_b0_minus_b1": {"global_mse_ratio": 0.5}},
+        }
+
+    module = importlib.import_module(
+        "experiments.mess3_reward_state_action_symmetry_cycle_4."
+        "belief_symmetry_probes.analysis"
+    )
+    monkeypatch.setattr(module, "probe_checkpoint", fake_probe)
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        run_id="trajectory-test",
+        resume_from=bundle,
+    )
+
+    summary = run_probe_condition(context, cycle=5, variant=3)
+
+    assert list(summary["checkpoints"]) == [
+        "initial",
+        "checkpoint_000000",
+        "checkpoint_000001",
+    ]
+    assert [call["target_names"] for call in calls] == [
+        ("antisymmetric_b0_minus_b1",)
+    ] * 3
+    assert json.loads(
+        (context.results_dir / "condition_summary.json").read_text()
+    ) == summary
+
+
+def test_target_campaign_assigns_requested_variants_and_all_seeds():
+    assert TARGET_VARIANTS["symmetric_b2"] == (1, 2, 3)
+    assert TARGET_VARIANTS["antisymmetric_b0_minus_b1"] == (1, 2, 3)
+    assert TARGET_VARIANTS["coarse_b2"] == (2,)
+    assert SEEDS == (42, 43, 44, 45, 46)
+
+
+def test_bootstrap_mean_ci_brackets_empirical_mean():
+    values = np.asarray(
+        [
+            [1.0, 2.0],
+            [1.2, 2.2],
+            [0.8, 1.8],
+            [1.1, 2.1],
+            [0.9, 1.9],
+        ],
+        dtype=np.float64,
+    )
+    mean, ci_low, ci_high = _bootstrap_mean_ci(values, n_resamples=5000, seed=42)
+    assert mean.tolist() == pytest.approx(values.mean(axis=0).tolist())
+    assert np.all(ci_low <= mean)
+    assert np.all(ci_high >= mean)
+
+
+def test_trajectory_campaign_aggregates_and_plots_every_checkpoint(tmp_path):
+    target = "symmetric_b2"
+    schedule = [
+        {"label": "initial", "training_iteration": 0},
+        {"label": "checkpoint_000000", "training_iteration": 1},
+        {"label": "checkpoint_000001", "training_iteration": 2},
+    ]
+    for variant in TARGET_VARIANTS[target]:
+        for seed in SEEDS:
+            run_id = (
+                f"mess3-rsa-c5-belief-trajectory-{TRAJECTORY_SUFFIX}-"
+                f"symmetric-b2-v{variant}-seed{seed}"
+            )
+            run_dir = tmp_path / f"variant_{variant}" / "results" / run_id
+            run_dir.mkdir(parents=True)
+            checkpoints = {}
+            for index, point in enumerate(schedule):
+                mse = 0.01 / (index + 1) + variant * 0.001 + seed / 10_000
+                checkpoints[point["label"]] = {
+                    "targets": {
+                        target: {
+                            "mse": mse,
+                            "global_mse_ratio": variant + seed / 100 + index / 10,
+                        }
+                    }
+                }
+            (run_dir / "condition_summary.json").write_text(
+                json.dumps(
+                    {
+                        "requested_target": target,
+                        "checkpoint_schedule": schedule,
+                        "checkpoints": checkpoints,
+                    }
+                )
+            )
+
+    summary = aggregate_trajectories(tmp_path, cycle=5, target=target)
+    assert summary["metric"] == "held-out affine probe MSE"
+    assert summary["uncertainty_band"]["n_resamples"] == 10_000
+    assert "750,000 environment steps" in summary["checkpoint_scope"]
+    assert set(summary["variants"]) == {"variant_1", "variant_2", "variant_3"}
+    assert all(
+        curve["training_iterations"] == [0, 1, 2]
+        for curve in summary["variants"].values()
+    )
+    assert all(
+        curve["agent_steps"] == [0, 33_000, 66_000]
+        for curve in summary["variants"].values()
+    )
+    for curve in summary["variants"].values():
+        assert len(curve["ci_95_low"]) == len(curve["mean"])
+        assert len(curve["ci_95_high"]) == len(curve["mean"])
+        assert all(
+            low <= mean <= high
+            for low, mean, high in zip(
+                curve["ci_95_low"], curve["mean"], curve["ci_95_high"], strict=True
+            )
+        )
+
+    png = write_campaign(tmp_path, cycle=5, target=target)
+    assert png.is_file()
+    assert not png.with_suffix(".pdf").exists()
+
+
+def test_coarse_campaign_aggregates_full_belief_from_training_curves(tmp_path):
+    target = "coarse_b2"
+    schedule = [
+        {"label": "initial", "training_iteration": 0},
+        {"label": "checkpoint_000000", "training_iteration": 1},
+    ]
+    probes_root = tmp_path / "study" / "belief_symmetry_probes"
+    study_root = tmp_path / "study"
+    for seed in SEEDS:
+        run_id = (
+            f"mess3-rsa-c5-belief-trajectory-{TRAJECTORY_SUFFIX}-"
+            f"coarse-b2-v2-seed{seed}"
+        )
+        run_dir = probes_root / "variant_2" / "results" / run_id
+        run_dir.mkdir(parents=True)
+        checkpoints = {}
+        for index, point in enumerate(schedule):
+            checkpoints[point["label"]] = {
+                "targets": {
+                    target: {
+                        "mse": 0.01 / (index + 1) + seed / 10_000,
+                    }
+                }
+            }
+        (run_dir / "condition_summary.json").write_text(
+            json.dumps(
+                {
+                    "requested_target": target,
+                    "checkpoint_schedule": schedule,
+                    "checkpoints": checkpoints,
+                }
+            )
+        )
+        training_points = []
+        for index, point in enumerate(schedule):
+            step = index * 33_000
+            training_points.append(
+                {
+                    "agent_steps": step,
+                    **(
+                        {}
+                        if step == 0
+                        else {"checkpoint_name": point["label"]}
+                    ),
+                    "training_iteration": point["training_iteration"],
+                    "mse": 0.02 / (index + 1) + seed / 10_000,
+                    "probe": {"target": "exact_predictive_bayesian_belief"},
+                }
+            )
+        training_dir = study_root / "variant_2" / "results" / f"mess3-rsa-c5-v2-seed{seed}"
+        training_dir.mkdir(parents=True)
+        (training_dir / "checkpoint_probe_curve.json").write_text(
+            json.dumps({"checkpoints": training_points})
+        )
+
+    summary = aggregate_trajectories(probes_root, cycle=5, target=target)
+    assert summary["comparison"]["target"] == "full_belief"
+    assert summary["comparison"]["source"] == "training_checkpoint_probe_curve"
+    assert summary["comparison"]["variant_2"]["agent_steps"] == [0, 33_000]
+
+    png = write_campaign(probes_root, cycle=5, target=target)
+    assert png.is_file()
 
 
 @pytest.mark.parametrize("cycle", (4, 5))
