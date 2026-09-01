@@ -79,7 +79,7 @@ def test_cycle_4_preserves_task_and_builds_simple_reinforce_recipe(
 
 
 def test_cycle_4_preserves_architecture_and_budget():
-    assert TOTAL_ENV_STEPS == 5_000_000
+    assert TOTAL_ENV_STEPS == 8_000_000
     assert MODEL_CONFIG == {
         "d_model": 64,
         "n_layers": 4,

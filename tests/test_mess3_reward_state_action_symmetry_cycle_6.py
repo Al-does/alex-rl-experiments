@@ -80,7 +80,7 @@ def test_reinforce_variants_build_fresh_monte_carlo_configs(
 
 
 def test_cycle_6_budget_and_model_match_requested_recipe():
-    assert TOTAL_ENV_STEPS == 2_500_000
+    assert TOTAL_ENV_STEPS == 8_000_000
     assert BASE_MODEL_CONFIG == {
         "d_model": 64,
         "n_layers": 4,
