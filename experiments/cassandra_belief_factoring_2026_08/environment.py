@@ -90,11 +90,12 @@ class CassandraActionObservationEnv(gym.Wrapper):
 
 
 class CassandraFullyObservablePreviousRewardEnv(gym.Wrapper):
-    """Expose exact joint-state one-hot plus preceding scalar reward."""
+    """Expose four exact component-state one-hots plus preceding reward."""
 
     def __init__(self, config: Mapping[str, Any] | None = None) -> None:
         values = dict(config or {})
-        values["observation_mode"] = "state"
+        values["observation_mode"] = "components"
+        values["track_belief"] = False
         environment = CassandraMachineEnv(values)
         super().__init__(environment)
         base_space = environment.observation_space
