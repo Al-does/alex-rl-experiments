@@ -12,7 +12,6 @@ from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
     TOTAL_ENV_STEPS,
 )
 from harness.cli import execute_experiment, load_experiment, make_run_context
-from harness.hardware import PROFILES
 
 
 def _resume_checkpoint(
@@ -108,7 +107,7 @@ def continue_prior_run(
         experiment,
         seed=seed,
         resume_from=resume_from,
-        hardware=PROFILES[hardware_profile],
+        hardware_profile=hardware_profile,
     )
     context.artifacts_dir.mkdir(parents=True, exist_ok=True)
     (context.artifacts_dir / CONTINUATION_SPEC_FILENAME).write_text(
@@ -169,7 +168,6 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--hardware-profile",
         default="cuda4090",
-        choices=tuple(PROFILES),
     )
     parser.add_argument(
         "--upload-artifacts",
