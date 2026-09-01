@@ -1,0 +1,1 @@
+"""Reward both latent factors."""
