@@ -77,8 +77,8 @@ def test_each_factor_exactly_matches_action_symmetry_variant_3():
     summary = analytic_design_summary()
     assert summary["oracle_policy_by_state"] == [1, 2, 0]
     assert summary["oracle_single_factor_state_2_occupancy"] == pytest.approx(
-        0.356518684,
-        abs=1e-8,
+        0.356518584849733,
+        abs=1e-12,
     )
 
 
