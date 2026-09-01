@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
+from collections.abc import Callable, Mapping
 from dataclasses import replace
 from functools import partial
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from ray import tune
@@ -50,11 +53,12 @@ from experiments.two_factor_reward_state_REINFORCE_cycle_4.model import (
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
 from harness.hardware import PROFILES
-from harness.runners import run_tune
+from harness.runners import run_algorithm, run_tune
 from learners.models.transformer import TransformerModelConfig
 
 
 TOTAL_ENV_STEPS = 8_000_000
+CONTINUATION_SPEC_FILENAME = "continuation_spec.json"
 SMOKE_ENV_STEPS = 4_096
 TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 2_048
@@ -67,6 +71,50 @@ MODEL_CONFIG = TransformerModelConfig(
     n_heads=1,
     context_len=LOCAL_CONTEXT_LENGTH,
 ).to_dict()
+
+
+def _metric(metrics: Mapping[str, Any], path: str) -> float | None:
+    value = metrics.get(path)
+    if value is None:
+        return None
+    return float(value)
+
+
+def _reached_env_step_target(
+    target_steps: int,
+) -> Callable[[Mapping[str, Any]], bool]:
+    def _should_stop(metrics: Mapping[str, Any]) -> bool:
+        steps = _metric(metrics, "env_runners/num_env_steps_sampled_lifetime")
+        return steps is not None and steps >= target_steps
+
+    return _should_stop
+
+
+def _latest_algorithm_checkpoint(context: RunContext) -> Path:
+    root = RunArtifacts.from_context(context).checkpoints_dir
+    candidates = sorted(root.glob("iteration_*"))
+    if not candidates:
+        raise RuntimeError(f"no algorithm checkpoints under {root}")
+    return candidates[-1]
+
+
+def _load_continuation_spec(context: RunContext) -> dict[str, Any] | None:
+    path = context.artifacts_dir / CONTINUATION_SPEC_FILENAME
+    if not path.is_file():
+        return None
+    payload = json.loads(path.read_text())
+    if not isinstance(payload, dict):
+        raise ValueError(f"{path} must contain a JSON object")
+    return payload
+
+
+def _resolve_step_target(context: RunContext) -> int:
+    if context.smoke:
+        return SMOKE_ENV_STEPS
+    spec = _load_continuation_spec(context)
+    if spec is not None:
+        return int(spec["target_agent_steps"])
+    return TOTAL_ENV_STEPS
 
 
 def _single_gpu_context(context: RunContext) -> RunContext:
@@ -172,9 +220,8 @@ def _resolved_recipe(context: RunContext, condition: str) -> dict[str, Any]:
         "num_epochs": 1,
         "model": MODEL_CONFIG,
         "transformer_raw_observation_lookback": TRANSFORMER_LOOKBACK,
-        "total_env_steps": (
-            SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
-        ),
+        "total_env_steps": _resolve_step_target(context),
+        "continuation_spec": _load_continuation_spec(context),
         "checkpoint_schedule": "initial, powers of two iterations, final",
     }
 
@@ -182,41 +229,57 @@ def _resolved_recipe(context: RunContext, condition: str) -> dict[str, Any]:
 def run_condition(context: RunContext, condition: str) -> dict[str, Any]:
     if context.seed is None:
         raise ValueError("two-factor REINFORCE requires a resolved seed")
-    if context.resume_from is not None:
-        raise ValueError("continuation is not defined for this experiment")
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     outputs.write_json(
         "resolved_recipe.json",
         _resolved_recipe(context, condition),
     )
-    result_grid = run_tune(
-        build_config(context, condition),
-        context,
-        stop={
-            "env_runners/num_env_steps_sampled_lifetime": (
-                SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
-            )
-        },
-        run_config_kwargs={
-            "checkpoint_config": tune.CheckpointConfig(
-                num_to_keep=1,
-                checkpoint_at_end=True,
-            )
-        },
-    )
-    results = list(result_grid)
-    if len(results) != 1 or results[0].error is not None:
-        raise RuntimeError(f"{condition} REINFORCE training failed")
-    result = results[0]
+    target_steps = _resolve_step_target(context)
+    if context.resume_from is not None:
+        final_metrics = run_algorithm(
+            build_config(context, condition),
+            context,
+            should_stop=_reached_env_step_target(target_steps),
+            checkpoint_at_end=True,
+        )
+        final_checkpoint = _latest_algorithm_checkpoint(context)
+        result = SimpleNamespace(
+            checkpoint=SimpleNamespace(path=str(final_checkpoint)),
+            metrics=final_metrics,
+            error=None,
+        )
+    else:
+        result_grid = run_tune(
+            build_config(context, condition),
+            context,
+            stop={"env_runners/num_env_steps_sampled_lifetime": target_steps},
+            run_config_kwargs={
+                "checkpoint_config": tune.CheckpointConfig(
+                    num_to_keep=1,
+                    checkpoint_at_end=True,
+                )
+            },
+        )
+        results = list(result_grid)
+        if len(results) != 1 or results[0].error is not None:
+            raise RuntimeError(f"{condition} REINFORCE training failed")
+        result = results[0]
     write_training_curves(context)
+    initial_record = (
+        []
+        if context.resume_from is not None
+        else [
+            {
+                "checkpoint_path": context.artifacts_dir / "initial_checkpoint",
+                "checkpoint_name": "initial_checkpoint",
+                "training_iteration": 0,
+                "agent_steps": 0,
+            }
+        ]
+    )
     records = [
-        {
-            "checkpoint_path": context.artifacts_dir / "initial_checkpoint",
-            "checkpoint_name": "initial_checkpoint",
-            "training_iteration": 0,
-            "agent_steps": 0,
-        },
+        *initial_record,
         *checkpoint_records(
             result,
             checkpoint_root=context.artifacts_dir / "log_spaced_checkpoints",

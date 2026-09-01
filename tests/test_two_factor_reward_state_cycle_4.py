@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+from pathlib import Path
 
 import pytest
 import torch
@@ -87,6 +88,50 @@ def test_cycle_4_preserves_architecture_and_budget():
         "context_len": 10,
         "max_seq_len": 32,
     }
+
+
+def test_cycle_4_resolve_step_target_uses_continuation_spec(tmp_path):
+    from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
+        CONTINUATION_SPEC_FILENAME,
+        _resolve_step_target,
+    )
+
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+    context.artifacts_dir.mkdir(parents=True)
+    (context.artifacts_dir / CONTINUATION_SPEC_FILENAME).write_text(
+        '{"target_agent_steps": 16226448}'
+    )
+    assert _resolve_step_target(context) == 16_226_448
+
+
+def test_cycle_4_resume_checkpoint_path_resolution():
+    from experiments.two_factor_reward_state_REINFORCE_cycle_4.continue_prior import (
+        _resume_checkpoint,
+    )
+
+    checkpoint = (
+        "/root/work/alex-rl-experiments/experiments/"
+        "two_factor_reward_state_REINFORCE_cycle_4/reward_both/"
+        "artifacts/20260901T211811Z-3016ddd1/"
+        "tune/PPO_HMMEnv_a529e_00000_0_2026-09-01_21-18-15/checkpoint_000000"
+    )
+    resolved = _resume_checkpoint(
+        experiment_dir=Path(
+            "/root/work/alex-rl-experiments/experiments/"
+            "two_factor_reward_state_REINFORCE_cycle_4/reward_both"
+        ),
+        prior_run_id="20260901T211811Z-3016ddd1",
+        checkpoint_remote=checkpoint,
+    )
+    assert resolved.name == "checkpoint_000000"
+    assert resolved.parent.name.startswith("PPO_HMMEnv_")
 
 
 def test_cycle_4_value_api_is_an_inert_device_native_zero_baseline():
