@@ -16,13 +16,13 @@ import numpy as np  # noqa: E402
 from matplotlib.ticker import FuncFormatter, PercentFormatter  # noqa: E402
 
 from experiments.two_factor_reward_state_PPO_cycle_1.reference import (
-    bayes_max_reward_factor_1,
+    bayes_max_reward_occupancy_factor_1,
 )
 
 STUDY_ROOT = Path(__file__).resolve().parent
 DEFAULT_RESULTS_ROOT = STUDY_ROOT / "reward_factor_1" / "results"
 DEFAULT_OUTPUT = (
-    DEFAULT_RESULTS_ROOT / "reward_factor_1_probe_mse_and_accuracy.png"
+    DEFAULT_RESULTS_ROOT / "reward_factor_1_probe_mse_and_occupancy.png"
 )
 DEFAULT_SEEDS = (42, 43, 44, 45, 46)
 # First log-spaced checkpoint strictly after 2,000,000 environment steps.
@@ -70,7 +70,9 @@ def load_trajectory(
                     "checkpoint": report["checkpoint"],
                     "factor_1_mse": float(report["probe_fits"]["factor_1"]["mse"]),
                     "factor_2_mse": float(report["probe_fits"]["factor_2"]["mse"]),
-                    "task_accuracy": float(report["policy"]["mean_reward"]),
+                    "reward_occupancy": float(
+                        report["policy"]["factor_1_state_2_fraction"]
+                    ),
                 }
             )
 
@@ -84,8 +86,8 @@ def load_trajectory(
         factor_2 = np.asarray(
             [row["factor_2_mse"] for row in rows], dtype=np.float64
         )
-        accuracy = np.asarray(
-            [row["task_accuracy"] for row in rows], dtype=np.float64
+        occupancy = np.asarray(
+            [row["reward_occupancy"] for row in rows], dtype=np.float64
         )
         points.append(
             {
@@ -98,15 +100,15 @@ def load_trajectory(
                 "factor_1_mse_sd": float(factor_1.std(ddof=0)),
                 "factor_2_mse_mean": float(factor_2.mean()),
                 "factor_2_mse_sd": float(factor_2.std(ddof=0)),
-                "task_accuracy_mean": float(accuracy.mean()),
-                "task_accuracy_sd": float(accuracy.std(ddof=0)),
+                "reward_occupancy_mean": float(occupancy.mean()),
+                "reward_occupancy_sd": float(occupancy.std(ddof=0)),
                 "n_seeds": len(rows),
             }
         )
     return {
         "seeds": list(seeds),
         "max_checkpoint_index": max_checkpoint_index,
-        "bayes_max_reward": bayes_max_reward_factor_1(),
+        "bayes_max_occupancy": bayes_max_reward_occupancy_factor_1(),
         "points": points,
     }
 
@@ -118,7 +120,7 @@ def plot_reward_factor_1_probes(
     seeds: tuple[int, ...] = DEFAULT_SEEDS,
     max_checkpoint_index: int | None = DEFAULT_MAX_CHECKPOINT_INDEX,
 ) -> Path:
-    """Write dual-axis probe MSE and greedy occupancy trajectory."""
+    """Write dual-axis probe MSE and greedy reward occupancy trajectory."""
 
     trajectory = load_trajectory(
         results_root=results_root,
@@ -133,16 +135,18 @@ def plot_reward_factor_1_probes(
     factor_1_sd = np.asarray([point["factor_1_mse_sd"] for point in points])
     factor_2_mean = np.asarray([point["factor_2_mse_mean"] for point in points])
     factor_2_sd = np.asarray([point["factor_2_mse_sd"] for point in points])
-    accuracy_mean = np.asarray([point["task_accuracy_mean"] for point in points])
-    accuracy_sd = np.asarray([point["task_accuracy_sd"] for point in points])
-    bayes_max = float(trajectory["bayes_max_reward"])
+    occupancy_mean = np.asarray(
+        [point["reward_occupancy_mean"] for point in points]
+    )
+    occupancy_sd = np.asarray([point["reward_occupancy_sd"] for point in points])
+    bayes_max = float(trajectory["bayes_max_occupancy"])
 
     figure, left = plt.subplots(figsize=(8.4, 4.8))
     right = left.twinx()
 
     factor_1_color = "#1768ac"
     factor_2_color = "#2d7d46"
-    accuracy_color = "#dc7c17"
+    occupancy_color = "#dc7c17"
 
     for mean, sd, color in (
         (factor_1_mean, factor_1_sd, factor_1_color),
@@ -173,34 +177,34 @@ def plot_reward_factor_1_probes(
 
     right.fill_between(
         steps,
-        accuracy_mean - accuracy_sd,
-        accuracy_mean + accuracy_sd,
-        color=accuracy_color,
+        occupancy_mean - occupancy_sd,
+        occupancy_mean + occupancy_sd,
+        color=occupancy_color,
         alpha=0.12,
         linewidth=0,
     )
     right.plot(
         steps,
-        accuracy_mean,
-        color=accuracy_color,
+        occupancy_mean,
+        color=occupancy_color,
         marker="^",
         markersize=4.5,
         linewidth=1.9,
-        label="Greedy task accuracy",
+        label="Greedy reward-state-2 occupancy",
     )
 
     left.set_yscale("log")
     left.set_xlabel("Environment steps")
     left.set_ylabel("Held-out linear-probe MSE (log scale)", color="#333333")
     right.set_ylabel(
-        f"Task accuracy (Bayes max {bayes_max:.1%})",
+        f"Reward occupancy (Bayes max {bayes_max:.1%})",
         color="#a85d0b",
     )
     right.set_ylim(0.0, bayes_max)
     right.set_yticks(np.linspace(0.0, bayes_max, 5))
     right.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
     right.tick_params(axis="y", colors="#a85d0b")
-    right.spines["right"].set_color(accuracy_color)
+    right.spines["right"].set_color(occupancy_color)
 
     step_formatter = FuncFormatter(
         lambda value, _: "0" if value == 0 else f"{value / 1_000_000:g}M"

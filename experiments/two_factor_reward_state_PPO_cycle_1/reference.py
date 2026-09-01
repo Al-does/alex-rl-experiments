@@ -12,6 +12,7 @@ from experiments.two_factor_reward_state_SAC_cycle_1.design import (
     AUDIT_STEPS,
     GAMMA,
     demand_audit,
+    fully_observed_occupancy,
     fully_observed_q_values,
 )
 from experiments.two_factor_reward_state_PPO_cycle_1.process import (
@@ -123,6 +124,12 @@ def bayes_max_reward_factor_1(*, seed: int = 20260828) -> float:
     return float(demand_audit()["qmdp"])
 
 
+def bayes_max_reward_occupancy_factor_1() -> float:
+    """Fully observed oracle factor-1 reward-state-2 occupancy."""
+
+    return float(fully_observed_occupancy())
+
+
 def reference_rewards(*, seed: int = 20260828) -> dict[str, float]:
     """Return the main reference reward ceilings used in plots and write-ups."""
 
@@ -139,6 +146,7 @@ __all__ = [
     "AUDIT_CHAINS",
     "AUDIT_STEPS",
     "bayes_max_reward_factor_1",
+    "bayes_max_reward_occupancy_factor_1",
     "fully_observed_reward_factor_1",
     "reference_rewards",
     "two_factor_qmdp_reward_factor_1",
