@@ -16,7 +16,8 @@ from matplotlib.ticker import FuncFormatter  # noqa: E402
 STUDY_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SEEDS = (42, 43, 44, 45, 46)
 
-FACTOR_MSE_COLORS = {
+MSE_COLORS = {
+    "joint_mixed_state": "#355c9a",
     "factor_1": "#c45135",
     "factor_2": "#2a9d8f",
 }
@@ -137,30 +138,42 @@ def plot_mse_occupancy_trajectory(
 
     f1_mse = np.full((len(ordered_seeds), n_points), np.nan)
     f2_mse = np.full((len(ordered_seeds), n_points), np.nan)
+    joint_mse = np.full((len(ordered_seeds), n_points), np.nan)
     occupancy = np.full((len(ordered_seeds), n_points), np.nan)
     for row, seed in enumerate(ordered_seeds):
         for col, report in enumerate(curves[seed]):
             fits = report["probe_fits"]
             f1_mse[row, col] = float(fits["factor_1"]["mse"])
             f2_mse[row, col] = float(fits["factor_2"]["mse"])
+            joint_mse[row, col] = float(fits["joint_mixed_state"]["mse"])
             occupancy[row, col] = _reward_occupancy(report, condition)
 
     f1_mean = np.nanmean(f1_mse, axis=0)
     f2_mean = np.nanmean(f2_mse, axis=0)
+    joint_mean = np.nanmean(joint_mse, axis=0)
     occ_mean = np.nanmean(occupancy, axis=0)
 
     positive = steps[steps > 0]
     if positive.size == 0:
         raise ValueError("expected at least one post-init checkpoint")
     x_max = float(positive.max()) * 1.02
-    mse_lo, mse_hi = _log_limits(np.concatenate([f1_mean, f2_mean]))
+    mse_lo, mse_hi = _log_limits(np.concatenate([f1_mean, f2_mean, joint_mean]))
     occ_lo, occ_hi = _linear_limits(occ_mean)
 
-    figure, axis = plt.subplots(figsize=(8.8, 5.0))
+    figure, axis = plt.subplots(figsize=(9.2, 5.0))
+    joint_line = axis.plot(
+        steps,
+        joint_mean,
+        color=MSE_COLORS["joint_mixed_state"],
+        linewidth=2.0,
+        marker="o",
+        markersize=4.0,
+        label="joint probe MSE",
+    )[0]
     f1_line = axis.plot(
         steps,
         f1_mean,
-        color=FACTOR_MSE_COLORS["factor_1"],
+        color=MSE_COLORS["factor_1"],
         linewidth=2.0,
         marker="o",
         markersize=4.0,
@@ -169,7 +182,7 @@ def plot_mse_occupancy_trajectory(
     f2_line = axis.plot(
         steps,
         f2_mean,
-        color=FACTOR_MSE_COLORS["factor_2"],
+        color=MSE_COLORS["factor_2"],
         linewidth=2.0,
         marker="o",
         markersize=4.0,
@@ -211,10 +224,10 @@ def plot_mse_occupancy_trajectory(
         f"mean over seeds {seed_label}"
     )
     figure.legend(
-        handles=[f1_line, f2_line, occ_line],
+        handles=[joint_line, f1_line, f2_line, occ_line],
         loc="upper center",
         bbox_to_anchor=(0.5, 1.02),
-        ncol=3,
+        ncol=4,
         fontsize=9,
         frameon=True,
     )
