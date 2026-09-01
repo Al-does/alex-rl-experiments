@@ -1,66 +1,193 @@
-"""Plot greedy reward-state occupancy against belief-probe MSE."""
+"""Plot belief-probe MSE and greedy reward occupancy over training."""
 
 from __future__ import annotations
 
 import argparse
-import json
+from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
+from matplotlib.ticker import FuncFormatter, PercentFormatter  # noqa: E402
 
+from experiments.mess3_reward_state_action_symmetry_cycle_5.design import (
+    analytic_design_summary,
+)
 from experiments.mess3_reward_state_action_symmetry_cycle_5.plot_variant_mse_curves import (
     load_curves,
 )
 
-
 DEFAULT_MAX_STEPS = 760_000
 
 
-def load_reward_mse_points(
+def bayes_max_reward(variant: int) -> float:
+    """Return the fully observed oracle state-2 occupancy for one variant."""
+
+    summary = analytic_design_summary()["fully_observed"][f"variant_{variant}"]
+    return float(summary["oracle_stationary_state_2"])
+
+
+def load_reward_mse_trajectory(
     results_dir: Path,
     *,
     variant: int,
     seeds: list[int],
     max_agent_steps: int = DEFAULT_MAX_STEPS,
-) -> dict[int, list[dict[str, float | int]]]:
+) -> dict[str, Any]:
     curves = load_curves(results_dir, variant, seeds)
-    filtered: dict[int, list[dict[str, float | int]]] = {}
+    by_index: dict[int, list[dict[str, float | int]]] = defaultdict(list)
     for seed, points in curves.items():
-        rows = []
-        for point in points:
+        for checkpoint_index, point in enumerate(points):
             steps = int(point["agent_steps"])
             if steps >= max_agent_steps:
                 continue
-            rows.append(
+            by_index[checkpoint_index].append(
                 {
+                    "seed": seed,
+                    "checkpoint_index": checkpoint_index,
                     "agent_steps": steps,
                     "mse": float(point["mse"]),
                     "reward": float(point["reward_state_2_fraction_greedy"]),
                 }
             )
-        if not rows:
-            raise ValueError(f"seed {seed} has no checkpoints below {max_agent_steps}")
-        filtered[seed] = rows
-    return filtered
+
+    trajectory_points = []
+    for checkpoint_index in sorted(by_index):
+        rows = by_index[checkpoint_index]
+        steps = np.asarray([row["agent_steps"] for row in rows], dtype=np.float64)
+        mse = np.asarray([row["mse"] for row in rows], dtype=np.float64)
+        reward = np.asarray([row["reward"] for row in rows], dtype=np.float64)
+        trajectory_points.append(
+            {
+                "checkpoint_index": checkpoint_index,
+                "agent_steps_mean": float(steps.mean()),
+                "agent_steps_min": int(steps.min()),
+                "agent_steps_max": int(steps.max()),
+                "mse_mean": float(mse.mean()),
+                "mse_sd": float(mse.std(ddof=0)),
+                "reward_mean": float(reward.mean()),
+                "reward_sd": float(reward.std(ddof=0)),
+                "n_seeds": len(rows),
+            }
+        )
+
+    if not trajectory_points:
+        raise ValueError(f"no checkpoints below {max_agent_steps} for variant {variant}")
+
+    return {
+        "variant": variant,
+        "seeds": list(seeds),
+        "max_agent_steps": max_agent_steps,
+        "bayes_max_reward": bayes_max_reward(variant),
+        "points": trajectory_points,
+    }
 
 
-def plot_reward_vs_probe_mse(
-    points_by_seed: dict[int, list[dict[str, float | int]]],
+def plot_reward_mse_trajectory(
+    trajectory: dict[str, Any],
     *,
     title: str,
     output_path: Path,
-    max_agent_steps: int = DEFAULT_MAX_STEPS,
 ) -> Path:
-    seeds = sorted(points_by_seed)
-    n_checkpoints = len(points_by_seed[seeds[0]])
-    for seed in seeds:
-        if len(points_by_seed[seed]) != n_checkpoints:
-            raise ValueError("all seeds must share the same filtered checkpoint set")
+    points = trajectory["points"]
+    steps = np.asarray([point["agent_steps_mean"] for point in points])
+    mse_mean = np.asarray([point["mse_mean"] for point in points])
+    mse_sd = np.asarray([point["mse_sd"] for point in points])
+    reward_mean = np.asarray([point["reward_mean"] for point in points])
+    reward_sd = np.asarray([point["reward_sd"] for point in points])
+    bayes_max = float(trajectory["bayes_max_reward"])
 
+    figure, left = plt.subplots(figsize=(8.4, 4.8))
+    right = left.twinx()
+
+    mse_color = "#1768ac"
+    reward_color = "#dc7c17"
+
+    lower = np.maximum(mse_mean - mse_sd, np.finfo(float).tiny)
+    upper = mse_mean + mse_sd
+    left.fill_between(steps, lower, upper, color=mse_color, alpha=0.12, linewidth=0)
+    left.plot(
+        steps,
+        mse_mean,
+        color=mse_color,
+        marker="o",
+        markersize=4.5,
+        linewidth=2.0,
+        label="Probe MSE",
+    )
+
+    right.fill_between(
+        steps,
+        reward_mean - reward_sd,
+        reward_mean + reward_sd,
+        color=reward_color,
+        alpha=0.12,
+        linewidth=0,
+    )
+    right.plot(
+        steps,
+        reward_mean,
+        color=reward_color,
+        marker="^",
+        markersize=4.5,
+        linewidth=1.9,
+        label="Greedy reward-state-2 occupancy",
+    )
+
+    left.set_yscale("log")
+    left.set_xlabel("Environment steps")
+    left.set_ylabel("Held-out affine-probe MSE (log scale)", color="#333333")
+    right.set_ylabel(
+        f"Reward occupancy (Bayes max {bayes_max:.1%})",
+        color="#a85d0b",
+    )
+    right.set_ylim(0.0, bayes_max)
+    right.set_yticks(np.linspace(0.0, bayes_max, 5))
+    right.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
+    right.tick_params(axis="y", colors="#a85d0b")
+    right.spines["right"].set_color(reward_color)
+
+    step_formatter = FuncFormatter(
+        lambda value, _: "0" if value == 0 else f"{value / 1_000_000:g}M"
+    )
+    left.xaxis.set_major_formatter(step_formatter)
+    left.set_xlim(left=0.0, right=float(steps.max()) * 1.02)
+    left.grid(alpha=0.22, which="both")
+    left.set_title(title)
+
+    left_handles, left_labels = left.get_legend_handles_labels()
+    right_handles, right_labels = right.get_legend_handles_labels()
+    left.legend(
+        left_handles + right_handles,
+        left_labels + right_labels,
+        loc="upper right",
+        fontsize=8.5,
+        frameon=False,
+    )
+
+    figure.tight_layout()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(output_path, dpi=220, bbox_inches="tight")
+    plt.close(figure)
+    return output_path
+
+
+def plot_reward_vs_probe_mse_scatter(
+    results_dir: Path,
+    *,
+    variant: int,
+    seeds: list[int],
+    max_agent_steps: int,
+    title: str,
+    output_path: Path,
+) -> Path:
+    """Scatter of reward against probe MSE (one trajectory per seed)."""
+
+    curves = load_curves(results_dir, variant, seeds)
     figure, axis = plt.subplots(figsize=(7.4, 5.0))
     colors = plt.cm.tab10(np.linspace(0, 1, len(seeds)))
 
@@ -69,10 +196,16 @@ def plot_reward_vs_probe_mse(
     std_mse: list[float] = []
     std_reward: list[float] = []
 
+    filtered = {
+        seed: [point for point in points if int(point["agent_steps"]) < max_agent_steps]
+        for seed, points in curves.items()
+    }
+    n_checkpoints = len(next(iter(filtered.values())))
     for checkpoint_index in range(n_checkpoints):
-        mse_values = [points_by_seed[seed][checkpoint_index]["mse"] for seed in seeds]
+        mse_values = [filtered[seed][checkpoint_index]["mse"] for seed in seeds]
         reward_values = [
-            points_by_seed[seed][checkpoint_index]["reward"] for seed in seeds
+            filtered[seed][checkpoint_index]["reward_state_2_fraction_greedy"]
+            for seed in seeds
         ]
         mean_mse.append(float(np.mean(mse_values)))
         mean_reward.append(float(np.mean(reward_values)))
@@ -80,17 +213,13 @@ def plot_reward_vs_probe_mse(
         std_reward.append(float(np.std(reward_values)))
 
     for color, seed in zip(colors, seeds, strict=True):
-        rows = points_by_seed[seed]
+        rows = filtered[seed]
         mse = np.asarray([row["mse"] for row in rows], dtype=np.float64)
-        reward = np.asarray([row["reward"] for row in rows], dtype=np.float64)
-        axis.plot(
-            mse,
-            reward,
-            color=color,
-            alpha=0.45,
-            linewidth=1.2,
-            zorder=2,
+        reward = np.asarray(
+            [row["reward_state_2_fraction_greedy"] for row in rows],
+            dtype=np.float64,
         )
+        axis.plot(mse, reward, color=color, alpha=0.45, linewidth=1.2)
         axis.scatter(
             mse,
             reward,
@@ -100,14 +229,10 @@ def plot_reward_vs_probe_mse(
             edgecolors="white",
             linewidths=0.4,
             label=f"seed {seed}",
-            zorder=3,
         )
 
     mean_mse_arr = np.asarray(mean_mse)
     mean_reward_arr = np.asarray(mean_reward)
-    std_mse_arr = np.asarray(std_mse)
-    std_reward_arr = np.asarray(std_reward)
-
     axis.plot(
         mean_mse_arr,
         mean_reward_arr,
@@ -116,37 +241,17 @@ def plot_reward_vs_probe_mse(
         marker="s",
         markersize=5,
         label=f"mean ({len(seeds)} seeds)",
-        zorder=4,
     )
     axis.errorbar(
         mean_mse_arr,
         mean_reward_arr,
-        xerr=std_mse_arr,
-        yerr=std_reward_arr,
+        xerr=np.asarray(std_mse),
+        yerr=np.asarray(std_reward),
         fmt="none",
         ecolor="black",
         alpha=0.35,
         capsize=2.5,
-        zorder=4,
     )
-
-    for index, (mse, reward) in enumerate(zip(mean_mse_arr, mean_reward_arr, strict=True)):
-        steps = int(points_by_seed[seeds[len(seeds) // 2]][index]["agent_steps"])
-        if steps == 0:
-            label = "init"
-        elif index in (0, n_checkpoints - 1) or steps >= max_agent_steps * 0.9:
-            label = f"{steps / 1_000_000:.2f}M".rstrip("0").rstrip(".") + "M"
-        else:
-            continue
-        axis.annotate(
-            label,
-            xy=(mse, reward),
-            xytext=(4, 4),
-            textcoords="offset points",
-            fontsize=7,
-            color="0.25",
-        )
-
     axis.set_xscale("log")
     axis.set_xlabel("Held-out affine-probe MSE (lower is better)")
     axis.set_ylabel("Greedy reward-state-2 occupancy")
@@ -176,6 +281,12 @@ def main() -> None:
         help="Include checkpoints with agent_steps strictly below this value.",
     )
     parser.add_argument(
+        "--layout",
+        choices=("trajectory", "scatter"),
+        default="trajectory",
+        help="trajectory = MSE and reward vs training steps; scatter = reward vs MSE.",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=None,
@@ -184,23 +295,38 @@ def main() -> None:
     args = parser.parse_args()
 
     results_dir = args.study_root / f"variant_{args.variant}" / "results"
-    points = load_reward_mse_points(
+    trajectory = load_reward_mse_trajectory(
         results_dir,
         variant=args.variant,
         seeds=args.seeds,
         max_agent_steps=args.max_agent_steps,
     )
+    last_steps = trajectory["points"][-1]["agent_steps_mean"]
+    default_stem = (
+        f"variant_{args.variant}_reward_mse_trajectory_lt_{args.max_agent_steps}"
+        if args.layout == "trajectory"
+        else f"variant_{args.variant}_reward_vs_probe_mse_lt_{args.max_agent_steps}"
+    )
     output = args.output or (
-        args.study_root
-        / f"variant_{args.variant}"
-        / "figures"
-        / f"variant_{args.variant}_reward_vs_probe_mse_lt_{args.max_agent_steps}.png"
+        args.study_root / f"variant_{args.variant}" / "figures" / f"{default_stem}.png"
     )
     title = (
-        f"Cycle 5 variant {args.variant} — reward vs belief-probe MSE "
-        f"(<{args.max_agent_steps / 1_000_000:g}M steps, n={len(args.seeds)} seeds)"
+        f"Cycle 5 variant {args.variant} through {last_steps / 1_000_000:.2f}M steps "
+        f"(n={len(args.seeds)} seeds)"
     )
-    print(plot_reward_vs_probe_mse(points, title=title, output_path=output))
+    if args.layout == "trajectory":
+        print(plot_reward_mse_trajectory(trajectory, title=title, output_path=output))
+    else:
+        print(
+            plot_reward_vs_probe_mse_scatter(
+                results_dir,
+                variant=args.variant,
+                seeds=args.seeds,
+                max_agent_steps=args.max_agent_steps,
+                title=title,
+                output_path=output,
+            )
+        )
 
 
 if __name__ == "__main__":
