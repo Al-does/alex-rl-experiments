@@ -126,7 +126,7 @@ def test_each_cycle_2_leaf_builds_a_fresh_recipe(tmp_path, algorithm, condition)
         assert first.train_batch_size_per_learner == PPO_SMOKE_BATCH_SIZE
         assert first.rl_module_spec.module_class is TwoFactorRewardPPO
         assert first.entropy_coeff == ENTROPY_COEFF == 0.003
-        assert PPO_TOTAL_ENV_STEPS == 700_000
+        assert PPO_TOTAL_ENV_STEPS == 5_000_000
 
 
 def test_models_match_cycle_5_rope_transformer_contract():
