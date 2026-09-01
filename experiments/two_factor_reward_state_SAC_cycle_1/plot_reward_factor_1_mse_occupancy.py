@@ -16,7 +16,10 @@ CONDITION = "reward_factor_1"
 SEEDS = (42, 43, 44, 45, 46)
 MAX_STEPS = 2_500_000
 EPISODE_LENGTH = 1024
-PROBE_TARGET = "factor_1"
+PROBE_TARGETS = (
+    ("factor_1", "Mean factor 1 probe MSE", "#c45135"),
+    ("factor_2", "Mean factor 2 probe MSE", "#355c9a"),
+)
 FIGURES_DIR = STUDY_DIR / "figures"
 
 
@@ -29,7 +32,9 @@ def _run_dir(seed: int) -> Path:
     )
 
 
-def _load_probe_trajectories() -> tuple[np.ndarray, np.ndarray]:
+def _load_probe_trajectories(
+    target: str,
+) -> tuple[np.ndarray, np.ndarray]:
     step_rows: list[list[float]] = []
     mse_rows: list[list[float]] = []
     for seed in SEEDS:
@@ -40,9 +45,7 @@ def _load_probe_trajectories() -> tuple[np.ndarray, np.ndarray]:
             if row["agent_steps"] <= MAX_STEPS
         ]
         step_rows.append([float(row["agent_steps"]) for row in reports])
-        mse_rows.append(
-            [float(row["probe_fits"][PROBE_TARGET]["mse"]) for row in reports]
-        )
+        mse_rows.append([float(row["probe_fits"][target]["mse"]) for row in reports])
     steps = np.mean(np.asarray(step_rows, dtype=np.float64), axis=0)
     mse = np.mean(np.asarray(mse_rows, dtype=np.float64), axis=0)
     return steps, mse
@@ -74,22 +77,36 @@ def _load_occupancy_trajectory() -> tuple[np.ndarray, np.ndarray]:
     return grid, mean_occupancy
 
 
-def plot_mean_trajectory(path: Path) -> None:
-    probe_steps, probe_mse = _load_probe_trajectories()
-    occ_steps, occ_pct = _load_occupancy_trajectory()
+def _next_probe_step() -> float:
+    summary = json.loads(
+        (_run_dir(SEEDS[0]) / "condition_summary.json").read_text()
+    )
+    steps = [float(row["agent_steps"]) for row in summary["checkpoint_reports"]]
+    for step in steps:
+        if step > MAX_STEPS:
+            return step
+    return float(steps[-1])
 
-    figure, left_axis = plt.subplots(figsize=(8.5, 4.8))
+
+def plot_mean_trajectory(path: Path) -> None:
+    occ_steps, occ_pct = _load_occupancy_trajectory()
+    next_probe_step = _next_probe_step()
+
+    figure, left_axis = plt.subplots(figsize=(8.8, 5.0))
     right_axis = left_axis.twinx()
 
-    left_axis.plot(
-        probe_steps,
-        probe_mse,
-        color="#c45135",
-        marker="o",
-        ms=5,
-        lw=1.8,
-        label=f"Mean {PROBE_TARGET.replace('_', ' ')} probe MSE",
-    )
+    for target, label, color in PROBE_TARGETS:
+        probe_steps, probe_mse = _load_probe_trajectories(target)
+        left_axis.plot(
+            probe_steps,
+            probe_mse,
+            color=color,
+            marker="o",
+            ms=5,
+            lw=1.8,
+            label=label,
+        )
+
     right_axis.plot(
         occ_steps,
         occ_pct,
@@ -106,17 +123,30 @@ def plot_mean_trajectory(path: Path) -> None:
     right_axis.set_ylabel("Reward occupancy (%)")
     right_axis.set_ylim(0.0, 100.0)
 
+    left_axis.annotate(
+        "Log-spaced probe checkpoints only;\n"
+        f"next checkpoint is at {next_probe_step / 1e6:.2f}M steps",
+        xy=(0.98, 0.05),
+        xycoords="axes fraction",
+        ha="right",
+        va="bottom",
+        fontsize=8,
+        color="#555555",
+        bbox={"boxstyle": "round,pad=0.35", "fc": "white", "ec": "#cccccc"},
+    )
+
     lines_left, labels_left = left_axis.get_legend_handles_labels()
     lines_right, labels_right = right_axis.get_legend_handles_labels()
     left_axis.legend(
         lines_left + lines_right,
         labels_left + labels_right,
-        loc="center right",
+        loc="upper right",
         fontsize=9,
     )
     left_axis.grid(alpha=0.25)
     left_axis.set_title(
-        "reward_factor_1 SAC: mean probe MSE and occupancy (seeds 42–46, 0–2.5M steps)"
+        "reward_factor_1 SAC: mean factor probes and occupancy "
+        "(seeds 42–46, 0–2.5M steps)"
     )
     figure.tight_layout()
     path.parent.mkdir(parents=True, exist_ok=True)
