@@ -1,0 +1,18 @@
+"""Baseline-free REINFORCE arm rewarding state 2 only in factor 1."""
+
+from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
+    build_config as _build_config,
+    run_condition,
+)
+from harness.context import RunContext
+
+
+CONDITION = "reward_factor_1"
+
+
+def build_config(context: RunContext):
+    return _build_config(context, CONDITION)
+
+
+def run(context: RunContext):
+    return run_condition(context, CONDITION)
