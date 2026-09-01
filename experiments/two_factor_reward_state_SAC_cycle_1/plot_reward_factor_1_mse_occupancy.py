@@ -14,7 +14,7 @@ import numpy as np
 STUDY_DIR = Path(__file__).resolve().parent
 CONDITION = "reward_factor_1"
 SEEDS = (42, 43, 44, 45, 46)
-MAX_STEPS = 2_500_000
+MAX_STEPS = 2_900_000  # include the log-spaced probe checkpoint at ~2.78M
 EPISODE_LENGTH = 1024
 PROBE_TARGETS = (
     ("factor_1", "Mean factor 1 probe MSE", "#c45135"),
@@ -30,6 +30,17 @@ def _run_dir(seed: int) -> Path:
         / "results"
         / f"two_factor_reward_state_SAC_cycle_1-{CONDITION}-seed{seed}"
     )
+
+
+def _probe_step_limit() -> float:
+    summary = json.loads(
+        (_run_dir(SEEDS[0]) / "condition_summary.json").read_text()
+    )
+    steps = [float(row["agent_steps"]) for row in summary["checkpoint_reports"]]
+    for step in steps:
+        if step > 2_500_000:
+            return step
+    return float(steps[-1])
 
 
 def _load_probe_trajectories(
@@ -77,20 +88,8 @@ def _load_occupancy_trajectory() -> tuple[np.ndarray, np.ndarray]:
     return grid, mean_occupancy
 
 
-def _next_probe_step() -> float:
-    summary = json.loads(
-        (_run_dir(SEEDS[0]) / "condition_summary.json").read_text()
-    )
-    steps = [float(row["agent_steps"]) for row in summary["checkpoint_reports"]]
-    for step in steps:
-        if step > MAX_STEPS:
-            return step
-    return float(steps[-1])
-
-
 def plot_mean_trajectory(path: Path) -> None:
     occ_steps, occ_pct = _load_occupancy_trajectory()
-    next_probe_step = _next_probe_step()
 
     figure, left_axis = plt.subplots(figsize=(8.8, 5.0))
     right_axis = left_axis.twinx()
@@ -123,18 +122,6 @@ def plot_mean_trajectory(path: Path) -> None:
     right_axis.set_ylabel("Reward occupancy (%)")
     right_axis.set_ylim(0.0, 100.0)
 
-    left_axis.annotate(
-        "Log-spaced probe checkpoints only;\n"
-        f"next checkpoint is at {next_probe_step / 1e6:.2f}M steps",
-        xy=(0.98, 0.05),
-        xycoords="axes fraction",
-        ha="right",
-        va="bottom",
-        fontsize=8,
-        color="#555555",
-        bbox={"boxstyle": "round,pad=0.35", "fc": "white", "ec": "#cccccc"},
-    )
-
     lines_left, labels_left = left_axis.get_legend_handles_labels()
     lines_right, labels_right = right_axis.get_legend_handles_labels()
     left_axis.legend(
@@ -146,7 +133,7 @@ def plot_mean_trajectory(path: Path) -> None:
     left_axis.grid(alpha=0.25)
     left_axis.set_title(
         "reward_factor_1 SAC: mean factor probes and occupancy "
-        "(seeds 42–46, 0–2.5M steps)"
+        f"(seeds 42–46, through {_probe_step_limit() / 1e6:.2f}M-step checkpoint)"
     )
     figure.tight_layout()
     path.parent.mkdir(parents=True, exist_ok=True)
