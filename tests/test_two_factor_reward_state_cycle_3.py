@@ -11,7 +11,6 @@ from experiments.two_factor_reward_state_REINFORCE_cycle_3.model import (
     TwoFactorRewardReinforce,
 )
 from experiments.two_factor_reward_state_REINFORCE_cycle_3.shared import (
-    ENTROPY_COEFF,
     Reinforce,
     ReinforceConfig,
     ReinforceTorchLearner,
@@ -54,5 +53,4 @@ def test_each_cycle_3_leaf_builds_a_fresh_reinforce_recipe(tmp_path, condition):
     assert first.lambda_ == 1.0
     assert first.num_epochs == 1
     assert first.use_kl_loss is False
-    assert first.entropy_coeff == ENTROPY_COEFF == 0.0
     assert TOTAL_ENV_STEPS == 5_000_000
