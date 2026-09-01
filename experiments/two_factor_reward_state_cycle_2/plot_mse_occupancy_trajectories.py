@@ -95,6 +95,34 @@ def load_experiment_curves(
     return curves
 
 
+def _log_limits(values: np.ndarray, *, pad_fraction: float = 0.08) -> tuple[float, float]:
+    positive = values[np.isfinite(values) & (values > 0.0)]
+    if positive.size == 0:
+        raise ValueError("expected positive MSE values for log axis limits")
+    lo = float(positive.min())
+    hi = float(positive.max())
+    if lo == hi:
+        lo *= 0.85
+        hi *= 1.15
+    else:
+        log_span = np.log10(hi) - np.log10(lo)
+        pad = log_span * pad_fraction
+        lo = 10.0 ** (np.log10(lo) - pad)
+        hi = 10.0 ** (np.log10(hi) + pad)
+    return lo, hi
+
+
+def _linear_limits(values: np.ndarray, *, pad_fraction: float = 0.06) -> tuple[float, float]:
+    finite = values[np.isfinite(values)]
+    if finite.size == 0:
+        raise ValueError("expected finite occupancy values")
+    lo = float(finite.min())
+    hi = float(finite.max())
+    span = hi - lo
+    pad = span * pad_fraction if span > 0.0 else max(abs(lo), abs(hi), 0.01) * pad_fraction
+    return lo - pad, hi + pad
+
+
 def plot_mse_occupancy_trajectory(
     curves: dict[int, list[dict]],
     *,
@@ -118,16 +146,15 @@ def plot_mse_occupancy_trajectory(
             occupancy[row, col] = _reward_occupancy(report, condition)
 
     f1_mean = np.nanmean(f1_mse, axis=0)
-    f1_std = np.nanstd(f1_mse, axis=0)
     f2_mean = np.nanmean(f2_mse, axis=0)
-    f2_std = np.nanstd(f2_mse, axis=0)
     occ_mean = np.nanmean(occupancy, axis=0)
-    occ_std = np.nanstd(occupancy, axis=0)
 
     positive = steps[steps > 0]
     if positive.size == 0:
         raise ValueError("expected at least one post-init checkpoint")
     x_max = float(positive.max()) * 1.02
+    mse_lo, mse_hi = _log_limits(np.concatenate([f1_mean, f2_mean]))
+    occ_lo, occ_hi = _linear_limits(occ_mean)
 
     figure, axis = plt.subplots(figsize=(8.8, 5.0))
     f1_line = axis.plot(
@@ -139,13 +166,6 @@ def plot_mse_occupancy_trajectory(
         markersize=4.0,
         label="factor 1 probe MSE",
     )[0]
-    axis.fill_between(
-        steps,
-        np.maximum(f1_mean - f1_std, 1e-12),
-        f1_mean + f1_std,
-        color=FACTOR_MSE_COLORS["factor_1"],
-        alpha=0.15,
-    )
     f2_line = axis.plot(
         steps,
         f2_mean,
@@ -155,15 +175,9 @@ def plot_mse_occupancy_trajectory(
         markersize=4.0,
         label="factor 2 probe MSE",
     )[0]
-    axis.fill_between(
-        steps,
-        np.maximum(f2_mean - f2_std, 1e-12),
-        f2_mean + f2_std,
-        color=FACTOR_MSE_COLORS["factor_2"],
-        alpha=0.15,
-    )
 
     axis.set_yscale("log")
+    axis.set_ylim(mse_lo, mse_hi)
     axis.set_xlim(-x_max * 0.02, x_max)
     axis.set_xlabel("Environment steps")
     axis.set_ylabel("Held-out linear-probe MSE (log scale)")
@@ -180,14 +194,7 @@ def plot_mse_occupancy_trajectory(
         label="reward occupancy",
         zorder=4,
     )[0]
-    occupancy_axis.fill_between(
-        steps,
-        np.clip(occ_mean - occ_std, 0.0, 1.0),
-        np.clip(occ_mean + occ_std, 0.0, 1.0),
-        color=OCCUPANCY_COLOR,
-        alpha=0.12,
-    )
-    occupancy_axis.set_ylim(0.0, max(0.45, float(occ_mean.max() + occ_std.max()) * 1.15))
+    occupancy_axis.set_ylim(occ_lo, occ_hi)
     occupancy_axis.set_ylabel("Reward occupancy (state 2)", color=OCCUPANCY_LABEL_COLOR)
     occupancy_axis.tick_params(axis="y", colors=OCCUPANCY_LABEL_COLOR)
     occupancy_axis.spines["right"].set_color(OCCUPANCY_COLOR)
@@ -201,7 +208,7 @@ def plot_mse_occupancy_trajectory(
     seed_label = ", ".join(str(seed) for seed in seeds)
     axis.set_title(
         f"Cycle 2 {algo} — {CONDITION_LABELS[condition]}\n"
-        f"mean ± std over seeds {seed_label}"
+        f"mean over seeds {seed_label}"
     )
     figure.legend(
         handles=[f1_line, f2_line, occ_line],
