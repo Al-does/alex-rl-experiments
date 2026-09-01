@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
+from envs.cassandra_machine import N_COMPONENTS, N_CONDITIONS
 from experiments.cassandra_belief_factoring_2026_08.previous_reward_uniform_250m.d64_3layer_4head.experiment import (
     D_MODEL as D64,
     build_config as build_d64,
@@ -129,6 +131,7 @@ def test_fully_observable_recipes_use_state_and_match_baseline_hparams(
     assert config.env is CassandraFullyObservablePreviousRewardEnv
     assert config.env_config["action_scope"] == action_scope
     assert config.env_config["initial_state_distribution"] == "uniform"
+    assert config.env_config["track_belief"] is False
     assert config.gamma == baseline.gamma
     assert config.lambda_ == baseline.lambda_
     assert config.vf_clip_param == baseline.vf_clip_param
@@ -137,4 +140,17 @@ def test_fully_observable_recipes_use_state_and_match_baseline_hparams(
     assert config.rl_module_spec.model_config == baseline.rl_module_spec.model_config
     assert config.num_env_runners == baseline.num_env_runners
     assert config.num_envs_per_env_runner == baseline.num_envs_per_env_runner
+
+    env = config.env(config.env_config)
+    observation, _ = env.reset(seed=42)
+    components = observation[:-1].reshape(N_COMPONENTS, N_CONDITIONS)
+    np.testing.assert_array_equal(components.sum(axis=1), 1.0)
+    np.testing.assert_array_equal(
+        components.argmax(axis=1),
+        env.unwrapped.component_states,
+    )
+    assert observation.shape == (N_COMPONENTS * N_CONDITIONS + 1,)
+    assert observation[-1] == 0.0
+    assert env.unwrapped.config.observation_mode == "components"
+    assert env.unwrapped.config.track_belief is False
 

@@ -73,8 +73,8 @@ def _policy_observation_description(
 ) -> str:
     if observation_variant == "state":
         return (
-            "256-way joint-state one-hot plus preceding scalar reward; "
-            "fully observable diagnostic"
+            "four 4-way component-state one-hots plus preceding scalar "
+            "reward; fully observable diagnostic"
         )
     action_count = 10
     return (
@@ -197,6 +197,8 @@ def build_config(
     _require_comparison_seed(context)
     env_config = environment_config(action_scope=action_scope)
     env_config["initial_state_distribution"] = "uniform"
+    if observation_variant == "state":
+        env_config["track_belief"] = False
     env_class = _observation_env_class(observation_variant)
 
     return (
@@ -265,7 +267,10 @@ def run_recipe(
             "seed": EXPERIMENT_SEED,
             "algorithm": "PPO",
             "environment": environment_config(action_scope=action_scope)
-            | {"initial_state_distribution": "uniform"},
+            | {
+                "initial_state_distribution": "uniform",
+                "track_belief": observation_variant != "state",
+            },
             "observation_variant": observation_variant,
             "policy_observation": _policy_observation_description(
                 action_scope=action_scope,
