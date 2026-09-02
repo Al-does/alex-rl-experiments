@@ -4,6 +4,21 @@ This repo is the personal experiment composition root. Cloud agents need the
 shared [`rl-harness`](https://github.com/Al-does/RL-Harness) library checked out
 as an editable sibling.
 
+## Agent skills
+
+Reusable agent skills live in `.agents/skills/` (one `SKILL.md` per skill).
+`.cursor/skills` is a symlink to that directory so Cursor agents see the same
+set. Edit skills in `.agents/skills/` only.
+
+## Devin specific instructions
+
+Devin sessions boot from a snapshot whose workspace (`~/repos`) holds this
+repo, `rl-harness`, and `Notes-RL-Variables-and-Belief` side by side.
+`./scripts/bootstrap_local.sh` runs during snapshot build, so `uv run ...`
+works immediately. Secrets (`B2_*`, `RUNPOD_API_KEY`, `GH_TOKEN`,
+`VAST_API_KEY`) are provisioned as Devin org secrets and injected as
+environment variables.
+
 ## Cursor Cloud specific instructions
 
 Environment config lives in `.cursor/environment.json`. On startup, the `install`
