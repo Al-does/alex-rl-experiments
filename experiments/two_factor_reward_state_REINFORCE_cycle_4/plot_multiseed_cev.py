@@ -271,6 +271,7 @@ def _plot_final_cev(
     dimensions = np.arange(1, rank + 1)
     mean_curve = np.mean(np.stack(list(seed_curves.values())), axis=0)
     mean_dimension = float(np.mean(list(seed_dimensions.values())))
+    mean_curve_dimension = int(np.searchsorted(mean_curve, 0.95) + 1)
 
     figure, axis = plt.subplots(figsize=(8.0, 5.0))
     for seed, values in sorted(seed_curves.items()):
@@ -297,11 +298,11 @@ def _plot_final_cev(
         label="95% threshold",
     )
     axis.axvline(
-        mean_dimension,
+        mean_curve_dimension,
         color=CEV95_COLOR,
         linestyle=":",
         linewidth=1.5,
-        label=f"mean CEV95 dimension = {mean_dimension:.1f}",
+        label=f"mean-curve CEV95 dimension = {mean_curve_dimension}",
     )
     axis.set_xlim(1, rank)
     axis.set_ylim(0.0, 1.01)
@@ -310,14 +311,14 @@ def _plot_final_cev(
     axis.grid(alpha=0.25)
     axis.set_title(
         f"Cycle 4 REINFORCE — {CONDITION_LABELS[condition]}\n"
-        "latest checkpoint per seed"
+        "mean CEV at latest checkpoint per seed"
     )
     handles, labels = axis.get_legend_handles_labels()
     ordered_handles = [mean_line, threshold_line, *handles[-1:], *handles[:3]]
     ordered_labels = [
         "mean CEV",
         "95% threshold",
-        f"mean CEV95 dimension = {mean_dimension:.1f}",
+        f"mean-curve CEV95 dimension = {mean_curve_dimension}",
         *[f"seed {seed}" for seed in sorted(seed_curves)],
     ]
     axis.legend(
@@ -342,6 +343,7 @@ def _plot_final_cev(
             str(seed): value for seed, value in sorted(seed_dimensions.items())
         },
         "mean_cev95_dimension": mean_dimension,
+        "mean_curve_cev95_dimension": mean_curve_dimension,
         "latest_agent_steps": {
             str(seed): value for seed, value in sorted(seed_steps.items())
         },
