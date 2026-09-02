@@ -92,6 +92,48 @@ def test_batched_environment_is_seeded_and_stays_on_device():
     assert truncated is False
 
 
+def test_batched_environment_preserves_action_scope_semantics():
+    global_env = BatchedCassandraEnv(
+        num_envs=2,
+        action_scope="global_aliases",
+        episode_length=3,
+        seed=7,
+        device=torch.device("cpu"),
+    )
+    global_env.reset()
+    global_env.components.zero_()
+    global_obs, global_rewards, _ = global_env.step(
+        torch.tensor([6, 9])
+    )
+
+    assert torch.equal(global_env.components, torch.full((2, 4), 3))
+    torch.testing.assert_close(global_rewards, torch.full((2,), -15.0))
+    assert torch.equal(
+        global_obs[:, :-1].reshape(2, 4, 4).argmax(dim=-1),
+        global_env.components,
+    )
+    torch.testing.assert_close(global_obs[:, -1], global_rewards)
+
+    targeted_env = BatchedCassandraEnv(
+        num_envs=2,
+        action_scope="targeted",
+        episode_length=3,
+        seed=7,
+        device=torch.device("cpu"),
+    )
+    targeted_env.reset()
+    targeted_env.components.zero_()
+    _, targeted_rewards, _ = targeted_env.step(torch.tensor([6, 9]))
+
+    assert torch.equal(
+        targeted_env.components,
+        torch.tensor([[3, 0, 0, 0], [0, 0, 0, 3]]),
+    )
+    torch.testing.assert_close(
+        targeted_rewards, torch.full((2,), -3.75)
+    )
+
+
 def test_gae_bootstraps_but_does_not_cross_truncation():
     rewards = torch.tensor([[1.0], [2.0]])
     values = torch.zeros_like(rewards)

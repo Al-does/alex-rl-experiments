@@ -596,11 +596,11 @@ class BatchedPPOTrainer:
             )
 
             if self.total_env_steps >= self.next_checkpoint:
+                while self.next_checkpoint <= self.total_env_steps:
+                    self.next_checkpoint += self.config.checkpoint_interval
                 latest_checkpoint = self.save_checkpoint(
                     label=f"steps_{self.total_env_steps:012d}"
                 )
-                while self.next_checkpoint <= self.total_env_steps:
-                    self.next_checkpoint += self.config.checkpoint_interval
 
         latest_checkpoint = self.save_checkpoint(label="final")
         _sync(self.device)
