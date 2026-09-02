@@ -68,6 +68,7 @@ TOTAL_ENV_STEPS = 8_000_000
 CONTINUATION_TOTAL_ENV_STEPS = 24_000_000
 STEP_CHECKPOINT_INTERVAL = 2_000_000
 CONTINUATION_SPEC_FILENAME = "continuation_spec.json"
+BUDGET_SPEC_FILENAME = "budget_spec.json"
 SMOKE_ENV_STEPS = 4_096
 TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 2_048
@@ -212,12 +213,33 @@ def _load_continuation_spec(context: RunContext) -> dict[str, Any] | None:
     return payload
 
 
+def _load_budget_spec(context: RunContext) -> dict[str, Any] | None:
+    path = context.artifacts_dir / BUDGET_SPEC_FILENAME
+    if not path.is_file():
+        return None
+    payload = json.loads(path.read_text())
+    if not isinstance(payload, dict):
+        raise ValueError(f"{path} must contain a JSON object")
+    return payload
+
+
+def write_budget_spec(context: RunContext, target_agent_steps: int) -> None:
+    context.artifacts_dir.mkdir(parents=True, exist_ok=True)
+    (context.artifacts_dir / BUDGET_SPEC_FILENAME).write_text(
+        json.dumps({"target_agent_steps": int(target_agent_steps)}, indent=2)
+        + "\n"
+    )
+
+
 def _resolve_step_target(context: RunContext) -> int:
     if context.smoke:
         return SMOKE_ENV_STEPS
     spec = _load_continuation_spec(context)
     if spec is not None:
         return int(spec["target_agent_steps"])
+    budget = _load_budget_spec(context)
+    if budget is not None:
+        return int(budget["target_agent_steps"])
     return TOTAL_ENV_STEPS
 
 
@@ -407,6 +429,7 @@ def _resolved_recipe(context: RunContext, condition: str) -> dict[str, Any]:
         "transformer_raw_observation_lookback": TRANSFORMER_LOOKBACK,
         "total_env_steps": _resolve_step_target(context),
         "continuation_spec": _load_continuation_spec(context),
+        "budget_spec": _load_budget_spec(context),
         "checkpoint_schedule": (
             "initial, powers of two iterations, every "
             f"{STEP_CHECKPOINT_INTERVAL:,} env steps, final"

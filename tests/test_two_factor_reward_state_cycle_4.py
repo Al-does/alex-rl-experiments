@@ -127,6 +127,26 @@ def test_cycle_4_metric_reads_nested_lifetime_steps():
     assert _reached_env_step_target(16_000_001)(nested) is False
 
 
+def test_cycle_4_budget_spec_overrides_step_target(tmp_path):
+    from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
+        BUDGET_SPEC_FILENAME,
+        _resolve_step_target,
+        write_budget_spec,
+    )
+
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=43,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+    write_budget_spec(context, 10_000_000)
+    assert (context.artifacts_dir / BUDGET_SPEC_FILENAME).is_file()
+    assert _resolve_step_target(context) == 10_000_000
+
+
 def test_cycle_4_latest_algorithm_checkpoint_from_step_checkpoints(tmp_path):
     from experiments.two_factor_reward_state_REINFORCE_cycle_4.continue_prior import (
         _latest_algorithm_checkpoint,
