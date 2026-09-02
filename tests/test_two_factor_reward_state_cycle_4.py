@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 from pathlib import Path
 
 import pytest
@@ -124,6 +125,40 @@ def test_cycle_4_metric_reads_nested_lifetime_steps():
     assert _metric(nested, "env_runners/num_env_steps_sampled_lifetime") == 16_000_000.0
     assert _reached_env_step_target(16_000_000)(nested) is True
     assert _reached_env_step_target(16_000_001)(nested) is False
+
+
+def test_cycle_4_latest_algorithm_checkpoint_from_step_checkpoints(tmp_path):
+    from experiments.two_factor_reward_state_REINFORCE_cycle_4.continue_prior import (
+        _latest_algorithm_checkpoint,
+    )
+
+    artifacts_root = tmp_path / "artifacts" / "prior"
+    for steps in (8_000_000, 16_000_000):
+        destination = artifacts_root / "step_checkpoints" / f"steps_{steps:09d}"
+        destination.mkdir(parents=True)
+        (destination / "rllib_checkpoint.json").write_text("{}")
+    resolved = _latest_algorithm_checkpoint(artifacts_root)
+    assert resolved.name == "steps_016000000"
+
+
+def test_cycle_4_prior_agent_steps_from_condition_summary(tmp_path):
+    from experiments.two_factor_reward_state_REINFORCE_cycle_4.continue_prior import (
+        _prior_agent_steps,
+    )
+
+    results_dir = tmp_path / "results" / "prior"
+    results_dir.mkdir(parents=True)
+    (results_dir / "condition_summary.json").write_text(
+        json.dumps(
+            {
+                "checkpoint_reports": [
+                    {"agent_steps": 10_000_000},
+                    {"agent_steps": 16_059_680},
+                ]
+            }
+        )
+    )
+    assert _prior_agent_steps(results_dir) == 16_059_680
 
 
 def test_cycle_4_resume_checkpoint_path_resolution():
