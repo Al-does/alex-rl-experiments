@@ -52,10 +52,15 @@ from experiments.two_factor_reward_state_PPO_cycle_2.task import (
 from experiments.two_factor_reward_state_REINFORCE_cycle_4.model import (
     TwoFactorRewardReinforceCycle4,
 )
-from harness.artifacts import RunArtifacts
+from harness.artifacts import RunArtifacts, record_result
 from harness.context import RunContext
 from harness.hardware import PROFILES
-from harness.runners import run_algorithm, run_tune
+from harness.hardware import configure_hardware, shutdown_ray_if_owned
+from harness.runners import (
+    _build_or_restore_algorithm,
+    run_tune,
+    save_algorithm_checkpoint,
+)
 from learners.models.transformer import TransformerModelConfig
 
 
@@ -75,6 +80,7 @@ MODEL_CONFIG = TransformerModelConfig(
     n_heads=1,
     context_len=LOCAL_CONTEXT_LENGTH,
 ).to_dict()
+_active_algorithm: list[Any | None] = [None]
 
 
 def _metric(metrics: Mapping[str, Any], path: str) -> float | None:
@@ -226,6 +232,79 @@ def _single_gpu_context(context: RunContext) -> RunContext:
     return context
 
 
+def _capture_algorithm_on_init(
+    *,
+    algorithm: Any,
+    checkpoint_path: str,
+    **_: Any,
+) -> None:
+    _active_algorithm[0] = algorithm
+    _save_initial_checkpoint(algorithm=algorithm, checkpoint_path=checkpoint_path)
+
+
+def _continuation_result_recorder(context: RunContext) -> Callable[..., None]:
+    log_root = str(context.artifacts_dir / "log_spaced_checkpoints")
+    step_root = str(context.artifacts_dir / "step_checkpoints")
+
+    def _record(_context: RunContext, result: Mapping[str, Any]) -> None:
+        record_result(_context, result)
+        algorithm = _active_algorithm[0]
+        if algorithm is None:
+            return
+        _save_log_spaced_checkpoint(
+            algorithm=algorithm,
+            result=result,
+            checkpoint_root=log_root,
+        )
+        _save_step_interval_checkpoint(
+            algorithm=algorithm,
+            result=result,
+            checkpoint_root=step_root,
+        )
+
+    return _record
+
+
+def _run_continuation_algorithm(
+    config: PPOConfig,
+    context: RunContext,
+    *,
+    target_steps: int,
+) -> Mapping[str, Any]:
+    """Resume training with explicit algorithm capture for checkpoint hooks."""
+
+    started_ray = (
+        configure_hardware(context.hardware)
+        if context.hardware is not None
+        else False
+    )
+    algorithm = None
+    iteration = 0
+    recorder = _continuation_result_recorder(context)
+    should_stop = _reached_env_step_target(target_steps)
+    try:
+        algorithm = _build_or_restore_algorithm(config, context)
+        _active_algorithm[0] = algorithm
+        while True:
+            result = algorithm.train()
+            iteration += 1
+            recorder(context, result)
+            if should_stop(result):
+                save_algorithm_checkpoint(
+                    algorithm,
+                    context,
+                    label=f"iteration_{iteration:06d}_final",
+                )
+                return result
+    finally:
+        _active_algorithm[0] = None
+        try:
+            if algorithm is not None:
+                algorithm.stop()
+        finally:
+            shutdown_ray_if_owned(started_ray)
+
+
 def build_config(context: RunContext, condition: str) -> PPOConfig:
     """Build one fresh zero-baseline, full-episode REINFORCE recipe."""
 
@@ -263,7 +342,7 @@ def build_config(context: RunContext, condition: str) -> PPOConfig:
         )
         .callbacks(
             on_algorithm_init=partial(
-                _save_initial_checkpoint,
+                _capture_algorithm_on_init,
                 checkpoint_path=str(
                     context.artifacts_dir / "initial_checkpoint"
                 ),
@@ -347,11 +426,10 @@ def run_condition(context: RunContext, condition: str) -> dict[str, Any]:
     )
     target_steps = _resolve_step_target(context)
     if context.resume_from is not None:
-        final_metrics = run_algorithm(
+        final_metrics = _run_continuation_algorithm(
             build_config(context, condition),
             context,
-            should_stop=_reached_env_step_target(target_steps),
-            checkpoint_at_end=True,
+            target_steps=target_steps,
         )
         final_checkpoint = _latest_algorithm_checkpoint(context)
         result = SimpleNamespace(
