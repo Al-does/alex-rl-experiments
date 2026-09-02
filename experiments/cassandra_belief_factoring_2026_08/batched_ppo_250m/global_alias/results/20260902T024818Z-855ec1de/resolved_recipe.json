@@ -1,0 +1,49 @@
+{
+  "algorithm": "experiment-local batched PPO",
+  "condition": "batched_ppo_250m_symbol_global_alias",
+  "environment": {
+    "action_scope": "global_aliases",
+    "belief_tracking": false,
+    "device": "cuda",
+    "domain": "Cassandra machine maintenance",
+    "episode_length": 1000,
+    "fully_observable_state": false,
+    "initial_state_distribution": "uniform",
+    "observation": "canonical 16-symbol one-hot plus preceding reward",
+    "observation_dim": 17,
+    "previous_reward_visible": true
+  },
+  "hypothesis": "Keeping recurrent state and rollout tensors device-resident removes RLlib connector and Ray object-store overhead while preserving the canonical symbol-observation PPO recipe with visible previous reward.",
+  "ppo": {
+    "clip_param": 0.2,
+    "entropy_coeff": 0.03,
+    "gamma": 0.99,
+    "lambda": 0.95,
+    "learning_rate": 0.0003,
+    "minibatch_size": 8192,
+    "num_epochs": 4,
+    "train_batch_size": 32768,
+    "vf_clip_param": 100.0,
+    "vf_loss_coeff": 0.01
+  },
+  "primary_comparison": "global-alias versus targeted maintenance actions under matched batched single-process PPO",
+  "runtime": {
+    "checkpoint_interval": 50000000,
+    "num_envs": 128,
+    "performance": {
+      "compile_model": true,
+      "cuda_graphs": false
+    },
+    "resume_from": null,
+    "rollout_steps": 256,
+    "total_env_steps": 250000000
+  },
+  "seed": 42,
+  "transformer": {
+    "context_len": 64,
+    "d_model": 64,
+    "max_seq_len": 256,
+    "n_heads": 4,
+    "n_layers": 3
+  }
+}
