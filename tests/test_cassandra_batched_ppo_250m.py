@@ -8,6 +8,7 @@ from experiments.cassandra_belief_factoring_2026_08.batched_ppo_250m.environment
     OBSERVATION_DIM,
     BatchedCassandraEnv,
 )
+from envs.cassandra_machine.model import N_OBSERVATIONS
 from experiments.cassandra_belief_factoring_2026_08.batched_ppo_250m.global_alias.experiment import (
     ACTION_SCOPE as GLOBAL_SCOPE,
     build_config as build_global,
@@ -110,6 +111,35 @@ def test_batched_environment_is_seeded_and_stays_on_device():
     assert truncated is False
 
 
+def test_batched_environment_exposes_symbol_not_hidden_state():
+    environment = BatchedCassandraEnv(
+        num_envs=2,
+        action_scope="targeted",
+        episode_length=3,
+        seed=7,
+        device=torch.device("cpu"),
+    )
+    observation = environment.reset()
+    assert observation.shape == (2, OBSERVATION_DIM)
+    assert OBSERVATION_DIM == N_OBSERVATIONS + 1
+    assert torch.equal(
+        observation[:, :N_OBSERVATIONS].sum(dim=-1),
+        torch.ones(2),
+    )
+    assert torch.equal(observation[:, -1], torch.zeros(2))
+    assert torch.equal(environment.observation_symbols, torch.zeros(2))
+
+    next_observation, rewards, _ = environment.step(
+        torch.zeros(2, dtype=torch.long)
+    )
+    assert environment.observation_symbols.max() <= N_OBSERVATIONS - 1
+    assert not torch.equal(
+        next_observation[:, :N_OBSERVATIONS].argmax(dim=-1),
+        environment.components.max(dim=-1).values,
+    )
+    torch.testing.assert_close(next_observation[:, -1], rewards)
+
+
 def test_batched_environment_preserves_action_scope_semantics():
     global_env = BatchedCassandraEnv(
         num_envs=2,
@@ -126,9 +156,10 @@ def test_batched_environment_preserves_action_scope_semantics():
 
     assert torch.equal(global_env.components, torch.full((2, 4), 3))
     torch.testing.assert_close(global_rewards, torch.full((2,), -15.0))
+    assert torch.equal(global_env.observation_symbols, torch.zeros(2))
     assert torch.equal(
-        global_obs[:, :-1].reshape(2, 4, 4).argmax(dim=-1),
-        global_env.components,
+        global_obs[:, :N_OBSERVATIONS].argmax(dim=-1),
+        torch.zeros(2, dtype=torch.long),
     )
     torch.testing.assert_close(global_obs[:, -1], global_rewards)
 

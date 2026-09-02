@@ -1,1 +1,1 @@
-"""High-throughput fully observable Cassandra PPO experiments."""
+"""High-throughput partial-observable Cassandra PPO experiments."""

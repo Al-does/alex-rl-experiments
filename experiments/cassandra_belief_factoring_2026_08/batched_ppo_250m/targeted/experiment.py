@@ -9,7 +9,7 @@ from ..shared import run_recipe
 
 
 ACTION_SCOPE = "targeted"
-CONDITION = "batched_ppo_250m_fully_observable_targeted"
+CONDITION = "batched_ppo_250m_symbol_targeted"
 
 
 def build_config(context: RunContext):

@@ -1,4 +1,4 @@
-"""Shared recipe for high-throughput fully observable Cassandra PPO."""
+"""Shared recipe for high-throughput partial-observable Cassandra PPO."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ CONTEXT_LEN = 64
 HYPOTHESIS = (
     "Keeping recurrent state and rollout tensors device-resident removes "
     "RLlib connector and Ray object-store overhead while preserving the "
-    "fully observable long-context PPO recipe."
+    "canonical symbol-observation PPO recipe with visible previous reward."
 )
 PRIMARY_COMPARISON = (
     "global-alias versus targeted maintenance actions under matched batched "
@@ -122,9 +122,11 @@ def run_recipe(
                 "initial_state_distribution": "uniform",
                 "episode_length": EPISODE_LENGTH,
                 "observation": (
-                    "four 4-way component-state one-hots plus preceding reward"
+                    "canonical 16-symbol one-hot plus preceding reward"
                 ),
                 "observation_dim": OBSERVATION_DIM,
+                "previous_reward_visible": True,
+                "fully_observable_state": False,
                 "belief_tracking": False,
                 "device": str(device),
             },

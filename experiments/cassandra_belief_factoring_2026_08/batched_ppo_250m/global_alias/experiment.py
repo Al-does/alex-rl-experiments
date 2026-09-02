@@ -9,7 +9,7 @@ from ..shared import run_recipe
 
 
 ACTION_SCOPE = "global_aliases"
-CONDITION = "batched_ppo_250m_fully_observable_global_alias"
+CONDITION = "batched_ppo_250m_symbol_global_alias"
 
 
 def build_config(context: RunContext):
