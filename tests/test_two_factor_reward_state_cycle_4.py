@@ -106,9 +106,24 @@ def test_cycle_4_resolve_step_target_uses_continuation_spec(tmp_path):
     )
     context.artifacts_dir.mkdir(parents=True)
     (context.artifacts_dir / CONTINUATION_SPEC_FILENAME).write_text(
-        '{"target_agent_steps": 16226448}'
+        '{"target_agent_steps": 16000000}'
     )
-    assert _resolve_step_target(context) == 16_226_448
+    assert _resolve_step_target(context) == 16_000_000
+
+
+def test_cycle_4_metric_reads_nested_lifetime_steps():
+    from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
+        _metric,
+        _reached_env_step_target,
+    )
+
+    nested = {
+        "env_runners": {"num_env_steps_sampled_lifetime": 16_000_000.0},
+        "training_iteration": 42,
+    }
+    assert _metric(nested, "env_runners/num_env_steps_sampled_lifetime") == 16_000_000.0
+    assert _reached_env_step_target(16_000_000)(nested) is True
+    assert _reached_env_step_target(16_000_001)(nested) is False
 
 
 def test_cycle_4_resume_checkpoint_path_resolution():

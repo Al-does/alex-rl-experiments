@@ -9,7 +9,8 @@ from pathlib import Path
 from devops.serverless.retrieve import load_manifest, retrieve_manifest_artifacts
 from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
     CONTINUATION_SPEC_FILENAME,
-    TOTAL_ENV_STEPS,
+    CONTINUATION_TOTAL_ENV_STEPS,
+    STEP_CHECKPOINT_INTERVAL,
 )
 from harness.cli import execute_experiment, load_experiment, make_run_context
 
@@ -102,7 +103,7 @@ def continue_prior_run(
         )
 
     prior_steps = _prior_agent_steps(tune_summary_path)
-    target_steps = prior_steps + TOTAL_ENV_STEPS
+    target_steps = CONTINUATION_TOTAL_ENV_STEPS
     context = make_run_context(
         experiment,
         seed=seed,
@@ -115,8 +116,9 @@ def continue_prior_run(
             {
                 "prior_run_id": prior_run_id,
                 "prior_agent_steps": prior_steps,
-                "additional_agent_steps": TOTAL_ENV_STEPS,
+                "additional_agent_steps": target_steps - prior_steps,
                 "target_agent_steps": target_steps,
+                "step_checkpoint_interval": STEP_CHECKPOINT_INTERVAL,
             },
             indent=2,
             sort_keys=True,
@@ -152,7 +154,7 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         description=(
             "Download a prior cycle-4 run's artifacts from B2 and continue "
-            "training for another TOTAL_ENV_STEPS budget."
+            "training until CONTINUATION_TOTAL_ENV_STEPS lifetime env steps."
         )
     )
     parser.add_argument(
