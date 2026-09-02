@@ -39,7 +39,6 @@ class BatchedCassandraEnv:
         episode_length: int,
         seed: int,
         device: torch.device,
-        reuse_buffers: bool = False,
     ) -> None:
         if num_envs <= 0:
             raise ValueError("num_envs must be positive")
@@ -54,7 +53,6 @@ class BatchedCassandraEnv:
         self.action_scope = action_scope
         self.episode_length = episode_length
         self.device = device
-        self.reuse_buffers = reuse_buffers
         transitions = (
             GLOBAL_ALIAS_COMPONENT_TRANSITIONS
             if action_scope == "global_aliases"
@@ -90,11 +88,6 @@ class BatchedCassandraEnv:
             num_envs, dtype=torch.float32, device=device
         )
         self.episode_returns = torch.zeros_like(self.previous_rewards)
-        self._observation_buffer = torch.zeros(
-            (num_envs, OBSERVATION_DIM),
-            dtype=torch.float32,
-            device=device,
-        )
         self.episode_step = 0
 
     @property
@@ -102,28 +95,13 @@ class BatchedCassandraEnv:
         return int(self.action_costs.shape[0])
 
     def _observation(self) -> torch.Tensor:
-        if not self.reuse_buffers:
-            components = F.one_hot(
-                self.components, num_classes=N_CONDITIONS
-            ).reshape(self.num_envs, N_COMPONENTS * N_CONDITIONS)
-            return torch.cat(
-                [
-                    components.to(torch.float32),
-                    self.previous_rewards[:, None],
-                ],
-                dim=-1,
-            )
-        component_view = self._observation_buffer[
-            :, :-1
-        ].view(self.num_envs, N_COMPONENTS, N_CONDITIONS)
-        component_view.zero_()
-        component_view.scatter_(
+        components = F.one_hot(
+            self.components, num_classes=N_CONDITIONS
+        ).reshape(self.num_envs, N_COMPONENTS * N_CONDITIONS)
+        return torch.cat(
+            [components.to(torch.float32), self.previous_rewards[:, None]],
             dim=-1,
-            index=self.components[..., None],
-            value=1.0,
         )
-        self._observation_buffer[:, -1].copy_(self.previous_rewards)
-        return self._observation_buffer
 
     def reset(self) -> torch.Tensor:
         self.components = torch.randint(

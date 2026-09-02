@@ -73,11 +73,11 @@ def build_config(
         n_heads=N_HEADS,
         context_len=CONTEXT_LEN,
         checkpoint_interval=CHECKPOINT_STEP_INTERVAL,
-        compile_model=False,
-        bucket_sequences=False,
-        cache_inference_constants=False,
-        reuse_environment_buffers=False,
-        use_bfloat16=False,
+        compile_model=(
+            not context.smoke
+            and context.hardware is not None
+            and context.hardware.learner_device == "cuda"
+        ),
     )
 
 
@@ -159,14 +159,7 @@ def run_recipe(
                 ),
                 "performance": {
                     "compile_model": config.compile_model,
-                    "bucket_sequences": config.bucket_sequences,
-                    "cache_inference_constants": (
-                        config.cache_inference_constants
-                    ),
-                    "reuse_environment_buffers": (
-                        config.reuse_environment_buffers
-                    ),
-                    "use_bfloat16": config.use_bfloat16,
+                    "cuda_graphs": False,
                 },
             },
         },

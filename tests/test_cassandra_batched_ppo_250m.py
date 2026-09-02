@@ -60,7 +60,23 @@ def test_condition_configs_preserve_science_and_change_only_scope(tmp_path):
     assert targeted.vf_clip_param == global_alias.vf_clip_param == 100.0
     assert targeted.vf_loss_coeff == global_alias.vf_loss_coeff == 0.01
     assert targeted.entropy_coeff == global_alias.entropy_coeff == 0.03
+    assert targeted.compile_model is False
     assert TOTAL_ENV_STEPS == 250_000_000
+
+
+def test_full_cuda_recipe_enables_safe_compilation(tmp_path):
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        hardware=PROFILES["cuda4090"],
+    )
+
+    config = build_targeted(context)
+
+    assert config.context_len == 64
+    assert config.compile_model is True
 
 
 def test_batched_environment_is_seeded_and_stays_on_device():
@@ -88,6 +104,7 @@ def test_batched_environment_is_seeded_and_stays_on_device():
     assert first_obs.shape == (8, OBSERVATION_DIM)
     assert first_obs.device.type == "cpu"
     assert torch.equal(first_obs, second_obs)
+    assert torch.unique(first.components, dim=0).shape[0] > 1
     assert torch.equal(first_next, second_next)
     assert torch.equal(first_rewards, second_rewards)
     assert truncated is False
@@ -133,32 +150,6 @@ def test_batched_environment_preserves_action_scope_semantics():
     torch.testing.assert_close(
         targeted_rewards, torch.full((2,), -3.75)
     )
-
-
-def test_reused_observation_buffer_matches_allocating_path():
-    baseline = BatchedCassandraEnv(
-        num_envs=8,
-        action_scope="targeted",
-        episode_length=3,
-        seed=11,
-        device=torch.device("cpu"),
-    )
-    reused = BatchedCassandraEnv(
-        num_envs=8,
-        action_scope="targeted",
-        episode_length=3,
-        seed=11,
-        device=torch.device("cpu"),
-        reuse_buffers=True,
-    )
-
-    torch.testing.assert_close(baseline.reset(), reused.reset())
-    actions = torch.arange(8) % baseline.action_count
-    baseline_observation, baseline_rewards, _ = baseline.step(actions)
-    reused_observation, reused_rewards, _ = reused.step(actions)
-
-    torch.testing.assert_close(baseline_observation, reused_observation)
-    torch.testing.assert_close(baseline_rewards, reused_rewards)
 
 
 def test_gae_bootstraps_but_does_not_cross_truncation():
@@ -212,47 +203,6 @@ def test_context_ring_materializes_left_padding_and_recent_history():
     torch.testing.assert_close(model.ordered_context(state), expected_recent)
 
 
-def test_cached_rollout_constants_preserve_model_outputs():
-    baseline = BatchedTransformerActorCritic(
-        observation_dim=2,
-        action_count=3,
-        d_model=8,
-        n_layers=1,
-        n_heads=1,
-        context_len=3,
-    )
-    cached = BatchedTransformerActorCritic(
-        observation_dim=2,
-        action_count=3,
-        d_model=8,
-        n_layers=1,
-        n_heads=1,
-        context_len=3,
-        cache_inference_constants=True,
-    )
-    cached.load_state_dict(baseline.state_dict())
-    baseline_state = baseline.initial_state(4, torch.device("cpu"))
-    cached_state = cached.initial_state(4, torch.device("cpu"))
-
-    with torch.inference_mode():
-        for _ in range(5):
-            observations = torch.randn(4, 2)
-            baseline_logits, baseline_values, baseline_state = (
-                baseline.inference(observations, baseline_state)
-            )
-            cached_logits, cached_values, cached_state = cached.inference(
-                observations, cached_state
-            )
-            torch.testing.assert_close(cached_logits, baseline_logits)
-            torch.testing.assert_close(cached_values, baseline_values)
-            torch.testing.assert_close(
-                cached_state.kv_k, baseline_state.kv_k
-            )
-            torch.testing.assert_close(
-                cached_state.kv_v, baseline_state.kv_v
-            )
-
-
 def test_tiny_training_and_checkpoint_resume(tmp_path):
     config = TrainerConfig(
         action_scope="targeted",
@@ -299,38 +249,3 @@ def test_tiny_training_and_checkpoint_resume(tmp_path):
         trainer.model.parameters(), resumed.model.parameters()
     ):
         torch.testing.assert_close(expected, actual)
-
-
-def test_sequence_bucketing_avoids_time_limit_padding(tmp_path):
-    config = TrainerConfig(
-        action_scope="targeted",
-        total_env_steps=8,
-        num_envs=2,
-        rollout_steps=4,
-        minibatch_size=4,
-        num_epochs=1,
-        episode_length=3,
-        learning_rate=3e-4,
-        gamma=0.99,
-        gae_lambda=0.95,
-        clip_param=0.2,
-        vf_clip_param=100.0,
-        vf_loss_coeff=0.01,
-        entropy_coeff=0.03,
-        d_model=8,
-        n_layers=1,
-        n_heads=1,
-        context_len=4,
-        checkpoint_interval=8,
-        bucket_sequences=True,
-    )
-    trainer = BatchedPPOTrainer(
-        config=config,
-        context=_context(tmp_path),
-        device=torch.device("cpu"),
-    )
-
-    batches = trainer.prepare_training_batches(trainer.collect_rollout())
-
-    assert [batch.observations.shape[1] for batch in batches] == [3, 1]
-    assert all(batch.loss_mask.all() for batch in batches)
