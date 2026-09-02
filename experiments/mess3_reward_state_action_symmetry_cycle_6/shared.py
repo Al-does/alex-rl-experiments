@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from dataclasses import replace
 from pathlib import Path
@@ -39,6 +40,7 @@ from learners.models.transformer import TransformerModel, TransformerModelConfig
 
 
 TOTAL_ENV_STEPS = 8_000_000
+BUDGET_SPEC_FILENAME = "budget_spec.json"
 SMOKE_ENV_STEPS = 4_096
 TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 2_048
@@ -78,6 +80,33 @@ def _single_gpu_context(context: RunContext) -> RunContext:
     ):
         return replace(context, hardware=PROFILES["cuda4090"])
     return context
+
+
+def _load_budget_spec(context: RunContext) -> dict[str, Any] | None:
+    path = context.artifacts_dir / BUDGET_SPEC_FILENAME
+    if not path.is_file():
+        return None
+    payload = json.loads(path.read_text())
+    if not isinstance(payload, dict):
+        raise ValueError(f"{path} must contain a JSON object")
+    return payload
+
+
+def write_budget_spec(context: RunContext, target_agent_steps: int) -> None:
+    context.artifacts_dir.mkdir(parents=True, exist_ok=True)
+    (context.artifacts_dir / BUDGET_SPEC_FILENAME).write_text(
+        json.dumps({"target_agent_steps": int(target_agent_steps)}, indent=2)
+        + "\n"
+    )
+
+
+def _resolve_step_target(context: RunContext) -> int:
+    if context.smoke:
+        return SMOKE_ENV_STEPS
+    budget = _load_budget_spec(context)
+    if budget is not None:
+        return int(budget["target_agent_steps"])
+    return TOTAL_ENV_STEPS
 
 
 def environment_config(variant: int) -> dict[str, Any]:
@@ -213,7 +242,7 @@ def run_condition(context: RunContext, variant: int) -> dict[str, Any]:
     condition = f"variant_{variant}"
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
-    target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
+    target_steps = _resolve_step_target(context)
     recipe = {
         "condition": condition,
         "algorithm": "REINFORCE",
