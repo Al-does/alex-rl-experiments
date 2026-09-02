@@ -184,7 +184,7 @@ def build_config(
     return apply_runtime_resources(
         config,
         _single_gpu_context(context),
-        default_env_runners=16,
+        default_env_runners=8,
     )
 
 
