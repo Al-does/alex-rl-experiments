@@ -38,6 +38,11 @@ class TrainerConfig:
     n_heads: int
     context_len: int
     checkpoint_interval: int
+    compile_model: bool = False
+    bucket_sequences: bool = False
+    cache_inference_constants: bool = False
+    reuse_environment_buffers: bool = False
+    use_bfloat16: bool = False
 
     def __post_init__(self) -> None:
         if self.total_env_steps <= 0:
@@ -149,6 +154,7 @@ class BatchedPPOTrainer:
             episode_length=config.episode_length,
             seed=context.seed,
             device=device,
+            reuse_buffers=config.reuse_environment_buffers,
         )
         self.model = BatchedTransformerActorCritic(
             observation_dim=OBSERVATION_DIM,
@@ -157,7 +163,15 @@ class BatchedPPOTrainer:
             n_layers=config.n_layers,
             n_heads=config.n_heads,
             context_len=config.context_len,
+            cache_inference_constants=config.cache_inference_constants,
         ).to(device)
+        if config.compile_model:
+            if device.type != "cuda":
+                raise ValueError("model compilation is enabled only for CUDA")
+            self.model.enable_compilation()
+        self.model_dtype = (
+            torch.bfloat16 if config.use_bfloat16 else torch.float32
+        )
         self.optimizer = torch.optim.Adam(
             self.model.parameters(), lr=config.learning_rate
         )
@@ -167,7 +181,7 @@ class BatchedPPOTrainer:
         self.shuffle_generator.manual_seed(context.seed + 3_000_003)
         self.observations = self.environment.reset()
         self.inference_state = self.model.initial_state(
-            config.num_envs, device
+            config.num_envs, device, dtype=self.model_dtype
         )
         self.total_env_steps = 0
         self.iteration = 0
@@ -198,7 +212,9 @@ class BatchedPPOTrainer:
         start_context = self.model.ordered_context(self.inference_state)
         start_context_length = self.inference_state.context_length
         observations = torch.empty(
-            (horizon, n, OBSERVATION_DIM), device=self.device
+            (horizon, n, OBSERVATION_DIM),
+            device=self.device,
+            dtype=self.model_dtype,
         )
         actions = torch.empty(
             (horizon, n), dtype=torch.long, device=self.device
@@ -218,10 +234,20 @@ class BatchedPPOTrainer:
         started = time.perf_counter()
         with torch.inference_mode():
             for timestep in range(horizon):
-                observations[timestep].copy_(self.observations)
-                logits, values, self.inference_state = self.model.inference(
-                    self.observations, self.inference_state
-                )
+                model_observations = self.observations.to(self.model_dtype)
+                observations[timestep].copy_(model_observations)
+                with torch.autocast(
+                    device_type=self.device.type,
+                    dtype=torch.bfloat16,
+                    enabled=self.config.use_bfloat16,
+                ):
+                    logits, values, self.inference_state = (
+                        self.model.inference(
+                            model_observations, self.inference_state
+                        )
+                    )
+                logits = logits.float()
+                values = values.float()
                 sampled_actions, log_probs = self._sample_actions(logits)
                 next_observations, step_rewards, truncated = (
                     self.environment.step(sampled_actions)
@@ -232,11 +258,16 @@ class BatchedPPOTrainer:
                 rewards[timestep].copy_(step_rewards)
 
                 if truncated:
-                    _, bootstrap_values, _ = self.model.inference(
-                        next_observations,
-                        self.inference_state,
-                        record_context=False,
-                    )
+                    with torch.autocast(
+                        device_type=self.device.type,
+                        dtype=torch.bfloat16,
+                        enabled=self.config.use_bfloat16,
+                    ):
+                        _, bootstrap_values, _ = self.model.inference(
+                            next_observations.to(self.model_dtype),
+                            self.inference_state,
+                            record_context=False,
+                        )
                     truncated_bootstraps[timestep].copy_(bootstrap_values)
                     boundaries[timestep] = True
                     completed_returns.append(
@@ -244,15 +275,21 @@ class BatchedPPOTrainer:
                     )
                     next_observations = self.environment.reset()
                     self.inference_state = self.model.initial_state(
-                        n, self.device
+                        n, self.device, dtype=self.model_dtype
                     )
                 self.observations = next_observations
 
-            _, final_values, _ = self.model.inference(
-                self.observations,
-                self.inference_state,
-                record_context=False,
-            )
+            with torch.autocast(
+                device_type=self.device.type,
+                dtype=torch.bfloat16,
+                enabled=self.config.use_bfloat16,
+            ):
+                _, final_values, _ = self.model.inference(
+                    self.observations.to(self.model_dtype),
+                    self.inference_state,
+                    record_context=False,
+                )
+            final_values = final_values.float()
         _sync(self.device)
         sampling_seconds = time.perf_counter() - started
 
@@ -368,11 +405,70 @@ class BatchedPPOTrainer:
             loss_mask=loss_mask,
         )
 
-    def optimize(self, batch: TrainingBatch) -> dict[str, float]:
-        config = self.config
-        sequences_per_minibatch = max(
-            1, config.minibatch_size // config.rollout_steps
+    def prepare_training_batches(
+        self, rollout: Rollout
+    ) -> list[TrainingBatch]:
+        if not self.config.bucket_sequences:
+            return [self.prepare_training_batch(rollout)]
+
+        normalized_advantages = rollout.advantages.clone()
+        flat_advantages = normalized_advantages.flatten()
+        normalized_advantages = (
+            normalized_advantages - flat_advantages.mean()
+        ) / (flat_advantages.std(unbiased=False) + 1e-8)
+        boundary_steps = (
+            rollout.boundaries.nonzero().flatten().add(1).tolist()
         )
+        ends = [*boundary_steps, self.config.rollout_steps]
+        starts = [0, *boundary_steps]
+        batches: list[TrainingBatch] = []
+        for index, (start, stop) in enumerate(zip(starts, ends)):
+            if stop <= start:
+                continue
+            length = stop - start
+            context = (
+                rollout.start_context
+                if index == 0
+                else torch.zeros_like(rollout.start_context)
+            )
+            context_length = (
+                rollout.start_context_length if index == 0 else 0
+            )
+            batches.append(
+                TrainingBatch(
+                    contexts=context,
+                    context_lengths=torch.full(
+                        (self.config.num_envs,),
+                        float(context_length),
+                        device=self.device,
+                    ),
+                    observations=rollout.observations[
+                        start:stop
+                    ].transpose(0, 1),
+                    actions=rollout.actions[start:stop].transpose(0, 1),
+                    old_log_probs=rollout.old_log_probs[
+                        start:stop
+                    ].transpose(0, 1),
+                    old_values=rollout.old_values[
+                        start:stop
+                    ].transpose(0, 1),
+                    advantages=normalized_advantages[
+                        start:stop
+                    ].transpose(0, 1),
+                    returns=rollout.returns[start:stop].transpose(0, 1),
+                    loss_mask=torch.ones(
+                        (self.config.num_envs, length),
+                        dtype=torch.bool,
+                        device=self.device,
+                    ),
+                )
+            )
+        return batches
+
+    def optimize(
+        self, batches: list[TrainingBatch]
+    ) -> dict[str, float]:
+        config = self.config
         totals = {
             "loss": torch.zeros((), device=self.device),
             "policy_loss": torch.zeros((), device=self.device),
@@ -386,76 +482,88 @@ class BatchedPPOTrainer:
         _sync(self.device)
         started = time.perf_counter()
         for _ in range(config.num_epochs):
-            permutation = torch.randperm(
-                batch.contexts.shape[0],
-                generator=self.shuffle_generator,
-                device=self.device,
-            )
-            for offset in range(
-                0, permutation.numel(), sequences_per_minibatch
-            ):
-                indices = permutation[
-                    offset : offset + sequences_per_minibatch
-                ]
-                mask = batch.loss_mask[indices]
-                logits, values = self.model.training_outputs(
-                    batch.contexts[indices],
-                    batch.context_lengths[indices],
-                    batch.observations[indices],
+            for batch in batches:
+                sequence_length = batch.observations.shape[1]
+                sequences_per_minibatch = max(
+                    1, config.minibatch_size // sequence_length
                 )
-                logits = logits[mask]
-                values = values[mask]
-                minibatch_actions = batch.actions[indices][mask]
-                old_log_probs = batch.old_log_probs[indices][mask]
-                advantages = batch.advantages[indices][mask]
-                returns = batch.returns[indices][mask]
-
-                log_probs_all = logits.log_softmax(dim=-1)
-                probabilities = log_probs_all.exp()
-                log_probs = log_probs_all.gather(
-                    -1, minibatch_actions[:, None]
-                ).squeeze(-1)
-                entropy = -(probabilities * log_probs_all).sum(dim=-1)
-                log_ratio = log_probs - old_log_probs
-                ratio = log_ratio.exp()
-                surrogate = torch.minimum(
-                    advantages * ratio,
-                    advantages
-                    * ratio.clamp(
-                        1.0 - config.clip_param,
-                        1.0 + config.clip_param,
-                    ),
-                )
-                squared_value_error = (values - returns).square()
-                clipped_value_error = squared_value_error.clamp(
-                    max=config.vf_clip_param
-                )
-                loss = (
-                    -surrogate
-                    + config.vf_loss_coeff * clipped_value_error
-                    - config.entropy_coeff * entropy
-                ).mean()
-
-                self.optimizer.zero_grad(set_to_none=True)
-                loss.backward()
-                self.optimizer.step()
-
-                count = torch.as_tensor(
-                    logits.shape[0],
-                    dtype=torch.float32,
+                permutation = torch.randperm(
+                    batch.contexts.shape[0],
+                    generator=self.shuffle_generator,
                     device=self.device,
                 )
-                totals["loss"] += loss.detach() * count
-                totals["policy_loss"] += -surrogate.detach().sum()
-                totals["value_loss"] += clipped_value_error.detach().sum()
-                totals["entropy"] += entropy.detach().sum()
-                totals["approx_kl"] += (
-                    (ratio - 1.0) - log_ratio
-                ).detach().sum()
-                totals["clip_fraction"] += (
-                    (ratio - 1.0).abs() > config.clip_param
-                ).to(torch.float32).sum()
-                totals["valid"] += count
+                for offset in range(
+                    0, permutation.numel(), sequences_per_minibatch
+                ):
+                    indices = permutation[
+                        offset : offset + sequences_per_minibatch
+                    ]
+                    mask = batch.loss_mask[indices]
+                    with torch.autocast(
+                        device_type=self.device.type,
+                        dtype=torch.bfloat16,
+                        enabled=self.config.use_bfloat16,
+                    ):
+                        logits, values = self.model.training_outputs(
+                            batch.contexts[indices],
+                            batch.context_lengths[indices],
+                            batch.observations[indices],
+                        )
+                    logits = logits.float()[mask]
+                    values = values.float()[mask]
+                    minibatch_actions = batch.actions[indices][mask]
+                    old_log_probs = batch.old_log_probs[indices][mask]
+                    advantages = batch.advantages[indices][mask]
+                    returns = batch.returns[indices][mask]
+
+                    log_probs_all = logits.log_softmax(dim=-1)
+                    probabilities = log_probs_all.exp()
+                    log_probs = log_probs_all.gather(
+                        -1, minibatch_actions[:, None]
+                    ).squeeze(-1)
+                    entropy = -(probabilities * log_probs_all).sum(dim=-1)
+                    log_ratio = log_probs - old_log_probs
+                    ratio = log_ratio.exp()
+                    surrogate = torch.minimum(
+                        advantages * ratio,
+                        advantages
+                        * ratio.clamp(
+                            1.0 - config.clip_param,
+                            1.0 + config.clip_param,
+                        ),
+                    )
+                    squared_value_error = (values - returns).square()
+                    clipped_value_error = squared_value_error.clamp(
+                        max=config.vf_clip_param
+                    )
+                    loss = (
+                        -surrogate
+                        + config.vf_loss_coeff * clipped_value_error
+                        - config.entropy_coeff * entropy
+                    ).mean()
+
+                    self.optimizer.zero_grad(set_to_none=True)
+                    loss.backward()
+                    self.optimizer.step()
+
+                    count = torch.as_tensor(
+                        logits.shape[0],
+                        dtype=torch.float32,
+                        device=self.device,
+                    )
+                    totals["loss"] += loss.detach() * count
+                    totals["policy_loss"] += -surrogate.detach().sum()
+                    totals["value_loss"] += (
+                        clipped_value_error.detach().sum()
+                    )
+                    totals["entropy"] += entropy.detach().sum()
+                    totals["approx_kl"] += (
+                        (ratio - 1.0) - log_ratio
+                    ).detach().sum()
+                    totals["clip_fraction"] += (
+                        (ratio - 1.0).abs() > config.clip_param
+                    ).to(torch.float32).sum()
+                    totals["valid"] += count
         _sync(self.device)
         learning_seconds = time.perf_counter() - started
         denominator = totals.pop("valid").clamp_min(1.0)
@@ -560,7 +668,7 @@ class BatchedPPOTrainer:
         while self.total_env_steps < self.config.total_env_steps:
             rollout = self.collect_rollout()
             training = self.optimize(
-                self.prepare_training_batch(rollout)
+                self.prepare_training_batches(rollout)
             )
             self.iteration += 1
             self.total_env_steps += self.config.train_batch_size

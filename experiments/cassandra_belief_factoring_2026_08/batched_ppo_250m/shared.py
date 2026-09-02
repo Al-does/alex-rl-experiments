@@ -31,7 +31,7 @@ ENTROPY_COEFF = 0.03
 D_MODEL = 64
 N_LAYERS = 3
 N_HEADS = 4
-CONTEXT_LEN = 256
+CONTEXT_LEN = 64
 
 HYPOTHESIS = (
     "Keeping recurrent state and rollout tensors device-resident removes "
@@ -73,6 +73,11 @@ def build_config(
         n_heads=N_HEADS,
         context_len=CONTEXT_LEN,
         checkpoint_interval=CHECKPOINT_STEP_INTERVAL,
+        compile_model=False,
+        bucket_sequences=False,
+        cache_inference_constants=False,
+        reuse_environment_buffers=False,
+        use_bfloat16=False,
     )
 
 
@@ -152,6 +157,17 @@ def run_recipe(
                     if context.resume_from is not None
                     else None
                 ),
+                "performance": {
+                    "compile_model": config.compile_model,
+                    "bucket_sequences": config.bucket_sequences,
+                    "cache_inference_constants": (
+                        config.cache_inference_constants
+                    ),
+                    "reuse_environment_buffers": (
+                        config.reuse_environment_buffers
+                    ),
+                    "use_bfloat16": config.use_bfloat16,
+                },
             },
         },
     )

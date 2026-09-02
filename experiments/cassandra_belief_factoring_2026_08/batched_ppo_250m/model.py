@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 
 import torch
 from torch import nn
@@ -20,6 +21,125 @@ class InferenceState:
     context_length: int
 
 
+def _apply_rope(
+    values: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor
+) -> torch.Tensor:
+    even, odd = values[..., 0::2], values[..., 1::2]
+    output = torch.empty_like(values)
+    output[..., 0::2] = even * cos - odd * sin
+    output[..., 1::2] = even * sin + odd * cos
+    return output
+
+
+class CachedRolloutTransformerEncoder(CausalTransformerEncoder):
+    """Cache device-static RoPE and masking tensors used at every rollout step."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        half = self.head_dim // 2
+        inverse_frequency = 1.0 / (
+            10000.0
+            ** (torch.arange(half, dtype=torch.float32) / half)
+        )
+        query_position = self.lookback
+        key_positions = torch.arange(
+            query_position - self.context_len,
+            query_position + 1,
+            dtype=torch.float32,
+        )
+        key_angles = key_positions[:, None] * inverse_frequency[None, :]
+        query_angles = (
+            torch.tensor([query_position], dtype=torch.float32)[:, None]
+            * inverse_frequency[None, :]
+        )
+        self.register_buffer(
+            "_rollout_cos_k", torch.cos(key_angles), persistent=False
+        )
+        self.register_buffer(
+            "_rollout_sin_k", torch.sin(key_angles), persistent=False
+        )
+        self.register_buffer(
+            "_rollout_cos_q", torch.cos(query_angles), persistent=False
+        )
+        self.register_buffer(
+            "_rollout_sin_q", torch.sin(query_angles), persistent=False
+        )
+        self.register_buffer(
+            "_rollout_slots",
+            torch.arange(self.cache_len),
+            persistent=False,
+        )
+
+    def forward_cached(
+        self,
+        kv_k: torch.Tensor,
+        kv_v: torch.Tensor,
+        kv_len: torch.Tensor,
+        obs: torch.Tensor,
+        *,
+        apply_final_norm: bool = True,
+    ):
+        batch, chunk_len, _ = obs.shape
+        embeddings = []
+        for timestep in range(chunk_len):
+            x_t = self.input_projection(obs[:, timestep : timestep + 1])
+            kv_len = torch.clamp(
+                kv_len + 1.0, max=float(self.cache_len)
+            )
+            valid = (
+                self._rollout_slots[None, :]
+                >= (self.cache_len - kv_len[:, None])
+            ).view(batch, 1, 1, self.cache_len)
+            next_k, next_v = [], []
+            for layer, block in enumerate(self.blocks):
+                _, _, width = x_t.shape
+                q, k, v = block.qkv(block.ln1(x_t)).chunk(3, dim=-1)
+
+                def split(tensor):
+                    return tensor.view(
+                        batch,
+                        1,
+                        block.n_heads,
+                        block.head_dim,
+                    ).transpose(1, 2)
+
+                q, k, v = split(q), split(k), split(v)
+                k_cache = torch.cat(
+                    [kv_k[:, layer, :, 1:], k], dim=2
+                )
+                v_cache = torch.cat(
+                    [kv_v[:, layer, :, 1:], v], dim=2
+                )
+                q = _apply_rope(
+                    q, self._rollout_cos_q, self._rollout_sin_q
+                )
+                rotated_k = _apply_rope(
+                    k_cache,
+                    self._rollout_cos_k,
+                    self._rollout_sin_k,
+                )
+                attention = (
+                    q @ rotated_k.transpose(-2, -1)
+                ) / math.sqrt(block.head_dim)
+                attention = attention.masked_fill(
+                    ~valid, float("-inf")
+                )
+                attention = attention.softmax(dim=-1) @ v_cache
+                attention = attention.transpose(1, 2).reshape(
+                    batch, 1, width
+                )
+                x_t = x_t + block.proj(attention)
+                x_t = x_t + block.mlp(block.ln2(x_t))
+                next_k.append(k_cache)
+                next_v.append(v_cache)
+            kv_k = torch.stack(next_k, dim=1)
+            kv_v = torch.stack(next_v, dim=1)
+            embeddings.append(
+                self.final_norm(x_t) if apply_final_norm else x_t
+            )
+        return torch.cat(embeddings, dim=1), kv_k, kv_v, kv_len
+
+
 class BatchedTransformerActorCritic(nn.Module):
     """The original Cassandra transformer without RLlib state serialization."""
 
@@ -32,11 +152,17 @@ class BatchedTransformerActorCritic(nn.Module):
         n_layers: int,
         n_heads: int,
         context_len: int,
+        cache_inference_constants: bool = False,
     ) -> None:
         super().__init__()
         self.observation_dim = observation_dim
         self.action_count = action_count
-        self.encoder = CausalTransformerEncoder(
+        encoder_class = (
+            CachedRolloutTransformerEncoder
+            if cache_inference_constants
+            else CausalTransformerEncoder
+        )
+        self.encoder = encoder_class(
             obs_dim=observation_dim,
             d_model=d_model,
             n_layers=n_layers,
@@ -45,9 +171,25 @@ class BatchedTransformerActorCritic(nn.Module):
         )
         self.policy = nn.Linear(d_model, action_count)
         self.value = nn.Linear(d_model, 1)
+        self._rollout_encoder = self.encoder.forward_cached
+        self._training_encoder = self.encoder.forward
+
+    def enable_compilation(self) -> None:
+        self._rollout_encoder = torch.compile(
+            self.encoder.forward_cached,
+            mode="reduce-overhead",
+        )
+        self._training_encoder = torch.compile(
+            self.encoder.forward,
+            mode="reduce-overhead",
+        )
 
     def initial_state(
-        self, batch_size: int, device: torch.device
+        self,
+        batch_size: int,
+        device: torch.device,
+        *,
+        dtype: torch.dtype = torch.float32,
     ) -> InferenceState:
         encoder = self.encoder
         cache_shape = (
@@ -58,8 +200,8 @@ class BatchedTransformerActorCritic(nn.Module):
             encoder.head_dim,
         )
         return InferenceState(
-            kv_k=torch.zeros(cache_shape, device=device),
-            kv_v=torch.zeros(cache_shape, device=device),
+            kv_k=torch.zeros(cache_shape, device=device, dtype=dtype),
+            kv_v=torch.zeros(cache_shape, device=device, dtype=dtype),
             kv_len=torch.zeros(batch_size, device=device),
             raw_context=torch.zeros(
                 (
@@ -68,6 +210,7 @@ class BatchedTransformerActorCritic(nn.Module):
                     self.observation_dim,
                 ),
                 device=device,
+                dtype=dtype,
             ),
             context_position=0,
             context_length=0,
@@ -80,7 +223,7 @@ class BatchedTransformerActorCritic(nn.Module):
         *,
         record_context: bool = True,
     ) -> tuple[torch.Tensor, torch.Tensor, InferenceState]:
-        embeddings, kv_k, kv_v, kv_len = self.encoder.forward_cached(
+        embeddings, kv_k, kv_v, kv_len = self._rollout_encoder(
             state.kv_k,
             state.kv_v,
             state.kv_len,
@@ -118,7 +261,7 @@ class BatchedTransformerActorCritic(nn.Module):
         context_lengths: torch.Tensor,
         observations: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        embeddings = self.encoder(
+        embeddings = self._training_encoder(
             contexts,
             context_lengths,
             observations,
@@ -142,5 +285,6 @@ class BatchedTransformerActorCritic(nn.Module):
 
 __all__ = [
     "BatchedTransformerActorCritic",
+    "CachedRolloutTransformerEncoder",
     "InferenceState",
 ]
