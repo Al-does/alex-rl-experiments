@@ -15,7 +15,7 @@ import numpy as np  # noqa: E402
 from matplotlib.ticker import FuncFormatter, MaxNLocator  # noqa: E402
 
 STUDY_ROOT = Path(__file__).resolve().parent
-DEFAULT_OUTPUT_DIR = Path("/opt/cursor/artifacts/two_factor_reinforce_multiseed_cev")
+DEFAULT_OUTPUT_DIR = STUDY_ROOT / "figures"
 DEFAULT_SEEDS = (42, 43, 44)
 SEED_PATTERN = re.compile(r"seed(\d+)")
 
