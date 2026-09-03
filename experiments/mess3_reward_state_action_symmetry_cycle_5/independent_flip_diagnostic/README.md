@@ -1,11 +1,11 @@
 # Independent token-0/1 flip diagnostic
 
-This Cycle-6 Variant-2 diagnostic distinguishes the projected full belief
+This Cycle-5 Variant-2 diagnostic distinguishes the projected full belief
 `s_t = P(state=2 | exact token history)` from the separately evolved coarse
 belief `c_t = P(B={state 2} | not-2/2 history)`.
 
 See
-[the three-state to two-state belief mapping](../three_to_two_belief_mapping.md)
+[the three-state to two-state belief mapping](../../mess3_reward_state_action_symmetry_cycle_6/three_to_two_belief_mapping.md)
 for the simplex geometry, filtering distinction, and intervention rationale.
 
 It fits frozen affine decoders for both targets on factual greedy rollouts.
@@ -30,7 +30,7 @@ Run against a direct RLlib Algorithm checkpoint or a source bundle containing
 
 ```bash
 uv run rl-harness \
-  experiments.mess3_reward_state_action_symmetry_cycle_6.independent_flip_diagnostic.experiment \
+  experiments.mess3_reward_state_action_symmetry_cycle_5.independent_flip_diagnostic.experiment \
   --resume-from /path/to/checkpoint-or-bundle \
   --seed 42
 ```
@@ -38,12 +38,12 @@ uv run rl-harness \
 The compact result is `independent_flip_diagnostic.json` under the run's
 results directory.
 
-To recover and analyze the final Cycle-6 Variant-2 checkpoints for seeds
+To recover and analyze the final Cycle-5 Variant-2 checkpoints for seeds
 42--44:
 
 ```bash
 uv run python -m \
-  experiments.mess3_reward_state_action_symmetry_cycle_6.independent_flip_diagnostic.seed_queue
+  experiments.mess3_reward_state_action_symmetry_cycle_5.independent_flip_diagnostic.seed_queue
 ```
 
 Use `--checkpoint-name checkpoint_000001` to analyze a specific saved

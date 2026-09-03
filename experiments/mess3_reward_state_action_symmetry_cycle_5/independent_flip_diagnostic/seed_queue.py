@@ -1,4 +1,4 @@
-"""Recover and analyze Cycle-6 Variant-2 checkpoints by seed."""
+"""Recover and analyze Cycle-5 Variant-2 checkpoints by seed."""
 
 from __future__ import annotations
 
@@ -12,11 +12,11 @@ from pathlib import Path
 from harness.storage.b2 import B2StorageConfig
 
 MODULE = (
-    "experiments.mess3_reward_state_action_symmetry_cycle_6."
+    "experiments.mess3_reward_state_action_symmetry_cycle_5."
     "independent_flip_diagnostic.experiment"
 )
 EXPERIMENT_DIR = Path(__file__).resolve().parent
-BATTERY_RESULTS = EXPERIMENT_DIR.parent / "battery" / "results"
+SOURCE_RESULTS = EXPERIMENT_DIR.parent / "variant_2" / "results"
 SOURCE_BUNDLES = EXPERIMENT_DIR / "artifacts" / "source_bundles"
 SEED_QUEUE_RESULTS = EXPERIMENT_DIR / "results"
 ESSENTIAL_CHECKPOINT_FILES = (
@@ -35,21 +35,19 @@ def _load_json(path: Path) -> dict[str, object]:
 
 
 def _source_run(seed: int) -> tuple[Path, dict[str, object]]:
-    candidates = []
-    for manifest_path in BATTERY_RESULTS.glob("*/run_manifest.json"):
-        manifest = _load_json(manifest_path)
-        if (
-            manifest.get("status") == "completed"
-            and int(manifest["runtime"]["seed"]) == seed
-            and (manifest_path.parent / "variant_2/tune_summary.json").is_file()
-        ):
-            candidates.append((manifest_path.parent, manifest))
-    if not candidates:
+    source_dir = SOURCE_RESULTS / f"mess3-rsa-c5-v2-seed{seed}"
+    manifest_path = source_dir / "run_manifest.json"
+    if (
+        not manifest_path.is_file()
+        or not (source_dir / "tune_summary.json").is_file()
+    ):
         raise FileNotFoundError(
-            f"no completed Cycle-6 battery result found for seed {seed}"
+            f"no completed Cycle-5 Variant-2 result found for seed {seed}"
         )
-    candidates.sort(key=lambda pair: pair[1].get("started_at", ""))
-    return candidates[-1]
+    manifest = _load_json(manifest_path)
+    if manifest.get("status") != "completed":
+        raise ValueError(f"Cycle-5 seed {seed} did not complete")
+    return source_dir, manifest
 
 
 def _checkpoint_valid(checkpoint: Path) -> bool:
@@ -59,16 +57,27 @@ def _checkpoint_valid(checkpoint: Path) -> bool:
     )
 
 
-def _storage_config(remote: dict[str, object]) -> B2StorageConfig:
+def _storage_config() -> B2StorageConfig:
+    bucket = os.environ.get("B2_BUCKET")
+    endpoint = os.environ.get("B2_ENDPOINT")
     access_key_id = os.environ.get("B2_APPLICATION_KEY_ID")
     secret_access_key = os.environ.get("B2_APPLICATION_KEY")
-    if not access_key_id or not secret_access_key:
+    if not bucket or not endpoint or not access_key_id or not secret_access_key:
         raise RuntimeError(
-            "B2_APPLICATION_KEY_ID and B2_APPLICATION_KEY are required"
+            "B2_BUCKET, B2_ENDPOINT, B2_APPLICATION_KEY_ID, and "
+            "B2_APPLICATION_KEY are required"
+        )
+    normalized_endpoint = endpoint.replace("\\", "/")
+    if (
+        normalized_endpoint.startswith("https:/")
+        and not normalized_endpoint.startswith("https://")
+    ):
+        normalized_endpoint = (
+            "https://" + normalized_endpoint.removeprefix("https:/")
         )
     return B2StorageConfig(
-        bucket=str(remote["bucket"]),
-        endpoint=str(remote["endpoint"]),
+        bucket=bucket,
+        endpoint=normalized_endpoint,
         access_key_id=access_key_id,
         secret_access_key=secret_access_key,
         prefix="",
@@ -77,11 +86,11 @@ def _storage_config(remote: dict[str, object]) -> B2StorageConfig:
 
 def _source_details(
     *,
+    seed: int,
     source_dir: Path,
-    manifest: dict[str, object],
     checkpoint_name: str | None = None,
-) -> tuple[str, str, dict[str, object]]:
-    tune_summary = _load_json(source_dir / "variant_2/tune_summary.json")
+) -> tuple[str, str]:
+    tune_summary = _load_json(source_dir / "tune_summary.json")
     trials = tune_summary.get("trials", [])
     if len(trials) != 1:
         raise ValueError("expected exactly one Variant-2 Tune trial")
@@ -94,9 +103,11 @@ def _source_details(
         raise ValueError(
             f"invalid checkpoint name: {selected_checkpoint_name!r}"
         )
-    remote = manifest["remote_artifacts"]
-    prefix = f"{str(remote['prefix']).rstrip('/')}/variant_2"
-    return selected_checkpoint_name, prefix, remote
+    prefix = (
+        "experiments/mess3_reward_state_action_asymmetry_cycle_5/"
+        f"variant_2/mess3-rsa-c5-v2-seed{seed}"
+    )
+    return selected_checkpoint_name, prefix
 
 
 def _recover_checkpoint(
@@ -105,9 +116,9 @@ def _recover_checkpoint(
     checkpoint_name: str | None = None,
 ) -> tuple[Path, dict[str, object]]:
     source_dir, manifest = _source_run(seed)
-    checkpoint_name, prefix, remote = _source_details(
+    checkpoint_name, prefix = _source_details(
+        seed=seed,
         source_dir=source_dir,
-        manifest=manifest,
         checkpoint_name=checkpoint_name,
     )
     bundle = (
@@ -122,7 +133,7 @@ def _recover_checkpoint(
         }
 
     marker = f"/{checkpoint_name}/"
-    storage = _storage_config(remote)
+    storage = _storage_config()
     client = storage.s3_client()
     objects = []
     paginator = client.get_paginator("list_objects_v2")
@@ -171,7 +182,7 @@ def _run_diagnostic(
     smoke: bool,
     checkpoint_name_override: bool = False,
 ) -> Path:
-    run_id = f"mess3-cycle6-variant2-independent-flip-seed{seed}"
+    run_id = f"mess3-cycle5-variant2-independent-flip-seed{seed}"
     if checkpoint_name_override:
         run_id += f"-{checkpoint.name.replace('_', '')}"
     if smoke:
@@ -205,10 +216,10 @@ def _run_diagnostic(
     if not result.is_file():
         raise FileNotFoundError(f"diagnostic result was not written: {result}")
     record = _load_json(result)
-    record["study"] = "cycle_6_variant_2_checkpoint_independent_token_flip"
+    record["study"] = "cycle_5_variant_2_checkpoint_independent_token_flip"
     record["checkpoint"] = checkpoint.name
     record["source"] = {
-        "cycle": 6,
+        "cycle": 5,
         "run_id": source["run_id"],
         "remote_prefix": source["remote_prefix"],
     }
@@ -224,8 +235,8 @@ def _aggregate(
     records = [_load_json(path) for path in results]
     summary = {
         "schema_version": 1,
-        "study": "cycle_6_variant_2_checkpoint_independent_token_flip",
-        "cycle": 6,
+        "study": "cycle_5_variant_2_checkpoint_independent_token_flip",
+        "cycle": 5,
         "smoke": smoke,
         "seeds": [record["seed"] for record in records],
         "metrics": {
