@@ -45,7 +45,7 @@ print(next(agent["b2_checkpoint_prefix"] for agent in agents if agent["seed"] ==
 PY
 )"
 
-aws s3 cp --recursive \
+uv run --with awscli aws s3 cp --recursive \
   --endpoint-url "$B2_ENDPOINT" \
   "s3://$B2_BUCKET/$PREFIX" \
   artifacts/cycle6_variant2_seed42/checkpoint/
