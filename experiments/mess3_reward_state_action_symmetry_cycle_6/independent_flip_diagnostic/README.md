@@ -1,6 +1,6 @@
 # Independent token-0/1 flip diagnostic
 
-This Cycle-6 Variant-2 diagnostic distinguishes the projected full belief
+This Variant-2 diagnostic distinguishes the projected full belief
 `s_t = P(state=2 | exact token history)` from the separately evolved coarse
 belief `c_t = P(B={state 2} | not-2/2 history)`.
 
@@ -34,10 +34,23 @@ uv run rl-harness \
 The compact result is `independent_flip_diagnostic.json` under the run's
 results directory.
 
-To recover and analyze the available final Variant-2 checkpoints for seeds
+To recover and analyze the final Cycle-6 Variant-2 checkpoints for seeds
 42--44:
 
 ```bash
 uv run python -m \
   experiments.mess3_reward_state_action_symmetry_cycle_6.independent_flip_diagnostic.seed_queue
 ```
+
+The final Cycle-6 policies collapse to the always-positive policy. To run the
+same diagnostic on the non-degenerate Cycle-5 Variant-2 policies, which use the
+same HMM and action task:
+
+```bash
+uv run python -m \
+  experiments.mess3_reward_state_action_symmetry_cycle_6.independent_flip_diagnostic.seed_queue \
+  --source-cycle 5
+```
+
+Use `--checkpoint-name checkpoint_000001` to analyze a specific saved
+checkpoint instead of the final checkpoint.

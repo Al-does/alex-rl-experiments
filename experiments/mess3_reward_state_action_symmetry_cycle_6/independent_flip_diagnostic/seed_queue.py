@@ -1,4 +1,4 @@
-"""Recover and analyze final Cycle-6 Variant-2 checkpoints by seed."""
+"""Recover and analyze final Variant-2 checkpoints by seed."""
 
 from __future__ import annotations
 
@@ -17,11 +17,21 @@ MODULE = (
 )
 EXPERIMENT_DIR = Path(__file__).resolve().parent
 BATTERY_RESULTS = EXPERIMENT_DIR.parent / "battery" / "results"
+CYCLE_5_RESULTS = (
+    EXPERIMENT_DIR.parents[1]
+    / "mess3_reward_state_action_symmetry_cycle_5"
+    / "variant_2"
+    / "results"
+)
 SOURCE_BUNDLES = EXPERIMENT_DIR / "artifacts" / "source_bundles"
 SEED_QUEUE_RESULTS = EXPERIMENT_DIR / "results"
 ESSENTIAL_CHECKPOINT_FILES = (
     Path("algorithm_state.pkl"),
     Path("class_and_ctor_args.pkl"),
+    Path(
+        "learner_group/learner/rl_module/default_policy/"
+        "class_and_ctor_args.pkl"
+    ),
     Path("learner_group/learner/rl_module/default_policy/module_state.pkl"),
 )
 
@@ -30,7 +40,28 @@ def _load_json(path: Path) -> dict[str, object]:
     return json.loads(path.read_text())
 
 
-def _source_run(seed: int) -> tuple[Path, dict[str, object]]:
+def _source_run(
+    seed: int,
+    *,
+    source_cycle: int = 6,
+) -> tuple[Path, dict[str, object]]:
+    if source_cycle == 5:
+        source_dir = CYCLE_5_RESULTS / f"mess3-rsa-c5-v2-seed{seed}"
+        manifest_path = source_dir / "run_manifest.json"
+        if (
+            not manifest_path.is_file()
+            or not (source_dir / "tune_summary.json").is_file()
+        ):
+            raise FileNotFoundError(
+                f"no completed Cycle-5 Variant-2 result found for seed {seed}"
+            )
+        manifest = _load_json(manifest_path)
+        if manifest.get("status") != "completed":
+            raise ValueError(f"Cycle-5 seed {seed} did not complete")
+        return source_dir, manifest
+    if source_cycle != 6:
+        raise ValueError(f"unsupported source cycle: {source_cycle}")
+
     candidates = []
     for manifest_path in BATTERY_RESULTS.glob("*/run_manifest.json"):
         manifest = _load_json(manifest_path)
@@ -71,25 +102,89 @@ def _storage_config(remote: dict[str, object]) -> B2StorageConfig:
     )
 
 
-def _recover_checkpoint(seed: int) -> tuple[Path, dict[str, object]]:
-    source_dir, manifest = _source_run(seed)
-    tune_summary = _load_json(source_dir / "variant_2/tune_summary.json")
+def _cycle_5_remote() -> dict[str, object]:
+    _, cycle_6_manifest = _source_run(42)
+    cycle_6_remote = cycle_6_manifest["remote_artifacts"]
+    return {
+        "bucket": cycle_6_remote["bucket"],
+        "endpoint": cycle_6_remote["endpoint"],
+    }
+
+
+def _source_details(
+    *,
+    source_cycle: int,
+    seed: int,
+    source_dir: Path,
+    manifest: dict[str, object],
+    checkpoint_name: str | None = None,
+) -> tuple[str, str, dict[str, object]]:
+    tune_relative = (
+        "variant_2/tune_summary.json"
+        if source_cycle == 6
+        else "tune_summary.json"
+    )
+    tune_summary = _load_json(source_dir / tune_relative)
     trials = tune_summary.get("trials", [])
     if len(trials) != 1:
         raise ValueError("expected exactly one Variant-2 Tune trial")
-    checkpoint_name = Path(trials[0]["checkpoint"]).name
-    bundle = SOURCE_BUNDLES / f"seed_{seed}" / checkpoint_name
-    if _checkpoint_valid(bundle):
-        return bundle, manifest
+    final_checkpoint_name = Path(trials[0]["checkpoint"]).name
+    selected_checkpoint_name = checkpoint_name or final_checkpoint_name
+    if (
+        Path(selected_checkpoint_name).name != selected_checkpoint_name
+        or not selected_checkpoint_name.startswith("checkpoint_")
+    ):
+        raise ValueError(
+            f"invalid checkpoint name: {selected_checkpoint_name!r}"
+        )
+    if source_cycle == 6:
+        remote = manifest["remote_artifacts"]
+        prefix = f"{str(remote['prefix']).rstrip('/')}/variant_2"
+    else:
+        remote = _cycle_5_remote()
+        prefix = (
+            "experiments/mess3_reward_state_action_asymmetry_cycle_5/"
+            f"variant_2/mess3-rsa-c5-v2-seed{seed}"
+        )
+    return selected_checkpoint_name, prefix, remote
 
-    remote = manifest["remote_artifacts"]
-    prefix = f"{str(remote['prefix']).rstrip('/')}/variant_2/"
+
+def _recover_checkpoint(
+    seed: int,
+    *,
+    source_cycle: int = 6,
+    checkpoint_name: str | None = None,
+) -> tuple[Path, dict[str, object]]:
+    source_dir, manifest = _source_run(seed, source_cycle=source_cycle)
+    checkpoint_name, prefix, remote = _source_details(
+        source_cycle=source_cycle,
+        seed=seed,
+        source_dir=source_dir,
+        manifest=manifest,
+        checkpoint_name=checkpoint_name,
+    )
+    bundle = (
+        SOURCE_BUNDLES
+        / f"cycle_{source_cycle}"
+        / f"seed_{seed}"
+        / checkpoint_name
+    )
+    if _checkpoint_valid(bundle):
+        return bundle, {
+            "cycle": source_cycle,
+            "run_id": manifest["run_id"],
+            "remote_prefix": prefix,
+        }
+
     marker = f"/{checkpoint_name}/"
     storage = _storage_config(remote)
     client = storage.s3_client()
     objects = []
     paginator = client.get_paginator("list_objects_v2")
-    for page in paginator.paginate(Bucket=storage.bucket, Prefix=prefix):
+    for page in paginator.paginate(
+        Bucket=storage.bucket,
+        Prefix=f"{prefix.rstrip('/')}/",
+    ):
         objects.extend(
             item
             for item in page.get("Contents", [])
@@ -108,26 +203,37 @@ def _recover_checkpoint(seed: int) -> tuple[Path, dict[str, object]]:
     if not _checkpoint_valid(bundle):
         raise RuntimeError(f"recovered checkpoint is incomplete: {bundle}")
     provenance = {
+        "source_cycle": source_cycle,
         "seed": seed,
         "source_run_id": manifest["run_id"],
-        "source_prefix": remote["prefix"],
+        "source_prefix": prefix,
         "checkpoint_name": checkpoint_name,
         "checkpoint_files": len(objects),
     }
     (bundle.parent / "source.json").write_text(
         json.dumps(provenance, indent=2) + "\n"
     )
-    return bundle, manifest
+    return bundle, {
+        "cycle": source_cycle,
+        "run_id": manifest["run_id"],
+        "remote_prefix": prefix,
+    }
 
 
 def _run_diagnostic(
     *,
     seed: int,
     checkpoint: Path,
-    source_manifest: dict[str, object],
+    source: dict[str, object],
     smoke: bool,
+    checkpoint_name_override: bool = False,
 ) -> Path:
-    run_id = f"mess3-cycle6-independent-flip-seed{seed}"
+    source_cycle = int(source["cycle"])
+    run_id = (
+        f"mess3-cycle{source_cycle}-variant2-independent-flip-seed{seed}"
+    )
+    if checkpoint_name_override:
+        run_id += f"-{checkpoint.name.replace('_', '')}"
     if smoke:
         run_id += "-smoke"
     command = [
@@ -159,20 +265,37 @@ def _run_diagnostic(
     if not result.is_file():
         raise FileNotFoundError(f"diagnostic result was not written: {result}")
     record = _load_json(result)
+    record["implementation_cycle"] = record["cycle"]
+    record["cycle"] = source_cycle
+    record["study"] = (
+        f"cycle_{source_cycle}_variant_2_checkpoint_"
+        "independent_token_flip"
+    )
+    record["source_cycle"] = source_cycle
     record["checkpoint"] = checkpoint.name
     record["source"] = {
-        "run_id": source_manifest["run_id"],
-        "remote_prefix": source_manifest["remote_artifacts"]["prefix"],
+        "cycle": source_cycle,
+        "run_id": source["run_id"],
+        "remote_prefix": source["remote_prefix"],
     }
     result.write_text(json.dumps(record, indent=2) + "\n")
     return result
 
 
-def _aggregate(results: list[Path], *, smoke: bool) -> Path:
+def _aggregate(
+    results: list[Path],
+    *,
+    source_cycle: int,
+    smoke: bool,
+) -> Path:
     records = [_load_json(path) for path in results]
     summary = {
         "schema_version": 1,
-        "study": "cycle_6_variant_2_independent_token_flip",
+        "study": (
+            f"cycle_{source_cycle}_variant_2_checkpoint_"
+            "independent_token_flip"
+        ),
+        "source_cycle": source_cycle,
         "smoke": smoke,
         "seeds": [record["seed"] for record in records],
         "metrics": {
@@ -281,20 +404,33 @@ def _aggregate(results: list[Path], *, smoke: bool) -> Path:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seeds", type=int, nargs="+", default=[42, 43, 44])
+    parser.add_argument("--source-cycle", type=int, choices=(5, 6), default=6)
+    parser.add_argument("--checkpoint-name")
     parser.add_argument("--smoke", action="store_true")
     arguments = parser.parse_args()
     results = []
     for seed in arguments.seeds:
-        checkpoint, source_manifest = _recover_checkpoint(seed)
+        checkpoint, source = _recover_checkpoint(
+            seed,
+            source_cycle=arguments.source_cycle,
+            checkpoint_name=arguments.checkpoint_name,
+        )
         results.append(
             _run_diagnostic(
                 seed=seed,
                 checkpoint=checkpoint,
-                source_manifest=source_manifest,
+                source=source,
                 smoke=arguments.smoke,
+                checkpoint_name_override=arguments.checkpoint_name is not None,
             )
         )
-    print(_aggregate(results, smoke=arguments.smoke))
+    print(
+        _aggregate(
+            results,
+            source_cycle=arguments.source_cycle,
+            smoke=arguments.smoke,
+        )
+    )
 
 
 if __name__ == "__main__":
