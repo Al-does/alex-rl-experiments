@@ -1,0 +1,387 @@
+{
+  "schema_version": 1,
+  "study": "cycle_6_variant_2_checkpoint_independent_token_flip",
+  "cycle": 6,
+  "variant": 2,
+  "seed": 44,
+  "checkpoint": "checkpoint_000001",
+  "hypotheses": {
+    "coarse_filter": "Representations and policy outputs remain invariant when each token 0/1 identity is independently flipped while the coarse not-2/2 history is fixed.",
+    "fine_filter": "The decoded state-2 belief tracks the exact change induced in the full three-state filter by the independently flipped history."
+  },
+  "intervention": "Independently exchange each token-0/token-1 channel with probability 0.5; preserve token-2 positions and factual previous-action features.",
+  "decoder": "frozen factual affine least-squares probes for s_t and c_t",
+  "representation": "post_final_layer_norm",
+  "sampling_distribution": "greedy_process_weighted_factual_rollout",
+  "train_steps": 30000,
+  "test_steps": 40000,
+  "closed_loop_steps": 40000,
+  "n_randomizations": 8,
+  "randomization_seeds": [
+    2387710545,
+    829683548,
+    74985923,
+    1028322100,
+    3586675777,
+    2427156257,
+    591925401,
+    3423989115
+  ],
+  "closed_loop_randomization_seeds": [
+    2956491388,
+    3862210434,
+    1251504817,
+    2546502911,
+    2145768841,
+    2258117531,
+    1922880191,
+    2467409887
+  ],
+  "n_evaluated": 36928,
+  "n_envs": 16,
+  "warmup": 64,
+  "flip_probability": 0.5,
+  "policy_feedback_during_paired_replay": false,
+  "probe_ridge": 1e-06,
+  "target_consistency_max_abs": 3.3306690738754696e-16,
+  "coarse_target_invariance_max_abs": 0.0,
+  "activation_reconstruction_max_abs": 0.0,
+  "paired_fixed_action_replay": {
+    "factual": {
+      "fine_probe_s": {
+        "mse": 0.000777519135596621,
+        "target_variance": 0.13045400861393186,
+        "global_mse_ratio": 0.005960101524343543,
+        "r_squared": 0.9940398984756564
+      },
+      "coarse_probe_c": {
+        "mse": 0.0004402312488139387,
+        "target_variance": 0.1299762401548571,
+        "global_mse_ratio": 0.003387013259419073,
+        "r_squared": 0.996612986740581
+      }
+    },
+    "randomized": {
+      "fine_probe_s": {
+        "mse": 0.0009145073158289904,
+        "target_variance": 0.12762692341873771,
+        "global_mse_ratio": 0.007165473329076001,
+        "r_squared": 0.992834526670924
+      },
+      "coarse_probe_c": {
+        "mse": 0.0004557800245668719,
+        "target_variance": 0.1299762401548571,
+        "global_mse_ratio": 0.0035066410908935635,
+        "r_squared": 0.9964933589091064
+      },
+      "exact_s_shift_rms": 0.03219015417511453,
+      "decoded_s_shift_rms": 0.014229849956750099,
+      "decoded_s_shift_mse": 0.000869303997945343,
+      "decoded_s_shift_r_squared": 0.1398328804932878,
+      "decoded_coarse_invariance_rmse": 0.007119876228698623,
+      "activation_shift_rms": 0.26864385632225896,
+      "policy": {
+        "logit_shift_rms": 0.14428510718652485,
+        "probability_total_variation_mean": 0.026801171290932593,
+        "greedy_action_agreement": 0.9174880849220104
+      }
+    },
+    "fine_probe_counterfactual_over_factual_mse": 1.1761862492647888,
+    "coarse_probe_counterfactual_over_factual_mse": 1.035319563967402,
+    "by_randomization": [
+      {
+        "randomization": 0,
+        "fine_probe": {
+          "mse": 0.0009124918552562191,
+          "target_variance": 0.12765312537519427,
+          "global_mse_ratio": 0.007148213978892018,
+          "r_squared": 0.992851786021108
+        },
+        "coarse_probe": {
+          "mse": 0.00045528439265215225,
+          "target_variance": 0.1299762401548571,
+          "global_mse_ratio": 0.003502827840763162,
+          "r_squared": 0.9964971721592368
+        },
+        "exact_s_shift_rms": 0.032115180049015715,
+        "decoded_s_shift_rms": 0.014245643120734579,
+        "decoded_s_shift_mse": 0.0008625369546065249,
+        "decoded_s_shift_r_squared": 0.1426811512490519,
+        "decoded_coarse_invariance_rmse": 0.007058784346032059,
+        "policy": {
+          "logit_shift_rms": 0.14423311306120007,
+          "probability_total_variation_mean": 0.02680199164281651,
+          "greedy_action_agreement": 0.9170277296360485
+        }
+      },
+      {
+        "randomization": 1,
+        "fine_probe": {
+          "mse": 0.0009185856569595435,
+          "target_variance": 0.12761810651772815,
+          "global_mse_ratio": 0.00719792576480468,
+          "r_squared": 0.9928020742351953
+        },
+        "coarse_probe": {
+          "mse": 0.0004548998520138896,
+          "target_variance": 0.1299762401548571,
+          "global_mse_ratio": 0.003499869295125863,
+          "r_squared": 0.9965001307048741
+        },
+        "exact_s_shift_rms": 0.032243457403962075,
+        "decoded_s_shift_rms": 0.014258899136966036,
+        "decoded_s_shift_mse": 0.000871314015263813,
+        "decoded_s_shift_r_squared": 0.14058499924891754,
+        "decoded_coarse_invariance_rmse": 0.007170663328604957,
+        "policy": {
+          "logit_shift_rms": 0.14490478356621808,
+          "probability_total_variation_mean": 0.02688308294006252,
+          "greedy_action_agreement": 0.916838171577123
+        }
+      },
+      {
+        "randomization": 2,
+        "fine_probe": {
+          "mse": 0.0009150536695034806,
+          "target_variance": 0.12760342371720707,
+          "global_mse_ratio": 0.007171074590689744,
+          "r_squared": 0.9928289254093102
+        },
+        "coarse_probe": {
+          "mse": 0.0004564458347678262,
+          "target_variance": 0.1299762401548571,
+          "global_mse_ratio": 0.0035117636440629815,
+          "r_squared": 0.996488236355937
+        },
+        "exact_s_shift_rms": 0.032250654463419424,
+        "decoded_s_shift_rms": 0.014142829903048363,
+        "decoded_s_shift_mse": 0.0008703632702973456,
+        "decoded_s_shift_r_squared": 0.1416407244605814,
+        "decoded_coarse_invariance_rmse": 0.007051468532113069,
+        "policy": {
+          "logit_shift_rms": 0.1434695391850571,
+          "probability_total_variation_mean": 0.02657612583940292,
+          "greedy_action_agreement": 0.9189774696707106
+        }
+      },
+      {
+        "randomization": 3,
+        "fine_probe": {
+          "mse": 0.0009209719687836302,
+          "target_variance": 0.12759562629193658,
+          "global_mse_ratio": 0.007217896063901613,
+          "r_squared": 0.9927821039360983
+        },
+        "coarse_probe": {
+          "mse": 0.00045707351573363636,
+          "target_variance": 0.1299762401548571,
+          "global_mse_ratio": 0.0035165928418076026,
+          "r_squared": 0.9964834071581924
+        },
+        "exact_s_shift_rms": 0.03213579113561508,
+        "decoded_s_shift_rms": 0.01427697013881494,
+        "decoded_s_shift_mse": 0.0008677318863732303,
+        "decoded_s_shift_r_squared": 0.13805884862989148,
+        "decoded_coarse_invariance_rmse": 0.007188198813284167,
+        "policy": {
+          "logit_shift_rms": 0.1449313029963914,
+          "probability_total_variation_mean": 0.026897768673917796,
+          "greedy_action_agreement": 0.9166486135181976
+        }
+      },
+      {
+        "randomization": 4,
+        "fine_probe": {
+          "mse": 0.000912201215991042,
+          "target_variance": 0.12765659754105851,
+          "global_mse_ratio": 0.007145742825376874,
+          "r_squared": 0.9928542571746232
+        },
+        "coarse_probe": {
+          "mse": 0.0004547987362775715,
+          "target_variance": 0.1299762401548571,
+          "global_mse_ratio": 0.003499091339584161,
+          "r_squared": 0.9965009086604159
+        },
+        "exact_s_shift_rms": 0.0322109098716533,
+        "decoded_s_shift_rms": 0.014230016925493836,
+        "decoded_s_shift_mse": 0.0008747978220976537,
+        "decoded_s_shift_r_squared": 0.13597862715915776,
+        "decoded_coarse_invariance_rmse": 0.007131767767640529,
+        "policy": {
+          "logit_shift_rms": 0.14464373201960393,
+          "probability_total_variation_mean": 0.026875216214482526,
+          "greedy_action_agreement": 0.9201960571923743
+        }
+      },
+      {
+        "randomization": 5,
+        "fine_probe": {
+          "mse": 0.0009207478857802376,
+          "target_variance": 0.12759706959632897,
+          "global_mse_ratio": 0.007216058242506284,
+          "r_squared": 0.9927839417574937
+        },
+        "coarse_probe": {
+          "mse": 0.0004564227155437001,
+          "target_variance": 0.1299762401548571,
+          "global_mse_ratio": 0.0035115857713679524,
+          "r_squared": 0.9964884142286321
+        },
+        "exact_s_shift_rms": 0.03229229805177344,
+        "decoded_s_shift_rms": 0.01426208143282198,
+        "decoded_s_shift_mse": 0.0008769953064163346,
+        "decoded_s_shift_r_squared": 0.1378783894532022,
+        "decoded_coarse_invariance_rmse": 0.007160035032772967,
+        "policy": {
+          "logit_shift_rms": 0.14431960162754875,
+          "probability_total_variation_mean": 0.02678868515819615,
+          "greedy_action_agreement": 0.9167027729636048
+        }
+      },
+      {
+        "randomization": 6,
+        "fine_probe": {
+          "mse": 0.0009068031150960929,
+          "target_variance": 0.1276656579887163,
+          "global_mse_ratio": 0.007102952582410538,
+          "r_squared": 0.9928970474175894
+        },
+        "coarse_probe": {
+          "mse": 0.0004553891452545929,
+          "target_variance": 0.1299762401548571,
+          "global_mse_ratio": 0.0035036337773121486,
+          "r_squared": 0.9964963662226879
+        },
+        "exact_s_shift_rms": 0.03210535216410731,
+        "decoded_s_shift_rms": 0.014172142057676638,
+        "decoded_s_shift_mse": 0.0008660231319284402,
+        "decoded_s_shift_r_squared": 0.13902635736776403,
+        "decoded_coarse_invariance_rmse": 0.007076743925703214,
+        "policy": {
+          "logit_shift_rms": 0.14412469200868128,
+          "probability_total_variation_mean": 0.026777144060481654,
+          "greedy_action_agreement": 0.9152675476603119
+        }
+      },
+      {
+        "randomization": 7,
+        "fine_probe": {
+          "mse": 0.0009092031592616768,
+          "target_variance": 0.12762576575664336,
+          "global_mse_ratio": 0.007123978092286977,
+          "r_squared": 0.9928760219077131
+        },
+        "coarse_probe": {
+          "mse": 0.00045592600429160635,
+          "target_variance": 0.1299762401548571,
+          "global_mse_ratio": 0.003507764217124639,
+          "r_squared": 0.9964922357828754
+        },
+        "exact_s_shift_rms": 0.032167067329224926,
+        "decoded_s_shift_rms": 0.014249667111937635,
+        "decoded_s_shift_mse": 0.0008646695965794014,
+        "decoded_s_shift_r_squared": 0.14282071752089787,
+        "decoded_coarse_invariance_rmse": 0.007119994570866191,
+        "policy": {
+          "logit_shift_rms": 0.14364705116229579,
+          "probability_total_variation_mean": 0.02680935579810066,
+          "greedy_action_agreement": 0.9182463171577123
+        }
+      }
+    ]
+  },
+  "closed_loop_policy": {
+    "factual_reward_mean": 0.31805,
+    "factual_action_fractions": [
+      0.2982,
+      0.7018,
+      0.0
+    ],
+    "randomized_reward_mean": 0.3181375,
+    "randomized_reward_delta_mean": 8.74999999999973e-05,
+    "randomized_reward_delta_range": [
+      -0.00045000000000000595,
+      0.0006499999999999839
+    ],
+    "by_randomization": [
+      {
+        "reward_mean": 0.31855,
+        "reward_delta": 0.0005000000000000004,
+        "action_fractions": [
+          0.298,
+          0.702,
+          0.0
+        ]
+      },
+      {
+        "reward_mean": 0.317925,
+        "reward_delta": -0.00012499999999998623,
+        "action_fractions": [
+          0.297425,
+          0.702575,
+          0.0
+        ]
+      },
+      {
+        "reward_mean": 0.3181,
+        "reward_delta": 4.999999999999449e-05,
+        "action_fractions": [
+          0.29845,
+          0.70155,
+          0.0
+        ]
+      },
+      {
+        "reward_mean": 0.318025,
+        "reward_delta": -2.4999999999997247e-05,
+        "action_fractions": [
+          0.297825,
+          0.702175,
+          0.0
+        ]
+      },
+      {
+        "reward_mean": 0.3176,
+        "reward_delta": -0.00045000000000000595,
+        "action_fractions": [
+          0.296375,
+          0.703625,
+          0.0
+        ]
+      },
+      {
+        "reward_mean": 0.318025,
+        "reward_delta": -2.4999999999997247e-05,
+        "action_fractions": [
+          0.297325,
+          0.702675,
+          0.0
+        ]
+      },
+      {
+        "reward_mean": 0.3187,
+        "reward_delta": 0.0006499999999999839,
+        "action_fractions": [
+          0.297925,
+          0.702075,
+          0.0
+        ]
+      },
+      {
+        "reward_mean": 0.318175,
+        "reward_delta": 0.00012499999999998623,
+        "action_fractions": [
+          0.297575,
+          0.702425,
+          0.0
+        ]
+      }
+    ]
+  },
+  "source": {
+    "cycle": 6,
+    "run_id": "mess3_reward_state_action_symmetry_cycle_6-battery-seed44-10m",
+    "remote_prefix": "experiments/mess3_reward_state_action_symmetry_cycle_6/battery/mess3_reward_state_action_symmetry_cycle_6-battery-seed44-10m/variant_2"
+  }
+}
