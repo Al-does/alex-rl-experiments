@@ -73,3 +73,18 @@ uv run python experiments/mess3_reward_state_action_symmetry_cycle_5/plot_varian
 | 46 | 0.001029 | 0.003053 | 0.000290 |
 
 See `multi_seed_summary.json` for machine-readable aggregates.
+
+## Interactive simplex quotient
+
+Open `simplex_quotient_3d.html` in a browser to explore the instantaneous
+geometric projection
+
+```text
+(b₀, b₁, b₂) → (b₀ + b₁, b₂).
+```
+
+The standalone visualization has no external dependencies. Drag to orbit,
+scroll to zoom, move the `s = b₂` slider to select a quotient fiber, and use
+clean-frame mode or PNG export to capture publication angles. It deliberately
+shows the pointwise projection `sₜ = bₜ,₂`; the separately evolved coarse
+filter `cₜ` is history-dependent and is not represented as a pointwise map.

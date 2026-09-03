@@ -1,0 +1,1196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MESS3 belief compression — Δ² → Δ¹</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #edf8ff;
+      --muted: #91a9bd;
+      --cyan: #52e8e0;
+      --blue: #4ea3ff;
+      --gold: #ffc857;
+      --violet: #c77dff;
+      --panel: rgba(7, 16, 31, 0.78);
+      --border: rgba(166, 218, 255, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #020711;
+      font-family:
+        Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+    }
+
+    body {
+      user-select: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    canvas.dragging {
+      cursor: grabbing;
+    }
+
+    .panel {
+      position: fixed;
+      top: 22px;
+      right: 22px;
+      width: min(310px, calc(100vw - 44px));
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background:
+        linear-gradient(145deg, rgba(17, 36, 60, 0.72), rgba(4, 10, 22, 0.88)),
+        var(--panel);
+      box-shadow:
+        0 24px 80px rgba(0, 0, 0, 0.38),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(18px) saturate(1.25);
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .eyebrow {
+      margin-bottom: 5px;
+      color: var(--cyan);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .panel h2 {
+      margin: 0 0 6px;
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+    }
+
+    .panel p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .divider {
+      height: 1px;
+      margin: 15px 0;
+      background: linear-gradient(90deg, var(--border), transparent);
+    }
+
+    .slider-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 7px;
+    }
+
+    .slider-row label {
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .value {
+      min-width: 48px;
+      color: var(--gold);
+      font: 700 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      text-align: right;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 5px;
+      margin: 3px 0 14px;
+      border-radius: 999px;
+      outline: none;
+      appearance: none;
+      background:
+        linear-gradient(90deg, var(--cyan), var(--gold)) 0 / var(--fill, 34%) 100%
+          no-repeat,
+        rgba(255, 255, 255, 0.11);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      width: 17px;
+      height: 17px;
+      border: 3px solid #071224;
+      border-radius: 50%;
+      appearance: none;
+      background: #fff8d9;
+      box-shadow: 0 0 18px rgba(255, 200, 87, 0.8);
+      cursor: pointer;
+    }
+
+    .equation {
+      padding: 11px 12px;
+      border: 1px solid rgba(82, 232, 224, 0.15);
+      border-radius: 12px;
+      background: rgba(1, 8, 18, 0.55);
+      color: #d9f8ff;
+      font: 12px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .equation strong {
+      color: var(--cyan);
+      font-weight: 750;
+    }
+
+    .toggles {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 12px;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #b8c9d8;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .toggle input {
+      position: relative;
+      width: 28px;
+      height: 16px;
+      margin: 0;
+      border-radius: 999px;
+      appearance: none;
+      background: rgba(255, 255, 255, 0.12);
+      cursor: pointer;
+      transition: background 150ms ease;
+    }
+
+    .toggle input::after {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #70869a;
+      transition: transform 150ms ease, background 150ms ease;
+    }
+
+    .toggle input:checked {
+      background: rgba(82, 232, 224, 0.28);
+    }
+
+    .toggle input:checked::after {
+      transform: translateX(12px);
+      background: var(--cyan);
+      box-shadow: 0 0 9px rgba(82, 232, 224, 0.7);
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 15px;
+    }
+
+    button {
+      min-height: 34px;
+      padding: 8px 10px;
+      border: 1px solid rgba(166, 218, 255, 0.16);
+      border-radius: 10px;
+      color: #dcecff;
+      background: rgba(255, 255, 255, 0.055);
+      font: 650 11px/1 Inter, ui-sans-serif, system-ui, sans-serif;
+      cursor: pointer;
+      transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+    }
+
+    button:hover {
+      border-color: rgba(82, 232, 224, 0.46);
+      background: rgba(82, 232, 224, 0.1);
+      transform: translateY(-1px);
+    }
+
+    button.active {
+      border-color: rgba(82, 232, 224, 0.48);
+      color: #dffffc;
+      background: rgba(82, 232, 224, 0.13);
+    }
+
+    .hint {
+      position: fixed;
+      right: 26px;
+      bottom: 20px;
+      color: rgba(190, 215, 235, 0.5);
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      transition: opacity 180ms ease;
+    }
+
+    body.clean .panel,
+    body.clean .hint {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(20px);
+    }
+
+    body.clean canvas {
+      cursor: none;
+    }
+
+    @media (max-width: 760px) {
+      .panel {
+        top: auto;
+        right: 12px;
+        bottom: 12px;
+        left: 12px;
+        width: auto;
+        padding: 14px;
+      }
+
+      .panel p,
+      .equation,
+      .divider:first-of-type {
+        display: none;
+      }
+
+      .buttons {
+        margin-top: 10px;
+      }
+
+      .hint {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="scene" aria-label="Interactive three-dimensional MESS3 simplex quotient"></canvas>
+
+  <aside class="panel" aria-label="Visualization controls">
+    <div class="eyebrow">Belief geometry</div>
+    <h2>Choose a constant-b₂ fiber</h2>
+    <p>
+      Every point across the highlighted slice has the same reward-state
+      occupancy. The quotient discards redistribution between states 0 and 1.
+    </p>
+
+    <div class="divider"></div>
+
+    <div class="slider-row">
+      <label for="fiber">coarse coordinate&nbsp; s = b₂</label>
+      <output class="value" id="fiberValue">0.34</output>
+    </div>
+    <input id="fiber" type="range" min="0" max="1" step="0.005" value="0.34">
+
+    <div class="equation" id="equation">
+      π(b) = (<strong>b₀ + b₁</strong>, b₂)<br>
+      q = (0.66, 0.34)
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="toggles">
+      <label class="toggle">
+        <input id="showFibers" type="checkbox" checked>
+        quotient fibers
+      </label>
+      <label class="toggle">
+        <input id="showSymmetry" type="checkbox" checked>
+        canonical lift
+      </label>
+      <label class="toggle">
+        <input id="showParticles" type="checkbox" checked>
+        flow particles
+      </label>
+      <label class="toggle">
+        <input id="showLabels" type="checkbox" checked>
+        annotations
+      </label>
+    </div>
+
+    <div class="buttons">
+      <button id="orbit">Auto orbit</button>
+      <button id="collapse">Pulse collapse</button>
+      <button id="clean">Clean frame</button>
+      <button id="export">Export PNG</button>
+      <button id="reset">Reset camera</button>
+      <button id="fullscreen">Fullscreen</button>
+    </div>
+  </aside>
+
+  <div class="hint">drag to orbit · scroll to zoom · C hides controls · space toggles orbit</div>
+
+  <script>
+    "use strict";
+
+    const canvas = document.getElementById("scene");
+    const ctx = canvas.getContext("2d", { alpha: false });
+    const fiberSlider = document.getElementById("fiber");
+    const fiberValue = document.getElementById("fiberValue");
+    const equation = document.getElementById("equation");
+    const orbitButton = document.getElementById("orbit");
+    const collapseButton = document.getElementById("collapse");
+
+    const controls = {
+      fibers: document.getElementById("showFibers"),
+      symmetry: document.getElementById("showSymmetry"),
+      particles: document.getElementById("showParticles"),
+      labels: document.getElementById("showLabels"),
+    };
+
+    const COLORS = {
+      ink: "#edf8ff",
+      muted: "#91a9bd",
+      cyan: "#52e8e0",
+      blue: "#4ea3ff",
+      gold: "#ffc857",
+      violet: "#c77dff",
+      dark: "#020711",
+    };
+
+    const V0 = [-3.4, -2.25, 0];
+    const V1 = [3.4, -2.25, 0];
+    const V2 = [0, 3.64, 0];
+    const A = [5.65, -2.25, 1.38];
+    const B = [5.65, 3.64, 1.38];
+    const TARGET = [1.25, 0.42, 0.24];
+
+    const camera = {
+      yaw: -0.31,
+      pitch: 0.12,
+      distance: 14.1,
+      autoOrbit: false,
+    };
+
+    const state = {
+      width: 0,
+      height: 0,
+      dpr: 1,
+      dragging: false,
+      pointerX: 0,
+      pointerY: 0,
+      selectedS: Number(fiberSlider.value),
+      pulseStart: -Infinity,
+      lastTime: performance.now(),
+      exportScale: 1,
+      clean: false,
+    };
+
+    const stars = Array.from({ length: 155 }, (_, index) => {
+      const rand = seededRandom(index + 41);
+      return {
+        x: rand(),
+        y: rand(),
+        size: 0.25 + rand() * 1.25,
+        alpha: 0.12 + rand() * 0.48,
+        phase: rand() * Math.PI * 2,
+      };
+    });
+
+    function seededRandom(seed) {
+      let value = seed >>> 0;
+      return function next() {
+        value += 0x6d2b79f5;
+        let t = value;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function add(a, b) {
+      return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+    }
+
+    function sub(a, b) {
+      return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+    }
+
+    function mul(a, scalar) {
+      return [a[0] * scalar, a[1] * scalar, a[2] * scalar];
+    }
+
+    function dot(a, b) {
+      return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    }
+
+    function cross(a, b) {
+      return [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+      ];
+    }
+
+    function normalize(a) {
+      const length = Math.hypot(a[0], a[1], a[2]) || 1;
+      return mul(a, 1 / length);
+    }
+
+    function lerp(a, b, t) {
+      return [
+        a[0] + (b[0] - a[0]) * t,
+        a[1] + (b[1] - a[1]) * t,
+        a[2] + (b[2] - a[2]) * t,
+      ];
+    }
+
+    function quadratic(a, control, b, t) {
+      const oneMinusT = 1 - t;
+      return add(
+        add(mul(a, oneMinusT * oneMinusT), mul(control, 2 * oneMinusT * t)),
+        mul(b, t * t),
+      );
+    }
+
+    function fiberAt(s) {
+      return {
+        left: lerp(V0, V2, s),
+        right: lerp(V1, V2, s),
+      };
+    }
+
+    function lineAt(s) {
+      return lerp(A, B, s);
+    }
+
+    function midpoint(fiber) {
+      return lerp(fiber.left, fiber.right, 0.5);
+    }
+
+    function mixColor(hexA, hexB, t, alpha = 1) {
+      const a = parseInt(hexA.slice(1), 16);
+      const b = parseInt(hexB.slice(1), 16);
+      const channels = [16, 8, 0].map((shift) =>
+        Math.round(
+          ((a >> shift) & 255) * (1 - t) + ((b >> shift) & 255) * t,
+        ),
+      );
+      return `rgba(${channels[0]}, ${channels[1]}, ${channels[2]}, ${alpha})`;
+    }
+
+    function cameraBasis() {
+      const cosPitch = Math.cos(camera.pitch);
+      const position = [
+        TARGET[0] + camera.distance * Math.sin(camera.yaw) * cosPitch,
+        TARGET[1] + camera.distance * Math.sin(camera.pitch),
+        TARGET[2] + camera.distance * Math.cos(camera.yaw) * cosPitch,
+      ];
+      const forward = normalize(sub(TARGET, position));
+      const right = normalize(cross(forward, [0, 1, 0]));
+      const up = normalize(cross(right, forward));
+      return { position, forward, right, up };
+    }
+
+    function project(point, basis) {
+      const relative = sub(point, basis.position);
+      const depth = dot(relative, basis.forward);
+      const fov = 47 * Math.PI / 180;
+      const focal = state.height / (2 * Math.tan(fov / 2));
+      const centerX = state.width * (state.clean ? 0.5 : 0.455);
+      const centerY = state.height * 0.515;
+      return {
+        x: centerX + dot(relative, basis.right) * focal / depth,
+        y: centerY - dot(relative, basis.up) * focal / depth,
+        depth,
+        scale: focal / depth,
+        visible: depth > 0.05,
+      };
+    }
+
+    function projectedDepth(points, basis) {
+      return points.reduce((sum, point) => sum + project(point, basis).depth, 0)
+        / points.length;
+    }
+
+    function pathFor(points, basis, close = false) {
+      const projected = points.map((point) => project(point, basis));
+      if (projected.some((point) => !point.visible)) {
+        return null;
+      }
+      ctx.beginPath();
+      ctx.moveTo(projected[0].x, projected[0].y);
+      for (let index = 1; index < projected.length; index += 1) {
+        ctx.lineTo(projected[index].x, projected[index].y);
+      }
+      if (close) {
+        ctx.closePath();
+      }
+      return projected;
+    }
+
+    function polygon(points, basis, options = {}) {
+      if (!pathFor(points, basis, true)) {
+        return;
+      }
+      ctx.save();
+      ctx.globalAlpha = options.alpha ?? 1;
+      if (options.shadowColor) {
+        ctx.shadowColor = options.shadowColor;
+        ctx.shadowBlur = options.shadowBlur ?? 12;
+      }
+      if (options.fill) {
+        ctx.fillStyle = options.fill;
+        ctx.fill();
+      }
+      if (options.stroke) {
+        ctx.strokeStyle = options.stroke;
+        ctx.lineWidth = options.width ?? 1;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function polyline(points, basis, options = {}) {
+      if (!pathFor(points, basis, false)) {
+        return;
+      }
+      ctx.save();
+      ctx.globalAlpha = options.alpha ?? 1;
+      ctx.strokeStyle = options.color ?? COLORS.ink;
+      ctx.lineWidth = options.width ?? 1;
+      ctx.lineCap = options.cap ?? "round";
+      ctx.lineJoin = "round";
+      if (options.dash) {
+        ctx.setLineDash(options.dash);
+      }
+      if (options.shadowColor) {
+        ctx.shadowColor = options.shadowColor;
+        ctx.shadowBlur = options.shadowBlur ?? 10;
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function curve(start, control, end, basis, options = {}) {
+      const points = [];
+      for (let index = 0; index <= 30; index += 1) {
+        points.push(quadratic(start, control, end, index / 30));
+      }
+      polyline(points, basis, options);
+      return points;
+    }
+
+    function disc(point, radius, basis, options = {}) {
+      const projected = project(point, basis);
+      if (!projected.visible) {
+        return;
+      }
+      ctx.save();
+      ctx.globalAlpha = options.alpha ?? 1;
+      ctx.beginPath();
+      ctx.arc(
+        projected.x,
+        projected.y,
+        Math.max(1, radius * projected.scale),
+        0,
+        Math.PI * 2,
+      );
+      ctx.fillStyle = options.fill ?? COLORS.ink;
+      if (options.shadowColor) {
+        ctx.shadowColor = options.shadowColor;
+        ctx.shadowBlur = options.shadowBlur ?? 18;
+      }
+      ctx.fill();
+      if (options.stroke) {
+        ctx.strokeStyle = options.stroke;
+        ctx.lineWidth = options.width ?? 1;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function arrowHead(from, to, basis, color, size = 9, alpha = 1) {
+      const a = project(from, basis);
+      const b = project(to, basis);
+      if (!a.visible || !b.visible) {
+        return;
+      }
+      const angle = Math.atan2(b.y - a.y, b.x - a.x);
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(angle);
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-size, -size * 0.48);
+      ctx.lineTo(-size, size * 0.48);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 10;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function label(point, title, subtitle, basis, options = {}) {
+      if (!controls.labels.checked) {
+        return;
+      }
+      const projected = project(point, basis);
+      if (!projected.visible) {
+        return;
+      }
+      const x = projected.x + (options.dx ?? 0);
+      const y = projected.y + (options.dy ?? 0);
+      const align = options.align ?? "left";
+      ctx.save();
+      ctx.textAlign = align;
+      ctx.textBaseline = "alphabetic";
+      ctx.font = `${options.weight ?? 650} ${options.size ?? 13}px Inter, system-ui, sans-serif`;
+      ctx.fillStyle = options.color ?? COLORS.ink;
+      ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
+      ctx.shadowBlur = 7;
+      ctx.fillText(title, x, y);
+      if (subtitle) {
+        ctx.font = "500 10px Inter, system-ui, sans-serif";
+        ctx.fillStyle = options.muted ?? "rgba(184, 211, 231, 0.72)";
+        ctx.fillText(subtitle, x, y + 15);
+      }
+      ctx.restore();
+    }
+
+    function drawBackground(time) {
+      const gradient = ctx.createRadialGradient(
+        state.width * 0.46,
+        state.height * 0.42,
+        0,
+        state.width * 0.46,
+        state.height * 0.42,
+        Math.max(state.width, state.height) * 0.78,
+      );
+      gradient.addColorStop(0, "#0b2240");
+      gradient.addColorStop(0.48, "#061225");
+      gradient.addColorStop(1, "#01050d");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, state.width, state.height);
+
+      const haze = ctx.createLinearGradient(0, 0, state.width, state.height);
+      haze.addColorStop(0, "rgba(48, 198, 217, 0.055)");
+      haze.addColorStop(0.52, "rgba(85, 62, 168, 0.035)");
+      haze.addColorStop(1, "rgba(255, 190, 75, 0.045)");
+      ctx.fillStyle = haze;
+      ctx.fillRect(0, 0, state.width, state.height);
+
+      for (const star of stars) {
+        const twinkle = 0.67 + 0.33 * Math.sin(time * 0.0008 + star.phase);
+        ctx.globalAlpha = star.alpha * twinkle;
+        ctx.fillStyle = "#bfe6ff";
+        ctx.beginPath();
+        ctx.arc(
+          star.x * state.width,
+          star.y * state.height,
+          star.size * state.exportScale,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function drawSurface(basis) {
+      const strips = [];
+      const steps = 64;
+      for (let index = 0; index < steps; index += 1) {
+        const s0 = index / steps;
+        const s1 = (index + 1) / steps;
+        const low = fiberAt(s0);
+        const high = fiberAt(s1);
+        strips.push({
+          points: [low.left, low.right, high.right, high.left],
+          s: (s0 + s1) / 2,
+        });
+      }
+      strips.sort(
+        (a, b) =>
+          projectedDepth(b.points, basis) - projectedDepth(a.points, basis),
+      );
+      for (const strip of strips) {
+        polygon(strip.points, basis, {
+          fill: mixColor("#0f9ba5", "#f0aa32", strip.s, 0.17),
+          stroke: mixColor("#52e8e0", "#ffc857", strip.s, 0.035),
+          width: 0.55,
+        });
+      }
+
+      polygon([V0, V1, V2], basis, {
+        stroke: "rgba(192, 236, 255, 0.74)",
+        width: 1.5,
+        shadowColor: "rgba(82, 232, 224, 0.28)",
+        shadowBlur: 18,
+      });
+    }
+
+    function drawGrid(basis) {
+      if (!controls.fibers.checked) {
+        return;
+      }
+
+      for (let index = 1; index < 10; index += 1) {
+        const s = index / 10;
+        const fiber = fiberAt(s);
+        polyline([fiber.left, fiber.right], basis, {
+          color: mixColor("#52e8e0", "#ffc857", s, 0.5),
+          width: 0.75,
+          alpha: 0.5,
+        });
+
+        const mid = midpoint(fiber);
+        const target = lineAt(s);
+        const control = add(lerp(mid, target, 0.52), [0, 0, 1.05]);
+        curve(mid, control, target, basis, {
+          color: mixColor("#52e8e0", "#ffc857", s, 0.42),
+          width: 0.7,
+          alpha: 0.46,
+          dash: [2, 5],
+        });
+      }
+    }
+
+    function drawCanonicalLift(basis) {
+      if (!controls.symmetry.checked) {
+        return;
+      }
+      const start = midpoint(fiberAt(0));
+      polyline([start, V2], basis, {
+        color: COLORS.violet,
+        width: 2.1,
+        alpha: 0.86,
+        shadowColor: "rgba(199, 125, 255, 0.64)",
+        shadowBlur: 13,
+      });
+      const selectedMid = midpoint(fiberAt(state.selectedS));
+      disc(selectedMid, 0.075, basis, {
+        fill: "#ead5ff",
+        shadowColor: COLORS.violet,
+        shadowBlur: 18,
+      });
+      label(
+        lerp(start, V2, 0.58),
+        "canonical lift ι(q)",
+        "b₀ = b₁",
+        basis,
+        { dx: -17, dy: -11, align: "right", color: "#dfbaff" },
+      );
+    }
+
+    function drawCoarseLine(basis) {
+      polyline([A, B], basis, {
+        color: "rgba(226, 247, 255, 0.92)",
+        width: 4.2,
+        shadowColor: "rgba(82, 232, 224, 0.62)",
+        shadowBlur: 19,
+      });
+
+      for (let index = 0; index <= 4; index += 1) {
+        const s = index / 4;
+        const point = lineAt(s);
+        const tickA = add(point, [-0.10, 0, 0]);
+        const tickB = add(point, [0.10, 0, 0]);
+        polyline([tickA, tickB], basis, {
+          color: mixColor("#52e8e0", "#ffc857", s, 0.86),
+          width: 1.3,
+        });
+        label(point, s.toFixed(2), "", basis, {
+          dx: 17,
+          dy: 4,
+          size: 10,
+          weight: 600,
+          color: mixColor("#9bf8f0", "#ffe2a3", s),
+        });
+      }
+
+      disc(A, 0.105, basis, {
+        fill: COLORS.cyan,
+        shadowColor: COLORS.cyan,
+        shadowBlur: 25,
+      });
+      disc(B, 0.105, basis, {
+        fill: COLORS.gold,
+        shadowColor: COLORS.gold,
+        shadowBlur: 25,
+      });
+      label(A, "A = {state 0, state 1}", "qA = 1 − s", basis, {
+        dx: 22,
+        dy: 2,
+        color: "#9bf8f0",
+      });
+      label(B, "B = state 2", "qB = s", basis, {
+        dx: 22,
+        dy: 2,
+        color: "#ffe3a6",
+      });
+      label(lerp(A, B, 0.52), "Δ¹", "two-state belief", basis, {
+        dx: 41,
+        dy: -4,
+        size: 18,
+        color: COLORS.ink,
+      });
+    }
+
+    function drawEndpointMaps(basis) {
+      const maps = [
+        { start: V0, end: A, color: COLORS.cyan, lift: 0.84 },
+        { start: V1, end: A, color: COLORS.blue, lift: 1.28 },
+        { start: V2, end: B, color: COLORS.gold, lift: 0.92 },
+      ];
+
+      for (const item of maps) {
+        const control = add(lerp(item.start, item.end, 0.53), [0, 0, item.lift]);
+        const points = curve(item.start, control, item.end, basis, {
+          color: item.color,
+          width: 1.2,
+          alpha: 0.42,
+          shadowColor: item.color,
+          shadowBlur: 8,
+        });
+        arrowHead(points.at(-3), points.at(-1), basis, item.color, 7, 0.55);
+      }
+    }
+
+    function drawSelectedFiber(time, basis) {
+      const s = state.selectedS;
+      const fiber = fiberAt(s);
+      const target = lineAt(s);
+      const color = mixColor("#52e8e0", "#ffc857", s);
+
+      polygon([fiber.left, fiber.right, target], basis, {
+        fill: mixColor("#52e8e0", "#ffc857", s, 0.055),
+        stroke: mixColor("#52e8e0", "#ffc857", s, 0.13),
+        width: 0.8,
+      });
+
+      polyline([fiber.left, fiber.right], basis, {
+        color,
+        width: 4,
+        shadowColor: color,
+        shadowBlur: 22,
+      });
+
+      const pulseAge = (time - state.pulseStart) / 1150;
+      const pulse = pulseAge >= 0 && pulseAge <= 1
+        ? Math.sin(Math.PI * pulseAge)
+        : 0;
+
+      for (let index = 0; index < 9; index += 1) {
+        const along = index / 8;
+        const start = lerp(fiber.left, fiber.right, along);
+        const arch = 1.1 + Math.sin(along * Math.PI) * 0.55 + pulse * 0.55;
+        const control = add(lerp(start, target, 0.52), [0, 0, arch]);
+        const points = curve(start, control, target, basis, {
+          color,
+          width: along === 0.5 ? 2.2 : 0.85,
+          alpha: along === 0.5 ? 0.9 : 0.42,
+          shadowColor: color,
+          shadowBlur: along === 0.5 ? 15 : 7,
+        });
+        if (along === 0.5) {
+          arrowHead(points.at(-3), points.at(-1), basis, color, 9, 0.92);
+        }
+
+        if (controls.particles.checked) {
+          const travel = (time * 0.00022 + along * 0.71) % 1;
+          const bead = quadratic(start, control, target, travel);
+          disc(bead, 0.026 + 0.012 * Math.sin(travel * Math.PI), basis, {
+            fill: "#fffbdc",
+            alpha: 0.5 + 0.5 * Math.sin(travel * Math.PI),
+            shadowColor: color,
+            shadowBlur: 16,
+          });
+        }
+      }
+
+      disc(target, 0.12 + pulse * 0.035, basis, {
+        fill: "#fff6cf",
+        shadowColor: color,
+        shadowBlur: 30 + pulse * 20,
+      });
+
+      const directionOffset = mul(sub(fiber.right, fiber.left), 0.17);
+      const directionStart = sub(midpoint(fiber), directionOffset);
+      const directionEnd = add(midpoint(fiber), directionOffset);
+      polyline([directionStart, directionEnd], basis, {
+        color: COLORS.violet,
+        width: 2.1,
+        alpha: 0.95,
+        shadowColor: COLORS.violet,
+        shadowBlur: 12,
+      });
+      arrowHead(directionStart, directionEnd, basis, COLORS.violet, 7, 0.9);
+      arrowHead(directionEnd, directionStart, basis, COLORS.violet, 7, 0.9);
+
+      label(midpoint(fiber), "discarded direction a = b₀ − b₁", "all points here share b₂", basis, {
+        dx: 0,
+        dy: -20,
+        align: "center",
+        color: "#e3bdff",
+      });
+      label(target, `π(b) = (${(1 - s).toFixed(2)}, ${s.toFixed(2)})`, "one coarse belief", basis, {
+        dx: -19,
+        dy: -19,
+        align: "right",
+        color: color,
+      });
+    }
+
+    function drawVertices(basis) {
+      const vertices = [
+        {
+          point: V0,
+          title: "e₀  state 0",
+          subtitle: "(1, 0, 0)",
+          color: COLORS.cyan,
+          dx: -15,
+          dy: 24,
+          align: "right",
+        },
+        {
+          point: V1,
+          title: "e₁  state 1",
+          subtitle: "(0, 1, 0)",
+          color: COLORS.blue,
+          dx: 15,
+          dy: 24,
+          align: "left",
+        },
+        {
+          point: V2,
+          title: "e₂  reward state",
+          subtitle: "(0, 0, 1)",
+          color: COLORS.gold,
+          dx: 0,
+          dy: -19,
+          align: "center",
+        },
+      ];
+
+      for (const vertex of vertices) {
+        disc(vertex.point, 0.095, basis, {
+          fill: vertex.color,
+          shadowColor: vertex.color,
+          shadowBlur: 22,
+        });
+        label(vertex.point, vertex.title, vertex.subtitle, basis, vertex);
+      }
+
+      label(lerp(V0, V2, 0.55), "Δ²", "MESS3 belief simplex", basis, {
+        dx: -34,
+        dy: 3,
+        align: "right",
+        size: 19,
+        color: COLORS.ink,
+      });
+    }
+
+    function drawTitle() {
+      const compact = state.width < 760;
+      const x = compact ? 20 : 32;
+      const y = compact ? 38 : 46;
+      ctx.save();
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = COLORS.cyan;
+      ctx.font = "800 11px Inter, system-ui, sans-serif";
+      ctx.fillText("MESS3 · REWARD-RELEVANT COMPRESSION", x, y);
+      ctx.fillStyle = COLORS.ink;
+      ctx.font = `${compact ? 28 : 38}px Inter, system-ui, sans-serif`;
+      ctx.fontKerning = "normal";
+      ctx.fillText("A triangle collapses to a line", x, y + (compact ? 36 : 48));
+      ctx.fillStyle = "rgba(170, 201, 224, 0.76)";
+      ctx.font = `${compact ? 11 : 13}px Inter, system-ui, sans-serif`;
+      ctx.fillText(
+        "(b₀, b₁, b₂)  ↦  (b₀ + b₁, b₂)    ·    keep s = b₂, discard a = b₀ − b₁",
+        x,
+        y + (compact ? 58 : 73),
+      );
+      ctx.restore();
+    }
+
+    function drawFootnote() {
+      if (!controls.labels.checked || state.width < 760) {
+        return;
+      }
+      const x = 33;
+      const y = state.height - 30;
+      ctx.save();
+      ctx.textAlign = "left";
+      ctx.fillStyle = "rgba(149, 177, 201, 0.52)";
+      ctx.font = "500 10px Inter, system-ui, sans-serif";
+      ctx.fillText(
+        "This is the instantaneous geometric projection s = b₂. The separately filtered cₜ is history-dependent.",
+        x,
+        y,
+      );
+      ctx.restore();
+    }
+
+    function render(time = performance.now()) {
+      const delta = Math.min(50, time - state.lastTime);
+      state.lastTime = time;
+      if (camera.autoOrbit && !state.dragging) {
+        camera.yaw += delta * 0.00012;
+      }
+
+      ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+      ctx.clearRect(0, 0, state.width, state.height);
+      drawBackground(time);
+      const basis = cameraBasis();
+
+      drawSurface(basis);
+      drawGrid(basis);
+      drawCanonicalLift(basis);
+      drawEndpointMaps(basis);
+      drawCoarseLine(basis);
+      drawSelectedFiber(time, basis);
+      drawVertices(basis);
+      drawTitle();
+      drawFootnote();
+      requestAnimationFrame(render);
+    }
+
+    function resize() {
+      state.width = window.innerWidth;
+      state.height = window.innerHeight;
+      state.dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+      canvas.width = Math.round(state.width * state.dpr);
+      canvas.height = Math.round(state.height * state.dpr);
+      canvas.style.width = `${state.width}px`;
+      canvas.style.height = `${state.height}px`;
+    }
+
+    function updateFiber() {
+      state.selectedS = Number(fiberSlider.value);
+      const s = state.selectedS;
+      fiberValue.value = s.toFixed(2);
+      fiberSlider.style.setProperty("--fill", `${s * 100}%`);
+      equation.innerHTML = [
+        "π(b) = (<strong>b₀ + b₁</strong>, b₂)<br>",
+        `q = (${(1 - s).toFixed(2)}, ${s.toFixed(2)})`,
+      ].join("");
+    }
+
+    function setAutoOrbit(enabled) {
+      camera.autoOrbit = enabled;
+      orbitButton.classList.toggle("active", enabled);
+      orbitButton.textContent = enabled ? "Stop orbit" : "Auto orbit";
+    }
+
+    function setClean(enabled) {
+      state.clean = enabled;
+      document.body.classList.toggle("clean", enabled);
+    }
+
+    function resetCamera() {
+      camera.yaw = -0.31;
+      camera.pitch = 0.12;
+      camera.distance = 14.1;
+    }
+
+    canvas.addEventListener("pointerdown", (event) => {
+      state.dragging = true;
+      state.pointerX = event.clientX;
+      state.pointerY = event.clientY;
+      canvas.classList.add("dragging");
+      canvas.setPointerCapture(event.pointerId);
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+      if (!state.dragging) {
+        return;
+      }
+      const dx = event.clientX - state.pointerX;
+      const dy = event.clientY - state.pointerY;
+      camera.yaw -= dx * 0.006;
+      camera.pitch = Math.max(
+        -1.15,
+        Math.min(1.15, camera.pitch + dy * 0.005),
+      );
+      state.pointerX = event.clientX;
+      state.pointerY = event.clientY;
+    });
+
+    function endDrag(event) {
+      state.dragging = false;
+      canvas.classList.remove("dragging");
+      if (event.pointerId !== undefined && canvas.hasPointerCapture(event.pointerId)) {
+        canvas.releasePointerCapture(event.pointerId);
+      }
+    }
+
+    canvas.addEventListener("pointerup", endDrag);
+    canvas.addEventListener("pointercancel", endDrag);
+    canvas.addEventListener("dblclick", resetCamera);
+    canvas.addEventListener(
+      "wheel",
+      (event) => {
+        event.preventDefault();
+        camera.distance = Math.max(
+          8.5,
+          Math.min(23, camera.distance * Math.exp(event.deltaY * 0.001)),
+        );
+      },
+      { passive: false },
+    );
+
+    fiberSlider.addEventListener("input", updateFiber);
+    orbitButton.addEventListener("click", () => setAutoOrbit(!camera.autoOrbit));
+    collapseButton.addEventListener("click", () => {
+      state.pulseStart = performance.now();
+      collapseButton.classList.add("active");
+      window.setTimeout(() => collapseButton.classList.remove("active"), 1150);
+    });
+    document.getElementById("clean").addEventListener("click", () => setClean(true));
+    document.getElementById("reset").addEventListener("click", resetCamera);
+    document.getElementById("fullscreen").addEventListener("click", async () => {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    });
+    document.getElementById("export").addEventListener("click", () => {
+      const link = document.createElement("a");
+      link.download = `mess3-simplex-quotient-s-${state.selectedS.toFixed(2)}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key.toLowerCase() === "c") {
+        setClean(!state.clean);
+      } else if (event.key === " ") {
+        event.preventDefault();
+        setAutoOrbit(!camera.autoOrbit);
+      } else if (event.key === "Escape" && state.clean) {
+        setClean(false);
+      }
+    });
+    window.addEventListener("resize", resize);
+
+    updateFiber();
+    resize();
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>
