@@ -857,17 +857,17 @@
       });
       label(A, "A = {state 0, state 1}", "qA = 1 − s", basis, {
         dx: 22,
-        dy: 2,
+        dy: -20,
         color: beliefColor([0.5, 0.5, 0]),
       });
       label(B, "B = state 2", "qB = s", basis, {
         dx: 22,
-        dy: 2,
+        dy: -20,
         color: COLORS.state2,
       });
       label(lerp(A, B, 0.52), "Δ¹", "two-state belief", basis, {
-        dx: 41,
-        dy: -4,
+        dx: 64,
+        dy: -23,
         size: 18,
         color: COLORS.ink,
       });
@@ -967,18 +967,18 @@
       arrowHead(directionStart, directionEnd, basis, COLORS.violet, 7, 0.9);
       arrowHead(directionEnd, directionStart, basis, COLORS.violet, 7, 0.9);
 
-      label(midpoint(fiber), "discarded direction a = b₀ − b₁", "all points here share b₂", basis, {
-        dx: 0,
-        dy: -20,
-        align: "center",
-        color: COLORS.violet,
-      });
-      label(target, `π(b) = (${(1 - s).toFixed(2)}, ${s.toFixed(2)})`, "one coarse belief", basis, {
-        dx: -19,
-        dy: -19,
-        align: "right",
-        color: color,
-      });
+      label(
+        target,
+        `π(b) = (${(1 - s).toFixed(2)}, ${s.toFixed(2)})`,
+        "",
+        basis,
+        {
+          dx: -19,
+          dy: -19,
+          align: "right",
+          color: color,
+        },
+      );
     }
 
     function drawVertices(basis) {
@@ -1007,7 +1007,7 @@
           subtitle: "(0, 0, 1)",
           color: COLORS.state2,
           dx: 0,
-          dy: -19,
+          dy: -38,
           align: "center",
         },
       ];
