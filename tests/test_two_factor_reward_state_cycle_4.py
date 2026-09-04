@@ -257,6 +257,10 @@ def test_cycle_4_context32_l3_arms(tmp_path, module_path, expected_runners, expe
     assert spec.model_config["context_len"] == 32
     assert spec.model_config["n_layers"] == 3
     assert spec.model_config["d_model"] == 64
+    if "small_batch" in module_path:
+        assert config.train_batch_size_per_learner == 32_768
+    else:
+        assert config.train_batch_size_per_learner == 16_384
     resolved_runners = (
         expected_runners
         if expected_runners == 4
