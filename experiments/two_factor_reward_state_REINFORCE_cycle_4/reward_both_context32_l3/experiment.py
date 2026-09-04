@@ -4,6 +4,8 @@ from ray.rllib.algorithms.ppo import PPOConfig
 
 from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
     CONTEXT32_L3_MODEL_CONFIG,
+    LEARNING_RATE,
+    TRAIN_BATCH_SIZE as DEFAULT_TRAIN_BATCH,
     build_config as _build_config,
     run_condition,
     write_budget_spec,
@@ -13,7 +15,8 @@ from harness.context import RunContext
 CONDITION = "reward_both"
 TARGET_AGENT_STEPS = 30_000_000
 LOOKBACK = 96
-TRAIN_BATCH_SIZE = 8_192
+NUM_ENV_RUNNERS = 4
+NUM_ENVS_PER_ENV_RUNNER = 8
 
 
 def build_config(context: RunContext) -> PPOConfig:
@@ -21,7 +24,9 @@ def build_config(context: RunContext) -> PPOConfig:
         context,
         CONDITION,
         model_config=CONTEXT32_L3_MODEL_CONFIG,
-        train_batch_size=TRAIN_BATCH_SIZE,
+        learning_rate=LEARNING_RATE,
+        num_env_runners=NUM_ENV_RUNNERS,
+        num_envs_per_env_runner=NUM_ENVS_PER_ENV_RUNNER,
     )
 
 
@@ -36,11 +41,17 @@ def run(context: RunContext):
         recipe_overrides={
             "experiment_arm": "reward_both_context32_l3",
             "target_agent_steps": TARGET_AGENT_STEPS,
+            "learning_rate": LEARNING_RATE,
+            "collection_geometry": {
+                "num_env_runners": NUM_ENV_RUNNERS,
+                "num_envs_per_env_runner": NUM_ENVS_PER_ENV_RUNNER,
+                "episode_length": 1024,
+                "expected_collection_steps": DEFAULT_TRAIN_BATCH,
+            },
             "architecture_rationale": (
                 "Cycle-4 both-rewarding task with context_len=32 and n_layers=3 "
-                "trained to 30M env steps. Learner batch 8k (not 32k) to fit "
-                "RTX 4090 memory at lookback 96."
+                "trained to 30M env steps. Uses 4x8 env runners (not 16) because "
+                "16-runner rollout sync OOMs on RTX 4090 at lookback 96."
             ),
-            "train_batch_size_per_learner": TRAIN_BATCH_SIZE,
         },
     )

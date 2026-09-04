@@ -4,6 +4,8 @@ from ray.rllib.algorithms.ppo import PPOConfig
 
 from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
     CONTEXT32_L3_MODEL_CONFIG,
+    LEARNING_RATE,
+    TRAIN_BATCH_SIZE as DEFAULT_TRAIN_BATCH,
     build_config as _build_config,
     run_condition,
 )
@@ -11,8 +13,9 @@ from harness.context import RunContext
 
 CONDITION = "reward_factor_1"
 LOOKBACK = 96
-# 32k/16k learner batches OOM on RTX 4090 with lookback 96; 8k fits with 16 runners.
-TRAIN_BATCH_SIZE = 8_192
+# 16 env runners OOM on RTX 4090 at lookback 96 (~22GB during rollout sync).
+NUM_ENV_RUNNERS = 4
+NUM_ENVS_PER_ENV_RUNNER = 8
 
 
 def build_config(context: RunContext) -> PPOConfig:
@@ -20,7 +23,9 @@ def build_config(context: RunContext) -> PPOConfig:
         context,
         CONDITION,
         model_config=CONTEXT32_L3_MODEL_CONFIG,
-        train_batch_size=TRAIN_BATCH_SIZE,
+        learning_rate=LEARNING_RATE,
+        num_env_runners=NUM_ENV_RUNNERS,
+        num_envs_per_env_runner=NUM_ENVS_PER_ENV_RUNNER,
     )
 
 
@@ -32,11 +37,17 @@ def run(context: RunContext):
         model_config=CONTEXT32_L3_MODEL_CONFIG,
         recipe_overrides={
             "experiment_arm": "reward_factor_1_context32_l3",
+            "learning_rate": LEARNING_RATE,
+            "collection_geometry": {
+                "num_env_runners": NUM_ENV_RUNNERS,
+                "num_envs_per_env_runner": NUM_ENVS_PER_ENV_RUNNER,
+                "episode_length": 1024,
+                "expected_collection_steps": DEFAULT_TRAIN_BATCH,
+            },
             "architecture_rationale": (
                 "Cycle-4 one-rewarding task with context_len=32 and n_layers=3 "
-                "(lookback 96 vs default 40); standard 16-runner collection. "
-                "Learner batch 8k (not 32k) to fit RTX 4090 memory at lookback 96."
+                "(lookback 96). Uses 4x8 env runners (not 16) because 16-runner "
+                "rollout sync OOMs on RTX 4090 at this lookback; standard lr 4.2e-4."
             ),
-            "train_batch_size_per_learner": TRAIN_BATCH_SIZE,
         },
     )

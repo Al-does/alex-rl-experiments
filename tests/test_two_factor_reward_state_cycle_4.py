@@ -224,7 +224,7 @@ def test_cycle_4_value_api_is_an_inert_device_native_zero_baseline():
         (
             "experiments.two_factor_reward_state_REINFORCE_cycle_4."
             "reward_factor_1_context32_l3.experiment",
-            16,
+            4,
             4.2e-4,
         ),
         (
@@ -236,7 +236,7 @@ def test_cycle_4_value_api_is_an_inert_device_native_zero_baseline():
         (
             "experiments.two_factor_reward_state_REINFORCE_cycle_4."
             "reward_both_context32_l3.experiment",
-            16,
+            4,
             4.2e-4,
         ),
     ],
@@ -259,8 +259,10 @@ def test_cycle_4_context32_l3_arms(tmp_path, module_path, expected_runners, expe
     assert spec.model_config["d_model"] == 64
     if "small_batch" in module_path:
         assert config.train_batch_size_per_learner == 32_768
+        assert config.lr == 2e-4
     else:
-        assert config.train_batch_size_per_learner == 8_192
+        assert config.train_batch_size_per_learner == 32_768
+        assert config.lr == 4.2e-4
     resolved_runners = (
         expected_runners
         if expected_runners == 4
