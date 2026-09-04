@@ -359,7 +359,7 @@
       symmetry: document.getElementById("showSymmetry"),
       beliefs: document.getElementById("showBeliefs"),
       particles: document.getElementById("showParticles"),
-      annotations: document.getElementById("showAnnotations"),
+      simplifiedAnnotations: document.getElementById("showAnnotations"),
     };
 
     const COLORS = {
@@ -684,10 +684,7 @@
       ctx.restore();
     }
 
-    function label(point, text, basis, options = {}) {
-      if (!controls.annotations.checked) {
-        return;
-      }
+    function label(point, title, subtitle, basis, options = {}) {
       const projected = project(point, basis);
       if (!projected.visible) {
         return;
@@ -702,7 +699,12 @@
       ctx.fillStyle = options.color ?? COLORS.ink;
       ctx.shadowColor = "rgba(255, 255, 255, 0.95)";
       ctx.shadowBlur = 5;
-      ctx.fillText(text, x, y);
+      ctx.fillText(title, x, y);
+      if (subtitle) {
+        ctx.font = "500 10px Inter, system-ui, sans-serif";
+        ctx.fillStyle = options.muted ?? "rgba(65, 69, 73, 0.78)";
+        ctx.fillText(subtitle, x, y + 15);
+      }
       ctx.restore();
     }
 
@@ -803,6 +805,15 @@
       disc(selectedMid, 0.075, basis, {
         fill: COLORS.violet,
       });
+      if (!controls.simplifiedAnnotations.checked) {
+        label(
+          lerp(start, V2, 0.58),
+          "canonical lift ι(q)",
+          "b₀ = b₁",
+          basis,
+          { dx: -17, dy: -11, align: "right", color: COLORS.violet },
+        );
+      }
     }
 
     function drawCoarseLine(basis) {
@@ -828,6 +839,15 @@
           color: beliefColor([(1 - s) / 2, (1 - s) / 2, s]),
           width: 1.3,
         });
+        if (!controls.simplifiedAnnotations.checked) {
+          label(point, s.toFixed(2), "", basis, {
+            dx: 17,
+            dy: 4,
+            size: 10,
+            weight: 600,
+            color: beliefColor([(1 - s) / 2, (1 - s) / 2, s]),
+          });
+        }
       }
 
       disc(A, 0.105, basis, {
@@ -836,20 +856,39 @@
       disc(B, 0.105, basis, {
         fill: COLORS.state2,
       });
-      label(A, "A  {state 0, state 1}", basis, {
-        dx: 22,
-        dy: -20,
-        size: 22,
-        weight: 750,
-        color: beliefColor([0.5, 0.5, 0]),
-      });
-      label(B, "B  reward state", basis, {
-        dx: 22,
-        dy: -20,
-        size: 22,
-        weight: 750,
-        color: COLORS.state2,
-      });
+      if (controls.simplifiedAnnotations.checked) {
+        label(A, "A  {state 0, state 1}", "", basis, {
+          dx: 22,
+          dy: -20,
+          size: 22,
+          weight: 750,
+          color: beliefColor([0.5, 0.5, 0]),
+        });
+        label(B, "B  reward state", "", basis, {
+          dx: 22,
+          dy: -20,
+          size: 22,
+          weight: 750,
+          color: COLORS.state2,
+        });
+      } else {
+        label(A, "A = {state 0, state 1}", "qA = 1 − s", basis, {
+          dx: 22,
+          dy: -20,
+          color: beliefColor([0.5, 0.5, 0]),
+        });
+        label(B, "B = state 2", "qB = s", basis, {
+          dx: 22,
+          dy: -20,
+          color: COLORS.state2,
+        });
+        label(lerp(A, B, 0.52), "Δ¹", "two-state belief", basis, {
+          dx: 64,
+          dy: -23,
+          size: 18,
+          color: COLORS.ink,
+        });
+      }
     }
 
     function drawEndpointMaps(basis) {
@@ -945,39 +984,73 @@
       });
       arrowHead(directionStart, directionEnd, basis, COLORS.violet, 7, 0.9);
       arrowHead(directionEnd, directionStart, basis, COLORS.violet, 7, 0.9);
+
+      if (controls.simplifiedAnnotations.checked) {
+        label(
+          target,
+          `q = (${(1 - s).toFixed(2)}, ${s.toFixed(2)})`,
+          "",
+          basis,
+          {
+            dx: -19,
+            dy: -19,
+            align: "right",
+            size: 22,
+            weight: 750,
+            color: color,
+          },
+        );
+      } else {
+        label(
+          target,
+          `π(b) = (${(1 - s).toFixed(2)}, ${s.toFixed(2)})`,
+          "",
+          basis,
+          {
+            dx: -19,
+            dy: -19,
+            align: "right",
+            color: color,
+          },
+        );
+      }
     }
 
     function drawVertices(basis) {
+      const simplified = controls.simplifiedAnnotations.checked;
       const vertices = [
         {
           point: V0,
           title: "e₀  state 0",
+          subtitle: simplified ? "" : "(1, 0, 0)",
           color: COLORS.state0,
           dx: -15,
           dy: 24,
           align: "right",
-          size: 22,
-          weight: 750,
+          size: simplified ? 22 : 13,
+          weight: simplified ? 750 : 650,
         },
         {
           point: V1,
           title: "e₁  state 1",
+          subtitle: simplified ? "" : "(0, 1, 0)",
           color: COLORS.state1,
           dx: 15,
           dy: 24,
           align: "left",
-          size: 22,
-          weight: 750,
+          size: simplified ? 22 : 13,
+          weight: simplified ? 750 : 650,
         },
         {
           point: V2,
           title: "e₂  reward state",
+          subtitle: simplified ? "" : "(0, 0, 1)",
           color: COLORS.state2,
           dx: 0,
           dy: -38,
           align: "center",
-          size: 22,
-          weight: 750,
+          size: simplified ? 22 : 13,
+          weight: simplified ? 750 : 650,
         },
       ];
 
@@ -987,8 +1060,36 @@
           stroke: "#ffffff",
           width: 1.2,
         });
-        label(vertex.point, vertex.title, basis, vertex);
+        label(vertex.point, vertex.title, vertex.subtitle, basis, vertex);
       }
+
+      if (!simplified) {
+        label(lerp(V0, V2, 0.55), "Δ²", "MESS3 belief simplex", basis, {
+          dx: -34,
+          dy: 3,
+          align: "right",
+          size: 19,
+          color: COLORS.ink,
+        });
+      }
+    }
+
+    function drawFootnote() {
+      if (controls.simplifiedAnnotations.checked || state.width < 760) {
+        return;
+      }
+      const x = 33;
+      const y = state.height - 30;
+      ctx.save();
+      ctx.textAlign = "left";
+      ctx.fillStyle = "rgba(65, 69, 73, 0.58)";
+      ctx.font = "500 10px Inter, system-ui, sans-serif";
+      ctx.fillText(
+        "This is the instantaneous geometric projection s = b₂. The separately filtered cₜ is history-dependent.",
+        x,
+        y,
+      );
+      ctx.restore();
     }
 
     function render(time = performance.now()) {
@@ -1011,6 +1112,7 @@
       drawCoarseLine(basis);
       drawSelectedFiber(time, basis);
       drawVertices(basis);
+      drawFootnote();
       requestAnimationFrame(render);
     }
 
