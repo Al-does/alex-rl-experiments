@@ -66,6 +66,7 @@ from learners.models.transformer import TransformerModelConfig
 TOTAL_ENV_STEPS = 8_000_000
 CONTINUATION_TOTAL_ENV_STEPS = 24_000_000
 STEP_CHECKPOINT_INTERVAL = 2_000_000
+STEP_CHECKPOINT_INTERVAL_5M = 5_000_000
 CONTINUATION_SPEC_FILENAME = "continuation_spec.json"
 BUDGET_SPEC_FILENAME = "budget_spec.json"
 SMOKE_ENV_STEPS = 4_096
@@ -84,6 +85,11 @@ CONTEXT32_L3_MODEL_CONFIG = {
     **MODEL_CONFIG,
     "context_len": 32,
     "n_layers": 3,
+}
+CONTEXT32_L4_MODEL_CONFIG = {
+    **MODEL_CONFIG,
+    "context_len": 32,
+    "n_layers": 4,
 }
 _active_algorithm: list[Any | None] = [None]
 
@@ -227,12 +233,53 @@ def _load_budget_spec(context: RunContext) -> dict[str, Any] | None:
     return payload
 
 
-def write_budget_spec(context: RunContext, target_agent_steps: int) -> None:
+def write_budget_spec(
+    context: RunContext,
+    target_agent_steps: int,
+    *,
+    step_checkpoint_interval: int | None = None,
+) -> None:
     context.artifacts_dir.mkdir(parents=True, exist_ok=True)
+    payload: dict[str, Any] = {"target_agent_steps": int(target_agent_steps)}
+    if step_checkpoint_interval is not None:
+        payload["step_checkpoint_interval"] = int(step_checkpoint_interval)
     (context.artifacts_dir / BUDGET_SPEC_FILENAME).write_text(
-        json.dumps({"target_agent_steps": int(target_agent_steps)}, indent=2)
-        + "\n"
+        json.dumps(payload, indent=2) + "\n"
     )
+
+
+def write_continuation_spec(
+    context: RunContext,
+    *,
+    target_agent_steps: int,
+    step_checkpoint_interval: int = STEP_CHECKPOINT_INTERVAL,
+    prior_run_id: str | None = None,
+    prior_agent_steps: int | None = None,
+) -> None:
+    context.artifacts_dir.mkdir(parents=True, exist_ok=True)
+    payload: dict[str, Any] = {
+        "target_agent_steps": int(target_agent_steps),
+        "step_checkpoint_interval": int(step_checkpoint_interval),
+    }
+    if prior_run_id is not None:
+        payload["prior_run_id"] = prior_run_id
+    if prior_agent_steps is not None:
+        payload["prior_agent_steps"] = int(prior_agent_steps)
+    if context.resume_from is not None:
+        payload["resume_from"] = str(context.resume_from)
+    (context.artifacts_dir / CONTINUATION_SPEC_FILENAME).write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    )
+
+
+def _resolve_step_checkpoint_interval(context: RunContext) -> int:
+    spec = _load_continuation_spec(context)
+    if spec is not None and spec.get("step_checkpoint_interval") is not None:
+        return int(spec["step_checkpoint_interval"])
+    budget = _load_budget_spec(context)
+    if budget is not None and budget.get("step_checkpoint_interval") is not None:
+        return int(budget["step_checkpoint_interval"])
+    return STEP_CHECKPOINT_INTERVAL
 
 
 def _resolve_step_target(context: RunContext) -> int:
@@ -268,7 +315,11 @@ def _capture_algorithm_on_init(
     _save_initial_checkpoint(algorithm=algorithm, checkpoint_path=checkpoint_path)
 
 
-def _continuation_result_recorder(context: RunContext) -> Callable[..., None]:
+def _continuation_result_recorder(
+    context: RunContext,
+    *,
+    step_interval: int,
+) -> Callable[..., None]:
     log_root = str(context.artifacts_dir / "log_spaced_checkpoints")
     step_root = str(context.artifacts_dir / "step_checkpoints")
 
@@ -286,6 +337,7 @@ def _continuation_result_recorder(context: RunContext) -> Callable[..., None]:
             algorithm=algorithm,
             result=result,
             checkpoint_root=step_root,
+            step_interval=step_interval,
         )
 
     return _record
@@ -306,7 +358,10 @@ def _run_continuation_algorithm(
     )
     algorithm = None
     iteration = 0
-    recorder = _continuation_result_recorder(context)
+    recorder = _continuation_result_recorder(
+        context,
+        step_interval=_resolve_step_checkpoint_interval(context),
+    )
     should_stop = _reached_env_step_target(target_steps)
     try:
         algorithm = _build_or_restore_algorithm(config, context)
@@ -349,6 +404,7 @@ def build_config(
     batch_size = SMOKE_BATCH_SIZE if context.smoke else (
         train_batch_size if train_batch_size is not None else TRAIN_BATCH_SIZE
     )
+    step_interval = _resolve_step_checkpoint_interval(context)
     config = (
         PPOConfig()
         .environment(HMMEnv, env_config=environment_config(condition))
@@ -397,6 +453,7 @@ def build_config(
                     checkpoint_root=str(
                         context.artifacts_dir / "step_checkpoints"
                     ),
+                    step_interval=step_interval,
                 ),
             ),
         )
@@ -427,6 +484,7 @@ def _resolved_recipe(
 ) -> dict[str, Any]:
     resolved_model = dict(model_config) if model_config is not None else MODEL_CONFIG
     lookback = int(resolved_model["n_layers"]) * int(resolved_model["context_len"])
+    step_interval = _resolve_step_checkpoint_interval(context)
     recipe = {
         "study": "two_factor_reward_state_REINFORCE_cycle_4",
         "condition": condition,
@@ -465,9 +523,9 @@ def _resolved_recipe(
         "budget_spec": _load_budget_spec(context),
         "checkpoint_schedule": (
             "initial, powers of two iterations, every "
-            f"{STEP_CHECKPOINT_INTERVAL:,} env steps, final"
+            f"{step_interval:,} env steps, final"
         ),
-        "step_checkpoint_interval": STEP_CHECKPOINT_INTERVAL,
+        "step_checkpoint_interval": step_interval,
     }
     if recipe_overrides:
         recipe.update(dict(recipe_overrides))

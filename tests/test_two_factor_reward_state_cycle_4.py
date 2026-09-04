@@ -271,3 +271,79 @@ def test_cycle_4_context32_l3_arms(tmp_path, module_path, expected_runners, expe
     assert config.num_env_runners == resolved_runners
     assert config.lr == expected_lr
     config.validate()
+
+
+@pytest.mark.parametrize(
+    ("module_path", "expected_layers", "expected_temp"),
+    [
+        (
+            "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+            "reward_both_context32_l4.experiment",
+            4,
+            1.0,
+        ),
+        (
+            "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+            "reward_both_context32_l3_sampling_temp.experiment",
+            3,
+            1.5,
+        ),
+    ],
+)
+def test_cycle_4_reward_both_context32_variants(
+    tmp_path,
+    module_path,
+    expected_layers,
+    expected_temp,
+):
+    module = importlib.import_module(module_path)
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cuda4090"],
+    )
+    config = module.build_config(context)
+    spec = config.get_rl_module_spec()
+
+    assert spec.model_config["context_len"] == 32
+    assert spec.model_config["n_layers"] == expected_layers
+    assert float(spec.model_config.get("sampling_temperature", 1.0)) == expected_temp
+    assert config.num_env_runners == 4
+    assert config.lr == 4.2e-4
+    config.validate()
+
+
+def test_cycle_4_continue_30m_writes_5m_checkpoint_spec(tmp_path):
+    from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
+        CONTINUATION_SPEC_FILENAME,
+        STEP_CHECKPOINT_INTERVAL_5M,
+        _resolve_step_checkpoint_interval,
+    )
+
+    module = importlib.import_module(
+        "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+        "reward_both_context32_l3_continue_30m.experiment"
+    )
+    checkpoint = tmp_path / "prior" / "steps_030000000"
+    checkpoint.mkdir(parents=True)
+    (checkpoint / "rllib_checkpoint.json").write_text("{}")
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results" / "continue",
+        artifacts_dir=tmp_path / "artifacts" / "continue",
+        seed=42,
+        smoke=False,
+        resume_from=checkpoint,
+        hardware=PROFILES["cuda4090"],
+    )
+    with pytest.raises(RuntimeError):
+        module.run(context)
+    spec_path = context.artifacts_dir / CONTINUATION_SPEC_FILENAME
+    assert spec_path.is_file()
+    payload = json.loads(spec_path.read_text())
+    assert payload["target_agent_steps"] == 60_000_000
+    assert payload["step_checkpoint_interval"] == STEP_CHECKPOINT_INTERVAL_5M
+    assert _resolve_step_checkpoint_interval(context) == STEP_CHECKPOINT_INTERVAL_5M
