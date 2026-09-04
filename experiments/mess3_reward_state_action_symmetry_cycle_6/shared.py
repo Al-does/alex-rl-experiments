@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -234,7 +234,13 @@ def _probe_at(
     return result, point
 
 
-def run_condition(context: RunContext, variant: int) -> dict[str, Any]:
+def run_condition(
+    context: RunContext,
+    variant: int,
+    *,
+    config_builder: Callable[[RunContext, int], PPOConfig] = build_config,
+    recipe_overrides: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     """Train one REINFORCE variant and probe init plus spaced checkpoints."""
 
     if context.seed is None:
@@ -264,8 +270,9 @@ def run_condition(context: RunContext, variant: int) -> dict[str, Any]:
         "probe_target": "exact_predictive_bayesian_belief",
         "probe_sampling_distribution": "process_weighted_rollout",
     }
+    recipe.update(recipe_overrides or {})
     outputs.write_json("resolved_recipe.json", recipe)
-    config = build_config(context, variant)
+    config = config_builder(context, variant)
     initial_checkpoint = _save_initial_checkpoint(
         config,
         context.artifacts_dir / "initial_checkpoint",
