@@ -40,7 +40,6 @@ from experiments.two_factor_reward_state_PPO_cycle_2.process import (
     LOCAL_CONTEXT_LENGTH,
     MESS3_ALPHA,
     TRANSFORMER_LAYERS,
-    TRANSFORMER_LOOKBACK,
     TRANSITION_MATRIX,
     environment_config,
 )
@@ -51,6 +50,10 @@ from experiments.two_factor_reward_state_PPO_cycle_2.task import (
 )
 from experiments.two_factor_reward_state_REINFORCE_cycle_4.model import (
     TwoFactorRewardReinforceCycle4,
+)
+from experiments.two_factor_reward_state_REINFORCE_cycle_4.training_tracking import (
+    record_step_occupancy_snapshot,
+    write_reward_occupancy_curve,
 )
 from harness.artifacts import RunArtifacts, record_result
 from harness.context import RunContext
@@ -67,6 +70,7 @@ from learners.models.transformer import TransformerModelConfig
 TOTAL_ENV_STEPS = 8_000_000
 CONTINUATION_TOTAL_ENV_STEPS = 24_000_000
 STEP_CHECKPOINT_INTERVAL = 2_000_000
+STEP_CHECKPOINT_INTERVAL_5M = 5_000_000
 CONTINUATION_SPEC_FILENAME = "continuation_spec.json"
 BUDGET_SPEC_FILENAME = "budget_spec.json"
 SMOKE_ENV_STEPS = 4_096
@@ -81,6 +85,16 @@ MODEL_CONFIG = TransformerModelConfig(
     n_heads=1,
     context_len=LOCAL_CONTEXT_LENGTH,
 ).to_dict()
+CONTEXT32_L3_MODEL_CONFIG = {
+    **MODEL_CONFIG,
+    "context_len": 32,
+    "n_layers": 3,
+}
+CONTEXT32_L4_MODEL_CONFIG = {
+    **MODEL_CONFIG,
+    "context_len": 32,
+    "n_layers": 4,
+}
 _active_algorithm: list[Any | None] = [None]
 
 
@@ -106,6 +120,8 @@ def _save_step_interval_checkpoint(
     result: Mapping[str, Any],
     checkpoint_root: str,
     step_interval: int = STEP_CHECKPOINT_INTERVAL,
+    occupancy_context: RunContext | None = None,
+    occupancy_condition: str | None = None,
     **_: Any,
 ) -> None:
     """Save Algorithm checkpoints each time lifetime env steps cross a boundary."""
@@ -118,6 +134,13 @@ def _save_step_interval_checkpoint(
     boundary = (steps // step_interval) * step_interval
     if boundary <= 0:
         return
+    if occupancy_context is not None and occupancy_condition is not None:
+        record_step_occupancy_snapshot(
+            occupancy_context,
+            result,
+            condition=occupancy_condition,
+            step_interval=step_interval,
+        )
     root = Path(checkpoint_root)
     root.mkdir(parents=True, exist_ok=True)
     index_path = root / "index.json"
@@ -223,12 +246,53 @@ def _load_budget_spec(context: RunContext) -> dict[str, Any] | None:
     return payload
 
 
-def write_budget_spec(context: RunContext, target_agent_steps: int) -> None:
+def write_budget_spec(
+    context: RunContext,
+    target_agent_steps: int,
+    *,
+    step_checkpoint_interval: int | None = None,
+) -> None:
     context.artifacts_dir.mkdir(parents=True, exist_ok=True)
+    payload: dict[str, Any] = {"target_agent_steps": int(target_agent_steps)}
+    if step_checkpoint_interval is not None:
+        payload["step_checkpoint_interval"] = int(step_checkpoint_interval)
     (context.artifacts_dir / BUDGET_SPEC_FILENAME).write_text(
-        json.dumps({"target_agent_steps": int(target_agent_steps)}, indent=2)
-        + "\n"
+        json.dumps(payload, indent=2) + "\n"
     )
+
+
+def write_continuation_spec(
+    context: RunContext,
+    *,
+    target_agent_steps: int,
+    step_checkpoint_interval: int = STEP_CHECKPOINT_INTERVAL,
+    prior_run_id: str | None = None,
+    prior_agent_steps: int | None = None,
+) -> None:
+    context.artifacts_dir.mkdir(parents=True, exist_ok=True)
+    payload: dict[str, Any] = {
+        "target_agent_steps": int(target_agent_steps),
+        "step_checkpoint_interval": int(step_checkpoint_interval),
+    }
+    if prior_run_id is not None:
+        payload["prior_run_id"] = prior_run_id
+    if prior_agent_steps is not None:
+        payload["prior_agent_steps"] = int(prior_agent_steps)
+    if context.resume_from is not None:
+        payload["resume_from"] = str(context.resume_from)
+    (context.artifacts_dir / CONTINUATION_SPEC_FILENAME).write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    )
+
+
+def _resolve_step_checkpoint_interval(context: RunContext) -> int:
+    spec = _load_continuation_spec(context)
+    if spec is not None and spec.get("step_checkpoint_interval") is not None:
+        return int(spec["step_checkpoint_interval"])
+    budget = _load_budget_spec(context)
+    if budget is not None and budget.get("step_checkpoint_interval") is not None:
+        return int(budget["step_checkpoint_interval"])
+    return STEP_CHECKPOINT_INTERVAL
 
 
 def _resolve_step_target(context: RunContext) -> int:
@@ -264,7 +328,13 @@ def _capture_algorithm_on_init(
     _save_initial_checkpoint(algorithm=algorithm, checkpoint_path=checkpoint_path)
 
 
-def _continuation_result_recorder(context: RunContext) -> Callable[..., None]:
+def _continuation_result_recorder(
+    context: RunContext,
+    *,
+    step_interval: int,
+    track_occupancy: bool,
+    condition: str,
+) -> Callable[..., None]:
     log_root = str(context.artifacts_dir / "log_spaced_checkpoints")
     step_root = str(context.artifacts_dir / "step_checkpoints")
 
@@ -282,6 +352,9 @@ def _continuation_result_recorder(context: RunContext) -> Callable[..., None]:
             algorithm=algorithm,
             result=result,
             checkpoint_root=step_root,
+            step_interval=step_interval,
+            occupancy_context=context if track_occupancy else None,
+            occupancy_condition=condition if track_occupancy else None,
         )
 
     return _record
@@ -292,6 +365,8 @@ def _run_continuation_algorithm(
     context: RunContext,
     *,
     target_steps: int,
+    condition: str,
+    track_occupancy: bool,
 ) -> Mapping[str, Any]:
     """Resume training with explicit algorithm capture for checkpoint hooks."""
 
@@ -302,7 +377,12 @@ def _run_continuation_algorithm(
     )
     algorithm = None
     iteration = 0
-    recorder = _continuation_result_recorder(context)
+    recorder = _continuation_result_recorder(
+        context,
+        step_interval=_resolve_step_checkpoint_interval(context),
+        track_occupancy=track_occupancy,
+        condition=condition,
+    )
     should_stop = _reached_env_step_target(target_steps)
     try:
         algorithm = _build_or_restore_algorithm(config, context)
@@ -327,12 +407,26 @@ def _run_continuation_algorithm(
             shutdown_ray_if_owned(started_ray)
 
 
-def build_config(context: RunContext, condition: str) -> PPOConfig:
+def build_config(
+    context: RunContext,
+    condition: str,
+    *,
+    model_config: Mapping[str, Any] | None = None,
+    learning_rate: float | None = None,
+    train_batch_size: int | None = None,
+    num_env_runners: int | None = None,
+    num_envs_per_env_runner: int | None = None,
+    track_occupancy: bool = False,
+) -> PPOConfig:
     """Build one fresh zero-baseline, full-episode REINFORCE recipe."""
 
     if condition not in CONDITIONS:
         raise ValueError(f"condition must be one of {CONDITIONS}")
-    batch_size = SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
+    resolved_model = dict(model_config) if model_config is not None else MODEL_CONFIG
+    batch_size = SMOKE_BATCH_SIZE if context.smoke else (
+        train_batch_size if train_batch_size is not None else TRAIN_BATCH_SIZE
+    )
+    step_interval = _resolve_step_checkpoint_interval(context)
     config = (
         PPOConfig()
         .environment(HMMEnv, env_config=environment_config(condition))
@@ -343,7 +437,7 @@ def build_config(context: RunContext, condition: str) -> PPOConfig:
         )
         .env_runners(batch_mode="complete_episodes")
         .training(
-            lr=LEARNING_RATE,
+            lr=learning_rate if learning_rate is not None else LEARNING_RATE,
             gamma=GAMMA,
             lambda_=1.0,
             use_critic=False,
@@ -359,7 +453,7 @@ def build_config(context: RunContext, condition: str) -> PPOConfig:
         .rl_module(
             rl_module_spec=RLModuleSpec(
                 module_class=TwoFactorRewardReinforceCycle4,
-                model_config=dict(MODEL_CONFIG),
+                model_config=resolved_model,
             )
         )
         .callbacks(
@@ -381,20 +475,41 @@ def build_config(context: RunContext, condition: str) -> PPOConfig:
                     checkpoint_root=str(
                         context.artifacts_dir / "step_checkpoints"
                     ),
+                    step_interval=step_interval,
+                    occupancy_context=context if track_occupancy else None,
+                    occupancy_condition=condition if track_occupancy else None,
                 ),
             ),
         )
         .debugging(seed=context.seed)
     )
-    return apply_runtime_resources(
+    config = apply_runtime_resources(
         config,
         _single_gpu_context(context),
         default_env_runners=16,
     )
+    if (
+        num_env_runners is not None
+        and not context.smoke
+    ):
+        config = config.env_runners(
+            num_env_runners=num_env_runners,
+            num_envs_per_env_runner=num_envs_per_env_runner or 1,
+        )
+    return config
 
 
-def _resolved_recipe(context: RunContext, condition: str) -> dict[str, Any]:
-    return {
+def _resolved_recipe(
+    context: RunContext,
+    condition: str,
+    *,
+    model_config: Mapping[str, Any] | None = None,
+    recipe_overrides: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    resolved_model = dict(model_config) if model_config is not None else MODEL_CONFIG
+    lookback = int(resolved_model["n_layers"]) * int(resolved_model["context_len"])
+    step_interval = _resolve_step_checkpoint_interval(context)
+    recipe = {
         "study": "two_factor_reward_state_REINFORCE_cycle_4",
         "condition": condition,
         "hypothesis": (
@@ -425,34 +540,56 @@ def _resolved_recipe(context: RunContext, condition: str) -> dict[str, Any]:
         "train_batch_size_per_learner": TRAIN_BATCH_SIZE,
         "minibatch_size": None,
         "num_epochs": 1,
-        "model": MODEL_CONFIG,
-        "transformer_raw_observation_lookback": TRANSFORMER_LOOKBACK,
+        "model": resolved_model,
+        "transformer_raw_observation_lookback": lookback,
         "total_env_steps": _resolve_step_target(context),
         "continuation_spec": _load_continuation_spec(context),
         "budget_spec": _load_budget_spec(context),
         "checkpoint_schedule": (
             "initial, powers of two iterations, every "
-            f"{STEP_CHECKPOINT_INTERVAL:,} env steps, final"
+            f"{step_interval:,} env steps, final"
         ),
-        "step_checkpoint_interval": STEP_CHECKPOINT_INTERVAL,
+        "step_checkpoint_interval": step_interval,
     }
+    if recipe_overrides:
+        recipe.update(dict(recipe_overrides))
+    return recipe
 
 
-def run_condition(context: RunContext, condition: str) -> dict[str, Any]:
+def run_condition(
+    context: RunContext,
+    condition: str,
+    *,
+    config_builder: Callable[[RunContext], PPOConfig] | None = None,
+    model_config: Mapping[str, Any] | None = None,
+    recipe_overrides: Mapping[str, Any] | None = None,
+    skip_checkpoint_probes: bool = False,
+    track_occupancy: bool = False,
+) -> dict[str, Any]:
     if context.seed is None:
         raise ValueError("two-factor REINFORCE requires a resolved seed")
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     outputs.write_json(
         "resolved_recipe.json",
-        _resolved_recipe(context, condition),
+        _resolved_recipe(
+            context,
+            condition,
+            model_config=model_config,
+            recipe_overrides=recipe_overrides,
+        ),
     )
     target_steps = _resolve_step_target(context)
+    build = config_builder or (
+        lambda ctx: build_config(ctx, condition, model_config=model_config)
+    )
     if context.resume_from is not None:
         final_metrics = _run_continuation_algorithm(
-            build_config(context, condition),
+            build(context),
             context,
             target_steps=target_steps,
+            condition=condition,
+            track_occupancy=track_occupancy,
         )
         final_checkpoint = _latest_algorithm_checkpoint(context)
         result = SimpleNamespace(
@@ -462,7 +599,7 @@ def run_condition(context: RunContext, condition: str) -> dict[str, Any]:
         )
     else:
         result_grid = run_tune(
-            build_config(context, condition),
+            build(context),
             context,
             stop={"env_runners/num_env_steps_sampled_lifetime": target_steps},
             run_config_kwargs={
@@ -477,60 +614,65 @@ def run_condition(context: RunContext, condition: str) -> dict[str, Any]:
             raise RuntimeError(f"{condition} REINFORCE training failed")
         result = results[0]
     write_training_curves(context)
-    initial_record = (
-        []
-        if context.resume_from is not None
-        else [
-            {
-                "checkpoint_path": context.artifacts_dir / "initial_checkpoint",
-                "checkpoint_name": "initial_checkpoint",
-                "training_iteration": 0,
-                "agent_steps": 0,
-            }
-        ]
-    )
-    step_records = _step_checkpoint_records(
-        context.artifacts_dir / "step_checkpoints"
-    )
-    log_records = checkpoint_records(
-        result,
-        checkpoint_root=context.artifacts_dir / "log_spaced_checkpoints",
-    )
-    by_steps: dict[int, dict[str, Any]] = {}
-    for record in [*initial_record, *step_records, *log_records]:
-        by_steps[int(record["agent_steps"])] = record
-    records = sorted(by_steps.values(), key=lambda row: row["agent_steps"])
-    reports = []
-    for record in records:
-        reports.append(
-            analyze_checkpoint(
-                replace(
-                    context,
-                    results_dir=(
-                        context.results_dir
-                        / "checkpoint_probes"
-                        / f"steps_{record['agent_steps']:09d}"
-                    ),
-                    resume_from=Path(record["checkpoint_path"]),
-                ),
-                checkpoint=Path(record["checkpoint_path"]),
-                condition=condition,
-                checkpoint_label=record["checkpoint_name"],
-                agent_steps=record["agent_steps"],
-                training_iteration=record["training_iteration"],
-            )
+    if track_occupancy:
+        write_reward_occupancy_curve(context, condition=condition)
+    reports: list[dict[str, Any]] = []
+    if not skip_checkpoint_probes:
+        initial_record = (
+            []
+            if context.resume_from is not None
+            else [
+                {
+                    "checkpoint_path": context.artifacts_dir / "initial_checkpoint",
+                    "checkpoint_name": "initial_checkpoint",
+                    "training_iteration": 0,
+                    "agent_steps": 0,
+                }
+            ]
         )
-    plot_probe_trajectory(
-        reports,
-        condition=condition,
-        path=context.results_dir / "probe_trajectory.png",
-    )
+        step_records = _step_checkpoint_records(
+            context.artifacts_dir / "step_checkpoints"
+        )
+        log_records = checkpoint_records(
+            result,
+            checkpoint_root=context.artifacts_dir / "log_spaced_checkpoints",
+        )
+        by_steps: dict[int, dict[str, Any]] = {}
+        for record in [*initial_record, *step_records, *log_records]:
+            by_steps[int(record["agent_steps"])] = record
+        records = sorted(by_steps.values(), key=lambda row: row["agent_steps"])
+        for record in records:
+            reports.append(
+                analyze_checkpoint(
+                    replace(
+                        context,
+                        results_dir=(
+                            context.results_dir
+                            / "checkpoint_probes"
+                            / f"steps_{record['agent_steps']:09d}"
+                        ),
+                        resume_from=Path(record["checkpoint_path"]),
+                    ),
+                    checkpoint=Path(record["checkpoint_path"]),
+                    condition=condition,
+                    checkpoint_label=record["checkpoint_name"],
+                    agent_steps=record["agent_steps"],
+                    training_iteration=record["training_iteration"],
+                )
+            )
+        plot_probe_trajectory(
+            reports,
+            condition=condition,
+            path=context.results_dir / "probe_trajectory.png",
+        )
     summary = {
         "condition": condition,
         "seed": context.seed,
         "smoke": context.smoke,
         "algorithm": "REINFORCE",
         "checkpoint_reports": reports,
+        "skip_checkpoint_probes": skip_checkpoint_probes,
+        "track_occupancy": track_occupancy,
     }
     outputs.write_json("condition_summary.json", summary)
     return summary
