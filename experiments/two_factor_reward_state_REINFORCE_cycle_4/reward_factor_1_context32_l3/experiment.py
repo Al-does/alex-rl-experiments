@@ -11,8 +11,8 @@ from harness.context import RunContext
 
 CONDITION = "reward_factor_1"
 LOOKBACK = 96
-# 32k learner batches OOM on RTX 4090 with lookback 96; 16k fits with 16 runners.
-TRAIN_BATCH_SIZE = 16_384
+# 32k/16k learner batches OOM on RTX 4090 with lookback 96; 8k fits with 16 runners.
+TRAIN_BATCH_SIZE = 8_192
 
 
 def build_config(context: RunContext) -> PPOConfig:
@@ -35,7 +35,7 @@ def run(context: RunContext):
             "architecture_rationale": (
                 "Cycle-4 one-rewarding task with context_len=32 and n_layers=3 "
                 "(lookback 96 vs default 40); standard 16-runner collection. "
-                "Learner batch 16k (not 32k) to fit RTX 4090 memory at lookback 96."
+                "Learner batch 8k (not 32k) to fit RTX 4090 memory at lookback 96."
             ),
             "train_batch_size_per_learner": TRAIN_BATCH_SIZE,
         },
