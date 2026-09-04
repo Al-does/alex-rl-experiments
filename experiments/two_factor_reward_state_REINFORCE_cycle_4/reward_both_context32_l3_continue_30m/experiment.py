@@ -30,6 +30,7 @@ def build_config(context: RunContext) -> PPOConfig:
         learning_rate=LEARNING_RATE,
         num_env_runners=NUM_ENV_RUNNERS,
         num_envs_per_env_runner=NUM_ENVS_PER_ENV_RUNNER,
+        track_occupancy=True,
     )
 
 
@@ -58,6 +59,8 @@ def run(context: RunContext):
             "prior_run_id": PRIOR_RUN_ID,
             "prior_agent_steps": PRIOR_AGENT_STEPS,
             "step_checkpoint_interval": STEP_CHECKPOINT_INTERVAL_5M,
+            "skip_checkpoint_probes": True,
+            "track_occupancy": True,
             "learning_rate": LEARNING_RATE,
             "collection_geometry": {
                 "num_env_runners": NUM_ENV_RUNNERS,
@@ -68,7 +71,10 @@ def run(context: RunContext):
             "architecture_rationale": (
                 "Continue the completed 30M reward_both context32/l3 run for "
                 "another 30M env steps from its latest step checkpoint. "
-                "Step checkpoints every 5M env steps during continuation."
+                "Step checkpoints every 5M env steps during continuation. "
+                "Tracks reward occupancy from training rollouts; no probe batteries."
             ),
         },
+        skip_checkpoint_probes=True,
+        track_occupancy=True,
     )

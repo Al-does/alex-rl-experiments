@@ -32,6 +32,7 @@ def build_config(context: RunContext) -> PPOConfig:
         learning_rate=LEARNING_RATE,
         num_env_runners=NUM_ENV_RUNNERS,
         num_envs_per_env_runner=NUM_ENVS_PER_ENV_RUNNER,
+        track_occupancy=True,
     )
 
 
@@ -46,6 +47,8 @@ def run(context: RunContext):
         recipe_overrides={
             "experiment_arm": "reward_both_context32_l3_sampling_temp",
             "target_agent_steps": TARGET_AGENT_STEPS,
+            "skip_checkpoint_probes": True,
+            "track_occupancy": True,
             "learning_rate": LEARNING_RATE,
             "entropy_coeff": 0.0,
             "sampling_temperature": SAMPLING_TEMPERATURE,
@@ -62,7 +65,10 @@ def run(context: RunContext):
             },
             "architecture_rationale": (
                 "Same context32/l3 both-rewarding setup as reward_both_context32_l3 "
-                "with sampling_temperature=1.5 for on-policy multinomial exploration."
+                "with sampling_temperature=1.5 for on-policy multinomial exploration. "
+                "Tracks reward occupancy from training rollouts; no probe batteries."
             ),
         },
+        skip_checkpoint_probes=True,
+        track_occupancy=True,
     )

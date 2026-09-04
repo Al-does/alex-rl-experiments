@@ -27,6 +27,7 @@ def build_config(context: RunContext) -> PPOConfig:
         learning_rate=LEARNING_RATE,
         num_env_runners=NUM_ENV_RUNNERS,
         num_envs_per_env_runner=NUM_ENVS_PER_ENV_RUNNER,
+        track_occupancy=True,
     )
 
 
@@ -41,6 +42,8 @@ def run(context: RunContext):
         recipe_overrides={
             "experiment_arm": "reward_both_context32_l4",
             "target_agent_steps": TARGET_AGENT_STEPS,
+            "skip_checkpoint_probes": True,
+            "track_occupancy": True,
             "learning_rate": LEARNING_RATE,
             "collection_geometry": {
                 "num_env_runners": NUM_ENV_RUNNERS,
@@ -51,7 +54,10 @@ def run(context: RunContext):
             "architecture_rationale": (
                 "Cycle-4 both-rewarding task with context_len=32 and n_layers=4 "
                 "trained to 30M env steps. Same 4x8 collection geometry as the "
-                "context32/l3 arms."
+                "context32/l3 arms. Tracks reward occupancy from training rollouts; "
+                "no probe batteries."
             ),
         },
+        skip_checkpoint_probes=True,
+        track_occupancy=True,
     )

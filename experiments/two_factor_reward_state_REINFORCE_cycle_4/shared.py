@@ -51,6 +51,10 @@ from experiments.two_factor_reward_state_PPO_cycle_2.task import (
 from experiments.two_factor_reward_state_REINFORCE_cycle_4.model import (
     TwoFactorRewardReinforceCycle4,
 )
+from experiments.two_factor_reward_state_REINFORCE_cycle_4.training_tracking import (
+    record_step_occupancy_snapshot,
+    write_reward_occupancy_curve,
+)
 from harness.artifacts import RunArtifacts, record_result
 from harness.context import RunContext
 from harness.hardware import PROFILES
@@ -116,6 +120,8 @@ def _save_step_interval_checkpoint(
     result: Mapping[str, Any],
     checkpoint_root: str,
     step_interval: int = STEP_CHECKPOINT_INTERVAL,
+    occupancy_context: RunContext | None = None,
+    occupancy_condition: str | None = None,
     **_: Any,
 ) -> None:
     """Save Algorithm checkpoints each time lifetime env steps cross a boundary."""
@@ -128,6 +134,13 @@ def _save_step_interval_checkpoint(
     boundary = (steps // step_interval) * step_interval
     if boundary <= 0:
         return
+    if occupancy_context is not None and occupancy_condition is not None:
+        record_step_occupancy_snapshot(
+            occupancy_context,
+            result,
+            condition=occupancy_condition,
+            step_interval=step_interval,
+        )
     root = Path(checkpoint_root)
     root.mkdir(parents=True, exist_ok=True)
     index_path = root / "index.json"
@@ -319,6 +332,8 @@ def _continuation_result_recorder(
     context: RunContext,
     *,
     step_interval: int,
+    track_occupancy: bool,
+    condition: str,
 ) -> Callable[..., None]:
     log_root = str(context.artifacts_dir / "log_spaced_checkpoints")
     step_root = str(context.artifacts_dir / "step_checkpoints")
@@ -338,6 +353,8 @@ def _continuation_result_recorder(
             result=result,
             checkpoint_root=step_root,
             step_interval=step_interval,
+            occupancy_context=context if track_occupancy else None,
+            occupancy_condition=condition if track_occupancy else None,
         )
 
     return _record
@@ -348,6 +365,8 @@ def _run_continuation_algorithm(
     context: RunContext,
     *,
     target_steps: int,
+    condition: str,
+    track_occupancy: bool,
 ) -> Mapping[str, Any]:
     """Resume training with explicit algorithm capture for checkpoint hooks."""
 
@@ -361,6 +380,8 @@ def _run_continuation_algorithm(
     recorder = _continuation_result_recorder(
         context,
         step_interval=_resolve_step_checkpoint_interval(context),
+        track_occupancy=track_occupancy,
+        condition=condition,
     )
     should_stop = _reached_env_step_target(target_steps)
     try:
@@ -395,6 +416,7 @@ def build_config(
     train_batch_size: int | None = None,
     num_env_runners: int | None = None,
     num_envs_per_env_runner: int | None = None,
+    track_occupancy: bool = False,
 ) -> PPOConfig:
     """Build one fresh zero-baseline, full-episode REINFORCE recipe."""
 
@@ -454,6 +476,8 @@ def build_config(
                         context.artifacts_dir / "step_checkpoints"
                     ),
                     step_interval=step_interval,
+                    occupancy_context=context if track_occupancy else None,
+                    occupancy_condition=condition if track_occupancy else None,
                 ),
             ),
         )
@@ -539,6 +563,8 @@ def run_condition(
     config_builder: Callable[[RunContext], PPOConfig] | None = None,
     model_config: Mapping[str, Any] | None = None,
     recipe_overrides: Mapping[str, Any] | None = None,
+    skip_checkpoint_probes: bool = False,
+    track_occupancy: bool = False,
 ) -> dict[str, Any]:
     if context.seed is None:
         raise ValueError("two-factor REINFORCE requires a resolved seed")
@@ -562,6 +588,8 @@ def run_condition(
             build(context),
             context,
             target_steps=target_steps,
+            condition=condition,
+            track_occupancy=track_occupancy,
         )
         final_checkpoint = _latest_algorithm_checkpoint(context)
         result = SimpleNamespace(
@@ -586,60 +614,65 @@ def run_condition(
             raise RuntimeError(f"{condition} REINFORCE training failed")
         result = results[0]
     write_training_curves(context)
-    initial_record = (
-        []
-        if context.resume_from is not None
-        else [
-            {
-                "checkpoint_path": context.artifacts_dir / "initial_checkpoint",
-                "checkpoint_name": "initial_checkpoint",
-                "training_iteration": 0,
-                "agent_steps": 0,
-            }
-        ]
-    )
-    step_records = _step_checkpoint_records(
-        context.artifacts_dir / "step_checkpoints"
-    )
-    log_records = checkpoint_records(
-        result,
-        checkpoint_root=context.artifacts_dir / "log_spaced_checkpoints",
-    )
-    by_steps: dict[int, dict[str, Any]] = {}
-    for record in [*initial_record, *step_records, *log_records]:
-        by_steps[int(record["agent_steps"])] = record
-    records = sorted(by_steps.values(), key=lambda row: row["agent_steps"])
-    reports = []
-    for record in records:
-        reports.append(
-            analyze_checkpoint(
-                replace(
-                    context,
-                    results_dir=(
-                        context.results_dir
-                        / "checkpoint_probes"
-                        / f"steps_{record['agent_steps']:09d}"
-                    ),
-                    resume_from=Path(record["checkpoint_path"]),
-                ),
-                checkpoint=Path(record["checkpoint_path"]),
-                condition=condition,
-                checkpoint_label=record["checkpoint_name"],
-                agent_steps=record["agent_steps"],
-                training_iteration=record["training_iteration"],
-            )
+    if track_occupancy:
+        write_reward_occupancy_curve(context, condition=condition)
+    reports: list[dict[str, Any]] = []
+    if not skip_checkpoint_probes:
+        initial_record = (
+            []
+            if context.resume_from is not None
+            else [
+                {
+                    "checkpoint_path": context.artifacts_dir / "initial_checkpoint",
+                    "checkpoint_name": "initial_checkpoint",
+                    "training_iteration": 0,
+                    "agent_steps": 0,
+                }
+            ]
         )
-    plot_probe_trajectory(
-        reports,
-        condition=condition,
-        path=context.results_dir / "probe_trajectory.png",
-    )
+        step_records = _step_checkpoint_records(
+            context.artifacts_dir / "step_checkpoints"
+        )
+        log_records = checkpoint_records(
+            result,
+            checkpoint_root=context.artifacts_dir / "log_spaced_checkpoints",
+        )
+        by_steps: dict[int, dict[str, Any]] = {}
+        for record in [*initial_record, *step_records, *log_records]:
+            by_steps[int(record["agent_steps"])] = record
+        records = sorted(by_steps.values(), key=lambda row: row["agent_steps"])
+        for record in records:
+            reports.append(
+                analyze_checkpoint(
+                    replace(
+                        context,
+                        results_dir=(
+                            context.results_dir
+                            / "checkpoint_probes"
+                            / f"steps_{record['agent_steps']:09d}"
+                        ),
+                        resume_from=Path(record["checkpoint_path"]),
+                    ),
+                    checkpoint=Path(record["checkpoint_path"]),
+                    condition=condition,
+                    checkpoint_label=record["checkpoint_name"],
+                    agent_steps=record["agent_steps"],
+                    training_iteration=record["training_iteration"],
+                )
+            )
+        plot_probe_trajectory(
+            reports,
+            condition=condition,
+            path=context.results_dir / "probe_trajectory.png",
+        )
     summary = {
         "condition": condition,
         "seed": context.seed,
         "smoke": context.smoke,
         "algorithm": "REINFORCE",
         "checkpoint_reports": reports,
+        "skip_checkpoint_probes": skip_checkpoint_probes,
+        "track_occupancy": track_occupancy,
     }
     outputs.write_json("condition_summary.json", summary)
     return summary

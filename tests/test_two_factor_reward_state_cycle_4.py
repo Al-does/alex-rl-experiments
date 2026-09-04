@@ -347,3 +347,21 @@ def test_cycle_4_continue_30m_writes_5m_checkpoint_spec(tmp_path):
     assert payload["target_agent_steps"] == 60_000_000
     assert payload["step_checkpoint_interval"] == STEP_CHECKPOINT_INTERVAL_5M
     assert _resolve_step_checkpoint_interval(context) == STEP_CHECKPOINT_INTERVAL_5M
+
+
+def test_training_tracking_occupancy_from_return_over_length():
+    from experiments.two_factor_reward_state_REINFORCE_cycle_4.training_tracking import (
+        occupancy_fraction_from_metrics,
+    )
+
+    metrics = {
+        "env_runners": {
+            "episode_return_mean": 610.0,
+            "episode_len_mean": 1024.0,
+            "num_env_steps_sampled_lifetime": 30_000_000.0,
+        },
+        "training_iteration": 900,
+    }
+    fraction = occupancy_fraction_from_metrics(metrics, condition="reward_both")
+    assert fraction == pytest.approx(610.0 / 1024.0)
+    assert 100.0 * fraction == pytest.approx(100.0 * 610.0 / 1024.0)
