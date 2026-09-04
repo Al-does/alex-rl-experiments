@@ -277,7 +277,7 @@ def test_reinforce_model_scales_action_logits_by_sampling_temperature():
         model_config={**BASE_MODEL_CONFIG, "sampling_temperature": 2.0},
     )
     model.setup()
-    embeddings = torch.tensor([[[1.0, 0.0, -1.0]]], dtype=torch.float32)
+    embeddings = torch.randn(1, 1, 64)
     outputs = model._outputs(embeddings, None, training=True)
     raw_logits = model.heads.action_distribution_inputs(embeddings)
     torch.testing.assert_close(
