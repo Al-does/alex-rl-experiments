@@ -13,6 +13,8 @@ from ray import tune
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.core.columns import Columns
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
+from ray.rllib.core.rl_module.torch import TorchRLModule
+from ray.rllib.utils.annotations import override
 
 from envs.hmm import HMMEnv
 from experiments.mess3_belief_geometry_2026_07.shared import (
@@ -55,6 +57,30 @@ BASE_MODEL_CONFIG = TransformerModelConfig(
 
 class ReinforceTransformerModel(TransformerModel):
     """Transformer policy with an identically-zero REINFORCE baseline."""
+
+    @override(TorchRLModule)
+    def setup(self):
+        super().setup()
+        self._sampling_temperature = float(
+            self.model_config.get("sampling_temperature", 1.0)
+        )
+        if self._sampling_temperature <= 0:
+            raise ValueError("sampling_temperature must be positive")
+
+    def _outputs(
+        self,
+        embeddings: torch.Tensor,
+        state_out: Any | None,
+        *,
+        training: bool,
+    ) -> dict[str, Any]:
+        outputs = super()._outputs(embeddings, state_out, training=training)
+        temperature = self._sampling_temperature
+        if temperature != 1.0:
+            outputs[Columns.ACTION_DIST_INPUTS] = (
+                outputs[Columns.ACTION_DIST_INPUTS] / temperature
+            )
+        return outputs
 
     def compute_values(
         self,

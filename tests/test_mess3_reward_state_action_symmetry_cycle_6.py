@@ -182,3 +182,105 @@ def test_variant_2_small_batch_entropy_arm_preserves_geometry_and_sets_entropy(
 
     assert smoke_config.entropy_coeff == module.ENTROPY_COEFF
     smoke_config.validate()
+
+
+def test_variant_2_small_batch_sampling_temp_arm_preserves_geometry_and_sets_temperature(
+    tmp_path,
+    smoke_context,
+):
+    module = importlib.import_module(
+        "experiments.mess3_reward_state_action_symmetry_cycle_6."
+        "variant_2_small_batch_sampling_temp.experiment"
+    )
+    train_context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "train-results",
+        artifacts_dir=tmp_path / "train-artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+
+    train_config = module.build_config(train_context)
+    smoke_config = module.build_config(smoke_context)
+    spec = train_config.get_rl_module_spec()
+
+    assert train_config.env_config["task"]["kwargs"]["variant"] == 2
+    assert train_config.lr == 2e-4
+    assert train_config.entropy_coeff == 0.0
+    assert spec.model_config["sampling_temperature"] == module.SAMPLING_TEMPERATURE
+    assert train_config.num_env_runners == 4
+    assert train_config.num_envs_per_env_runner == 8
+    assert (
+        train_config.num_env_runners
+        * train_config.num_envs_per_env_runner
+        * train_config.env_config["episode_length"]
+        == 32_768
+    )
+    assert train_config.use_critic is False
+    assert train_config.num_epochs == 1
+
+    assert smoke_config.entropy_coeff == 0.0
+    smoke_config.validate()
+
+
+def test_variant_2_small_batch_context32_l3_arm_preserves_geometry_and_model(
+    tmp_path,
+    smoke_context,
+):
+    module = importlib.import_module(
+        "experiments.mess3_reward_state_action_symmetry_cycle_6."
+        "variant_2_small_batch_context32_l3.experiment"
+    )
+    train_context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "train-results",
+        artifacts_dir=tmp_path / "train-artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+
+    train_config = module.build_config(train_context)
+    smoke_config = module.build_config(smoke_context)
+    spec = train_config.get_rl_module_spec()
+
+    assert train_config.env_config["task"]["kwargs"]["variant"] == 2
+    assert train_config.lr == 2e-4
+    assert train_config.env_config["episode_length"] == 1024
+    assert spec.model_config["context_len"] == module.CONTEXT_LEN
+    assert spec.model_config["n_layers"] == module.N_LAYERS
+    assert spec.model_config["d_model"] == 64
+    assert spec.model_config["n_heads"] == 1
+    assert train_config.num_env_runners == 4
+    assert train_config.num_envs_per_env_runner == 8
+    assert (
+        train_config.num_env_runners
+        * train_config.num_envs_per_env_runner
+        * train_config.env_config["episode_length"]
+        == 32_768
+    )
+    assert train_config.use_critic is False
+    assert train_config.num_epochs == 1
+
+    smoke_config.validate()
+
+
+def test_reinforce_model_scales_action_logits_by_sampling_temperature():
+    from gymnasium.spaces import Box, Discrete
+
+    from ray.rllib.core.columns import Columns
+
+    model = ReinforceTransformerModel(
+        observation_space=Box(low=-1.0, high=1.0, shape=(3,)),
+        action_space=Discrete(3),
+        model_config={**BASE_MODEL_CONFIG, "sampling_temperature": 2.0},
+    )
+    model.setup()
+    embeddings = torch.tensor([[[1.0, 0.0, -1.0]]], dtype=torch.float32)
+    outputs = model._outputs(embeddings, None, training=True)
+    raw_logits = model.heads.action_distribution_inputs(embeddings)
+    torch.testing.assert_close(
+        outputs[Columns.ACTION_DIST_INPUTS],
+        raw_logits / 2.0,
+    )
