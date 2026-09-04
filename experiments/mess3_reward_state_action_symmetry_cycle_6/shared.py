@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -13,6 +13,8 @@ from ray import tune
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.core.columns import Columns
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
+from ray.rllib.core.rl_module.torch import TorchRLModule
+from ray.rllib.utils.annotations import override
 
 from envs.hmm import HMMEnv
 from experiments.mess3_belief_geometry_2026_07.shared import (
@@ -55,6 +57,30 @@ BASE_MODEL_CONFIG = TransformerModelConfig(
 
 class ReinforceTransformerModel(TransformerModel):
     """Transformer policy with an identically-zero REINFORCE baseline."""
+
+    @override(TorchRLModule)
+    def setup(self):
+        super().setup()
+        self._sampling_temperature = float(
+            self.model_config.get("sampling_temperature", 1.0)
+        )
+        if self._sampling_temperature <= 0:
+            raise ValueError("sampling_temperature must be positive")
+
+    def _outputs(
+        self,
+        embeddings: torch.Tensor,
+        state_out: Any | None,
+        *,
+        training: bool,
+    ) -> dict[str, Any]:
+        outputs = super()._outputs(embeddings, state_out, training=training)
+        temperature = self._sampling_temperature
+        if temperature != 1.0:
+            outputs[Columns.ACTION_DIST_INPUTS] = (
+                outputs[Columns.ACTION_DIST_INPUTS] / temperature
+            )
+        return outputs
 
     def compute_values(
         self,
@@ -234,7 +260,13 @@ def _probe_at(
     return result, point
 
 
-def run_condition(context: RunContext, variant: int) -> dict[str, Any]:
+def run_condition(
+    context: RunContext,
+    variant: int,
+    *,
+    config_builder: Callable[[RunContext, int], PPOConfig] = build_config,
+    recipe_overrides: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     """Train one REINFORCE variant and probe init plus spaced checkpoints."""
 
     if context.seed is None:
@@ -264,8 +296,9 @@ def run_condition(context: RunContext, variant: int) -> dict[str, Any]:
         "probe_target": "exact_predictive_bayesian_belief",
         "probe_sampling_distribution": "process_weighted_rollout",
     }
+    recipe.update(recipe_overrides or {})
     outputs.write_json("resolved_recipe.json", recipe)
-    config = build_config(context, variant)
+    config = config_builder(context, variant)
     initial_checkpoint = _save_initial_checkpoint(
         config,
         context.artifacts_dir / "initial_checkpoint",

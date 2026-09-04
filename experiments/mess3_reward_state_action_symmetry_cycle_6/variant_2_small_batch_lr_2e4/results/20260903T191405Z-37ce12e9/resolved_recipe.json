@@ -1,0 +1,125 @@
+{
+  "algorithm": "REINFORCE",
+  "analytic_design": {
+    "baseline_transition_matrix": [
+      [
+        0.75,
+        0.15,
+        0.1
+      ],
+      [
+        0.15,
+        0.75,
+        0.1
+      ],
+      [
+        0.3,
+        0.3,
+        0.4
+      ]
+    ],
+    "effect_size": 1.5,
+    "emission_alpha": 0.85,
+    "fully_observed": {
+      "variant_1": {
+        "always_positive_stationary_state_2": 0.5700133141432316,
+        "oracle_gap": 0.12960465652297992,
+        "oracle_policy": [
+          1,
+          1,
+          1
+        ],
+        "oracle_stationary_state_2": 0.5700133141432316,
+        "runner_up_stationary_state_2": 0.4404086576202517
+      },
+      "variant_2": {
+        "always_positive_stationary_state_2": 0.2763469326158343,
+        "oracle_gap": 0.08017165223389872,
+        "oracle_policy": [
+          1,
+          1,
+          0
+        ],
+        "oracle_stationary_state_2": 0.35651858484973303,
+        "runner_up_stationary_state_2": 0.2763469326158343
+      },
+      "variant_3": {
+        "always_positive_stationary_state_2": 0.14134250460780728,
+        "oracle_gap": 0.08017165223389872,
+        "oracle_policy": [
+          1,
+          2,
+          0
+        ],
+        "oracle_stationary_state_2": 0.35651858484973303,
+        "runner_up_stationary_state_2": 0.2763469326158343
+      }
+    },
+    "variant_2_nonreward_positive_state_2_probability": 0.33242786174311934,
+    "variant_2_one_step_noop_belief_threshold": 0.4621414003564968,
+    "variant_2_state_2_probabilities": {
+      "negative": 0.12949118140280794,
+      "noop": 0.4,
+      "positive": 0.12949118140280794
+    }
+  },
+  "checkpoint_schedule": "init_then_iterations_1_2_4_8_and_final",
+  "checkpoint_storage": "every_iteration_unpruned_pending_generic_log_schedule",
+  "collection_geometry": {
+    "episode_length": 1024,
+    "expected_collection_steps": 32768,
+    "num_env_runners": 4,
+    "num_envs_per_env_runner": 8
+  },
+  "condition": "variant_2",
+  "environment": {
+    "delay": 0,
+    "episode_length": 1024,
+    "model": {
+      "factory": "envs.mess3.model:control_model",
+      "kwargs": {
+        "alpha": 0.85,
+        "transition_matrix": [
+          [
+            0.75,
+            0.15,
+            0.1
+          ],
+          [
+            0.15,
+            0.75,
+            0.1
+          ],
+          [
+            0.3,
+            0.3,
+            0.4
+          ]
+        ]
+      }
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "experiments.mess3_reward_state_action_symmetry_cycle_6.task:ActionSymmetryTask",
+      "kwargs": {
+        "effect_size": 1.5,
+        "variant": 2
+      }
+    }
+  },
+  "experiment_arm": "small_batch_lr_2e4",
+  "gamma": 0.99,
+  "learning_rate": 0.0002,
+  "model_config": {
+    "context_len": 10,
+    "d_model": 64,
+    "max_seq_len": 32,
+    "n_heads": 1,
+    "n_layers": 4
+  },
+  "policy_gradient_equivalence": "zero baseline, lambda=1 Monte Carlo returns, normalized advantages, one full-batch epoch, no clipping-active reuse",
+  "probe_sampling_distribution": "process_weighted_rollout",
+  "probe_target": "exact_predictive_bayesian_belief",
+  "rllib_engine": "PPOConfig/PPOTorchLearner",
+  "total_env_steps": 8000000
+}
