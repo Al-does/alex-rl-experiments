@@ -24,7 +24,7 @@ from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
     TOTAL_ENV_STEPS,
 )
 from harness.context import RunContext
-from harness.hardware import PROFILES
+from harness.hardware import PROFILES, resolve_env_runners
 
 
 def _context(tmp_path) -> RunContext:
@@ -216,3 +216,52 @@ def test_cycle_4_value_api_is_an_inert_device_native_zero_baseline():
     assert values.device == embeddings.device
     assert values.dtype == embeddings.dtype
     assert torch.count_nonzero(values) == 0
+
+
+@pytest.mark.parametrize(
+    ("module_path", "expected_runners", "expected_lr"),
+    [
+        (
+            "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+            "reward_factor_1_context32_l3.experiment",
+            16,
+            4.2e-4,
+        ),
+        (
+            "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+            "reward_factor_1_context32_l3_small_batch.experiment",
+            4,
+            2e-4,
+        ),
+        (
+            "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+            "reward_both_context32_l3.experiment",
+            16,
+            4.2e-4,
+        ),
+    ],
+)
+def test_cycle_4_context32_l3_arms(tmp_path, module_path, expected_runners, expected_lr):
+    module = importlib.import_module(module_path)
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cuda4090"],
+    )
+    config = module.build_config(context)
+    spec = config.get_rl_module_spec()
+
+    assert spec.model_config["context_len"] == 32
+    assert spec.model_config["n_layers"] == 3
+    assert spec.model_config["d_model"] == 64
+    resolved_runners = (
+        expected_runners
+        if expected_runners == 4
+        else resolve_env_runners(context.hardware, expected_runners)
+    )
+    assert config.num_env_runners == resolved_runners
+    assert config.lr == expected_lr
+    config.validate()

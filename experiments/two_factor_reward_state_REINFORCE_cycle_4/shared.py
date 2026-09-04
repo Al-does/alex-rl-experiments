@@ -40,7 +40,6 @@ from experiments.two_factor_reward_state_PPO_cycle_2.process import (
     LOCAL_CONTEXT_LENGTH,
     MESS3_ALPHA,
     TRANSFORMER_LAYERS,
-    TRANSFORMER_LOOKBACK,
     TRANSITION_MATRIX,
     environment_config,
 )
@@ -81,6 +80,11 @@ MODEL_CONFIG = TransformerModelConfig(
     n_heads=1,
     context_len=LOCAL_CONTEXT_LENGTH,
 ).to_dict()
+CONTEXT32_L3_MODEL_CONFIG = {
+    **MODEL_CONFIG,
+    "context_len": 32,
+    "n_layers": 3,
+}
 _active_algorithm: list[Any | None] = [None]
 
 
@@ -327,11 +331,20 @@ def _run_continuation_algorithm(
             shutdown_ray_if_owned(started_ray)
 
 
-def build_config(context: RunContext, condition: str) -> PPOConfig:
+def build_config(
+    context: RunContext,
+    condition: str,
+    *,
+    model_config: Mapping[str, Any] | None = None,
+    learning_rate: float | None = None,
+    num_env_runners: int | None = None,
+    num_envs_per_env_runner: int | None = None,
+) -> PPOConfig:
     """Build one fresh zero-baseline, full-episode REINFORCE recipe."""
 
     if condition not in CONDITIONS:
         raise ValueError(f"condition must be one of {CONDITIONS}")
+    resolved_model = dict(model_config) if model_config is not None else MODEL_CONFIG
     batch_size = SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
     config = (
         PPOConfig()
@@ -343,7 +356,7 @@ def build_config(context: RunContext, condition: str) -> PPOConfig:
         )
         .env_runners(batch_mode="complete_episodes")
         .training(
-            lr=LEARNING_RATE,
+            lr=learning_rate if learning_rate is not None else LEARNING_RATE,
             gamma=GAMMA,
             lambda_=1.0,
             use_critic=False,
@@ -359,7 +372,7 @@ def build_config(context: RunContext, condition: str) -> PPOConfig:
         .rl_module(
             rl_module_spec=RLModuleSpec(
                 module_class=TwoFactorRewardReinforceCycle4,
-                model_config=dict(MODEL_CONFIG),
+                model_config=resolved_model,
             )
         )
         .callbacks(
@@ -386,15 +399,32 @@ def build_config(context: RunContext, condition: str) -> PPOConfig:
         )
         .debugging(seed=context.seed)
     )
-    return apply_runtime_resources(
+    config = apply_runtime_resources(
         config,
         _single_gpu_context(context),
         default_env_runners=16,
     )
+    if (
+        num_env_runners is not None
+        and not context.smoke
+    ):
+        config = config.env_runners(
+            num_env_runners=num_env_runners,
+            num_envs_per_env_runner=num_envs_per_env_runner or 1,
+        )
+    return config
 
 
-def _resolved_recipe(context: RunContext, condition: str) -> dict[str, Any]:
-    return {
+def _resolved_recipe(
+    context: RunContext,
+    condition: str,
+    *,
+    model_config: Mapping[str, Any] | None = None,
+    recipe_overrides: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    resolved_model = dict(model_config) if model_config is not None else MODEL_CONFIG
+    lookback = int(resolved_model["n_layers"]) * int(resolved_model["context_len"])
+    recipe = {
         "study": "two_factor_reward_state_REINFORCE_cycle_4",
         "condition": condition,
         "hypothesis": (
@@ -425,8 +455,8 @@ def _resolved_recipe(context: RunContext, condition: str) -> dict[str, Any]:
         "train_batch_size_per_learner": TRAIN_BATCH_SIZE,
         "minibatch_size": None,
         "num_epochs": 1,
-        "model": MODEL_CONFIG,
-        "transformer_raw_observation_lookback": TRANSFORMER_LOOKBACK,
+        "model": resolved_model,
+        "transformer_raw_observation_lookback": lookback,
         "total_env_steps": _resolve_step_target(context),
         "continuation_spec": _load_continuation_spec(context),
         "budget_spec": _load_budget_spec(context),
@@ -436,21 +466,39 @@ def _resolved_recipe(context: RunContext, condition: str) -> dict[str, Any]:
         ),
         "step_checkpoint_interval": STEP_CHECKPOINT_INTERVAL,
     }
+    if recipe_overrides:
+        recipe.update(dict(recipe_overrides))
+    return recipe
 
 
-def run_condition(context: RunContext, condition: str) -> dict[str, Any]:
+def run_condition(
+    context: RunContext,
+    condition: str,
+    *,
+    config_builder: Callable[[RunContext], PPOConfig] | None = None,
+    model_config: Mapping[str, Any] | None = None,
+    recipe_overrides: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     if context.seed is None:
         raise ValueError("two-factor REINFORCE requires a resolved seed")
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     outputs.write_json(
         "resolved_recipe.json",
-        _resolved_recipe(context, condition),
+        _resolved_recipe(
+            context,
+            condition,
+            model_config=model_config,
+            recipe_overrides=recipe_overrides,
+        ),
     )
     target_steps = _resolve_step_target(context)
+    build = config_builder or (
+        lambda ctx: build_config(ctx, condition, model_config=model_config)
+    )
     if context.resume_from is not None:
         final_metrics = _run_continuation_algorithm(
-            build_config(context, condition),
+            build(context),
             context,
             target_steps=target_steps,
         )
@@ -462,7 +510,7 @@ def run_condition(context: RunContext, condition: str) -> dict[str, Any]:
         )
     else:
         result_grid = run_tune(
-            build_config(context, condition),
+            build(context),
             context,
             stop={"env_runners/num_env_steps_sampled_lifetime": target_steps},
             run_config_kwargs={
