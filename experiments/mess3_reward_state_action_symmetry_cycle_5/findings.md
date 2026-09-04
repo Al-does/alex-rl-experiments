@@ -85,6 +85,9 @@ geometric projection
 
 The standalone visualization has no external dependencies. Drag to orbit,
 scroll to zoom, move the `s = b₂` slider to select a quotient fiber, and use
-clean-frame mode or PNG export to capture publication angles. It deliberately
-shows the pointwise projection `sₜ = bₜ,₂`; the separately evolved coarse
-filter `cₜ` is history-dependent and is not represented as a pointwise map.
+clean-frame mode or PNG export to capture publication angles. The simplex
+contains a deterministic sample from the cycle-6 MESS3 Bayesian belief
+attractor, using its transition matrix and the symmetric `alpha = 0.85`
+emission channel. The visualization deliberately shows the pointwise
+projection `sₜ = bₜ,₂`; the separately evolved coarse filter `cₜ` is
+history-dependent and is not represented as a pointwise map.

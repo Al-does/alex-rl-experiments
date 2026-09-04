@@ -6,15 +6,15 @@
   <title>MESS3 belief compression — Δ² → Δ¹</title>
   <style>
     :root {
-      color-scheme: dark;
-      --ink: #edf8ff;
-      --muted: #91a9bd;
-      --cyan: #52e8e0;
-      --blue: #4ea3ff;
-      --gold: #ffc857;
-      --violet: #c77dff;
-      --panel: rgba(7, 16, 31, 0.78);
-      --border: rgba(166, 218, 255, 0.18);
+      color-scheme: light;
+      --ink: #111111;
+      --muted: #5f6368;
+      --state0: #e31a1c;
+      --state1: #16b51b;
+      --state2: #1739e6;
+      --violet: #6f2dbd;
+      --panel: rgba(255, 255, 255, 0.92);
+      --border: rgba(17, 17, 17, 0.18);
     }
 
     * {
@@ -27,7 +27,7 @@
       height: 100%;
       margin: 0;
       overflow: hidden;
-      background: #020711;
+      background: #f7f7f5;
       font-family:
         Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
         "Segoe UI", sans-serif;
@@ -57,19 +57,17 @@
       padding: 18px;
       border: 1px solid var(--border);
       border-radius: 18px;
-      background:
-        linear-gradient(145deg, rgba(17, 36, 60, 0.72), rgba(4, 10, 22, 0.88)),
-        var(--panel);
+      background: var(--panel);
       box-shadow:
-        0 24px 80px rgba(0, 0, 0, 0.38),
-        inset 0 1px 0 rgba(255, 255, 255, 0.06);
-      backdrop-filter: blur(18px) saturate(1.25);
+        0 20px 55px rgba(0, 0, 0, 0.13),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(18px);
       transition: opacity 180ms ease, transform 180ms ease;
     }
 
     .eyebrow {
       margin-bottom: 5px;
-      color: var(--cyan);
+      color: var(--state2);
       font-size: 11px;
       font-weight: 800;
       letter-spacing: 0.18em;
@@ -113,7 +111,7 @@
 
     .value {
       min-width: 48px;
-      color: var(--gold);
+      color: var(--state2);
       font: 700 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
       text-align: right;
     }
@@ -126,33 +124,33 @@
       outline: none;
       appearance: none;
       background:
-        linear-gradient(90deg, var(--cyan), var(--gold)) 0 / var(--fill, 34%) 100%
+        linear-gradient(90deg, #a6a600, var(--state2)) 0 / var(--fill, 34%) 100%
           no-repeat,
-        rgba(255, 255, 255, 0.11);
+        rgba(17, 17, 17, 0.12);
     }
 
     input[type="range"]::-webkit-slider-thumb {
       width: 17px;
       height: 17px;
-      border: 3px solid #071224;
+      border: 3px solid #ffffff;
       border-radius: 50%;
       appearance: none;
-      background: #fff8d9;
-      box-shadow: 0 0 18px rgba(255, 200, 87, 0.8);
+      background: var(--state2);
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
       cursor: pointer;
     }
 
     .equation {
       padding: 11px 12px;
-      border: 1px solid rgba(82, 232, 224, 0.15);
+      border: 1px solid rgba(17, 17, 17, 0.13);
       border-radius: 12px;
-      background: rgba(1, 8, 18, 0.55);
-      color: #d9f8ff;
+      background: rgba(17, 17, 17, 0.035);
+      color: #222222;
       font: 12px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace;
     }
 
     .equation strong {
-      color: var(--cyan);
+      color: var(--state2);
       font-weight: 750;
     }
 
@@ -166,7 +164,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      color: #b8c9d8;
+      color: #45494d;
       font-size: 11px;
       cursor: pointer;
     }
@@ -178,7 +176,7 @@
       margin: 0;
       border-radius: 999px;
       appearance: none;
-      background: rgba(255, 255, 255, 0.12);
+      background: rgba(17, 17, 17, 0.13);
       cursor: pointer;
       transition: background 150ms ease;
     }
@@ -191,18 +189,18 @@
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      background: #70869a;
+      background: #85898d;
       transition: transform 150ms ease, background 150ms ease;
     }
 
     .toggle input:checked {
-      background: rgba(82, 232, 224, 0.28);
+      background: rgba(23, 57, 230, 0.24);
     }
 
     .toggle input:checked::after {
       transform: translateX(12px);
-      background: var(--cyan);
-      box-shadow: 0 0 9px rgba(82, 232, 224, 0.7);
+      background: var(--state2);
+      box-shadow: none;
     }
 
     .buttons {
@@ -215,32 +213,32 @@
     button {
       min-height: 34px;
       padding: 8px 10px;
-      border: 1px solid rgba(166, 218, 255, 0.16);
+      border: 1px solid rgba(17, 17, 17, 0.15);
       border-radius: 10px;
-      color: #dcecff;
-      background: rgba(255, 255, 255, 0.055);
+      color: #222222;
+      background: rgba(17, 17, 17, 0.035);
       font: 650 11px/1 Inter, ui-sans-serif, system-ui, sans-serif;
       cursor: pointer;
       transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
     }
 
     button:hover {
-      border-color: rgba(82, 232, 224, 0.46);
-      background: rgba(82, 232, 224, 0.1);
+      border-color: rgba(23, 57, 230, 0.42);
+      background: rgba(23, 57, 230, 0.07);
       transform: translateY(-1px);
     }
 
     button.active {
-      border-color: rgba(82, 232, 224, 0.48);
-      color: #dffffc;
-      background: rgba(82, 232, 224, 0.13);
+      border-color: rgba(23, 57, 230, 0.5);
+      color: #132baf;
+      background: rgba(23, 57, 230, 0.1);
     }
 
     .hint {
       position: fixed;
       right: 26px;
       bottom: 20px;
-      color: rgba(190, 215, 235, 0.5);
+      color: rgba(17, 17, 17, 0.48);
       font-size: 10px;
       letter-spacing: 0.04em;
       transition: opacity 180ms ease;
@@ -291,7 +289,8 @@
     <h2>Choose a constant-b₂ fiber</h2>
     <p>
       Every point across the highlighted slice has the same reward-state
-      occupancy. The quotient discards redistribution between states 0 and 1.
+      occupancy. The colored attractor uses the cycle-6 transition matrix and
+      the MESS3 α = 0.85 emission channel.
     </p>
 
     <div class="divider"></div>
@@ -317,6 +316,10 @@
       <label class="toggle">
         <input id="showSymmetry" type="checkbox" checked>
         canonical lift
+      </label>
+      <label class="toggle">
+        <input id="showBeliefs" type="checkbox" checked>
+        MESS3 attractor
       </label>
       <label class="toggle">
         <input id="showParticles" type="checkbox" checked>
@@ -354,18 +357,19 @@
     const controls = {
       fibers: document.getElementById("showFibers"),
       symmetry: document.getElementById("showSymmetry"),
+      beliefs: document.getElementById("showBeliefs"),
       particles: document.getElementById("showParticles"),
       labels: document.getElementById("showLabels"),
     };
 
     const COLORS = {
-      ink: "#edf8ff",
-      muted: "#91a9bd",
-      cyan: "#52e8e0",
-      blue: "#4ea3ff",
-      gold: "#ffc857",
-      violet: "#c77dff",
-      dark: "#020711",
+      ink: "#111111",
+      muted: "#5f6368",
+      state0: "#e31a1c",
+      state1: "#16b51b",
+      state2: "#1739e6",
+      violet: "#6f2dbd",
+      dark: "#f7f7f5",
     };
 
     const V0 = [-3.4, -2.25, 0];
@@ -396,16 +400,16 @@
       clean: false,
     };
 
-    const stars = Array.from({ length: 155 }, (_, index) => {
-      const rand = seededRandom(index + 41);
-      return {
-        x: rand(),
-        y: rand(),
-        size: 0.25 + rand() * 1.25,
-        alpha: 0.12 + rand() * 0.48,
-        phase: rand() * Math.PI * 2,
-      };
-    });
+    const TRANSITION = [
+      [0.75, 0.15, 0.10],
+      [0.15, 0.75, 0.10],
+      [0.30, 0.30, 0.40],
+    ];
+    const EMISSION = [
+      [0.85, 0.075, 0.075],
+      [0.075, 0.85, 0.075],
+      [0.075, 0.075, 0.85],
+    ];
 
     function seededRandom(seed) {
       let value = seed >>> 0;
@@ -417,6 +421,59 @@
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
       };
     }
+
+    function beliefColor(belief, alpha = 1) {
+      const channels = belief.map((component) =>
+        Math.round(Math.max(0, Math.min(1, component)) * 255),
+      );
+      return `rgba(${channels[0]}, ${channels[1]}, ${channels[2]}, ${alpha})`;
+    }
+
+    function beliefPoint(belief) {
+      return [
+        V0[0] * belief[0] + V1[0] * belief[1] + V2[0] * belief[2],
+        V0[1] * belief[0] + V1[1] * belief[1] + V2[1] * belief[2],
+        0.015,
+      ];
+    }
+
+    function generateBeliefAttractor(count) {
+      const rand = seededRandom(0x6c6d6573);
+      const points = [];
+      let belief = [1 / 3, 1 / 3, 1 / 3];
+      for (let index = 0; index < count + 400; index += 1) {
+        const predicted = [0, 0, 0];
+        for (let next = 0; next < 3; next += 1) {
+          for (let current = 0; current < 3; current += 1) {
+            predicted[next] += belief[current] * TRANSITION[current][next];
+          }
+        }
+        const tokenProbabilities = [0, 0, 0];
+        for (let token = 0; token < 3; token += 1) {
+          for (let stateIndex = 0; stateIndex < 3; stateIndex += 1) {
+            tokenProbabilities[token] +=
+              predicted[stateIndex] * EMISSION[stateIndex][token];
+          }
+        }
+        const draw = rand();
+        const token = draw < tokenProbabilities[0]
+          ? 0
+          : draw < tokenProbabilities[0] + tokenProbabilities[1] ? 1 : 2;
+        belief = predicted.map(
+          (probability, stateIndex) =>
+            probability * EMISSION[stateIndex][token] / tokenProbabilities[token],
+        );
+        if (index >= 400) {
+          points.push({
+            point: beliefPoint(belief),
+            color: beliefColor(belief, 0.46),
+          });
+        }
+      }
+      return points;
+    }
+
+    const beliefAttractor = generateBeliefAttractor(14000);
 
     function add(a, b) {
       return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -478,17 +535,6 @@
       return lerp(fiber.left, fiber.right, 0.5);
     }
 
-    function mixColor(hexA, hexB, t, alpha = 1) {
-      const a = parseInt(hexA.slice(1), 16);
-      const b = parseInt(hexB.slice(1), 16);
-      const channels = [16, 8, 0].map((shift) =>
-        Math.round(
-          ((a >> shift) & 255) * (1 - t) + ((b >> shift) & 255) * t,
-        ),
-      );
-      return `rgba(${channels[0]}, ${channels[1]}, ${channels[2]}, ${alpha})`;
-    }
-
     function cameraBasis() {
       const cosPitch = Math.cos(camera.pitch);
       const position = [
@@ -516,11 +562,6 @@
         scale: focal / depth,
         visible: depth > 0.05,
       };
-    }
-
-    function projectedDepth(points, basis) {
-      return points.reduce((sum, point) => sum + project(point, basis).depth, 0)
-        / points.length;
     }
 
     function pathFor(points, basis, close = false) {
@@ -659,12 +700,12 @@
       ctx.textBaseline = "alphabetic";
       ctx.font = `${options.weight ?? 650} ${options.size ?? 13}px Inter, system-ui, sans-serif`;
       ctx.fillStyle = options.color ?? COLORS.ink;
-      ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
-      ctx.shadowBlur = 7;
+      ctx.shadowColor = "rgba(255, 255, 255, 0.95)";
+      ctx.shadowBlur = 5;
       ctx.fillText(title, x, y);
       if (subtitle) {
         ctx.font = "500 10px Inter, system-ui, sans-serif";
-        ctx.fillStyle = options.muted ?? "rgba(184, 211, 231, 0.72)";
+        ctx.fillStyle = options.muted ?? "rgba(65, 69, 73, 0.78)";
         ctx.fillText(subtitle, x, y + 15);
       }
       ctx.restore();
@@ -679,67 +720,41 @@
         state.height * 0.42,
         Math.max(state.width, state.height) * 0.78,
       );
-      gradient.addColorStop(0, "#0b2240");
-      gradient.addColorStop(0.48, "#061225");
-      gradient.addColorStop(1, "#01050d");
+      gradient.addColorStop(0, "#ffffff");
+      gradient.addColorStop(0.58, "#fafaf8");
+      gradient.addColorStop(1, "#eeeeeb");
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, state.width, state.height);
-
-      const haze = ctx.createLinearGradient(0, 0, state.width, state.height);
-      haze.addColorStop(0, "rgba(48, 198, 217, 0.055)");
-      haze.addColorStop(0.52, "rgba(85, 62, 168, 0.035)");
-      haze.addColorStop(1, "rgba(255, 190, 75, 0.045)");
-      ctx.fillStyle = haze;
-      ctx.fillRect(0, 0, state.width, state.height);
-
-      for (const star of stars) {
-        const twinkle = 0.67 + 0.33 * Math.sin(time * 0.0008 + star.phase);
-        ctx.globalAlpha = star.alpha * twinkle;
-        ctx.fillStyle = "#bfe6ff";
-        ctx.beginPath();
-        ctx.arc(
-          star.x * state.width,
-          star.y * state.height,
-          star.size * state.exportScale,
-          0,
-          Math.PI * 2,
-        );
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
     }
 
     function drawSurface(basis) {
-      const strips = [];
-      const steps = 64;
-      for (let index = 0; index < steps; index += 1) {
-        const s0 = index / steps;
-        const s1 = (index + 1) / steps;
-        const low = fiberAt(s0);
-        const high = fiberAt(s1);
-        strips.push({
-          points: [low.left, low.right, high.right, high.left],
-          s: (s0 + s1) / 2,
-        });
-      }
-      strips.sort(
-        (a, b) =>
-          projectedDepth(b.points, basis) - projectedDepth(a.points, basis),
-      );
-      for (const strip of strips) {
-        polygon(strip.points, basis, {
-          fill: mixColor("#0f9ba5", "#f0aa32", strip.s, 0.17),
-          stroke: mixColor("#52e8e0", "#ffc857", strip.s, 0.035),
-          width: 0.55,
-        });
-      }
-
       polygon([V0, V1, V2], basis, {
-        stroke: "rgba(192, 236, 255, 0.74)",
-        width: 1.5,
-        shadowColor: "rgba(82, 232, 224, 0.28)",
-        shadowBlur: 18,
+        fill: "rgba(255, 255, 255, 0.9)",
+        stroke: "rgba(17, 17, 17, 0.92)",
+        width: 1.7,
       });
+    }
+
+    function drawBeliefAttractor(basis) {
+      if (!controls.beliefs.checked) {
+        return;
+      }
+      ctx.save();
+      for (const sample of beliefAttractor) {
+        const projected = project(sample.point, basis);
+        if (!projected.visible) {
+          continue;
+        }
+        const size = Math.max(0.8, Math.min(1.55, projected.scale * 0.015));
+        ctx.fillStyle = sample.color;
+        ctx.fillRect(
+          projected.x - size / 2,
+          projected.y - size / 2,
+          size,
+          size,
+        );
+      }
+      ctx.restore();
     }
 
     function drawGrid(basis) {
@@ -750,19 +765,30 @@
       for (let index = 1; index < 10; index += 1) {
         const s = index / 10;
         const fiber = fiberAt(s);
-        polyline([fiber.left, fiber.right], basis, {
-          color: mixColor("#52e8e0", "#ffc857", s, 0.5),
-          width: 0.75,
-          alpha: 0.5,
-        });
+        const segments = 18;
+        for (let segment = 0; segment < segments; segment += 1) {
+          const t0 = segment / segments;
+          const t1 = (segment + 1) / segments;
+          const middle = (t0 + t1) / 2;
+          polyline(
+            [lerp(fiber.left, fiber.right, t0), lerp(fiber.left, fiber.right, t1)],
+            basis,
+            {
+              color: beliefColor(
+                [(1 - s) * (1 - middle), (1 - s) * middle, s],
+                0.28,
+              ),
+              width: 0.65,
+            },
+          );
+        }
 
         const mid = midpoint(fiber);
         const target = lineAt(s);
         const control = add(lerp(mid, target, 0.52), [0, 0, 1.05]);
         curve(mid, control, target, basis, {
-          color: mixColor("#52e8e0", "#ffc857", s, 0.42),
+          color: beliefColor([(1 - s) / 2, (1 - s) / 2, s], 0.32),
           width: 0.7,
-          alpha: 0.46,
           dash: [2, 5],
         });
       }
@@ -777,31 +803,33 @@
         color: COLORS.violet,
         width: 2.1,
         alpha: 0.86,
-        shadowColor: "rgba(199, 125, 255, 0.64)",
-        shadowBlur: 13,
       });
       const selectedMid = midpoint(fiberAt(state.selectedS));
       disc(selectedMid, 0.075, basis, {
-        fill: "#ead5ff",
-        shadowColor: COLORS.violet,
-        shadowBlur: 18,
+        fill: COLORS.violet,
       });
       label(
         lerp(start, V2, 0.58),
         "canonical lift ι(q)",
         "b₀ = b₁",
         basis,
-        { dx: -17, dy: -11, align: "right", color: "#dfbaff" },
+        { dx: -17, dy: -11, align: "right", color: COLORS.violet },
       );
     }
 
     function drawCoarseLine(basis) {
-      polyline([A, B], basis, {
-        color: "rgba(226, 247, 255, 0.92)",
-        width: 4.2,
-        shadowColor: "rgba(82, 232, 224, 0.62)",
-        shadowBlur: 19,
-      });
+      const segments = 48;
+      for (let index = 0; index < segments; index += 1) {
+        const s0 = index / segments;
+        const s1 = (index + 1) / segments;
+        const middle = (s0 + s1) / 2;
+        polyline([lineAt(s0), lineAt(s1)], basis, {
+          color: beliefColor(
+            [(1 - middle) / 2, (1 - middle) / 2, middle],
+          ),
+          width: 4.2,
+        });
+      }
 
       for (let index = 0; index <= 4; index += 1) {
         const s = index / 4;
@@ -809,7 +837,7 @@
         const tickA = add(point, [-0.10, 0, 0]);
         const tickB = add(point, [0.10, 0, 0]);
         polyline([tickA, tickB], basis, {
-          color: mixColor("#52e8e0", "#ffc857", s, 0.86),
+          color: beliefColor([(1 - s) / 2, (1 - s) / 2, s]),
           width: 1.3,
         });
         label(point, s.toFixed(2), "", basis, {
@@ -817,29 +845,25 @@
           dy: 4,
           size: 10,
           weight: 600,
-          color: mixColor("#9bf8f0", "#ffe2a3", s),
+          color: beliefColor([(1 - s) / 2, (1 - s) / 2, s]),
         });
       }
 
       disc(A, 0.105, basis, {
-        fill: COLORS.cyan,
-        shadowColor: COLORS.cyan,
-        shadowBlur: 25,
+        fill: beliefColor([0.5, 0.5, 0]),
       });
       disc(B, 0.105, basis, {
-        fill: COLORS.gold,
-        shadowColor: COLORS.gold,
-        shadowBlur: 25,
+        fill: COLORS.state2,
       });
       label(A, "A = {state 0, state 1}", "qA = 1 − s", basis, {
         dx: 22,
         dy: 2,
-        color: "#9bf8f0",
+        color: beliefColor([0.5, 0.5, 0]),
       });
       label(B, "B = state 2", "qB = s", basis, {
         dx: 22,
         dy: 2,
-        color: "#ffe3a6",
+        color: COLORS.state2,
       });
       label(lerp(A, B, 0.52), "Δ¹", "two-state belief", basis, {
         dx: 41,
@@ -851,9 +875,9 @@
 
     function drawEndpointMaps(basis) {
       const maps = [
-        { start: V0, end: A, color: COLORS.cyan, lift: 0.84 },
-        { start: V1, end: A, color: COLORS.blue, lift: 1.28 },
-        { start: V2, end: B, color: COLORS.gold, lift: 0.92 },
+        { start: V0, end: A, color: COLORS.state0, lift: 0.84 },
+        { start: V1, end: A, color: COLORS.state1, lift: 1.28 },
+        { start: V2, end: B, color: COLORS.state2, lift: 0.92 },
       ];
 
       for (const item of maps) {
@@ -861,9 +885,7 @@
         const points = curve(item.start, control, item.end, basis, {
           color: item.color,
           width: 1.2,
-          alpha: 0.42,
-          shadowColor: item.color,
-          shadowBlur: 8,
+          alpha: 0.5,
         });
         arrowHead(points.at(-3), points.at(-1), basis, item.color, 7, 0.55);
       }
@@ -873,20 +895,30 @@
       const s = state.selectedS;
       const fiber = fiberAt(s);
       const target = lineAt(s);
-      const color = mixColor("#52e8e0", "#ffc857", s);
+      const color = beliefColor([(1 - s) / 2, (1 - s) / 2, s]);
 
       polygon([fiber.left, fiber.right, target], basis, {
-        fill: mixColor("#52e8e0", "#ffc857", s, 0.055),
-        stroke: mixColor("#52e8e0", "#ffc857", s, 0.13),
+        fill: "rgba(17, 17, 17, 0.025)",
+        stroke: "rgba(17, 17, 17, 0.12)",
         width: 0.8,
       });
 
-      polyline([fiber.left, fiber.right], basis, {
-        color,
-        width: 4,
-        shadowColor: color,
-        shadowBlur: 22,
-      });
+      const fiberSegments = 42;
+      for (let index = 0; index < fiberSegments; index += 1) {
+        const t0 = index / fiberSegments;
+        const t1 = (index + 1) / fiberSegments;
+        const middle = (t0 + t1) / 2;
+        polyline(
+          [lerp(fiber.left, fiber.right, t0), lerp(fiber.left, fiber.right, t1)],
+          basis,
+          {
+            color: beliefColor(
+              [(1 - s) * (1 - middle), (1 - s) * middle, s],
+            ),
+            width: 4,
+          },
+        );
+      }
 
       const pulseAge = (time - state.pulseStart) / 1150;
       const pulse = pulseAge >= 0 && pulseAge <= 1
@@ -896,35 +928,32 @@
       for (let index = 0; index < 9; index += 1) {
         const along = index / 8;
         const start = lerp(fiber.left, fiber.right, along);
+        const pathColor = beliefColor([(1 - s) * (1 - along), (1 - s) * along, s]);
         const arch = 1.1 + Math.sin(along * Math.PI) * 0.55 + pulse * 0.55;
         const control = add(lerp(start, target, 0.52), [0, 0, arch]);
         const points = curve(start, control, target, basis, {
-          color,
+          color: pathColor,
           width: along === 0.5 ? 2.2 : 0.85,
           alpha: along === 0.5 ? 0.9 : 0.42,
-          shadowColor: color,
-          shadowBlur: along === 0.5 ? 15 : 7,
         });
         if (along === 0.5) {
-          arrowHead(points.at(-3), points.at(-1), basis, color, 9, 0.92);
+          arrowHead(points.at(-3), points.at(-1), basis, pathColor, 9, 0.92);
         }
 
         if (controls.particles.checked) {
           const travel = (time * 0.00022 + along * 0.71) % 1;
           const bead = quadratic(start, control, target, travel);
           disc(bead, 0.026 + 0.012 * Math.sin(travel * Math.PI), basis, {
-            fill: "#fffbdc",
+            fill: pathColor,
             alpha: 0.5 + 0.5 * Math.sin(travel * Math.PI),
-            shadowColor: color,
-            shadowBlur: 16,
           });
         }
       }
 
       disc(target, 0.12 + pulse * 0.035, basis, {
-        fill: "#fff6cf",
-        shadowColor: color,
-        shadowBlur: 30 + pulse * 20,
+        fill: color,
+        stroke: "#ffffff",
+        width: 1.5,
       });
 
       const directionOffset = mul(sub(fiber.right, fiber.left), 0.17);
@@ -934,8 +963,6 @@
         color: COLORS.violet,
         width: 2.1,
         alpha: 0.95,
-        shadowColor: COLORS.violet,
-        shadowBlur: 12,
       });
       arrowHead(directionStart, directionEnd, basis, COLORS.violet, 7, 0.9);
       arrowHead(directionEnd, directionStart, basis, COLORS.violet, 7, 0.9);
@@ -944,7 +971,7 @@
         dx: 0,
         dy: -20,
         align: "center",
-        color: "#e3bdff",
+        color: COLORS.violet,
       });
       label(target, `π(b) = (${(1 - s).toFixed(2)}, ${s.toFixed(2)})`, "one coarse belief", basis, {
         dx: -19,
@@ -960,7 +987,7 @@
           point: V0,
           title: "e₀  state 0",
           subtitle: "(1, 0, 0)",
-          color: COLORS.cyan,
+          color: COLORS.state0,
           dx: -15,
           dy: 24,
           align: "right",
@@ -969,7 +996,7 @@
           point: V1,
           title: "e₁  state 1",
           subtitle: "(0, 1, 0)",
-          color: COLORS.blue,
+          color: COLORS.state1,
           dx: 15,
           dy: 24,
           align: "left",
@@ -978,7 +1005,7 @@
           point: V2,
           title: "e₂  reward state",
           subtitle: "(0, 0, 1)",
-          color: COLORS.gold,
+          color: COLORS.state2,
           dx: 0,
           dy: -19,
           align: "center",
@@ -988,8 +1015,8 @@
       for (const vertex of vertices) {
         disc(vertex.point, 0.095, basis, {
           fill: vertex.color,
-          shadowColor: vertex.color,
-          shadowBlur: 22,
+          stroke: "#ffffff",
+          width: 1.2,
         });
         label(vertex.point, vertex.title, vertex.subtitle, basis, vertex);
       }
@@ -1010,14 +1037,14 @@
       ctx.save();
       ctx.textAlign = "left";
       ctx.textBaseline = "alphabetic";
-      ctx.fillStyle = COLORS.cyan;
+      ctx.fillStyle = COLORS.state2;
       ctx.font = "800 11px Inter, system-ui, sans-serif";
       ctx.fillText("MESS3 · REWARD-RELEVANT COMPRESSION", x, y);
       ctx.fillStyle = COLORS.ink;
       ctx.font = `${compact ? 28 : 38}px Inter, system-ui, sans-serif`;
       ctx.fontKerning = "normal";
       ctx.fillText("A triangle collapses to a line", x, y + (compact ? 36 : 48));
-      ctx.fillStyle = "rgba(170, 201, 224, 0.76)";
+      ctx.fillStyle = "rgba(65, 69, 73, 0.76)";
       ctx.font = `${compact ? 11 : 13}px Inter, system-ui, sans-serif`;
       ctx.fillText(
         "(b₀, b₁, b₂)  ↦  (b₀ + b₁, b₂)    ·    keep s = b₂, discard a = b₀ − b₁",
@@ -1035,7 +1062,7 @@
       const y = state.height - 30;
       ctx.save();
       ctx.textAlign = "left";
-      ctx.fillStyle = "rgba(149, 177, 201, 0.52)";
+      ctx.fillStyle = "rgba(65, 69, 73, 0.58)";
       ctx.font = "500 10px Inter, system-ui, sans-serif";
       ctx.fillText(
         "This is the instantaneous geometric projection s = b₂. The separately filtered cₜ is history-dependent.",
@@ -1058,6 +1085,7 @@
       const basis = cameraBasis();
 
       drawSurface(basis);
+      drawBeliefAttractor(basis);
       drawGrid(basis);
       drawCanonicalLift(basis);
       drawEndpointMaps(basis);
