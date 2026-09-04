@@ -102,3 +102,83 @@ def test_reinforce_model_supplies_device_native_zero_baseline():
     assert values.device == embeddings.device
     assert values.dtype == embeddings.dtype
     assert torch.count_nonzero(values) == 0
+
+
+def test_variant_2_small_batch_arm_enforces_update_geometry_and_fixed_lr(
+    tmp_path,
+    smoke_context,
+):
+    module = importlib.import_module(
+        "experiments.mess3_reward_state_action_symmetry_cycle_6."
+        "variant_2_small_batch_lr_2e4.experiment"
+    )
+    train_context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "train-results",
+        artifacts_dir=tmp_path / "train-artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+
+    train_config = module.build_config(train_context)
+    smoke_config = module.build_config(smoke_context)
+
+    assert train_config.env_config["task"]["kwargs"]["variant"] == 2
+    assert train_config.lr == 2e-4
+    assert train_config.num_env_runners == 4
+    assert train_config.num_envs_per_env_runner == 8
+    assert (
+        train_config.num_env_runners
+        * train_config.num_envs_per_env_runner
+        * train_config.env_config["episode_length"]
+        == 32_768
+    )
+    assert train_config.batch_mode == "complete_episodes"
+    assert train_config.use_critic is False
+    assert train_config.entropy_coeff == 0.0
+    assert train_config.num_epochs == 1
+    assert train_config.minibatch_size is None
+
+    assert smoke_config.lr == 2e-4
+    assert smoke_config.num_env_runners == 0
+    assert smoke_config.num_envs_per_env_runner == 1
+    smoke_config.validate()
+
+
+def test_variant_2_small_batch_entropy_arm_preserves_geometry_and_sets_entropy(
+    tmp_path,
+    smoke_context,
+):
+    module = importlib.import_module(
+        "experiments.mess3_reward_state_action_symmetry_cycle_6."
+        "variant_2_small_batch_entropy.experiment"
+    )
+    train_context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "train-results",
+        artifacts_dir=tmp_path / "train-artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+
+    train_config = module.build_config(train_context)
+    smoke_config = module.build_config(smoke_context)
+
+    assert train_config.env_config["task"]["kwargs"]["variant"] == 2
+    assert train_config.lr == 2e-4
+    assert train_config.entropy_coeff == module.ENTROPY_COEFF
+    assert train_config.num_env_runners == 4
+    assert train_config.num_envs_per_env_runner == 8
+    assert (
+        train_config.num_env_runners
+        * train_config.num_envs_per_env_runner
+        * train_config.env_config["episode_length"]
+        == 32_768
+    )
+    assert train_config.use_critic is False
+    assert train_config.num_epochs == 1
+
+    assert smoke_config.entropy_coeff == module.ENTROPY_COEFF
+    smoke_config.validate()
