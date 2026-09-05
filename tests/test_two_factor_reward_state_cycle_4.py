@@ -288,6 +288,12 @@ def test_cycle_4_context32_l3_arms(tmp_path, module_path, expected_runners, expe
             3,
             1.5,
         ),
+        (
+            "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+            "reward_both_context32_l3_sampling_temp_2p0.experiment",
+            3,
+            2.0,
+        ),
     ],
 )
 def test_cycle_4_reward_both_context32_variants(
@@ -365,3 +371,61 @@ def test_training_tracking_occupancy_from_return_over_length():
     fraction = occupancy_fraction_from_metrics(metrics, condition="reward_both")
     assert fraction == pytest.approx(610.0 / 1024.0)
     assert 100.0 * fraction == pytest.approx(100.0 * 610.0 / 1024.0)
+
+
+@pytest.mark.parametrize(
+    "module_path",
+    [
+        "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+        "reward_both_context32_l3_sampling_temp_no_action.experiment",
+        "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+        "reward_factor_1_context32_l3_no_action_15m.experiment",
+    ],
+)
+def test_cycle_4_token_only_observation_arms(tmp_path, module_path):
+    from envs.hmm import HMMEnv
+
+    module = importlib.import_module(module_path)
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cuda4090"],
+    )
+    config = module.build_config(context)
+    env_config = config.env_config
+    assert env_config["observation"]["action"] is None
+    env = HMMEnv(config=env_config)
+    assert env.observation_space.shape == (9,)
+    spec = config.get_rl_module_spec()
+    assert spec.model_config.get("include_last_action_in_obs") is False
+    config.validate()
+
+
+def test_cycle_4_factor1_no_action_15m_budget(tmp_path):
+    from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
+        BUDGET_SPEC_FILENAME,
+        _resolve_step_target,
+    )
+
+    module = importlib.import_module(
+        "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+        "reward_factor_1_context32_l3_no_action_15m.experiment"
+    )
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cuda4090"],
+    )
+    with pytest.raises(RuntimeError):
+        module.run(context)
+    budget_path = context.artifacts_dir / BUDGET_SPEC_FILENAME
+    assert budget_path.is_file()
+    payload = json.loads(budget_path.read_text())
+    assert payload["target_agent_steps"] == 15_000_000
+    assert _resolve_step_target(context) == 15_000_000

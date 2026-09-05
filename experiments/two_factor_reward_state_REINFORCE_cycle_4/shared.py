@@ -412,6 +412,7 @@ def build_config(
     condition: str,
     *,
     model_config: Mapping[str, Any] | None = None,
+    env_config: Mapping[str, Any] | None = None,
     learning_rate: float | None = None,
     train_batch_size: int | None = None,
     num_env_runners: int | None = None,
@@ -423,13 +424,18 @@ def build_config(
     if condition not in CONDITIONS:
         raise ValueError(f"condition must be one of {CONDITIONS}")
     resolved_model = dict(model_config) if model_config is not None else MODEL_CONFIG
+    resolved_env = (
+        dict(env_config)
+        if env_config is not None
+        else environment_config(condition)
+    )
     batch_size = SMOKE_BATCH_SIZE if context.smoke else (
         train_batch_size if train_batch_size is not None else TRAIN_BATCH_SIZE
     )
     step_interval = _resolve_step_checkpoint_interval(context)
     config = (
         PPOConfig()
-        .environment(HMMEnv, env_config=environment_config(condition))
+        .environment(HMMEnv, env_config=resolved_env)
         .framework(
             "torch",
             torch_compile_learner=False,
