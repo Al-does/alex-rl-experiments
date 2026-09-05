@@ -24,7 +24,7 @@ from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
     TOTAL_ENV_STEPS,
 )
 from harness.context import RunContext
-from harness.hardware import PROFILES
+from harness.hardware import PROFILES, resolve_env_runners
 
 
 def _context(tmp_path) -> RunContext:
@@ -216,3 +216,216 @@ def test_cycle_4_value_api_is_an_inert_device_native_zero_baseline():
     assert values.device == embeddings.device
     assert values.dtype == embeddings.dtype
     assert torch.count_nonzero(values) == 0
+
+
+@pytest.mark.parametrize(
+    ("module_path", "expected_runners", "expected_lr"),
+    [
+        (
+            "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+            "reward_factor_1_context32_l3.experiment",
+            4,
+            4.2e-4,
+        ),
+        (
+            "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+            "reward_factor_1_context32_l3_small_batch.experiment",
+            4,
+            2e-4,
+        ),
+        (
+            "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+            "reward_both_context32_l3.experiment",
+            4,
+            4.2e-4,
+        ),
+    ],
+)
+def test_cycle_4_context32_l3_arms(tmp_path, module_path, expected_runners, expected_lr):
+    module = importlib.import_module(module_path)
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cuda4090"],
+    )
+    config = module.build_config(context)
+    spec = config.get_rl_module_spec()
+
+    assert spec.model_config["context_len"] == 32
+    assert spec.model_config["n_layers"] == 3
+    assert spec.model_config["d_model"] == 64
+    if "small_batch" in module_path:
+        assert config.train_batch_size_per_learner == 32_768
+        assert config.lr == 2e-4
+    else:
+        assert config.train_batch_size_per_learner == 32_768
+        assert config.lr == 4.2e-4
+    resolved_runners = (
+        expected_runners
+        if expected_runners == 4
+        else resolve_env_runners(context.hardware, expected_runners)
+    )
+    assert config.num_env_runners == resolved_runners
+    assert config.lr == expected_lr
+    config.validate()
+
+
+@pytest.mark.parametrize(
+    ("module_path", "expected_layers", "expected_temp"),
+    [
+        (
+            "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+            "reward_both_context32_l4.experiment",
+            4,
+            1.0,
+        ),
+        (
+            "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+            "reward_both_context32_l3_sampling_temp.experiment",
+            3,
+            1.5,
+        ),
+        (
+            "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+            "reward_both_context32_l3_sampling_temp_2p0.experiment",
+            3,
+            2.0,
+        ),
+    ],
+)
+def test_cycle_4_reward_both_context32_variants(
+    tmp_path,
+    module_path,
+    expected_layers,
+    expected_temp,
+):
+    module = importlib.import_module(module_path)
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cuda4090"],
+    )
+    config = module.build_config(context)
+    spec = config.get_rl_module_spec()
+
+    assert spec.model_config["context_len"] == 32
+    assert spec.model_config["n_layers"] == expected_layers
+    assert float(spec.model_config.get("sampling_temperature", 1.0)) == expected_temp
+    assert config.num_env_runners == 4
+    assert config.lr == 4.2e-4
+    config.validate()
+
+
+def test_cycle_4_continue_30m_writes_5m_checkpoint_spec(tmp_path):
+    from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
+        CONTINUATION_SPEC_FILENAME,
+        STEP_CHECKPOINT_INTERVAL_5M,
+        _resolve_step_checkpoint_interval,
+    )
+
+    module = importlib.import_module(
+        "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+        "reward_both_context32_l3_continue_30m.experiment"
+    )
+    checkpoint = tmp_path / "prior" / "steps_030000000"
+    checkpoint.mkdir(parents=True)
+    (checkpoint / "rllib_checkpoint.json").write_text("{}")
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results" / "continue",
+        artifacts_dir=tmp_path / "artifacts" / "continue",
+        seed=42,
+        smoke=False,
+        resume_from=checkpoint,
+        hardware=PROFILES["cuda4090"],
+    )
+    with pytest.raises(RuntimeError):
+        module.run(context)
+    spec_path = context.artifacts_dir / CONTINUATION_SPEC_FILENAME
+    assert spec_path.is_file()
+    payload = json.loads(spec_path.read_text())
+    assert payload["target_agent_steps"] == 60_000_000
+    assert payload["step_checkpoint_interval"] == STEP_CHECKPOINT_INTERVAL_5M
+    assert _resolve_step_checkpoint_interval(context) == STEP_CHECKPOINT_INTERVAL_5M
+
+
+def test_training_tracking_occupancy_from_return_over_length():
+    from experiments.two_factor_reward_state_REINFORCE_cycle_4.training_tracking import (
+        occupancy_fraction_from_metrics,
+    )
+
+    metrics = {
+        "env_runners": {
+            "episode_return_mean": 610.0,
+            "episode_len_mean": 1024.0,
+            "num_env_steps_sampled_lifetime": 30_000_000.0,
+        },
+        "training_iteration": 900,
+    }
+    fraction = occupancy_fraction_from_metrics(metrics, condition="reward_both")
+    assert fraction == pytest.approx(610.0 / 1024.0)
+    assert 100.0 * fraction == pytest.approx(100.0 * 610.0 / 1024.0)
+
+
+@pytest.mark.parametrize(
+    "module_path",
+    [
+        "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+        "reward_both_context32_l3_sampling_temp_no_action.experiment",
+        "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+        "reward_factor_1_context32_l3_no_action_15m.experiment",
+    ],
+)
+def test_cycle_4_token_only_observation_arms(tmp_path, module_path):
+    from envs.hmm import HMMEnv
+
+    module = importlib.import_module(module_path)
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cuda4090"],
+    )
+    config = module.build_config(context)
+    env_config = config.env_config
+    assert env_config["observation"]["action"] is None
+    env = HMMEnv(config=env_config)
+    assert env.observation_space.shape == (9,)
+    spec = config.get_rl_module_spec()
+    assert spec.model_config.get("include_last_action_in_obs") is False
+    config.validate()
+
+
+def test_cycle_4_factor1_no_action_15m_budget(tmp_path):
+    from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
+        BUDGET_SPEC_FILENAME,
+        _resolve_step_target,
+    )
+
+    module = importlib.import_module(
+        "experiments.two_factor_reward_state_REINFORCE_cycle_4."
+        "reward_factor_1_context32_l3_no_action_15m.experiment"
+    )
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cuda4090"],
+    )
+    with pytest.raises(RuntimeError):
+        module.run(context)
+    budget_path = context.artifacts_dir / BUDGET_SPEC_FILENAME
+    assert budget_path.is_file()
+    payload = json.loads(budget_path.read_text())
+    assert payload["target_agent_steps"] == 15_000_000
+    assert _resolve_step_target(context) == 15_000_000

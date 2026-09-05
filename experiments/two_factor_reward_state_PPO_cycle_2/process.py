@@ -20,6 +20,19 @@ from experiments.two_factor_reward_state_SAC_cycle_2.process import (
 
 
 def environment_config(condition: str) -> dict[str, Any]:
+    return _base_environment_config(condition, include_last_action=True)
+
+
+def environment_config_without_last_action(condition: str) -> dict[str, Any]:
+    """Token-only observations: hide the previous-action one-hot block."""
+    return _base_environment_config(condition, include_last_action=False)
+
+
+def _base_environment_config(
+    condition: str,
+    *,
+    include_last_action: bool,
+) -> dict[str, Any]:
     return {
         "model": {
             "factory": "envs.hmm:factored_model",
@@ -34,7 +47,7 @@ def environment_config(condition: str) -> dict[str, Any]:
         },
         "observation": {
             "token": {"depth": 1},
-            "action": {"depth": 1},
+            "action": {"depth": 1} if include_last_action else None,
         },
         "delay": 0,
         "episode_length": 1024,
