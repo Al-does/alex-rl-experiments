@@ -107,8 +107,13 @@ def collect_probe_data(
     n_steps: int,
     seed: np.random.SeedSequence,
     device: torch.device,
+    env_config: Mapping[str, Any] | None = None,
 ) -> ProbeData:
-    config = environment_config(condition, reward_state)
+    config = (
+        environment_config(condition, reward_state)
+        if env_config is None
+        else dict(env_config)
+    )
     config["diagnostics"] = {"belief": True, "state": True}
     module = module.to(device).eval()
     blocks = module.encoder.blocks

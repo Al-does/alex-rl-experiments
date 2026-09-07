@@ -100,3 +100,11 @@ default. Full Wing budgets are 30 million steps for each single-rewarded-factor
 arm and 50 million for each both-rewarded-factor arm; smoke remains 2,048 steps.
 Temperature scaling must be identical in rollout and PPO likelihoods. Belief
 targets condition on tokens and executed actions, never rewards.
+
+`wing_two_factor_explore_cycle_2` has only `reward_both_state_0` and
+`reward_factor_1_state_0`. It preserves the cycle-1 architecture and budgets,
+sets rotation strength to 1.0, and uses `vf_clip_param=1e9` because RLlib caps
+squared value error rather than the size of a value update. Its probes explicitly
+use the cycle-2 environment. Verify with
+`uv run pytest -q tests/test_wing_two_factor_explore_cycle_2.py`, then smoke either
+leaf using the command above with `cycle_2` substituted for `cycle_1`.
