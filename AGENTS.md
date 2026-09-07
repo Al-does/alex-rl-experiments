@@ -77,3 +77,26 @@ as Cursor dashboard secrets (see `README.md` and `rl-harness/docs/artifact_stora
 ### More context
 
 See `experiments/AGENTS.md` for experiment layout and promotion rules.
+
+### Wing study verification
+
+`wing_two_factor_explore_cycle_1` requires the sibling harness's edge-emitting
+`envs.wing` support; a state-emitting approximation is not equivalent to Wing.
+Its six leaves are `{reward_both,reward_factor_1}_state_{0,1,2}`. From this repo:
+
+```bash
+uv run pytest -q tests/test_wing_two_factor_explore_cycle_1.py tests/test_wing_probe_analysis.py tests/test_wing_design.py
+uv run rl-harness experiments.wing_two_factor_explore_cycle_1.reward_both_state_0.experiment --smoke --hardware cpu --no-upload-artifacts
+uv run python -m experiments.wing_two_factor_explore_cycle_1.design --analytic-only
+```
+
+Omit `--analytic-only` for the deterministic vectorized reference-policy audit
+(no neural-network training). Smoke runs execute checkpoint probing as well as
+PPO updates and write ignored `.smoke/<run-id>/` outputs. The study uses a strict
+32-frame RoPE encoder (base 10,000, applied to queries and keys); the newer banded
+cached transformer's per-layer window is not an equivalent 32-frame receptive
+field. Original reproduction recipes retain learned absolute positions by
+default. Full Wing budgets are 30 million steps for each single-rewarded-factor
+arm and 50 million for each both-rewarded-factor arm; smoke remains 2,048 steps.
+Temperature scaling must be identical in rollout and PPO likelihoods. Belief
+targets condition on tokens and executed actions, never rewards.

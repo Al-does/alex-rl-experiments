@@ -11,6 +11,7 @@ import torch
 from ray.rllib.core.columns import Columns
 from torch import nn
 
+from learners.components.transformer import _apply_rope, _rope_angles
 from learners.models.base import BaseActorCriticModel
 
 
@@ -48,8 +49,10 @@ class FactoredReproductionModelConfig:
             raise ValueError("the paper architecture uses ReLU")
         if self.normalization != "layer_norm":
             raise ValueError("the paper architecture uses LayerNorm")
-        if self.positional_embedding != "learned_absolute":
-            raise ValueError("the paper architecture uses learned positions")
+        if self.positional_embedding not in {"learned_absolute", "rope"}:
+            raise ValueError("positional_embedding must be learned_absolute or rope")
+        if self.positional_embedding == "rope" and (self.d_model // self.n_heads) % 2:
+            raise ValueError("RoPE requires an even head dimension")
 
     @classmethod
     def from_dict(
@@ -70,6 +73,7 @@ class MultiHeadCausalAttention(nn.Module):
         super().__init__()
         self.n_heads = config.n_heads
         self.d_head = config.d_model // config.n_heads
+        self.use_rope = config.positional_embedding == "rope"
         self.qkv = nn.Linear(config.d_model, 3 * config.d_model)
         self.output = nn.Linear(config.d_model, config.d_model)
 
@@ -87,6 +91,9 @@ class MultiHeadCausalAttention(nn.Module):
             self.d_head,
         )
         query, key, value = qkv.permute(2, 0, 3, 1, 4).unbind(0)
+        if self.use_rope:
+            cos, sin = _rope_angles(length, self.d_head, query.device, query.dtype)
+            query, key = _apply_rope(query, cos, sin), _apply_rope(key, cos, sin)
         scores = torch.matmul(query, key.transpose(-1, -2))
         scores = scores / math.sqrt(self.d_head)
         scores = scores.masked_fill(~allowed[:, None, :, :], -torch.inf)
@@ -132,9 +139,10 @@ class ReproductionResidualEncoder(nn.Module):
         self.obs_dim = obs_dim
         self.input_embedding = nn.Linear(obs_dim, config.d_model, bias=False)
         self.bos_embedding = nn.Parameter(torch.empty(config.d_model))
-        self.position_embedding = nn.Embedding(
-            config.context_length,
-            config.d_model,
+        self.position_embedding = (
+            nn.Embedding(config.context_length, config.d_model)
+            if config.positional_embedding == "learned_absolute"
+            else None
         )
         self.blocks = nn.ModuleList(
             ReproductionTransformerBlock(config)
@@ -196,7 +204,8 @@ class ReproductionResidualEncoder(nn.Module):
         hidden = self.input_embedding(flat_windows)
         is_bos = valid & (flat_windows.abs().sum(dim=-1) < 0.5)
         hidden = hidden + is_bos.unsqueeze(-1).to(hidden.dtype) * self.bos_embedding
-        hidden = hidden + self.position_embedding(positions)
+        if self.position_embedding is not None:
+            hidden = hidden + self.position_embedding(positions)
 
         causal = slots.reshape(-1, 1) >= slots.reshape(1, -1)
         allowed = causal.reshape(1, window, window) & valid.reshape(
