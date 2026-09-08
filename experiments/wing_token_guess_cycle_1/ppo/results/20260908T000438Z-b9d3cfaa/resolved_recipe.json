@@ -1,0 +1,82 @@
+{
+  "action_semantics": "four categorical action logits, one per joint Wing token",
+  "algorithm": "clipped PPO",
+  "analysis": "held-out layerwise affine probes of exact delayed Wing beliefs",
+  "checkpoint_schedule": "initial, powers of two iterations, final",
+  "clip_param": 0.2,
+  "condition": "ppo",
+  "context_semantics": "strict last 32 delayed joint-token frames including current",
+  "controls": [
+    "train-mean belief predictor",
+    "current-visible-token belief predictor",
+    "shuffled-label affine probe"
+  ],
+  "entropy_coeff": 0.0,
+  "environment": {
+    "delay": 1,
+    "episode_length": 1024,
+    "model": {
+      "factory": "envs.hmm:factored_model",
+      "kwargs": {
+        "factors": [
+          {
+            "factory": "envs.wing.model:wing_model",
+            "kwargs": {
+              "alpha": 0.94,
+              "x": 0.4
+            }
+          },
+          {
+            "factory": "envs.wing.model:wing_model",
+            "kwargs": {
+              "alpha": 0.94,
+              "x": 0.4
+            }
+          }
+        ]
+      }
+    },
+    "observation": {
+      "action": null,
+      "token": {
+        "depth": 1
+      }
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "experiments.wing_token_guess_cycle_1.task:WingTokenGuessTask"
+    }
+  },
+  "gamma": 0.0,
+  "hypothesis": "PPO can learn the finite-context predictor for the pending two-factor Wing token from delayed token history.",
+  "intended_hardware": "CPU smoke; hardware-profile learner device for full training",
+  "lambda": 0.0,
+  "learning_rate": 0.0001,
+  "minibatch_size": 4096,
+  "model": {
+    "activation": "relu",
+    "context_length": 32,
+    "d_mlp": 256,
+    "d_model": 64,
+    "max_seq_len": 32,
+    "n_heads": 1,
+    "n_layers": 3,
+    "normalization": "layer_norm",
+    "positional_embedding": "rope",
+    "sampling_temperature": 1.0
+  },
+  "num_epochs": 6,
+  "optimizer": "Adam (RLlib default)",
+  "previous_action_in_observation": false,
+  "previous_reward_in_observation": false,
+  "primary_comparison": "initial versus trained token accuracy and linear belief decodability",
+  "reward": "1 when the sampled action equals event.raw_token_before, else 0",
+  "seed": 42,
+  "smoke": false,
+  "stopping_metric": "env_runners/num_env_steps_sampled_lifetime",
+  "study": "wing_token_guess_cycle_1",
+  "total_env_steps": 2500000,
+  "train_batch_size_per_learner": 32768,
+  "use_kl_loss": false,
+  "value_loss_coeff": 0.5
+}
