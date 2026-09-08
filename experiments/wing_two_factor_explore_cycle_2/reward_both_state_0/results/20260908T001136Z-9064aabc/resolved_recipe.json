@@ -1,0 +1,854 @@
+{
+  "action_pairs_by_flat_index": [
+    [
+      0,
+      0
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      2
+    ],
+    [
+      1,
+      0
+    ],
+    [
+      1,
+      1
+    ],
+    [
+      1,
+      2
+    ],
+    [
+      2,
+      0
+    ],
+    [
+      2,
+      1
+    ],
+    [
+      2,
+      2
+    ]
+  ],
+  "algorithm": "clipped PPO with shared actor-critic encoder",
+  "analytic_design": {
+    "alpha": 0.94,
+    "audit_defaults": {
+      "burn_in": 512,
+      "chains": 2048,
+      "default_policy_equivalence": "Default fully observed Q is a positive affine transform of myopic arrival scores, so full_qmdp and full_myopic are the same policy apart from numerical ties; their simulations use independent seeds.",
+      "filter": "action-aware Bayes on action/token history, without reward observations",
+      "gamma": 0.99,
+      "initialization": "uniform hidden state and belief; no initial token, burn-in discarded; no episode resets",
+      "limitation": "QMDP uses fully observed discounted arrival Q, not optimal POMDP Q; evaluation is average reward",
+      "modes": [
+        "full_qmdp",
+        "full_myopic",
+        "suffix_1_qmdp",
+        "suffix_32_qmdp"
+      ],
+      "mse": "on-policy suffix posterior minus full posterior; mean squared error per coordinate and null projection",
+      "seed": 20260901,
+      "standard_error": "sample standard deviation of independent chain means / sqrt(chains)",
+      "steps": 4096,
+      "suffix": "restart uniform stationary before oldest of last W generating-action/token frames",
+      "suffix_length": 32
+    },
+    "b": 0.030000000000000027,
+    "baseline_scope": "Infinite-horizon stationary average reward, one factor. Best reactive means deterministic current-token-only policies (9), not policies using previous actions or randomized memoryless policies. Oracle enumerates 27 deterministic hidden-state policies; all default chains are unichain. The study averages rewarded-factor indicators, so joint expected reward averages the selected per-factor values rather than summing them.",
+    "baselines": {
+      "constant_occupancies": [
+        [
+          0.3333333333333334,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        [
+          0.33333333333333337,
+          0.33333333333333337,
+          0.3333333333333333
+        ],
+        [
+          0.33333333333333337,
+          0.33333333333333337,
+          0.3333333333333333
+        ]
+      ],
+      "oracle_policies": [
+        {
+          "occupancy": [
+            0.3333333333333334,
+            0.3333333333333333,
+            0.3333333333333333
+          ],
+          "policy": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "occupancy": [
+            0.6366666666666667,
+            0.3333333333333333,
+            0.030000000000000027
+          ],
+          "policy": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "occupancy": [
+            0.33333333333333337,
+            0.6366666666666666,
+            0.030000000000000027
+          ],
+          "policy": [
+            0,
+            0,
+            2
+          ]
+        },
+        {
+          "occupancy": [
+            0.33333333333333337,
+            0.030000000000000027,
+            0.6366666666666666
+          ],
+          "policy": [
+            0,
+            1,
+            0
+          ]
+        },
+        {
+          "occupancy": [
+            0.9127,
+            0.030000000000000027,
+            0.057300000000000045
+          ],
+          "policy": [
+            0,
+            1,
+            1
+          ]
+        },
+        {
+          "occupancy": [
+            0.3333333333333335,
+            0.33333333333333326,
+            0.33333333333333326
+          ],
+          "policy": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "occupancy": [
+            0.6366666666666667,
+            0.030000000000000027,
+            0.3333333333333333
+          ],
+          "policy": [
+            0,
+            2,
+            0
+          ]
+        },
+        {
+          "occupancy": [
+            0.94,
+            0.030000000000000027,
+            0.030000000000000027
+          ],
+          "policy": [
+            0,
+            2,
+            1
+          ]
+        },
+        {
+          "occupancy": [
+            0.9127,
+            0.057300000000000045,
+            0.030000000000000027
+          ],
+          "policy": [
+            0,
+            2,
+            2
+          ]
+        },
+        {
+          "occupancy": [
+            0.030000000000000027,
+            0.6366666666666667,
+            0.3333333333333333
+          ],
+          "policy": [
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "occupancy": [
+            0.05730000000000002,
+            0.9127,
+            0.030000000000000027
+          ],
+          "policy": [
+            1,
+            0,
+            1
+          ]
+        },
+        {
+          "occupancy": [
+            0.030000000000000027,
+            0.94,
+            0.030000000000000027
+          ],
+          "policy": [
+            1,
+            0,
+            2
+          ]
+        },
+        {
+          "occupancy": [
+            0.03000000000000006,
+            0.057300000000000094,
+            0.9126999999999998
+          ],
+          "policy": [
+            1,
+            1,
+            0
+          ]
+        },
+        {
+          "occupancy": [
+            0.33333333333333337,
+            0.33333333333333337,
+            0.3333333333333333
+          ],
+          "policy": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "occupancy": [
+            0.02999999999999997,
+            0.49214659685863876,
+            0.47785340314136127
+          ],
+          "policy": [
+            1,
+            1,
+            2
+          ]
+        },
+        {
+          "occupancy": [
+            0.33333333333333337,
+            0.33333333333333337,
+            0.3333333333333333
+          ],
+          "policy": [
+            1,
+            2,
+            0
+          ]
+        },
+        {
+          "occupancy": [
+            0.4921465968586387,
+            0.47785340314136127,
+            0.030000000000000027
+          ],
+          "policy": [
+            1,
+            2,
+            1
+          ]
+        },
+        {
+          "occupancy": [
+            0.4778534031413612,
+            0.49214659685863876,
+            0.030000000000000027
+          ],
+          "policy": [
+            1,
+            2,
+            2
+          ]
+        },
+        {
+          "occupancy": [
+            0.030000000000000027,
+            0.33333333333333337,
+            0.6366666666666666
+          ],
+          "policy": [
+            2,
+            0,
+            0
+          ]
+        },
+        {
+          "occupancy": [
+            0.33333333333333337,
+            0.33333333333333337,
+            0.3333333333333333
+          ],
+          "policy": [
+            2,
+            0,
+            1
+          ]
+        },
+        {
+          "occupancy": [
+            0.030000000000000027,
+            0.9127,
+            0.057300000000000045
+          ],
+          "policy": [
+            2,
+            0,
+            2
+          ]
+        },
+        {
+          "occupancy": [
+            0.030000000000000027,
+            0.030000000000000027,
+            0.94
+          ],
+          "policy": [
+            2,
+            1,
+            0
+          ]
+        },
+        {
+          "occupancy": [
+            0.47785340314136127,
+            0.030000000000000027,
+            0.49214659685863876
+          ],
+          "policy": [
+            2,
+            1,
+            1
+          ]
+        },
+        {
+          "occupancy": [
+            0.030000000000000027,
+            0.47785340314136127,
+            0.49214659685863876
+          ],
+          "policy": [
+            2,
+            1,
+            2
+          ]
+        },
+        {
+          "occupancy": [
+            0.057299999999999976,
+            0.029999999999999954,
+            0.9127000000000001
+          ],
+          "policy": [
+            2,
+            2,
+            0
+          ]
+        },
+        {
+          "occupancy": [
+            0.4921465968586387,
+            0.03000000000000001,
+            0.47785340314136127
+          ],
+          "policy": [
+            2,
+            2,
+            1
+          ]
+        },
+        {
+          "occupancy": [
+            0.33333333333333337,
+            0.33333333333333337,
+            0.3333333333333333
+          ],
+          "policy": [
+            2,
+            2,
+            2
+          ]
+        }
+      ],
+      "reactive_policies": [
+        {
+          "occupancy": [
+            0.33333333333333337,
+            0.33333333333333337,
+            0.3333333333333333
+          ],
+          "policy": [
+            0,
+            0
+          ]
+        },
+        {
+          "occupancy": [
+            0.29493925225524725,
+            0.30395702327589774,
+            0.401103724468855
+          ],
+          "policy": [
+            0,
+            1
+          ]
+        },
+        {
+          "occupancy": [
+            0.40128614934541207,
+            0.30278635157964356,
+            0.2959274990749445
+          ],
+          "policy": [
+            0,
+            2
+          ]
+        },
+        {
+          "occupancy": [
+            0.32570036809151526,
+            0.1148930287338785,
+            0.5594066031746062
+          ],
+          "policy": [
+            1,
+            0
+          ]
+        },
+        {
+          "occupancy": [
+            0.3333333333333333,
+            0.3333333333333333,
+            0.33333333333333337
+          ],
+          "policy": [
+            1,
+            1
+          ]
+        },
+        {
+          "occupancy": [
+            0.3781802595775342,
+            0.37495225918600295,
+            0.24686748123646285
+          ],
+          "policy": [
+            1,
+            2
+          ]
+        },
+        {
+          "occupancy": [
+            0.3017508126851575,
+            0.07383328276574164,
+            0.6244159045491008
+          ],
+          "policy": [
+            2,
+            0
+          ]
+        },
+        {
+          "occupancy": [
+            0.24163553370613128,
+            0.3805947287013492,
+            0.37776973759251953
+          ],
+          "policy": [
+            2,
+            1
+          ]
+        },
+        {
+          "occupancy": [
+            0.33333333333333337,
+            0.33333333333333337,
+            0.33333333333333337
+          ],
+          "policy": [
+            2,
+            2
+          ]
+        }
+      ],
+      "reward_states": {
+        "0": {
+          "best_constant": 0.3333333333333334,
+          "best_reactive": 0.40128614934541207,
+          "best_reactive_policy": [
+            0,
+            2
+          ],
+          "oracle_policy": [
+            0,
+            2,
+            1
+          ],
+          "oracle_upper_bound": 0.94
+        },
+        "1": {
+          "best_constant": 0.33333333333333337,
+          "best_reactive": 0.3805947287013492,
+          "best_reactive_policy": [
+            2,
+            1
+          ],
+          "oracle_policy": [
+            1,
+            0,
+            2
+          ],
+          "oracle_upper_bound": 0.94
+        },
+        "2": {
+          "best_constant": 0.3333333333333333,
+          "best_reactive": 0.6244159045491008,
+          "best_reactive_policy": [
+            2,
+            0
+          ],
+          "oracle_policy": [
+            2,
+            1,
+            0
+          ],
+          "oracle_upper_bound": 0.94
+        }
+      }
+    },
+    "identifiability": {
+      "action_emission_maps": [
+        [
+          [
+            0.030000000000000027,
+            0.97
+          ],
+          [
+            0.391,
+            0.609
+          ],
+          [
+            0.030000000000000027,
+            0.97
+          ]
+        ],
+        [
+          [
+            0.030000000000000027,
+            0.97
+          ],
+          [
+            0.391,
+            0.609
+          ],
+          [
+            0.030000000000000027,
+            0.97
+          ]
+        ],
+        [
+          [
+            0.030000000000000027,
+            0.97
+          ],
+          [
+            0.391,
+            0.609
+          ],
+          [
+            0.030000000000000027,
+            0.97
+          ]
+        ]
+      ],
+      "action_emission_ranks": [
+        2,
+        2,
+        2
+      ],
+      "arrival_reward_contrast_by_action": [
+        [
+          0.6434671708797581,
+          0.0,
+          -0.6434671708797581
+        ],
+        [
+          -0.6434671708797581,
+          0.6434671708797581,
+          0.0
+        ],
+        [
+          0.0,
+          -0.6434671708797581,
+          0.6434671708797581
+        ]
+      ],
+      "hidden_null_direction": [
+        0.7071067811865475,
+        0.0,
+        -0.7071067811865475
+      ],
+      "interpretation": "States 0 and 2 have identical next-token distributions for every action; one-step NTP does not identify their belief contrast. This null is not an invariant unobservable subspace of the edge dynamics: two-step token distributions can distinguish it. Arrival rewards for states 0 and 2 are sensitive to this contrast. State 1 remains a valid comparison.",
+      "max_one_step_null_residual": 0.0,
+      "max_two_step_token_difference": 0.23994961512784296
+    },
+    "kernel_convention": "K[action, token, source, arrival] = K[token] @ C[action]",
+    "kernels": [
+      [
+        [
+          [
+            0.0,
+            0.030000000000000027,
+            0.0
+          ],
+          [
+            0.0,
+            0.376,
+            0.015000000000000013
+          ],
+          [
+            0.030000000000000027,
+            0.0,
+            0.0
+          ]
+        ],
+        [
+          [
+            0.94,
+            0.0,
+            0.030000000000000027
+          ],
+          [
+            0.030000000000000027,
+            0.564,
+            0.015000000000000013
+          ],
+          [
+            0.0,
+            0.030000000000000027,
+            0.94
+          ]
+        ]
+      ],
+      [
+        [
+          [
+            0.0,
+            0.0,
+            0.030000000000000027
+          ],
+          [
+            0.015000000000000013,
+            0.0,
+            0.376
+          ],
+          [
+            0.0,
+            0.030000000000000027,
+            0.0
+          ]
+        ],
+        [
+          [
+            0.030000000000000027,
+            0.94,
+            0.0
+          ],
+          [
+            0.015000000000000013,
+            0.030000000000000027,
+            0.564
+          ],
+          [
+            0.94,
+            0.0,
+            0.030000000000000027
+          ]
+        ]
+      ],
+      [
+        [
+          [
+            0.030000000000000027,
+            0.0,
+            0.0
+          ],
+          [
+            0.376,
+            0.015000000000000013,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.030000000000000027
+          ]
+        ],
+        [
+          [
+            0.0,
+            0.030000000000000027,
+            0.94
+          ],
+          [
+            0.564,
+            0.015000000000000013,
+            0.030000000000000027
+          ],
+          [
+            0.030000000000000027,
+            0.94,
+            0.0
+          ]
+        ]
+      ]
+    ],
+    "reward_convention": "indicator of arrival state, per rewarded factor",
+    "strength": 1.0,
+    "x": 0.4
+  },
+  "budget_semantics": "stop after crossing threshold at a complete training iteration",
+  "changes_from_cycle_1": {
+    "control_strength": {
+      "after": 1.0,
+      "before": 0.15
+    },
+    "reward_placements": [
+      0
+    ],
+    "vf_clip_param": {
+      "after": 1000000000.0,
+      "before": 10.0
+    }
+  },
+  "checkpoint_schedule": "initial, powers of two iterations, final",
+  "clip_param": 0.2,
+  "condition": "reward_both",
+  "context_semantics": "strict last 32 joint-token/previous-action frames including current",
+  "control_semantics": "hold or deterministically rotate the stochastic Wing edge destination by +1/-1 modulo 3",
+  "entropy_coeff": 0.003,
+  "environment": {
+    "delay": 0,
+    "episode_length": 1024,
+    "model": {
+      "factory": "envs.hmm:factored_model",
+      "kwargs": {
+        "factors": [
+          {
+            "factory": "envs.wing.model:wing_model",
+            "kwargs": {
+              "alpha": 0.94,
+              "x": 0.4
+            }
+          },
+          {
+            "factory": "envs.wing.model:wing_model",
+            "kwargs": {
+              "alpha": 0.94,
+              "x": 0.4
+            }
+          }
+        ]
+      }
+    },
+    "observation": {
+      "action": {
+        "depth": 1
+      },
+      "token": {
+        "depth": 1
+      }
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "envs.wing.tasks.reward_state:WingRewardTask",
+      "kwargs": {
+        "alpha": 0.94,
+        "reward_state": 0,
+        "rewarded_factors": [
+          0,
+          1
+        ],
+        "strength": 1.0,
+        "x": 0.4
+      }
+    }
+  },
+  "factor_action_labels": [
+    "hold",
+    "rotate_plus",
+    "rotate_minus"
+  ],
+  "gamma": 0.99,
+  "grad_clip_global_norm": 0.5,
+  "hypothesis": "selective reward increases rewarded-factor belief decodability",
+  "interpretation": "Belief MSE alone is not evidence of causal use. Compare normalized MSE, NTP/log-NTP and shuffled controls, especially the NTP-invisible p0-p2 direction.",
+  "lambda": 0.95,
+  "learning_rate": 0.0003,
+  "minibatch_size": 512,
+  "model": {
+    "activation": "relu",
+    "context_length": 32,
+    "d_mlp": 256,
+    "d_model": 64,
+    "max_seq_len": 32,
+    "n_heads": 1,
+    "n_layers": 3,
+    "normalization": "layer_norm",
+    "positional_embedding": "rope",
+    "sampling_temperature": 1.5
+  },
+  "num_epochs": 6,
+  "optimizer": "Adam (RLlib default)",
+  "previous_reward_in_observation": false,
+  "probe_schedule": "all saved checkpoints after training, independent train/test streams",
+  "reward": "mean arrival-state indicator over rewarded factors; range [0,1]",
+  "reward_state": 0,
+  "seed": 42,
+  "smoke": false,
+  "study": "wing_two_factor_explore_cycle_2",
+  "temperature_semantics": "logits divided by 1.5 in rollout, PPO likelihoods, and stochastic probes",
+  "total_env_steps": 50000000,
+  "train_batch_size_per_learner": 8192,
+  "use_kl_loss": false,
+  "value_clip_param": 1000000000.0,
+  "value_clip_semantics": "effectively uncapped squared value error; global gradient clipping retained",
+  "value_loss_coeff": 0.5
+}
