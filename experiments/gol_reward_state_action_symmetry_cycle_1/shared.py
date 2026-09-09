@@ -8,6 +8,9 @@ from typing import Any
 from ray import tune
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
+from ray.rllib.env.single_agent_env_runner import SingleAgentEnvRunner
+from ray.rllib.utils.annotations import override
+from ray.rllib.utils.typing import ResultDict
 
 from envs.hmm import HMMEnv
 from experiments.factored_representations_reproduction_PPO_2026_08.shared import (
@@ -34,6 +37,31 @@ SMOKE_MINIBATCH_SIZE = 128
 MODEL_CONFIG = TransformerModelConfig(
     d_model=96, n_layers=3, n_heads=4, context_len=64,
 ).to_dict()
+
+
+class ContinuingSingleAgentEnvRunner(SingleAgentEnvRunner):
+    """SingleAgentEnvRunner that drops the ongoing-episode metrics cache for
+    continuing tasks.
+
+    RLlib's new API stack keeps every returned episode chunk in
+    ``_ongoing_episodes_for_metrics`` so that, when an episode eventually ends,
+    it can reconstruct full-episode metrics from the prior chunks.  For
+    non-terminating (``episode_length=None``) environments the ending never
+    arrives, so this cache grows without bound.  Stateful models that return
+    ``state_out`` (e.g. transformer KV caches) make the leak severe: each step
+    stores the full KV state, and after millions of steps the worker exhausts
+    memory and the box becomes unresponsive.  For these environments the cache
+    can be safely discarded because there are no done episodes to reconstruct
+    metrics from.
+    """
+
+    @override(SingleAgentEnvRunner)
+    def get_metrics(self) -> ResultDict:
+        result = super().get_metrics()
+        env_config = getattr(self.config, "env_config", None)
+        if env_config is not None and env_config.get("episode_length", "unset") is None:
+            self._ongoing_episodes_for_metrics.clear()
+        return result
 
 
 def build_config(context: RunContext, variant: int, *, speed: str = SPEED) -> PPOConfig:
@@ -79,6 +107,7 @@ def build_config(context: RunContext, variant: int, *, speed: str = SPEED) -> PP
         )
         .debugging(seed=context.seed)
         .env_runners(
+            env_runner_cls=ContinuingSingleAgentEnvRunner,
             batch_mode="truncate_episodes",
             num_env_runners=0 if context.smoke else resolve_env_runners(profile, default=16),
             num_envs_per_env_runner=1 if context.smoke else profile.num_envs_per_env_runner,
