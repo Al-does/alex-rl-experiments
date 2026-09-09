@@ -20,6 +20,7 @@ from experiments.gol_reward_state_action_symmetry_cycle_1.process import SPEED, 
 from experiments.storage.training_curves import write_training_curves
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
+from harness.env_runners import ContinuingSingleAgentEnvRunner
 from harness.hardware import PROFILES, resolve_env_runners
 from harness.runners import run_tune
 from learners.models.transformer import TransformerModel, TransformerModelConfig
@@ -79,6 +80,7 @@ def build_config(context: RunContext, variant: int, *, speed: str = SPEED) -> PP
         )
         .debugging(seed=context.seed)
         .env_runners(
+            env_runner_cls=ContinuingSingleAgentEnvRunner,
             batch_mode="truncate_episodes",
             num_env_runners=0 if context.smoke else resolve_env_runners(profile, default=16),
             num_envs_per_env_runner=1 if context.smoke else profile.num_envs_per_env_runner,
@@ -120,6 +122,8 @@ def resolved_recipe(context: RunContext, variant: int, *, speed: str = SPEED) ->
         "filter_conditions_on_reward": False,
         "reset": "Sample stationary uniform-action prior; zero-padded start observation; no emission or reward.",
         "rollout_boundaries": "Continuing task; truncate batches with bootstrap, not environments or filter/model contexts.",
+        "env_runner": "harness.env_runners:ContinuingSingleAgentEnvRunner",
+        "episode_metrics_retention": "Release metrics-only chunk references after each sample; no completed-episode metrics for this continuing task.",
         "total_env_steps": SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS,
         "budget_semantics": "Stop after crossing the threshold at a complete training iteration; full budget is an untuned starting point.",
         "checkpoint_schedule": "Exact trained initialization, powers of two training iterations, final.",

@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 
 from harness.context import RunContext
+from harness.env_runners import ContinuingSingleAgentEnvRunner
 from harness.hardware import PROFILES
 
 
@@ -34,6 +35,7 @@ def test_fresh_ppo_configs_and_observation_contract(tmp_path, variant, speed):
     assert config.gamma == 0.99
     assert config.lambda_ == 0.95
     assert config.batch_mode == "truncate_episodes"
+    assert config.env_runner_cls is ContinuingSingleAgentEnvRunner
     assert config.train_batch_size_per_learner == 1024
     assert config.minibatch_size == 128
     assert config.env_config["episode_length"] is None
@@ -60,6 +62,7 @@ def test_fresh_ppo_configs_and_observation_contract(tmp_path, variant, speed):
     finally:
         env.close()
     full = leaf.build_config(replace(context, smoke=False))
+    assert full.env_runner_cls is ContinuingSingleAgentEnvRunner
     assert full.env_config == config.env_config
     assert full.rl_module_spec.model_config == config.rl_module_spec.model_config
 
@@ -172,3 +175,45 @@ def test_leaf_propagates_speed_and_budget_to_training_and_probes(tmp_path, monke
     recipe = json.loads((context.results_dir / "resolved_recipe.json").read_text())
     assert recipe["analytic_design"]["speed"] == speed
     assert recipe["total_env_steps"] == expected_steps
+
+
+@pytest.mark.parametrize("variant", (2, 3))
+@pytest.mark.parametrize("speed", ("half", "quarter"))
+def test_continuing_runner_preserves_exact_belief_across_chunks(tmp_path, variant, speed):
+    import torch
+    from envs.gol.model import controlled_kernels, gol_model
+    from envs.hmm import condition_edge
+
+    shared = importlib.import_module(f"{STUDY}.shared")
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        smoke=True,
+    )
+    config = shared.build_config(context, variant, speed=speed)
+    config.env_config["diagnostics"] = {"belief": True, "tokens": True, "transitions": True}
+    previous_threads = torch.get_num_threads()
+    torch.set_num_threads(1)
+    runner = config.env_runner_cls(config=config)
+    try:
+        belief = gol_model(variant=variant, speed=speed).initial_distribution
+        kernels = controlled_kernels(variant=variant, speed=speed)
+        episode_id = None
+        for sample in range(8):
+            chunks = runner.sample(num_timesteps=8, explore=False)
+            assert len(chunks) == 1
+            chunk = chunks[0]
+            episode_id = chunk.id_ if episode_id is None else episode_id
+            assert chunk.id_ == episode_id and not chunk.is_done
+            np.testing.assert_allclose(chunk.get_infos(0)["belief_current"], belief)
+            for index, action in enumerate(chunk.get_actions()):
+                info = chunk.get_infos(index + 1)
+                assert info["transition_step"] == sample * 8 + index
+                belief = condition_edge(belief, kernels[action], info["raw_token_current"])
+                np.testing.assert_allclose(info["belief_current"], belief, atol=1e-13)
+            assert not runner._ongoing_episodes_for_metrics
+            runner.get_metrics()
+    finally:
+        runner.stop()
+        torch.set_num_threads(previous_threads)

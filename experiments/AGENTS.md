@@ -104,3 +104,13 @@ posterior. The previous-action/latest-token controller is a myopic fit-history
 lookup, not an optimized long-run controller; shuffled histories deliberately
 break target alignment. Full-information occupancy bounds are not certified
 Bayes-optimal POMDP benchmarks, and smoke scores are not research findings.
+
+All four Gol recipes select the shared
+`harness.env_runners.ContinuingSingleAgentEnvRunner`. RLlib's default runner
+retains past chunks for completed-episode metrics; never-ending trajectories
+therefore retain transformer state arrays without bound. The shared runner
+releases metrics-only references after each sampling call, without resetting
+the environment, filter, or recurrent context or altering training chunks.
+It deliberately rejects episode-based sampling and unexpectedly ending tasks.
+The runner choice is recorded in `resolved_recipe.json`; the 2.5M-step full
+budget and 2,048-step smoke budget are unchanged.
