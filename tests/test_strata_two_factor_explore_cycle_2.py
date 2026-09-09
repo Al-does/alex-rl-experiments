@@ -63,8 +63,10 @@ def test_recipe_preserves_cycle_2_training_choices(context, condition):
         == "envs.strata.tasks.reward_state:StrataRewardTask"
     )
     assert config.rl_module_spec.model_config == old.rl_module_spec.model_config
-    for name in ("lr", "gamma", "lambda_", "clip_param", "grad_clip", "vf_loss_coeff", "entropy_coeff", "num_epochs", "minibatch_size", "train_batch_size_per_learner"):
+    for name in ("lr", "gamma", "lambda_", "clip_param", "grad_clip", "vf_loss_coeff", "entropy_coeff", "num_epochs"):
         assert getattr(config, name) == getattr(old, name)
+    assert config.train_batch_size_per_learner == old.train_batch_size_per_learner == 1024
+    assert config.minibatch_size == old.minibatch_size == 128
     report = shared.resolved_recipe(context, condition)
     assert report["study"] == "strata_two_factor_explore_cycle_2"
     assert report["value_clip_param"] == 1e9
@@ -81,6 +83,8 @@ def test_recipe_preserves_cycle_2_training_choices(context, condition):
     assert report["total_env_steps"] == 2048
     full = shared.resolved_recipe(replace(context, smoke=False), condition)
     assert full["total_env_steps"] == (50_000_000 if condition == "reward_both" else 30_000_000)
+    assert full["train_batch_size_per_learner"] == shared.TRAIN_BATCH_SIZE == 32_768
+    assert full["minibatch_size"] == shared.MINIBATCH_SIZE == 4_096
     assert full["previous_reward_in_observation"] is False
 
 

@@ -29,13 +29,23 @@ from harness.runners import run_tune
 VALUE_CLIP_PARAM = 1e9
 TOTAL_ENV_STEPS = dict(cycle_1.TOTAL_ENV_STEPS)
 SMOKE_ENV_STEPS = cycle_1.SMOKE_ENV_STEPS
+TRAIN_BATCH_SIZE = 32_768
+MINIBATCH_SIZE = 4_096
 
 
 def build_config(context: RunContext, condition: str) -> PPOConfig:
     config = cycle_1.build_config(context, condition, REWARD_STATE)
     config.environment(HMMEnv)
     config.env_config = environment_config(condition)
-    return config.training(vf_clip_param=VALUE_CLIP_PARAM)
+    return config.training(
+        vf_clip_param=VALUE_CLIP_PARAM,
+        train_batch_size_per_learner=(
+            cycle_1.SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
+        ),
+        minibatch_size=(
+            cycle_1.SMOKE_MINIBATCH_SIZE if context.smoke else MINIBATCH_SIZE
+        ),
+    )
 
 
 def resolved_recipe(context: RunContext, condition: str) -> dict[str, Any]:
@@ -53,6 +63,12 @@ def resolved_recipe(context: RunContext, condition: str) -> dict[str, Any]:
         ),
         "environment": environment_config(condition),
         "value_clip_param": VALUE_CLIP_PARAM,
+        "train_batch_size_per_learner": (
+            cycle_1.SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
+        ),
+        "minibatch_size": (
+            cycle_1.SMOKE_MINIBATCH_SIZE if context.smoke else MINIBATCH_SIZE
+        ),
         "value_clip_semantics": "effectively uncapped squared value error; global gradient clipping retained",
         "analytic_design": design_summary(
             alpha=STRATA_ALPHA,
