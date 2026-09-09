@@ -48,7 +48,7 @@ MODEL_CONFIG = {
         max_seq_len=32,
         positional_embedding="rope",
     ).to_dict(),
-    "sampling_temperature": 1.0,
+    "sampling_temperature": 1.5,
 }
 
 

@@ -196,7 +196,7 @@ def test_fresh_gamma_zero_ppo_config_and_smoke_recipe(tmp_path):
     assert config.rl_module_spec.module_class is WingActorCritic
     assert config.rl_module_spec.model_config["context_length"] == CONTEXT_LENGTH
     assert config.rl_module_spec.model_config["positional_embedding"] == "rope"
-    assert config.rl_module_spec.model_config["sampling_temperature"] == 1.0
+    assert config.rl_module_spec.model_config["sampling_temperature"] == 1.5
     recipe = resolved_recipe(context)
     assert recipe["study"] == "wing_token_guess_cycle_2"
     assert recipe["environment"]["model"] == {
