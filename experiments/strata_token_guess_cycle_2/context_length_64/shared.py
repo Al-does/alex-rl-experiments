@@ -32,9 +32,9 @@ from harness.runners import run_tune
 
 TOTAL_ENV_STEPS = 2_500_000
 SMOKE_ENV_STEPS = 4_096
-TRAIN_BATCH_SIZE = 32_768
+TRAIN_BATCH_SIZE = 16_384
 SMOKE_BATCH_SIZE = 2_048
-MINIBATCH_SIZE = 4_096
+MINIBATCH_SIZE = 2_048
 SMOKE_MINIBATCH_SIZE = 256
 LEARNING_RATE = 1e-4
 NUM_EPOCHS = 6
@@ -59,12 +59,7 @@ def build_config(context: RunContext) -> PPOConfig:
         .environment(HMMEnv, env_config=environment_config())
         .framework(
             "torch",
-            torch_compile_learner=(
-                not context.smoke and profile.learner_device == "cuda"
-            ),
-            torch_compile_learner_what_to_compile="forward_train",
-            torch_compile_learner_dynamo_backend="inductor",
-            torch_compile_learner_dynamo_mode="reduce-overhead",
+            torch_compile_learner=False,
             torch_compile_worker=False,
         )
         .training(

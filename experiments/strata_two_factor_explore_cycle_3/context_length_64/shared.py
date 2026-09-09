@@ -37,8 +37,8 @@ from harness.runners import run_tune
 VALUE_CLIP_PARAM = 1e9
 TOTAL_ENV_STEPS = dict(cycle_1.TOTAL_ENV_STEPS)
 SMOKE_ENV_STEPS = cycle_1.SMOKE_ENV_STEPS
-TRAIN_BATCH_SIZE = 32_768
-MINIBATCH_SIZE = 4_096
+TRAIN_BATCH_SIZE = 8_192
+MINIBATCH_SIZE = 512
 
 MODEL_CONFIG = {
     **FactoredReproductionModelConfig(
