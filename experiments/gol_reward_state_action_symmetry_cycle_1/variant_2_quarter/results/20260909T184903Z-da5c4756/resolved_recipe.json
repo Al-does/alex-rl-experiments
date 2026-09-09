@@ -1,0 +1,205 @@
+{
+  "algorithm": "PPO",
+  "analytic_design": {
+    "actions": [
+      "a1",
+      "a2",
+      "aE",
+      "aS"
+    ],
+    "benchmark_scope": "Full-information long-run bounds, not certified Bayes-optimal POMDP rewards.",
+    "marginal_null_direction": [
+      0,
+      0,
+      1,
+      -1
+    ],
+    "spec_version": "1.0",
+    "speed": "quarter",
+    "states": [
+      "M1",
+      "M2",
+      "E",
+      "S"
+    ],
+    "variant_2_exact_quotient_error": 0.0,
+    "variant_3_aggregation_error": 0.07500000000000001,
+    "variants": {
+      "variant_2": {
+        "constant_action_occupancies": [
+          0.15764925373134292,
+          0.05028265397203263,
+          0.13422818791946162,
+          0.1743827160493808
+        ],
+        "full_information_occupancy_upper_bound": 0.3564668769716089,
+        "full_information_policy": [
+          0,
+          0,
+          2,
+          3
+        ],
+        "marginal_null_error": 1.1102230246251565e-16,
+        "reset_prior": [
+          0.2776091389378061,
+          0.5042288441931619,
+          0.11901589581981586,
+          0.09914612104921625
+        ],
+        "reward_prediction_matrix": [
+          [
+            0.1,
+            0.025,
+            0.025,
+            0.025
+          ],
+          [
+            0.1,
+            0.025,
+            0.025,
+            0.025
+          ],
+          [
+            0.3,
+            0.3,
+            0.49,
+            0.465
+          ],
+          [
+            0.3,
+            0.3,
+            0.49,
+            0.465
+          ]
+        ],
+        "reward_prediction_rank": 2,
+        "uniform_random_action_occupancy": 0.11901589581981586
+      },
+      "variant_3": {
+        "constant_action_occupancies": [
+          0.06140988372093045,
+          0.10053539559785753,
+          0.13422818791946162,
+          0.1743827160493808
+        ],
+        "full_information_occupancy_upper_bound": 0.3564668769716089,
+        "full_information_policy": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "marginal_null_error": 1.1102230246251565e-16,
+        "reset_prior": [
+          0.2776091389378061,
+          0.5042288441931619,
+          0.11901589581981586,
+          0.09914612104921625
+        ],
+        "reward_prediction_matrix": [
+          [
+            0.1,
+            0.025,
+            0.025,
+            0.025
+          ],
+          [
+            0.025,
+            0.1,
+            0.025,
+            0.025
+          ],
+          [
+            0.3,
+            0.3,
+            0.49,
+            0.465
+          ],
+          [
+            0.3,
+            0.3,
+            0.49,
+            0.465
+          ]
+        ],
+        "reward_prediction_rank": 3,
+        "uniform_random_action_occupancy": 0.11901589581981586
+      }
+    }
+  },
+  "budget_semantics": "Stop after crossing the threshold at a complete training iteration; full budget is an untuned starting point.",
+  "checkpoint_schedule": "Exact trained initialization, powers of two training iterations, final.",
+  "clip_param": 0.2,
+  "condition": "variant_2",
+  "context_semantics": "Banded causal transformer; 64 frames per layer, not a strict 64-frame total receptive field.",
+  "entropy_coeff": 0.003,
+  "environment": {
+    "delay": 0,
+    "episode_length": null,
+    "model": {
+      "factory": "envs.gol.model:gol_model",
+      "kwargs": {
+        "speed": "quarter",
+        "variant": 2
+      }
+    },
+    "observation": {
+      "action": {
+        "depth": 1,
+        "offset": 0
+      },
+      "belief": false,
+      "hidden_state": false,
+      "token": {
+        "depth": 1,
+        "offset": 0
+      }
+    },
+    "randomize_first_episode_length": false,
+    "reset_emission": false,
+    "task": {
+      "class": "envs.gol.tasks.reward_state:GolRewardTask",
+      "kwargs": {
+        "speed": "quarter",
+        "variant": 2
+      }
+    }
+  },
+  "filter_conditions_on_reward": false,
+  "gamma": 0.99,
+  "grad_clip_global_norm": 0.5,
+  "interpretation": "Smoke verifies execution only; belief decodability does not establish causal use or optimal control.",
+  "lambda": 0.95,
+  "learning_rate": 0.00042,
+  "minibatch_size": 2048,
+  "model": {
+    "context_len": 64,
+    "d_model": 96,
+    "max_seq_len": 32,
+    "n_heads": 4,
+    "n_layers": 3
+  },
+  "num_epochs": 6,
+  "previous_reward_in_observation": false,
+  "probe_controls": [
+    "initial_untrained_network",
+    "previous_action_latest_token",
+    "next_token_reward_marginals",
+    "shuffled_history"
+  ],
+  "probe_target": "Decision-time destination posterior b_t from actions and tokens only.",
+  "reference_recipe": "mess3_reward_state_action_symmetry_cycle_4 PPO",
+  "reset": "Sample stationary uniform-action prior; zero-padded start observation; no emission or reward.",
+  "reward": "1[destination_state=E]",
+  "rollout_boundaries": "Continuing task; truncate batches with bootstrap, not environments or filter/model contexts.",
+  "seed": 42,
+  "smoke": false,
+  "speed": "quarter",
+  "study": "gol_reward_state_action_symmetry_cycle_1",
+  "total_env_steps": 7500000,
+  "train_batch_size_per_learner": 32768,
+  "use_kl_loss": false,
+  "value_clip_param": 1000000000.0,
+  "value_loss_coeff": 0.5,
+  "variant": 2
+}
