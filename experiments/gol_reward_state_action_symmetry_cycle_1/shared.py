@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from collections.abc import Callable
 from dataclasses import replace
 from functools import partial
 from pathlib import Path
@@ -14,6 +16,7 @@ from ray.rllib.utils.typing import ResultDict
 
 from envs.hmm import HMMEnv
 from experiments.factored_representations_reproduction_PPO_2026_08.shared import (
+    _metric,
     _save_initial_checkpoint,
     _save_log_spaced_checkpoint,
     checkpoint_records,
@@ -21,14 +24,14 @@ from experiments.factored_representations_reproduction_PPO_2026_08.shared import
 from experiments.gol_reward_state_action_symmetry_cycle_1.design import analytic_design_summary
 from experiments.gol_reward_state_action_symmetry_cycle_1.process import SPEED, environment_config
 from experiments.storage.training_curves import write_training_curves
-from harness.artifacts import RunArtifacts
+from harness.artifacts import RunArtifacts, flatten_scalar_metrics
 from harness.context import RunContext
 from harness.hardware import PROFILES, resolve_env_runners
-from harness.runners import run_tune
+from harness.runners import run_algorithm, run_tune
 from learners.models.transformer import TransformerModel, TransformerModelConfig
 
 
-TOTAL_ENV_STEPS = 2_500_000
+TOTAL_ENV_STEPS = 7_500_000
 SMOKE_ENV_STEPS = 2_048
 TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 1_024
@@ -68,7 +71,7 @@ def build_config(context: RunContext, variant: int, *, speed: str = SPEED) -> PP
     profile = context.hardware or PROFILES["cpu"]
     if profile.name == "cuda4090_gpuinfer":
         profile = PROFILES["cuda4090"]
-    return (
+    config = (
         PPOConfig()
         .environment(HMMEnv, env_config=environment_config(variant, speed))
         .framework("torch", torch_compile_learner=False, torch_compile_worker=False)
@@ -95,16 +98,21 @@ def build_config(context: RunContext, variant: int, *, speed: str = SPEED) -> PP
                 model_config=dict(MODEL_CONFIG),
             )
         )
-        .callbacks(
-            on_algorithm_init=partial(
-                _save_initial_checkpoint,
-                checkpoint_path=str(context.artifacts_dir / "initial_checkpoint"),
-            ),
-            on_train_result=partial(
-                _save_log_spaced_checkpoint,
-                checkpoint_root=str(context.artifacts_dir / "log_spaced_checkpoints"),
-            ),
+    )
+    callbacks = {
+        "on_train_result": partial(
+            _save_log_spaced_checkpoint,
+            checkpoint_root=str(context.artifacts_dir / "log_spaced_checkpoints"),
+        ),
+    }
+    if context.resume_from is None:
+        callbacks["on_algorithm_init"] = partial(
+            _save_initial_checkpoint,
+            checkpoint_path=str(context.artifacts_dir / "initial_checkpoint"),
         )
+    config = config.callbacks(**callbacks)
+    return (
+        config
         .debugging(seed=context.seed)
         .env_runners(
             env_runner_cls=ContinuingSingleAgentEnvRunner,
@@ -158,38 +166,103 @@ def resolved_recipe(context: RunContext, variant: int, *, speed: str = SPEED) ->
     }
 
 
+def _env_steps_lifetime(metrics: Mapping[str, Any]) -> float | None:
+    flat = flatten_scalar_metrics(metrics)
+    for key in ("num_env_steps_sampled_lifetime", "env_runners/num_env_steps_sampled_lifetime"):
+        value = flat.get(key)
+        if value is not None:
+            return float(value)
+    return None
+
+
+def _reached_env_step_target(target_steps: int) -> Callable[[Mapping[str, Any]], bool]:
+    def _should_stop(metrics: Mapping[str, Any]) -> bool:
+        steps = _env_steps_lifetime(metrics)
+        return steps is not None and steps >= target_steps
+
+    return _should_stop
+
+
+def _resume_checkpoint_records(
+    context: RunContext,
+    final_result: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    by_iteration: dict[int, dict[str, Any]] = {}
+    final_iter = flatten_scalar_metrics(final_result).get("training_iteration")
+    final_steps = _env_steps_lifetime(final_result)
+    final_dir = context.artifacts_dir / "checkpoints"
+    final_candidates = sorted(final_dir.glob("iteration_*_final"))
+    if final_candidates and final_iter is not None and final_steps is not None:
+        final_path = final_candidates[-1]
+        by_iteration[int(final_iter)] = {
+            "checkpoint_path": final_path,
+            "checkpoint_name": final_path.name,
+            "training_iteration": int(final_iter),
+            "agent_steps": int(final_steps),
+        }
+
+    log_root = context.artifacts_dir / "log_spaced_checkpoints"
+    index_path = log_root / "index.json"
+    if index_path.is_file():
+        for record in json.loads(index_path.read_text()).get("checkpoints", []):
+            iteration = int(record["training_iteration"])
+            path = Path(record["path"])
+            by_iteration[iteration] = {
+                "checkpoint_path": path,
+                "checkpoint_name": str(record.get("checkpoint_name", path.name)),
+                "training_iteration": iteration,
+                "agent_steps": int(record["agent_steps"]),
+            }
+
+    return [by_iteration[k] for k in sorted(by_iteration)]
+
+
 def run_condition(context: RunContext, variant: int, *, speed: str = SPEED) -> dict[str, Any]:
     from experiments.gol_reward_state_action_symmetry_cycle_1.analysis import analyze_checkpoint
 
     if context.seed is None:
         raise ValueError("gol PPO requires a resolved seed")
-    if context.resume_from is not None:
-        raise ValueError("continuation is not defined for this experiment")
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     outputs.write_json("resolved_recipe.json", resolved_recipe(context, variant, speed=speed))
-    results = list(run_tune(
-        build_config(context, variant, speed=speed),
-        context,
-        stop={"env_runners/num_env_steps_sampled_lifetime": SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS},
-        run_config_kwargs={
-            "checkpoint_config": tune.CheckpointConfig(num_to_keep=1, checkpoint_at_end=True),
-        },
-    ))
-    if len(results) != 1 or results[0].error is not None:
-        raise RuntimeError(f"gol variant {variant} ({speed}): PPO training failed")
-    write_training_curves(context)
-    records = [
-        {
-            "checkpoint_path": context.artifacts_dir / "initial_checkpoint",
-            "checkpoint_name": "initial_checkpoint",
-            "training_iteration": 0,
-            "agent_steps": 0,
-        },
-        *checkpoint_records(results[0], checkpoint_root=context.artifacts_dir / "log_spaced_checkpoints"),
-    ]
-    if len(records) < 2:
-        raise RuntimeError("gol retained no trained checkpoint")
+
+    target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
+
+    if context.resume_from is not None:
+        final = run_algorithm(
+            build_config(context, variant, speed=speed),
+            context,
+            should_stop=_reached_env_step_target(target_steps),
+            checkpoint_at_end=True,
+        )
+        write_training_curves(context)
+        records = _resume_checkpoint_records(context, final)
+        if len(records) < 1:
+            raise RuntimeError("gol resumed variant retained no checkpoint")
+    else:
+        results = list(run_tune(
+            build_config(context, variant, speed=speed),
+            context,
+            stop={"env_runners/num_env_steps_sampled_lifetime": target_steps},
+            run_config_kwargs={
+                "checkpoint_config": tune.CheckpointConfig(num_to_keep=1, checkpoint_at_end=True),
+            },
+        ))
+        if len(results) != 1 or results[0].error is not None:
+            raise RuntimeError(f"gol variant {variant} ({speed}): PPO training failed")
+        write_training_curves(context)
+        records = [
+            {
+                "checkpoint_path": context.artifacts_dir / "initial_checkpoint",
+                "checkpoint_name": "initial_checkpoint",
+                "training_iteration": 0,
+                "agent_steps": 0,
+            },
+            *checkpoint_records(results[0], checkpoint_root=context.artifacts_dir / "log_spaced_checkpoints"),
+        ]
+        if len(records) < 2:
+            raise RuntimeError("gol retained no trained checkpoint")
+
     reports = []
     for record in records:
         checkpoint = Path(record["checkpoint_path"])
