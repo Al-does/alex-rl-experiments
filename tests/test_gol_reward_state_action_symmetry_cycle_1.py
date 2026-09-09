@@ -126,23 +126,29 @@ def test_recipe_records_scientific_and_runtime_choices(tmp_path, speed):
 
 
 @pytest.mark.parametrize("variant", (2, 3))
-def test_quarter_leaf_propagates_speed_to_training_and_every_probe(tmp_path, monkeypatch, variant):
+@pytest.mark.parametrize("speed", ("half", "quarter"))
+@pytest.mark.parametrize("smoke", (False, True))
+def test_leaf_propagates_speed_and_budget_to_training_and_probes(tmp_path, monkeypatch, variant, speed, smoke):
     from types import SimpleNamespace
 
     shared = importlib.import_module(f"{STUDY}.shared")
     analysis = importlib.import_module(f"{STUDY}.analysis")
-    leaf = importlib.import_module(f"{STUDY}.variant_{variant}_quarter.experiment")
+    suffix = "_quarter" if speed == "quarter" else ""
+    leaf = importlib.import_module(f"{STUDY}.variant_{variant}{suffix}.experiment")
     context = RunContext(
         experiment_dir=tmp_path,
         results_dir=tmp_path / "results",
         artifacts_dir=tmp_path / "artifacts",
-        smoke=True,
+        smoke=smoke,
     )
+    expected_steps = 2048 if smoke else 2_500_000
     trained = []
+    stops = []
     probes = []
 
     def train(config, context, **kwargs):
         trained.append(config.env_config)
+        stops.append(kwargs["stop"])
         return [SimpleNamespace(error=None)]
 
     def probe(context, **kwargs):
@@ -153,14 +159,16 @@ def test_quarter_leaf_propagates_speed_to_training_and_every_probe(tmp_path, mon
     monkeypatch.setattr(shared, "write_training_curves", lambda context: None)
     monkeypatch.setattr(shared, "checkpoint_records", lambda *args, **kwargs: [{
         "checkpoint_path": tmp_path / "final", "checkpoint_name": "final",
-        "training_iteration": 2, "agent_steps": 2048,
+        "training_iteration": 2, "agent_steps": expected_steps,
     }])
     monkeypatch.setattr(analysis, "analyze_checkpoint", probe)
     summary = leaf.run(context)
-    assert trained[0]["model"]["kwargs"] == {"variant": variant, "speed": "quarter"}
+    assert stops == [{"env_runners/num_env_steps_sampled_lifetime": expected_steps}]
+    assert trained[0]["model"]["kwargs"] == {"variant": variant, "speed": speed}
     assert [(point["variant"], point["speed"], point["agent_steps"]) for point in probes] == [
-        (variant, "quarter", 0), (variant, "quarter", 2048),
+        (variant, speed, 0), (variant, speed, expected_steps),
     ]
-    assert summary["speed"] == "quarter"
+    assert summary["speed"] == speed
     recipe = json.loads((context.results_dir / "resolved_recipe.json").read_text())
-    assert recipe["analytic_design"]["speed"] == "quarter"
+    assert recipe["analytic_design"]["speed"] == speed
+    assert recipe["total_env_steps"] == expected_steps
