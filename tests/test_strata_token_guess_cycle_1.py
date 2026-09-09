@@ -201,11 +201,11 @@ def test_fresh_gamma_zero_ppo_config_and_smoke_recipe(tmp_path):
     assert recipe["study"] == "strata_token_guess_cycle_1"
     assert recipe["environment"]["model"] == {
         "factory": "envs.strata.model:strata_model",
-        "kwargs": {"alpha": 0.98, "t0": 0.30, "t1": 0.80},
+        "kwargs": {"alpha": 0.97, "t0": 0.38, "t1": 0.54},
     }
     assert recipe["process_change"] == {
         "before": "Wing(alpha=0.94, x=0.4)",
-        "after": "Strata(alpha=0.98, t0=0.30, t1=0.80)",
+        "after": "Strata(alpha=0.97, t0=0.38, t1=0.54)",
     }
     assert recipe["previous_reward_in_observation"] is False
     assert recipe["previous_action_in_observation"] is False

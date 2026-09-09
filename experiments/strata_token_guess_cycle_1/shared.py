@@ -185,7 +185,7 @@ def resolved_recipe(context: RunContext) -> dict[str, Any]:
         "reference_experiment": "wing_token_guess_cycle_2",
         "process_change": {
             "before": "Wing(alpha=0.94, x=0.4)",
-            "after": "Strata(alpha=0.98, t0=0.30, t1=0.80)",
+            "after": "Strata(alpha=0.97, t0=0.38, t1=0.54)",
         },
         "intended_hardware": (
             "CPU smoke; hardware-profile learner device for full training"

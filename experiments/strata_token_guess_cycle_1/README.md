@@ -1,10 +1,11 @@
 # Strata token-guess cycle 1
 
-The Strata HMM parameters used for this study have been updated.
+This study is **deprecated**. Existing runs in this folder used the Strata HMM parameters:
 
-- **Deprecated parameters** used for existing runs in this folder:  
-  `alpha = 0.97`, `t0 = 0.38`, `t1 = 0.54`
-- **Current parameters**:  
-  `alpha = 0.98`, `t0 = 0.30`, `t1 = 0.80`
+- `alpha = 0.97`
+- `t0 = 0.38`
+- `t1 = 0.54`
 
-These values are passed through `experiments.strata_token_guess_cycle_1.process.environment_config` to `envs.strata.model.strata_model`.
+These values remain in `experiments.strata_token_guess_cycle_1.process` and are passed to `envs.strata.model.strata_model`.
+
+For new work, use the updated Strata defaults in `rl-harness` (`alpha = 0.98`, `t0 = 0.30`, `t1 = 0.80`).

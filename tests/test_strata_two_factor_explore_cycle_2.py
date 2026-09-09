@@ -56,7 +56,7 @@ def test_recipe_preserves_cycle_2_training_choices(context, condition):
     assert config.env_config == environment_config(condition)
     assert config.env_config["model"]["kwargs"]["factors"][0] == {
         "factory": "envs.strata.model:strata_model",
-        "kwargs": {"alpha": 0.98, "t0": 0.30, "t1": 0.80},
+        "kwargs": {"alpha": 0.97, "t0": 0.38, "t1": 0.54},
     }
     assert (
         config.env_config["task"]["class"]
@@ -71,9 +71,9 @@ def test_recipe_preserves_cycle_2_training_choices(context, condition):
     assert report["study"] == "strata_two_factor_explore_cycle_2"
     assert report["value_clip_param"] == 1e9
     assert report["analytic_design"]["strength"] == 1.0
-    assert report["analytic_design"]["alpha"] == 0.98
-    assert report["analytic_design"]["t0"] == 0.30
-    assert report["analytic_design"]["t1"] == 0.80
+    assert report["analytic_design"]["alpha"] == 0.97
+    assert report["analytic_design"]["t0"] == 0.38
+    assert report["analytic_design"]["t1"] == 0.54
     assert (
         report["analytic_design"]["identifiability"][
             "max_one_step_null_residual"
