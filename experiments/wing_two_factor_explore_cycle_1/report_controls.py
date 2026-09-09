@@ -21,6 +21,11 @@ DEFAULT_REPORT_PATHS = {
     "reward_both": Path("experiments/wing_two_factor_explore_cycle_2/reward_both_state_0/results/probe_controls_20260908/validated.json"),
     "reward_factor_1": Path("experiments/wing_two_factor_explore_cycle_2/reward_factor_1_state_0/results/probe_controls_20260908/validated.json"),
 }
+DEFAULT_HISTORY_PATHS = {
+    "token_guess": Path("experiments/wing_token_guess_cycle_1/ppo/results/20260908T000438Z-b9d3cfaa/condition_summary.json"),
+    "reward_both": Path("experiments/wing_two_factor_explore_cycle_2/reward_both_state_0/results/20260908T001136Z-9064aabc/condition_summary.json"),
+    "reward_factor_1": Path("experiments/wing_two_factor_explore_cycle_2/reward_factor_1_state_0/results/20260908T001436Z-51c1f6cb/condition_summary.json"),
+}
 TITLES = {
     "token_guess": "Token guess (passive)",
     "reward_both": "Reward both (controlled)",
@@ -39,6 +44,12 @@ GENERATOR = "experiments.wing_two_factor_explore_cycle_1.report_controls"
 OUTPUT_NAMES = tuple(f"{name}.csv" for name in TABLE_NAMES) + (
     "tables.md", "task_success.png", "task_success.svg", "report_manifest.json",
 )
+TRAINING_OUTPUT_NAMES = ("training_success.csv", "training_success.png", "training_success.svg")
+TRAINING_NOTE = (
+    "Recorded 20k-step evaluations; first 32 steps/episode excluded; no saved confidence intervals.\n"
+    "Dashed: exact passive/full-episode controlled Bayes references; controlled sampling differs."
+)
+TRAINING_PROTOCOL_CAVEAT = "The controlled reference is NOT a matched-protocol ceiling for post-warmup estimates."
 
 
 def _number(value, name, *, nullable=False):
@@ -140,6 +151,89 @@ def _success_rows(success):
             "bayes_ci95_high_percent": None if ref_high is None else ref_high * 100,
             "bayes_reference_details": reference["details"],
         })
+    return rows
+
+
+def training_rows_from_histories(histories):
+    try:
+        return _training_rows_from_histories(histories)
+    except (KeyError, TypeError, AttributeError) as error:
+        raise ValueError(f"missing or malformed required training history field: {error}") from error
+
+
+def _training_rows_from_histories(histories):
+    if set(histories) != set(CONDITIONS):
+        raise ValueError("training histories require all three conditions")
+    rows = []
+    for condition in CONDITIONS:
+        summary = histories[condition]
+        source_condition = "ppo" if condition == "token_guess" else condition
+        if summary["condition"] != source_condition:
+            raise ValueError(f"training history condition mismatch: {condition}")
+        seed = _integer(summary["seed"], "training history seed", minimum=0)
+        checkpoints = summary["checkpoint_reports"]
+        if not isinstance(checkpoints, list) or len(checkpoints) < 2:
+            raise ValueError(f"{condition}: initialization and trained checkpoints are required")
+        condition_rows, seen_steps = [], set()
+        for report in checkpoints:
+            metadata, policy = report["metadata"], report["policy"]
+            for record in (report, metadata):
+                if "condition" in record and record["condition"] != source_condition:
+                    raise ValueError(f"checkpoint condition mismatch: {condition}")
+            if condition != "token_guess" and (summary["reward_state"] != 0 or report["reward_state"] != 0):
+                raise ValueError(f"{condition}: training history requires reward_state 0")
+            steps = _integer(report["agent_steps"], "agent_steps", minimum=0)
+            iteration = _integer(report["training_iteration"], "training_iteration", minimum=0)
+            initial = report["is_initialization"]
+            if type(initial) is not bool or initial != (steps == 0) or initial != (iteration == 0):
+                raise ValueError(f"{condition}: initialization requires is_initialization true, agent_steps 0 and training_iteration 0")
+            if steps in seen_steps:
+                raise ValueError(f"{condition}: duplicate agent_steps {steps}")
+            seen_steps.add(steps)
+            if not isinstance(report["checkpoint"], str) or not report["checkpoint"]:
+                raise ValueError(f"{condition}: checkpoint is required")
+            n_test = _integer(report["n_test"], "n_test")
+            protocol = {
+                "episode_length": 1024, "warmup_per_episode": 32, "n_envs": 8,
+                "full_test_budget": 20000, "policy_mode": "learned_stochastic",
+                "sampling_distribution": "process_weighted_rollout", "sample_budgets_exclude_warmup": True,
+                "independent_train_test_rollouts": True, "smoke": False, "seed": seed,
+            }
+            if n_test != protocol["full_test_budget"] or any(
+                type(metadata[key]) is not type(value) or metadata[key] != value for key, value in protocol.items()
+            ) or policy["mode"] != metadata["policy_mode"]:
+                raise ValueError(f"{condition}: misaligned archived test evaluation protocol")
+            temperature = metadata.get("temperature")
+            if temperature is not None:
+                if _number(temperature, "temperature") <= 0 or policy.get("temperature") != temperature:
+                    raise ValueError(f"{condition}: misaligned policy temperature")
+            elif "temperature" in policy:
+                raise ValueError(f"{condition}: policy temperature missing from metadata")
+            metric_key = "token_accuracy" if condition == "token_guess" else "mean_reward"
+            mean = _number(policy[metric_key], f"{condition}.policy.{metric_key}")
+            if not 0 <= mean <= 1:
+                raise ValueError(f"{condition}: training success must be a fraction in [0, 1]")
+            condition_rows.append({
+                "condition": condition, "source_condition": source_condition,
+                "metric": "joint_token_accuracy" if condition == "token_guess" else "mean_rewarded_factor_arrival_occupancy",
+                "source_metric": f"policy.{metric_key}", "estimator": "realized_post_warmup_test_mean",
+                "agent_steps": steps, "training_iteration": iteration, "is_initialization": initial,
+                "checkpoint": report["checkpoint"], "mean_fraction": mean, "mean_percent": mean * 100,
+                "n_test": n_test, "horizon": metadata["episode_length"], "warmup": metadata["warmup_per_episode"],
+                "n_envs": metadata["n_envs"], "policy_mode": metadata["policy_mode"], "temperature": temperature,
+                "sampling_distribution": metadata["sampling_distribution"],
+                "sample_budgets_exclude_warmup": metadata["sample_budgets_exclude_warmup"],
+                "independent_train_test_rollouts": metadata["independent_train_test_rollouts"], "seed": seed,
+                "test_episodes_represented": metadata.get("test_episodes_represented"), "ci95_status": "not_saved",
+            })
+        if 0 not in seen_steps:
+            raise ValueError(f"{condition}: missing recorded initialization at agent_steps 0")
+        condition_rows.sort(key=lambda row: row["agent_steps"])
+        if any(right["training_iteration"] <= left["training_iteration"] for left, right in zip(condition_rows, condition_rows[1:])):
+            raise ValueError(f"{condition}: training_iteration must increase with agent_steps")
+        if len({row["temperature"] for row in condition_rows}) != 1:
+            raise ValueError(f"{condition}: misaligned policy temperature across checkpoints")
+        rows.extend(condition_rows)
     return rows
 
 
@@ -359,6 +453,24 @@ def _benchmark_tables(success):
     return "\n".join(parts)
 
 
+def _training_markdown(rows):
+    if "training_success" not in rows:
+        return []
+    histories = {condition: [row for row in rows["training_success"] if row["condition"] == condition] for condition in CONDITIONS}
+    return [
+        "## Task success over training (including initialization)\n",
+        "![Recorded task success over training, including initialization](training_success.png)\n\n[Vector figure (SVG)](training_success.svg) | [Every sampled checkpoint (CSV)](training_success.csv)\n",
+        "Absolute task-success percentages from saved `condition_summary.json` checkpoint reports: passive `policy.token_accuracy` and controlled `policy.mean_reward`, measured on independent test rollouts. These are realized test token accuracy/reward, not the conditional-expected full-episode estimator used by the final bars below, not training returns, and not probe R². The protocols differ; final-bar estimates are not overlaid on these curves.\n",
+        "Every recorded checkpoint is a node, including the actual `is_initialization=true`, step-0, iteration-0 evaluation (Init). Lines connect sampled checkpoints only; no dense epochs, smoothing, invented initial values, or confidence intervals. The x-axis is numeric training environment steps, displayed in millions on a linear scale; early log-spaced checkpoints are compressed.\n",
+        TRAINING_NOTE.replace("\n", " ") + " " + TRAINING_PROTOCOL_CAVEAT + "\n",
+        "References are reused from the final-success evaluation: the passive stationary dominant-token rule gives an exact constant-policy reference; controlled belief-grid references average complete 1024-step episodes, including reset steps. No new post-warmup bound has been computed.\n",
+        _table(("Condition", "Recorded nodes", "Init %", "Last recorded %", "Last environment steps", "Test samples / checkpoint", "Environments", "Episode horizon", "Excluded steps / episode", "Policy", "Sampling"), (
+            (condition, len(history), history[0]["mean_percent"], history[-1]["mean_percent"], history[-1]["agent_steps"],
+             history[0]["n_test"], history[0]["n_envs"], history[0]["horizon"], history[0]["warmup"],
+             history[0]["policy_mode"], history[0]["sampling_distribution"]) for condition, history in histories.items())),
+    ]
+
+
 def _markdown(rows, reports, success_link=None):
     success = rows["success"]
     passive = next(row for row in success if row["condition"] == "token_guess")
@@ -369,6 +481,7 @@ def _markdown(rows, reports, success_link=None):
     details_link = f"[Full source evaluation]({success_link})" if success_link is not None else "[Full benchmark details](report_manifest.json)"
     parts = [
         "# Wing task success and specificity controls\n",
+        *_training_markdown(rows),
         "## Task success at the final checkpoint\n",
         "![Final-checkpoint task success with Bayes references](task_success.png)\n\n[Vector figure (SVG)](task_success.svg) | [Full-precision success CSV](success.csv)\n",
         "Absolute task-success percentages, not probe R² and not percent of a benchmark. Each estimate uses complete 1024-step episodes, including the initial steps, with no warmup. Bars are final checkpoints, not training curves.\n",
@@ -504,6 +617,67 @@ def _render_success(rows):
             plt.close(fig)
 
 
+def _render_training_success(rows, success_rows):
+    import matplotlib
+    matplotlib.use("Agg", force=True)
+    from matplotlib import pyplot as plt
+    from matplotlib.ticker import FuncFormatter, MaxNLocator, PercentFormatter
+
+    settings = dict(matplotlib.rcParamsDefault)
+    settings.update({"backend": "Agg", "svg.hashsalt": GENERATOR, "svg.fonttype": "none", "font.family": "DejaVu Sans", "font.size": 10})
+    with matplotlib.rc_context(settings):
+        fig, axes = plt.subplots(1, 3, figsize=(16, 6.8))
+        fig.subplots_adjust(left=0.06, right=0.985, bottom=0.30, top=0.74, wspace=0.32)
+        fig.suptitle("Task success over training (including initialization)", y=0.97, fontsize=17)
+        fig.text(0.5, 0.915, "Recorded test-policy success · absolute percentages · 8 environments · learned stochastic policy", ha="center", fontsize=11)
+        try:
+            for axis, reference_row, color in zip(axes, success_rows, ("#4477AA", "#228833", "#AA3377"), strict=True):
+                condition = reference_row["condition"]
+                history = [row for row in rows if row["condition"] == condition]
+                steps, means = [row["agent_steps"] for row in history], [row["mean_percent"] for row in history]
+                reference = reference_row["bayes_reference_percent"]
+                label = "Passive Bayes reference (exact)" if condition == "token_guess" else "Bayes full-episode reference"
+                qualifier = "stationary dominant-token rule" if condition == "token_guess" else "numerical; sampling differs"
+                axis.text(0.5, 1.24, f"{label}: {reference:.2f}%\n{qualifier}", transform=axis.transAxes,
+                          ha="center", va="top", fontsize=10, fontweight="bold")
+                axis.plot(steps, means, "o-", color=color, markersize=4.5, linewidth=1.5,
+                          label=f"sampled checkpoints ({len(history)})", zorder=3)
+                axis.axhline(reference, color="#222222", linestyle="--", linewidth=1.3, label=label, zorder=2)
+                axis.scatter([0], [means[0]], marker="*", s=170, color="#EEAA33", edgecolor="#222222", linewidth=0.8, zorder=5)
+                axis.annotate("Init", xy=(0, means[0]), xytext=(12, 22), textcoords="offset points",
+                              fontweight="bold", arrowprops={"arrowstyle": "-", "color": "#555555"}, zorder=6)
+                axis.scatter([steps[-1]], [means[-1]], s=42, color=color, edgecolor="white", linewidth=0.8, zorder=4)
+                axis.annotate(f"{means[-1]:.2f}%\n{steps[-1] / 1e6:.2f}M steps", xy=(steps[-1], means[-1]),
+                              xytext=(-4, -15), textcoords="offset points", ha="right", va="top", fontsize=10, fontweight="bold")
+                axis.set_ylim(0, max(reference, *means) + 8)
+                axis.set_xlim(-steps[-1] * 0.04, steps[-1] * 1.06)
+                axis.set_title(TITLES[condition], pad=10, fontsize=12)
+                metric = "Joint token accuracy" if condition == "token_guess" else "Rewarded-factor arrival occupancy"
+                axis.set_ylabel(f"{metric} (%)", fontsize=10)
+                axis.set_xlabel("Training environment steps (millions; linear)", fontsize=9)
+                axis.xaxis.set_major_locator(MaxNLocator(nbins=5))
+                axis.xaxis.set_major_formatter(FuncFormatter(lambda value, position: f"{value / 1e6:g}"))
+                axis.yaxis.set_major_formatter(PercentFormatter(xmax=100, decimals=0))
+                axis.legend(loc="lower right", fontsize=8, frameon=False)
+                axis.set_axisbelow(True)
+                axis.grid(color="#dddddd", linewidth=0.7)
+                axis.spines[["top", "right"]].set_visible(False)
+            fig.text(0.5, 0.15, TRAINING_NOTE, ha="center", va="top", fontsize=10)
+            fig.text(0.5, 0.065, TRAINING_PROTOCOL_CAVEAT, ha="center", fontsize=10, fontweight="bold")
+            fig.text(0.5, 0.025, "Lines connect sampled checkpoints only; no smoothing. Early log-spaced checkpoints are compressed on this linear axis.", ha="center", fontsize=9)
+            outputs = {}
+            for extension, metadata in (("png", {"Software": GENERATOR}), ("svg", {"Date": None, "Creator": GENERATOR})):
+                buffer = io.BytesIO()
+                fig.savefig(buffer, format=extension, dpi=160, metadata=metadata)
+                content = buffer.getvalue()
+                if extension == "svg":
+                    content = b"\n".join(line.rstrip() for line in content.splitlines()) + b"\n"
+                outputs[f"training_success.{extension}"] = content
+            return outputs
+        finally:
+            plt.close(fig)
+
+
 def _relative(path, root):
     return Path(os.path.relpath(Path(path).resolve(), root)).as_posix()
 
@@ -524,19 +698,19 @@ def _digest(data):
 
 def _input_record(data, path, root):
     if path is None:
-        return {"path": None, "sha256": _digest(_json(data).encode()), "hash_basis": "canonical_json_in_memory", "schema_version": data["schema_version"]}
+        return {"path": None, "sha256": _digest(_json(data).encode()), "hash_basis": "canonical_json_in_memory", "schema_version": data.get("schema_version")}
     path = Path(path)
     path = path if path.is_absolute() else root / path
     content = path.read_bytes()
     if json.loads(content) != data:
         raise ValueError(f"input path does not match supplied report: {path}")
-    return {"path": _relative(path, root), "sha256": _digest(content), "hash_basis": "file_bytes", "schema_version": data["schema_version"]}
+    return {"path": _relative(path, root), "sha256": _digest(content), "hash_basis": "file_bytes", "schema_version": data.get("schema_version")}
 
 
-def _check_outputs(output_dir, overwrite):
+def _check_outputs(output_dir, overwrite, expected_names=OUTPUT_NAMES):
     if output_dir.is_symlink():
         raise ValueError("output directory cannot be a symlink")
-    existing = [name for name in OUTPUT_NAMES if (output_dir / name).exists() or (output_dir / name).is_symlink()]
+    existing = {name for name in OUTPUT_NAMES + TRAINING_OUTPUT_NAMES if (output_dir / name).exists() or (output_dir / name).is_symlink()}
     if not existing:
         return
     if not overwrite:
@@ -545,35 +719,61 @@ def _check_outputs(output_dir, overwrite):
     if manifest_path.is_symlink() or not manifest_path.is_file():
         raise ValueError("--overwrite requires an existing owned report manifest")
     manifest = json.loads(manifest_path.read_text())
-    if manifest.get("generator") != GENERATOR or set(manifest.get("outputs", {})) != set(OUTPUT_NAMES) - {"report_manifest.json"}:
+    base = set(OUTPUT_NAMES) - {"report_manifest.json"}
+    if not isinstance(manifest, dict) or manifest.get("generator") != GENERATOR or not isinstance(manifest.get("outputs"), dict):
         raise ValueError("--overwrite refuses outputs not owned by this report generator")
-    for name in existing:
+    owned = set(manifest["outputs"])
+    if owned not in (base, base | set(TRAINING_OUTPUT_NAMES)) or not owned <= set(expected_names):
+        raise ValueError("--overwrite refuses incompatible generator-owned output sets")
+    if existing - {"report_manifest.json"} - owned:
+        raise ValueError("--overwrite refuses outputs not owned by the existing report manifest")
+    for name in sorted(owned | {"report_manifest.json"}):
         path = output_dir / name
         if path.is_symlink() or not path.is_file():
-            raise ValueError(f"refusing unsafe output path: {path}")
-        if name != "report_manifest.json" and _digest(path.read_bytes()) != manifest["outputs"][name]["sha256"]:
-            raise ValueError(f"refusing to overwrite modified output: {name}")
+            raise ValueError(f"refusing missing or unsafe output path: {path}")
+        if name != "report_manifest.json":
+            record = manifest["outputs"][name]
+            content = path.read_bytes()
+            if not isinstance(record, dict) or _digest(content) != record.get("sha256") or len(content) != record.get("bytes"):
+                raise ValueError(f"refusing to overwrite modified output: {name}")
 
 
-def write_report(report_by_condition, success, output_dir, *, report_paths=None, success_path=None, overwrite=False, repo_root=REPO_ROOT):
+def write_report(report_by_condition, success, output_dir, *, report_paths=None, success_path=None, histories=None, history_paths=None,
+                 overwrite=False, repo_root=REPO_ROOT):
     import matplotlib
     import numpy
 
     root, output_dir = Path(repo_root).resolve(), Path(output_dir)
     rows = rows_from_reports(report_by_condition, success)
-    _check_outputs(output_dir, overwrite)
+    if histories is not None:
+        rows["training_success"] = training_rows_from_histories(histories)
+        if rows["success"][0]["bayes_reference_kind"] != "exact_optimal_accuracy":
+            raise ValueError("training histories require the exact passive Bayes reference from the final-success input")
+    elif history_paths is not None:
+        raise ValueError("history_paths require histories")
+    table_names = TABLE_NAMES + (("training_success",) if histories is not None else ())
+    output_names = tuple(name for name in OUTPUT_NAMES if name != "report_manifest.json") + (
+        TRAINING_OUTPUT_NAMES if histories is not None else ()
+    ) + ("report_manifest.json",)
+    _check_outputs(output_dir, overwrite, output_names)
     if report_paths is not None and set(report_paths) != set(CONDITIONS):
         raise ValueError("report_paths must identify all three condition inputs")
+    if history_paths is not None and set(history_paths) != set(CONDITIONS):
+        raise ValueError("history_paths must identify all three condition inputs")
     paths = {} if report_paths is None else report_paths
     source = Path(__file__).resolve()
     inputs = {condition: _input_record(report_by_condition[condition], paths.get(condition), root) for condition in CONDITIONS}
     inputs["success"] = _input_record(success, success_path, root)
-    destinations = {(output_dir / name).resolve() for name in OUTPUT_NAMES}
+    if histories is not None:
+        for condition in CONDITIONS:
+            path = None if history_paths is None else history_paths[condition]
+            inputs[f"training_history_{condition}"] = _input_record(histories[condition], path, root)
+    destinations = {(output_dir / name).resolve() for name in output_names}
     if any(record["path"] is not None and (root / record["path"]).resolve() in destinations for record in inputs.values()):
         raise ValueError("report outputs cannot overwrite input files")
     portable_rows = _portable(rows, root)
     outputs = {}
-    for name in TABLE_NAMES:
+    for name in table_names:
         buffer = io.StringIO(newline="")
         records = portable_rows[name]
         fields = list(records[0]) if records else ["condition", "factor", "layer", "candidate"]
@@ -585,6 +785,8 @@ def write_report(report_by_condition, success, output_dir, *, report_paths=None,
     success_link = None if inputs["success"]["path"] is None else quote(_relative(root / inputs["success"]["path"], output_dir.resolve()), safe="/")
     outputs["tables.md"] = _markdown(portable_rows, _portable(report_by_condition, root), success_link=success_link).encode()
     outputs.update(_render_success(portable_rows["success"]))
+    if histories is not None:
+        outputs.update(_render_training_success(portable_rows["training_success"], portable_rows["success"]))
     manifest = {
         "schema_version": 1, "generator": GENERATOR,
         "inputs": inputs,
@@ -605,10 +807,25 @@ def write_report(report_by_condition, success, output_dir, *, report_paths=None,
         "row_counts": {name: len(records) for name, records in rows.items()},
         "outputs": {name: {"sha256": _digest(content), "bytes": len(content)} for name, content in sorted(outputs.items())},
     }
+    if histories is not None:
+        manifest["training_history_metadata"] = _portable({
+            condition: {"condition": histories[condition]["condition"], "seed": histories[condition]["seed"],
+                        "checkpoints": [{"checkpoint": report["checkpoint"], "agent_steps": report["agent_steps"],
+                                         "n_test": report["n_test"], "metadata": report["metadata"]}
+                                        for report in sorted(histories[condition]["checkpoint_reports"], key=lambda report: report["agent_steps"])]}
+            for condition in CONDITIONS
+        }, root)
+        manifest["rendering"]["training_success"] = {
+            "plot": "recorded_checkpoint_absolute_percent", "x_axis": "training_environment_steps", "x_scale": "linear",
+            "display_units": "millions", "estimator": "realized_post_warmup_test_mean", "ci95": "not_saved",
+            "interpolation": "lines_connect_sampled_checkpoints_only", "initialization": "recorded_step_0_iteration_0",
+            "note": TRAINING_NOTE, "controlled_reference_caveat": TRAINING_PROTOCOL_CAVEAT,
+            "bayes_reference_source": "success_conditions.*.bayes_reference", "final_bar_points_overlaid": False,
+        }
     outputs["report_manifest.json"] = (json.dumps(manifest, sort_keys=True, indent=2, ensure_ascii=False, allow_nan=False) + "\n").encode()
     output_dir.mkdir(parents=True, exist_ok=True)
-    _check_outputs(output_dir, overwrite)
-    for name in OUTPUT_NAMES:
+    _check_outputs(output_dir, overwrite, output_names)
+    for name in output_names:
         path = output_dir / name
         with path.open("wb" if overwrite and path.exists() else "xb") as handle:
             handle.write(outputs[name])
@@ -621,6 +838,9 @@ def main(argv=None):
     parser.add_argument("--output-dir", type=Path, required=True)
     for condition in CONDITIONS:
         parser.add_argument(f"--{condition.replace('_', '-')}-report", type=Path, default=DEFAULT_REPORT_PATHS[condition])
+        parser.add_argument(f"--{condition.replace('_', '-')}-history", type=Path, default=DEFAULT_HISTORY_PATHS[condition],
+                            help="Saved condition_summary.json checkpoint reports")
+    parser.add_argument("--no-training-curves", action="store_true", help="Render final bars and probe controls only, without loading histories")
     parser.add_argument("--overwrite", action="store_true", help="Regenerate only an intact report owned by this generator")
     args = parser.parse_args(argv)
     report_paths = {condition: getattr(args, f"{condition}_report") for condition in CONDITIONS}
@@ -628,10 +848,17 @@ def main(argv=None):
     try:
         reports = {condition: json.loads(path.read_text()) for condition, path in report_paths.items()}
         success = json.loads(args.success.read_text())
-        write_report(reports, success, args.output_dir, report_paths=report_paths, success_path=args.success.resolve(), overwrite=args.overwrite)
+        histories, history_paths = None, None
+        if not args.no_training_curves:
+            history_paths = {condition: getattr(args, f"{condition}_history") for condition in CONDITIONS}
+            history_paths = {condition: path if path.is_absolute() else REPO_ROOT / path for condition, path in history_paths.items()}
+            histories = {condition: json.loads(path.read_text()) for condition, path in history_paths.items()}
+        write_report(reports, success, args.output_dir, report_paths=report_paths, success_path=args.success.resolve(),
+                     histories=histories, history_paths=history_paths, overwrite=args.overwrite)
     except (OSError, ValueError) as error:
         parser.error(str(error))
-    print(f"Wrote {len(OUTPUT_NAMES)} report files to {args.output_dir}")
+    count = len(OUTPUT_NAMES) + (0 if args.no_training_curves else len(TRAINING_OUTPUT_NAMES))
+    print(f"Wrote {count} report files to {args.output_dir}")
 
 
 if __name__ == "__main__":

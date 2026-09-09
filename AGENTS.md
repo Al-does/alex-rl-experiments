@@ -174,7 +174,17 @@ strength is 1.0: use its freshly computed finite-horizon belief-grid upper bound
 not an exact-optimality certificate. The benchmark policy uses full history,
 not a promise of optimality within the transformer's 32-frame context.
 
-The report generator writes scientific Markdown tables, eight CSV tables,
-PNG/SVG charts, and a hash manifest. Defaults read only schema-2 `validated.json`
-reports; superseded `final.json` drafts and all checkpoints stay out of commits.
+The report generator writes scientific Markdown/CSV tables, PNG/SVG charts,
+and a hash manifest. Specificity inputs are schema-2 `validated.json` reports;
+superseded `final.json` drafts and all checkpoints stay out of commits.
 `--overwrite` is restricted to intact generator-owned outputs.
+
+Task-success reporting must include the saved initialization-to-final checkpoint
+trajectory, not only final-checkpoint bars. Curves use the held-out `policy`
+metrics in the original `condition_summary.json` checkpoint reports, starting
+from the actual zero-step initialization. Do not use `train_policy`, invent
+intermediate measurements, or infer confidence intervals from aggregate means.
+These archived evaluations exclude 32 warmup steps per episode; keep them
+separate from the newer complete-episode expected-success bars. The controlled
+Bayes line is a full-episode reference, not an exactly matched post-warmup
+ceiling.

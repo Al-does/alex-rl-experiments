@@ -116,6 +116,22 @@ def success():
     return {"schema_version": 1, "conditions": conditions, "metadata": {"seed": 31415, "warmup": 0}}
 
 
+@pytest.fixture
+def histories():
+    return {condition: json.loads((reporting.REPO_ROOT / path).read_text()) for condition, path in reporting.DEFAULT_HISTORY_PATHS.items()}
+
+
+@pytest.fixture
+def exact_success(success):
+    success["conditions"]["token_guess"]["bayes_reference"].update({
+        "kind": "exact_optimal_accuracy", "value": 0.7219334444444443, "ci95": None,
+        "label": "Bayes maximum (exact dominant-token rule)",
+    })
+    for condition in ("reward_both", "reward_factor_1"):
+        success["conditions"][condition]["bayes_reference"]["value"] = 0.6834409759292766
+    return success
+
+
 def test_mapping_and_numeric_last_layer(reports, success):
     original = copy.deepcopy(reports)
     rows = reporting.rows_from_reports(reports, success)
@@ -435,3 +451,270 @@ def test_cli_resolves_default_inputs_from_repo_root(reports, success, tmp_path, 
     reporting.main(["--success", success_path.name, "--output-dir", str(tmp_path / "out")])
     assert captured["report_paths"] == {condition: reporting.REPO_ROOT / path for condition, path in reporting.DEFAULT_REPORT_PATHS.items()}
     assert captured["success_path"] == success_path
+    assert captured["history_paths"] == {condition: reporting.REPO_ROOT / path for condition, path in reporting.DEFAULT_HISTORY_PATHS.items()}
+    assert {condition: len(history["checkpoint_reports"]) for condition, history in captured["histories"].items()} == {
+        "token_guess": 9, "reward_both": 15, "reward_factor_1": 14,
+    }
+    monkeypatch.setattr(reporting, "DEFAULT_HISTORY_PATHS", {condition: Path("missing.json") for condition in reporting.CONDITIONS})
+    reporting.main(["--success", success_path.name, "--output-dir", str(tmp_path / "out"), "--no-training-curves"])
+    assert captured["histories"] is None
+    assert captured["history_paths"] is None
+
+
+def test_actual_training_histories_all_nodes_and_initialization(histories):
+    original = copy.deepcopy(histories)
+    rows = reporting.training_rows_from_histories(histories)
+    expected = {
+        "token_guess": (9, 0.22, 0.71575, 2516889, 76),
+        "reward_both": (15, 0.335425, 0.6195, 50005374, 5989),
+        "reward_factor_1": (14, 0.3373, 0.62915, 30001584, 3595),
+    }
+    for condition, (count, initial, final, final_steps, final_iteration) in expected.items():
+        selected = [row for row in rows if row["condition"] == condition]
+        assert len(selected) == count
+        assert selected[0]["is_initialization"] is True
+        assert selected[0]["agent_steps"] == selected[0]["training_iteration"] == 0
+        assert selected[0]["mean_fraction"] == initial
+        assert selected[-1]["mean_fraction"] == final
+        assert selected[-1]["agent_steps"] == final_steps
+        assert selected[-1]["training_iteration"] == final_iteration
+        for row, report in zip(selected, histories[condition]["checkpoint_reports"], strict=True):
+            metric = "token_accuracy" if condition == "token_guess" else "mean_reward"
+            assert row["source_metric"] == f"policy.{metric}"
+            assert row["mean_fraction"] == report["policy"][metric]
+            assert row["mean_percent"] == report["policy"][metric] * 100
+            assert row["n_test"] == 20000
+            assert row["n_envs"] == 8
+            assert row["horizon"] == 1024
+            assert row["warmup"] == 32
+            assert row["policy_mode"] == "learned_stochastic"
+            assert row["sampling_distribution"] == "process_weighted_rollout"
+            assert row["sample_budgets_exclude_warmup"] is True
+            assert row["ci95_status"] == "not_saved"
+    assert histories == original
+
+
+def test_training_rows_sort_numeric_steps_and_ignore_training_policy(histories):
+    expected = reporting.training_rows_from_histories(histories)
+    for history in histories.values():
+        history["checkpoint_reports"].reverse()
+        for report in history["checkpoint_reports"]:
+            report["train_policy"] = {"mean_reward": float("nan"), "token_accuracy": 1.0}
+    assert reporting.training_rows_from_histories(histories) == expected
+    histories["token_guess"]["checkpoint_reports"][0]["policy"]["mean_reward"] = 0.123
+    assert reporting.training_rows_from_histories(histories) == expected
+
+
+@pytest.mark.parametrize("mutation", ["missing", "false_flag", "nonzero_steps", "nonzero_iteration", "missing_flag", "duplicate", "duplicate_init"])
+def test_training_requires_real_unique_initialization(histories, mutation):
+    reports = histories["reward_both"]["checkpoint_reports"]
+    if mutation == "missing":
+        reports.pop(0)
+    elif mutation == "false_flag":
+        reports[0]["is_initialization"] = False
+    elif mutation == "nonzero_steps":
+        reports[0]["agent_steps"] = 1
+    elif mutation == "nonzero_iteration":
+        reports[0]["training_iteration"] = 1
+    elif mutation == "missing_flag":
+        del reports[0]["is_initialization"]
+    else:
+        reports.append(copy.deepcopy(reports[0 if mutation == "duplicate_init" else 1]))
+    with pytest.raises(ValueError, match="initialization|duplicate|is_initialization"):
+        reporting.training_rows_from_histories(histories)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), -float("inf"), -0.1, 1.1, True, "0.5", None])
+@pytest.mark.parametrize("condition", reporting.CONDITIONS)
+def test_training_rejects_invalid_test_success(histories, condition, value):
+    metric = "token_accuracy" if condition == "token_guess" else "mean_reward"
+    histories[condition]["checkpoint_reports"][1]["policy"][metric] = value
+    with pytest.raises(ValueError, match="finite|fraction"):
+        reporting.training_rows_from_histories(histories)
+
+
+@pytest.mark.parametrize("level", ["summary", "checkpoint", "metadata"])
+def test_training_rejects_conflicting_condition(histories, level):
+    record = histories["reward_both"]
+    if level != "summary":
+        record = record["checkpoint_reports"][1]
+    if level == "metadata":
+        record = record["metadata"]
+    record["condition"] = "reward_factor_1"
+    with pytest.raises(ValueError, match="condition mismatch"):
+        reporting.training_rows_from_histories(histories)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("n_test", 19999), ("warmup_per_episode", 0), ("episode_length", 992), ("n_envs", 1),
+    ("policy_mode", "greedy"), ("sampling_distribution", "episode_weighted"),
+    ("sample_budgets_exclude_warmup", False), ("full_test_budget", 1000),
+    ("independent_train_test_rollouts", False), ("smoke", True), ("temperature", 0.8), ("seed", 43),
+])
+def test_training_rejects_misaligned_protocol(histories, field, value):
+    report = histories["reward_both"]["checkpoint_reports"][1]
+    (report if field == "n_test" else report["metadata"])[field] = value
+    with pytest.raises(ValueError, match="protocol|temperature"):
+        reporting.training_rows_from_histories(histories)
+
+
+@pytest.mark.parametrize("field,value", [("agent_steps", float("inf")), ("agent_steps", "8576"),
+                                         ("training_iteration", -1), ("is_initialization", 1), ("checkpoint", "")])
+def test_training_rejects_malformed_checkpoint_fields(histories, field, value):
+    histories["reward_both"]["checkpoint_reports"][1][field] = value
+    with pytest.raises(ValueError):
+        reporting.training_rows_from_histories(histories)
+
+
+def test_training_requires_test_metric_without_fallback(histories):
+    del histories["token_guess"]["checkpoint_reports"][1]["policy"]["token_accuracy"]
+    with pytest.raises(ValueError, match="token_accuracy"):
+        reporting.training_rows_from_histories(histories)
+
+
+def test_training_plot_uses_every_saved_node_and_reference(histories, exact_success, monkeypatch):
+    import matplotlib.axes
+    recorded, references, limits = [], [], []
+    original_plot, original_hline, original_ylim = matplotlib.axes.Axes.plot, matplotlib.axes.Axes.axhline, matplotlib.axes.Axes.set_ylim
+    def plot(axis, x, y, *args, **kwargs):
+        if kwargs.get("label", "").startswith("sampled checkpoints"):
+            recorded.append((x, y))
+        return original_plot(axis, x, y, *args, **kwargs)
+    def hline(axis, y=0, *args, **kwargs):
+        references.append((y, kwargs["label"]))
+        return original_hline(axis, y, *args, **kwargs)
+    def ylim(axis, bottom=None, top=None, **kwargs):
+        if bottom == 0 and top is not None:
+            limits.append(top)
+        return original_ylim(axis, bottom, top, **kwargs)
+    monkeypatch.setattr(matplotlib.axes.Axes, "plot", plot)
+    monkeypatch.setattr(matplotlib.axes.Axes, "axhline", hline)
+    monkeypatch.setattr(matplotlib.axes.Axes, "set_ylim", ylim)
+    histories["reward_factor_1"]["checkpoint_reports"][2]["policy"]["mean_reward"] = 0.97
+    rows = reporting.training_rows_from_histories(histories)
+    reporting._render_training_success(rows, reporting._success_rows(exact_success))
+    assert len(recorded) == len(references) == 3
+    for condition, (steps, means), (reference, label) in zip(reporting.CONDITIONS, recorded, references, strict=True):
+        selected = [row for row in rows if row["condition"] == condition]
+        assert steps == [row["agent_steps"] for row in selected]
+        assert means == [row["mean_percent"] for row in selected]
+        assert steps[0] == 0
+        assert reference == exact_success["conditions"][condition]["bayes_reference"]["value"] * 100
+        assert label == ("Passive Bayes reference (exact)" if condition == "token_guess" else "Bayes full-episode reference")
+    assert any(limit > 97 for limit in limits)
+
+
+def test_training_outputs_reproducible_labeled_and_hashed(reports, exact_success, histories, tmp_path):
+    first, second = tmp_path / "first", tmp_path / "second"
+    source_hashes = {condition: hashlib.sha256((reporting.REPO_ROOT / path).read_bytes()).hexdigest()
+                     for condition, path in reporting.DEFAULT_HISTORY_PATHS.items()}
+    kwargs = {"histories": histories, "history_paths": reporting.DEFAULT_HISTORY_PATHS}
+    manifest = reporting.write_report(reports, exact_success, first, **kwargs)
+    assert reporting.write_report(reports, exact_success, second, **kwargs) == manifest
+    names = set(reporting.OUTPUT_NAMES + reporting.TRAINING_OUTPUT_NAMES)
+    assert set(path.name for path in first.iterdir()) == names
+    for name in names:
+        content = (first / name).read_bytes()
+        assert content == (second / name).read_bytes()
+        if name != "report_manifest.json":
+            assert manifest["outputs"][name] == {"sha256": hashlib.sha256(content).hexdigest(), "bytes": len(content)}
+    for condition, path in reporting.DEFAULT_HISTORY_PATHS.items():
+        entry = manifest["inputs"][f"training_history_{condition}"]
+        assert entry["path"] == path.as_posix()
+        assert entry["schema_version"] is None
+        assert entry["hash_basis"] == "file_bytes"
+        assert entry["sha256"] == source_hashes[condition]
+        assert hashlib.sha256((reporting.REPO_ROOT / path).read_bytes()).hexdigest() == source_hashes[condition]
+        assert manifest["training_history_metadata"][condition]["checkpoints"][0]["metadata"] == histories[condition]["checkpoint_reports"][0]["metadata"]
+    assert manifest["row_counts"]["training_success"] == 38
+    assert manifest["rendering"]["training_success"]["ci95"] == "not_saved"
+    assert manifest["rendering"]["training_success"]["final_bar_points_overlaid"] is False
+    with (first / "training_success.csv").open(newline="") as handle:
+        csv_rows = list(csv.DictReader(handle))
+    assert len(csv_rows) == 38
+    assert sum(row["is_initialization"] == "True" for row in csv_rows) == 3
+    assert {row["ci95_status"] for row in csv_rows} == {"not_saved"}
+    for actual, expected in zip(csv_rows, reporting.training_rows_from_histories(histories), strict=True):
+        assert float(actual["mean_fraction"]) == expected["mean_fraction"]
+        assert int(actual["agent_steps"]) == expected["agent_steps"]
+    text = (first / "tables.md").read_text()
+    assert text.index("## Task success over training (including initialization)") < text.index("## Task success at the final checkpoint")
+    intro = text.split("## Task success at the final checkpoint")[0]
+    for phrase in ("training_success.png", "training_success.svg", "training_success.csv", "policy.token_accuracy", "policy.mean_reward",
+                   "realized test", "conditional-expected full-episode", "protocols differ", "not overlaid", "No new post-warmup bound",
+                   "learned_stochastic", "process_weighted_rollout", reporting.TRAINING_PROTOCOL_CAVEAT):
+        assert phrase in intro
+    svg = (first / "training_success.svg").read_text()
+    for phrase in ("Init", "Training environment steps (millions; linear)", "Bayes full-episode reference", "Passive Bayes reference (exact)",
+                   "sampled checkpoints (9)", "sampled checkpoints (15)", "sampled checkpoints (14)", "72.19%", "68.34%",
+                   "71.58%", "61.95%", "62.91%", "2.52M steps", "50.01M steps", "30.00M steps",
+                   reporting.TRAINING_PROTOCOL_CAVEAT, *reporting.TRAINING_NOTE.splitlines()):
+        assert phrase in svg
+    for phrase in ("95% CI", "R²", "<dc:date>"):
+        assert phrase not in svg
+    assert all(line == line.rstrip() for line in svg.splitlines())
+    assert (first / "training_success.png").read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+    with pytest.raises(FileExistsError):
+        reporting.write_report(reports, exact_success, first, **kwargs)
+    assert reporting.write_report(reports, exact_success, first, overwrite=True, **kwargs) == manifest
+
+
+def test_safe_migration_from_intact_previous_generator_outputs(reports, exact_success, histories, tmp_path):
+    reporting.write_report(reports, exact_success, tmp_path)
+    manifest_path = tmp_path / "report_manifest.json"
+    previous = json.loads(manifest_path.read_text())
+    previous["source"]["sha256"] = "0" * 64
+    manifest_path.write_text(json.dumps(previous))
+    final_bar = (tmp_path / "task_success.svg").read_bytes()
+    manifest = reporting.write_report(reports, exact_success, tmp_path, histories=histories, overwrite=True)
+    assert set(manifest["outputs"]) == set(reporting.OUTPUT_NAMES + reporting.TRAINING_OUTPUT_NAMES) - {"report_manifest.json"}
+    assert (tmp_path / "task_success.svg").read_bytes() == final_bar
+    for condition in reporting.CONDITIONS:
+        assert manifest["inputs"][f"training_history_{condition}"]["hash_basis"] == "canonical_json_in_memory"
+    with pytest.raises(ValueError, match="incompatible"):
+        reporting.write_report(reports, exact_success, tmp_path, overwrite=True)
+
+
+@pytest.mark.parametrize("mutation", ["modified", "missing", "unowned_extra", "wrong_generator", "corrupt_hash", "symlink"])
+def test_training_migration_refuses_unowned_modified_or_incomplete_reports(reports, exact_success, histories, tmp_path, mutation):
+    reporting.write_report(reports, exact_success, tmp_path)
+    manifest_path = tmp_path / "report_manifest.json"
+    if mutation == "modified":
+        (tmp_path / "tables.md").write_text("user modified")
+    elif mutation == "missing":
+        (tmp_path / "task_success.svg").unlink()
+    elif mutation == "unowned_extra":
+        (tmp_path / "training_success.csv").write_text("user data")
+    elif mutation == "symlink":
+        (tmp_path / "training_success.png").symlink_to(tmp_path / "task_success.png")
+    else:
+        manifest = json.loads(manifest_path.read_text())
+        if mutation == "wrong_generator":
+            manifest["generator"] = "unrelated"
+        else:
+            manifest["outputs"]["tables.md"]["sha256"] = "0" * 64
+        manifest_path.write_text(json.dumps(manifest))
+    before = {path.name: path.read_bytes() for path in tmp_path.iterdir()}
+    with pytest.raises(ValueError, match="modified|missing|owned"):
+        reporting.write_report(reports, exact_success, tmp_path, histories=histories, overwrite=True)
+    assert {path.name: path.read_bytes() for path in tmp_path.iterdir()} == before
+
+
+def test_training_input_validation_precedes_writes(reports, exact_success, histories, tmp_path):
+    with pytest.raises(ValueError, match="history_paths require histories"):
+        reporting.write_report(reports, exact_success, tmp_path / "no_history", history_paths=reporting.DEFAULT_HISTORY_PATHS)
+    with pytest.raises(ValueError, match="history_paths must identify"):
+        reporting.write_report(reports, exact_success, tmp_path / "missing_path", histories=histories, history_paths={})
+    exact_success["conditions"]["token_guess"]["bayes_reference"]["kind"] = "monte_carlo_optimal_accuracy"
+    with pytest.raises(ValueError, match="exact passive Bayes reference"):
+        reporting.write_report(reports, exact_success, tmp_path / "bad_reference", histories=histories)
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_training_history_path_mismatch_does_not_touch_inputs(reports, exact_success, histories, tmp_path):
+    originals = {condition: (reporting.REPO_ROOT / path).read_bytes() for condition, path in reporting.DEFAULT_HISTORY_PATHS.items()}
+    histories["reward_both"]["checkpoint_reports"][1]["policy"]["mean_reward"] = 0.4
+    with pytest.raises(ValueError, match="does not match supplied report"):
+        reporting.write_report(reports, exact_success, tmp_path / "out", histories=histories, history_paths=reporting.DEFAULT_HISTORY_PATHS)
+    assert not (tmp_path / "out").exists()
+    assert {condition: (reporting.REPO_ROOT / path).read_bytes() for condition, path in reporting.DEFAULT_HISTORY_PATHS.items()} == originals

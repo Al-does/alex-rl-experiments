@@ -1,5 +1,25 @@
 # Wing task success and specificity controls
 
+## Task success over training (including initialization)
+
+![Recorded task success over training, including initialization](training_success.png)
+
+[Vector figure (SVG)](training_success.svg) | [Every sampled checkpoint (CSV)](training_success.csv)
+
+Absolute task-success percentages from saved `condition_summary.json` checkpoint reports: passive `policy.token_accuracy` and controlled `policy.mean_reward`, measured on independent test rollouts. These are realized test token accuracy/reward, not the conditional-expected full-episode estimator used by the final bars below, not training returns, and not probe R². The protocols differ; final-bar estimates are not overlaid on these curves.
+
+Every recorded checkpoint is a node, including the actual `is_initialization=true`, step-0, iteration-0 evaluation (Init). Lines connect sampled checkpoints only; no dense epochs, smoothing, invented initial values, or confidence intervals. The x-axis is numeric training environment steps, displayed in millions on a linear scale; early log-spaced checkpoints are compressed.
+
+Recorded 20k-step evaluations; first 32 steps/episode excluded; no saved confidence intervals. Dashed: exact passive/full-episode controlled Bayes references; controlled sampling differs. The controlled reference is NOT a matched-protocol ceiling for post-warmup estimates.
+
+References are reused from the final-success evaluation: the passive stationary dominant-token rule gives an exact constant-policy reference; controlled belief-grid references average complete 1024-step episodes, including reset steps. No new post-warmup bound has been computed.
+
+| Condition | Recorded nodes | Init % | Last recorded % | Last environment steps | Test samples / checkpoint | Environments | Episode horizon | Excluded steps / episode | Policy | Sampling |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| token_guess | 9 | 22 | 71.575 | 2516889 | 20000 | 8 | 1024 | 32 | learned_stochastic | process_weighted_rollout |
+| reward_both | 15 | 33.5425 | 61.95 | 50005374 | 20000 | 8 | 1024 | 32 | learned_stochastic | process_weighted_rollout |
+| reward_factor_1 | 14 | 33.73 | 62.915 | 30001584 | 20000 | 8 | 1024 | 32 | learned_stochastic | process_weighted_rollout |
+
 ## Task success at the final checkpoint
 
 ![Final-checkpoint task success with Bayes references](task_success.png)
