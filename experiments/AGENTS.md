@@ -76,3 +76,31 @@ After `run_tune()`, call `write_training_curves(context)` from
 | Learning curve | `training_curves.jsonl` | `progress.jsonl`, `remote_artifacts.json`, `durability_manifest.json` |
 | Provenance / B2 prefix | `run_manifest.json` | full B2 manifest files |
 | Perf debugging | B2 `compact-results/progress.jsonl` or `artifacts/metrics.jsonl` | legacy Git `progress.jsonl` |
+
+### Gol cycle 1
+
+`gol_reward_state_action_symmetry_cycle_1` requires the sibling harness's
+`envs.gol` package and generic `reset_emission=False`, `episode_length=None`
+lifecycle options. `variant_2` (shared M1/M2 action) and `variant_3` (distinct
+M1/M2 actions) use the frozen half-speed kernel. `variant_2_quarter` and
+`variant_3_quarter` repeat those two conditions at quarter speed with matching
+training, design diagnostics, and probe environments. The library also supports
+the exact variant-2 quotient.
+
+```bash
+uv run pytest -q tests/test_gol_reward_state_action_symmetry_cycle_1.py tests/test_gol_probe_analysis.py
+uv run rl-harness experiments.gol_reward_state_action_symmetry_cycle_1.variant_2.experiment --smoke --hardware cpu --no-upload-artifacts
+uv run rl-harness experiments.gol_reward_state_action_symmetry_cycle_1.variant_3.experiment --smoke --hardware cpu --no-upload-artifacts
+uv run rl-harness experiments.gol_reward_state_action_symmetry_cycle_1.variant_2_quarter.experiment --smoke --hardware cpu --no-upload-artifacts
+uv run rl-harness experiments.gol_reward_state_action_symmetry_cycle_1.variant_3_quarter.experiment --smoke --hardware cpu --no-upload-artifacts
+```
+
+Each smoke runs 2,048 steps and probes the actual trained initialization plus
+1,024- and 2,048-step checkpoints, writing ignored leaf-local `.smoke/` outputs.
+No reward, belief, or hidden state enters the actor/shared critic inputs.
+Batches bootstrap continuing trajectories without resetting environment,
+filter, or actor context. Probes target the decision-time token/action-only
+posterior. The previous-action/latest-token controller is a myopic fit-history
+lookup, not an optimized long-run controller; shuffled histories deliberately
+break target alignment. Full-information occupancy bounds are not certified
+Bayes-optimal POMDP benchmarks, and smoke scores are not research findings.
