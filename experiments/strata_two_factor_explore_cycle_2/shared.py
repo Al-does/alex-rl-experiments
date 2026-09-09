@@ -81,7 +81,7 @@ def resolved_recipe(context: RunContext, condition: str) -> dict[str, Any]:
         "process_change": {
             "before": "two Wing(alpha=0.94, x=0.4) factors",
             "after": (
-                "two Strata(alpha=0.97, t0=0.38, t1=0.54) factors"
+                "two Strata(alpha=0.98, t0=0.30, t1=0.80) factors"
             ),
         },
         "cycle_2_choices": {
