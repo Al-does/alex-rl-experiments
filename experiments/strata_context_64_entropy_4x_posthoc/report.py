@@ -374,6 +374,13 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         writer.writerows(rows)
 
 
+def _normalize_svg(path: Path) -> None:
+    path.write_text(
+        "\n".join(line.rstrip() for line in path.read_text().splitlines())
+        + "\n"
+    )
+
+
 def _task_figure(metrics: dict[str, Any], output: Path) -> None:
     figure, axes = plt.subplots(1, 3, figsize=(12, 3.7), constrained_layout=True)
     for axis, (run_name, run) in zip(axes, metrics["runs"].items()):
@@ -402,6 +409,7 @@ def _task_figure(metrics: dict[str, Any], output: Path) -> None:
     )
     figure.savefig(output.with_suffix(".png"), dpi=180)
     figure.savefig(output.with_suffix(".svg"))
+    _normalize_svg(output.with_suffix(".svg"))
     plt.close(figure)
 
 
@@ -478,6 +486,7 @@ def _geometry_figure(metrics: dict[str, Any], output: Path) -> None:
     )
     figure.savefig(output.with_suffix(".png"), dpi=180)
     figure.savefig(output.with_suffix(".svg"))
+    _normalize_svg(output.with_suffix(".svg"))
     plt.close(figure)
 
 
