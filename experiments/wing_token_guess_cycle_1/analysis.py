@@ -488,3 +488,10 @@ def analyze_checkpoint(
 
 
 __all__ = ["ProbeData", "analyze_checkpoint", "collect_probe_data"]
+
+
+if __name__ == "__main__":
+    import sys
+    from experiments.wing_two_factor_explore_cycle_1.control_analysis import main
+
+    main(["--study", "token_guess", *sys.argv[1:]])

@@ -51,3 +51,10 @@ def analyze_checkpoint(
         streams=streams,
         emission_matrix=wing_model(alpha=WING_ALPHA, x=WING_X).emission_matrix,
     )
+
+
+if __name__ == "__main__":
+    import sys
+    from experiments.wing_two_factor_explore_cycle_1.control_analysis import main
+
+    main(["--study", "explore_cycle_2", *sys.argv[1:]])
