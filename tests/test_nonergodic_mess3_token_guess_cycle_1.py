@@ -241,6 +241,44 @@ def test_probe_targets_separate_weighted_belief_from_next_token_distribution():
     )
 
 
+def test_probe_next_token_target_uses_source_belief_not_an_extra_transition():
+    model = nonergodic_mess3_model()
+    config = environment_config()
+    config["diagnostics"] = {
+        "belief": True,
+        "state": True,
+        "tokens": True,
+    }
+    env = HMMEnv(config)
+    try:
+        _, info = env.reset(seed=83)
+        observation, _, _, _, info = env.step(info["raw_token_current"])
+        targets = analysis._target_adapter(
+            observation[None],
+            [info],
+            np.asarray([1]),
+        )
+        source = targets["weighted_belief"][0]
+        pending = targets["next_token_distribution"][0]
+        arrival = np.asarray(info["belief_current"])
+        np.testing.assert_allclose(
+            source @ model.transition_matrix,
+            arrival,
+            atol=1e-12,
+        )
+        np.testing.assert_allclose(
+            pending,
+            source @ model.emission_matrix,
+            atol=1e-12,
+        )
+        assert not np.allclose(
+            pending,
+            arrival @ model.emission_matrix,
+        )
+    finally:
+        env.close()
+
+
 @pytest.mark.parametrize("action", [-1, 3, 1.5, True, "1"])
 def test_task_rejects_invalid_token_guesses(action):
     env = HMMEnv(environment_config())

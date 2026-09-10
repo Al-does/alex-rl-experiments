@@ -75,8 +75,16 @@ def _target_adapter(
     episode_steps: np.ndarray,
 ) -> Mapping[str, np.ndarray]:
     del observations
-    beliefs = np.stack([info["belief_current"] for info in infos])
-    emission = nonergodic_mess3_model().emission_matrix
+    model = nonergodic_mess3_model()
+    arrival_beliefs = np.stack([info["belief_current"] for info in infos])
+    beliefs = np.linalg.solve(
+        model.transition_matrix.T,
+        arrival_beliefs.T,
+    ).T
+    if (beliefs < -1e-10).any():
+        raise RuntimeError("source-belief inversion produced negative mass")
+    beliefs = np.clip(beliefs, 0.0, None)
+    beliefs /= beliefs.sum(axis=1, keepdims=True)
     component_posteriors = beliefs.reshape(
         -1,
         COMPONENT_COUNT,
@@ -85,7 +93,7 @@ def _target_adapter(
     return {
         "weighted_belief": beliefs,
         "component_posterior": component_posteriors,
-        "next_token_distribution": beliefs @ emission,
+        "next_token_distribution": beliefs @ model.emission_matrix,
         "state": np.asarray(
             [info["state_current"] for info in infos],
             dtype=np.int64,
@@ -392,7 +400,11 @@ def _analyze_samples(
             "n_envs": N_ENVS,
             "warmup_per_episode": WARMUP,
             "context_length": CONTEXT_LENGTH,
-            "belief_timing": "info.belief_current_before_current_guess",
+            "belief_timing": (
+                "filtered edge-source belief that predicts the pending token; "
+                "recovered from info.belief_current using the exact invertible "
+                "transition matrix"
+            ),
             "belief_target": (
                 "six weighted state probabilities "
                 "(w_A eta_A, w_B eta_B)"
