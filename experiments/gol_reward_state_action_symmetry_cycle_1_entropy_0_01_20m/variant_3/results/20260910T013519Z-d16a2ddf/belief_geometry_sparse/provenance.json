@@ -1,0 +1,172 @@
+{
+  "analysis_configuration": {
+    "command": [
+      "/home/ubuntu/repos/alex-rl-experiments/experiments/gol_reward_state_action_symmetry_cycle_1_entropy_0_01_20m/posthoc_analysis.py",
+      "--variant",
+      "3",
+      "--run-id",
+      "20260910T013519Z-d16a2ddf",
+      "--condition-summary",
+      "experiments/gol_reward_state_action_symmetry_cycle_1_entropy_0_01_20m/variant_3/results/20260910T013519Z-d16a2ddf/condition_summary.json",
+      "--run-manifest",
+      "experiments/gol_reward_state_action_symmetry_cycle_1_entropy_0_01_20m/variant_3/results/20260910T013519Z-d16a2ddf/run_manifest.json",
+      "--durability-manifest",
+      "experiments/gol_reward_state_action_symmetry_cycle_1_entropy_0_01_20m/variant_3/artifacts/20260910T013519Z-d16a2ddf/metadata/durability_manifest.json",
+      "--checkpoint-root",
+      "experiments/gol_reward_state_action_symmetry_cycle_1_entropy_0_01_20m/variant_3/artifacts/20260910T013519Z-d16a2ddf/posthoc_checkpoints",
+      "--output",
+      "experiments/gol_reward_state_action_symmetry_cycle_1_entropy_0_01_20m/variant_3/results/20260910T013519Z-d16a2ddf/belief_geometry_sparse"
+    ],
+    "device": "cpu",
+    "fit_protocol": "training-only whole-trajectory grouped SVD-cutoff CV; independent held-out trajectories",
+    "n_bootstrap_resamples": 200,
+    "n_environments_per_split": 16,
+    "n_fit": 10000,
+    "n_null_repeats": 5,
+    "n_test": 10000,
+    "named_seed_spawn_keys": {
+      "fit": [
+        810
+      ],
+      "probe": [
+        814
+      ],
+      "shuffle_fit": [
+        812
+      ],
+      "shuffle_test": [
+        813
+      ],
+      "task_bootstrap": [
+        815
+      ],
+      "test": [
+        811
+      ]
+    },
+    "plot_points": "deterministic subsample of at most 2000 held-out rows",
+    "policy_mode": "stochastic",
+    "prediction_metrics": "raw, unprojected, and unnormalized",
+    "sampling_distribution": "learned-policy process-weighted continuing rollouts",
+    "seed": 42,
+    "target_dtype": "float64",
+    "warmup": "model.sequence_lookback frames per environment; verified in metrics"
+  },
+  "analysis_framework_versions": {
+    "matplotlib": "3.11.1",
+    "numpy": "2.5.1",
+    "python": "3.14.7",
+    "ray": "2.56.0",
+    "scipy": "1.18.0",
+    "torch": "2.12.1"
+  },
+  "analysis_repositories": {
+    "experiment_repository": {
+      "commit": "1e821bb3880540541ec318dcbfd368fa2b197d7f",
+      "dirty": true,
+      "root": "/home/ubuntu/repos/alex-rl-experiments"
+    },
+    "rl_harness": {
+      "commit": "9a5fed83b71bdf3d63a1784556b9c9743b3bca7e",
+      "dirty": false,
+      "root": "/home/ubuntu/repos/rl-harness"
+    }
+  },
+  "checkpoint_modules": [
+    {
+      "agent_steps": 0,
+      "durability_manifest_prefix": "initial_checkpoint/learner_group/learner/rl_module/default_policy",
+      "file_sha256": {
+        "class_and_ctor_args.pkl": "35210f39cf0d33dbeb835e609efd208bcfb74016d759a6a6d04c8e028b513b47",
+        "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+        "module_state.pkl": "cda6f3adb8392e86d3b61927e8a95f4ff2d88ed7ed5b43376424bc46f9d32eb9"
+      },
+      "hashes_match_durability_manifest": true,
+      "label": "initial",
+      "source_checkpoint_label": "initial_checkpoint",
+      "training_iteration": 0
+    },
+    {
+      "agent_steps": 16785408,
+      "durability_manifest_prefix": "log_spaced_checkpoints/iteration_000512_steps_016785408/learner_group/learner/rl_module/default_policy",
+      "file_sha256": {
+        "class_and_ctor_args.pkl": "35210f39cf0d33dbeb835e609efd208bcfb74016d759a6a6d04c8e028b513b47",
+        "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+        "module_state.pkl": "76b7b74b5bf5a303bef763b144034396cd06a8427f6c57b3f6cd70c900f22ec5"
+      },
+      "hashes_match_durability_manifest": true,
+      "label": "penultimate",
+      "source_checkpoint_label": "iteration_000512_steps_016785408",
+      "training_iteration": 512
+    },
+    {
+      "agent_steps": 20031024,
+      "durability_manifest_prefix": "tune/PPO_HMMEnv_e3fb6_00000_0_2026-09-10_01-35-23/checkpoint_000000/learner_group/learner/rl_module/default_policy",
+      "file_sha256": {
+        "class_and_ctor_args.pkl": "35210f39cf0d33dbeb835e609efd208bcfb74016d759a6a6d04c8e028b513b47",
+        "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+        "module_state.pkl": "7606172f227d6af43d3bcfda156a68ff3bd14ce276cf3c39473934a43acec492"
+      },
+      "hashes_match_durability_manifest": true,
+      "label": "final",
+      "source_checkpoint_label": "checkpoint_000000",
+      "training_iteration": 611
+    }
+  ],
+  "outputs": [
+    "metrics.json",
+    "limitations.md",
+    "belief_geometry_initial.png",
+    "belief_geometry_final.png",
+    "selected_checkpoint_history.png"
+  ],
+  "run_id": "20260910T013519Z-d16a2ddf",
+  "schema_version": 1,
+  "source_sha256": {
+    "/home/ubuntu/repos/alex-rl-experiments/experiments/gol_reward_state_action_symmetry_cycle_1_entropy_0_01_20m/analysis.py": "e520a8336e9bffe5fcfdfa754cdae934995979a7818372a9f58de8a2868682f6",
+    "/home/ubuntu/repos/alex-rl-experiments/experiments/gol_reward_state_action_symmetry_cycle_1_entropy_0_01_20m/posthoc_analysis.py": "aa55781e2915b537a1214c77e37b60433e25b1fdec36510a821e4b61e87cfdd1",
+    "/home/ubuntu/repos/alex-rl-experiments/experiments/gol_reward_state_action_symmetry_cycle_1_entropy_0_01_20m/process.py": "9915431ba897319b7ad38af3b17d88cea208a3069f524c7f60f53c35961015d8",
+    "/home/ubuntu/repos/alex-rl-experiments/experiments/gol_reward_state_action_symmetry_cycle_1_entropy_0_01_20m/shared.py": "3ac0577c34f680570809689add8e2f0f01ab46a0f80a5ea710af54590a2215e3",
+    "/home/ubuntu/repos/rl-harness/analysis/belief_geometry.py": "a077e836491ee2bb72efff658ca850ba34764937a8708714017ddc07e916f754",
+    "/home/ubuntu/repos/rl-harness/analysis/plots.py": "9c223d6ca80a6cb69e77c2690a590283cf87206272b67954e3c02e75f2977f87",
+    "/home/ubuntu/repos/rl-harness/analysis/probes/controls.py": "e35f8f6908372e184029964fe770207cb36eb506f5f3f1d197931536083dc041",
+    "/home/ubuntu/repos/rl-harness/analysis/rollouts.py": "a7682ef792e450bc93079d9e302d37d0ebe34438e70cde21f7cfb3cc11de2ff4",
+    "/home/ubuntu/repos/rl-harness/envs/gol/model.py": "ee134a3a4aa33fcd147c1abd4f59d11910c911d7ce4e63170860041b0b82f48c",
+    "/home/ubuntu/repos/rl-harness/envs/hmm/env.py": "d64d81cc90ee7fedf155cd25d0c77d9a1f6c7fe3fb05d5398a468662cb837219"
+  },
+  "timing_contract": {
+    "actor_inputs": "latest token one-hot (2) and previous executed action one-hot (4); all zero at reset",
+    "continuing_sampling": "batch truncation does not reset environment, filter, or model state",
+    "representation": "post-final-LayerNorm embedding used to parameterize action a_t",
+    "reward_conditions_actor_or_filter": false,
+    "target": "b_t from info['belief_current'] at decision time, before env.step(a_t)",
+    "warmup_masking": "complete histories retained from reset; scoring starts only after the full model sequence lookback"
+  },
+  "training_provenance": {
+    "dependency_lock": {
+      "file": "/root/work/alex-rl-experiments/uv.lock",
+      "sha256": "785cc103f811d884df8c6ead090681bc7ee3c250608bc30027b1ac9dbaa96e7f"
+    },
+    "experiment_repository": {
+      "commit": "3027569d2c70378b117a71e2ac09b1d47e1dffbb",
+      "dirty": false,
+      "root": "/root/work/alex-rl-experiments"
+    },
+    "framework_versions": {
+      "gymnasium": "1.2.2",
+      "numpy": "2.5.1",
+      "python": "3.14.7",
+      "ray": "2.56.0",
+      "rl-harness": "0.1.0",
+      "torch": "2.12.1"
+    },
+    "library": {
+      "commit": "6ebbda6a7bc6bf3af1af1246f62ad537fa93edb2",
+      "dirty": false,
+      "package": "rl-harness",
+      "root": "/root/work/rl-harness",
+      "version": "0.1.0"
+    }
+  },
+  "variant": 3
+}
