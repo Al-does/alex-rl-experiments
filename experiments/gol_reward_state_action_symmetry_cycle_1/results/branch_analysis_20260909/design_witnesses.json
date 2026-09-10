@@ -1,0 +1,19 @@
+{
+  "training_library_revision": "32a15242b01450472c522f0bac250e1a2f7e2a6d",
+  "verified_source": "envs/gol/model.py; identical GOL kernels in clean 561a744 and recorded 32a15242",
+  "state_order": ["M1", "M2", "E", "S"],
+  "action_order": ["a1", "a2", "aE", "aS"],
+  "comparison": "pure E minus pure S, not a unit-normalized contrast",
+  "rows": [
+    {"variant": 2, "speed": "half", "separate_marginal_map_rank": 2, "joint_token_reward_map_rank": 3, "max_es_reward_marginal_difference": 0.0, "max_es_token_marginal_difference": 1.1102230246251565e-16, "max_es_joint_outcome_difference": 0.49, "es_second_reward_difference_aE_then_aE": 0.08360000000000001, "m1_m2_max_aggregated_kernel_difference": 0.0},
+    {"variant": 3, "speed": "half", "separate_marginal_map_rank": 3, "joint_token_reward_map_rank": 4, "max_es_reward_marginal_difference": 0.0, "max_es_token_marginal_difference": 1.1102230246251565e-16, "max_es_joint_outcome_difference": 0.49, "es_second_reward_difference_aE_then_aE": 0.08360000000000001, "m1_m2_max_aggregated_kernel_difference": 0.15000000000000002},
+    {"variant": 2, "speed": "quarter", "separate_marginal_map_rank": 2, "joint_token_reward_map_rank": 3, "max_es_reward_marginal_difference": 0.0, "max_es_token_marginal_difference": 1.1102230246251565e-16, "max_es_joint_outcome_difference": 0.49, "es_second_reward_difference_aE_then_aE": 0.08835, "m1_m2_max_aggregated_kernel_difference": 0.0},
+    {"variant": 3, "speed": "quarter", "separate_marginal_map_rank": 3, "joint_token_reward_map_rank": 4, "max_es_reward_marginal_difference": 0.0, "max_es_token_marginal_difference": 1.1102230246251565e-16, "max_es_joint_outcome_difference": 0.49, "es_second_reward_difference_aE_then_aE": 0.08835, "m1_m2_max_aggregated_kernel_difference": 0.07500000000000001}
+  ],
+  "formulas": {
+    "separate_marginals": "concatenate reward map R[s,a]=sum_x K[a,x,s,E] and token map P[s,a,x]=sum_j K[a,x,s,j]",
+    "joint_map": "concatenate K[a,x,s,E] and P[s,a,x]-K[a,x,s,E] across actions and tokens",
+    "second_reward": "d @ sum_x K[aE,x] @ R[:,aE], d=(0,0,1,-1)"
+  },
+  "interpretation": "E-S is invisible to separate one-step marginals, but not to the joint reward-token distribution or multi-step consequences. These are analytical witnesses, not evidence about what the neural policy represents."
+}

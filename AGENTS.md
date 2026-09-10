@@ -77,6 +77,8 @@ as Cursor dashboard secrets (see `README.md` and `rl-harness/docs/artifact_stora
 ### More context
 
 See `experiments/AGENTS.md` for experiment layout and promotion rules.
+For post-hoc belief analysis, read `.devin/skills/belief-geometry/SKILL.md` and
+the installed harness's `analysis/README.md`; keep task adapters in this repo.
 
 ### Wing study verification
 
@@ -108,3 +110,83 @@ squared value error rather than the size of a value update. Its probes explicitl
 use the cycle-2 environment. Verify with
 `uv run pytest -q tests/test_wing_two_factor_explore_cycle_2.py`, then smoke either
 leaf using the command above with `cycle_2` substituted for `cycle_1`.
+
+### Offline Wing specificity controls
+
+The analysis modules also expose a supplementary, non-interventional CLI for
+existing checkpoints; this does not change the historical training-time probe
+battery or retrain agents:
+
+```bash
+uv run python -m experiments.wing_token_guess_cycle_1.analysis --checkpoint CHECKPOINT --output NEW_RESULT.json --smoke
+uv run python -m experiments.wing_two_factor_explore_cycle_2.analysis --condition reward_both --checkpoint CHECKPOINT --output NEW_RESULT.json --smoke
+uv run pytest -q tests/test_wing_control_data.py tests/test_wing_control_analysis.py
+```
+
+Use `reward_factor_1` for the other cycle-2 arm. Omit `--smoke` for the default
+20,000 independently collected fit and test samples, five null repetitions,
+and 200 episode-bootstrap resamples. `--steps` changes the per-split analysis
+sample budget. Each invocation writes the full report plus a small
+`<output-stem>_summary.json` with a fixed last-layer view. Outputs refuse
+overwriting either existing file. Reports include source/checkpoint hashes,
+repository revisions, and runtime versions. Use new `results/` paths for compact
+reports; checkpoints and scratch outputs stay in `artifacts/`.
+
+`CHECKPOINT` accepts either an Algorithm root containing
+`learner_group/learner/rl_module/default_policy` or that complete RLModule
+subdirectory itself. `RLModule.from_checkpoint` restores these Wing modules on
+CPU without starting Ray; no portable export or full Algorithm restore is
+needed. B2 final-module downloads need only three files and can be verified
+against the run's canonical durability manifest.
+
+The delayed token-guess NTP control predicts the pending hidden token from the
+filtered source belief, not from `info.belief_current @ emission_matrix` (which
+is one transition too far). Controlled Wing uses preceding executed actions;
+its rotations occur after emission, so next-token probabilities coincide across
+current actions. The battery includes both per-factor marginal and full joint
+NTP/log-NTP baselines; policy probabilities are separate RL nuisance features.
+Alternative models are selected using training histories only,
+with a next-observation KL constraint and affine/permutation-equivalence checks.
+History shuffling recomputes both activations and targets and is a distribution
+shift test, not a null required to have zero R². All comparisons are descriptive
+linear accessibility tests, not evidence of causal use.
+
+### Wing task-success tables and figures
+
+Generate fresh complete-episode success estimates and Bayes references, then
+render the checked-in probe results without loading model checkpoints:
+
+```bash
+uv run python -m experiments.wing_two_factor_explore_cycle_1.evaluate_success --output NEW_SUCCESS.json
+uv run python -m experiments.wing_two_factor_explore_cycle_1.report_controls --success NEW_SUCCESS.json --output-dir NEW_REPORT_DIRECTORY
+uv run pytest -q tests/test_wing_success_evaluation.py tests/test_wing_success_benchmarks.py tests/test_wing_control_report.py
+```
+
+Evaluation restores the final module subtrees recorded by the three completed
+runs, uses 128 independent 1,024-step episodes per model, includes reset steps,
+and reports conditional expected token accuracy or mean rewarded-factor arrival
+occupancy under the learned stochastic policy. It does not divide variable-length
+training returns by a fixed horizon. Result percentages and probe R² are distinct.
+
+At alpha=0.94, x=0.4, token 1 dominates in every state. Always guessing joint
+(1,1) therefore attains the exact passive Bayes maximum, 72.19334444%; the
+Monte Carlo exact-filter calculation is only a cross-check. Cycle-2 control
+strength is 1.0: use its freshly computed finite-horizon belief-grid upper bound
+(about 68.3441%), not the old cycle-1 strength-0.15 benchmark. Grid refinement is
+not an exact-optimality certificate. The benchmark policy uses full history,
+not a promise of optimality within the transformer's 32-frame context.
+
+The report generator writes scientific Markdown/CSV tables, PNG/SVG charts,
+and a hash manifest. Specificity inputs are schema-2 `validated.json` reports;
+superseded `final.json` drafts and all checkpoints stay out of commits.
+`--overwrite` is restricted to intact generator-owned outputs.
+
+Task-success reporting must include the saved initialization-to-final checkpoint
+trajectory, not only final-checkpoint bars. Curves use the held-out `policy`
+metrics in the original `condition_summary.json` checkpoint reports, starting
+from the actual zero-step initialization. Do not use `train_policy`, invent
+intermediate measurements, or infer confidence intervals from aggregate means.
+These archived evaluations exclude 32 warmup steps per episode; keep them
+separate from the newer complete-episode expected-success bars. The controlled
+Bayes line is a full-episode reference, not an exactly matched post-warmup
+ceiling.

@@ -89,6 +89,17 @@ git push -u origin HEAD
 gh pr create
 ```
 
+## Analyze trained runs
+
+Use the [belief-geometry skill](.devin/skills/belief-geometry/SKILL.md) and the
+shared harness's `analysis/README.md` for the generic workflow. Keep task-specific
+adapters here; reuse the library's filtering, probe, control, and plotting APIs.
+Locate the installed guide with the project environment:
+
+```bash
+uv run python -c 'from importlib.resources import files; print(files("analysis") / "README.md")'
+```
+
 ## Tests
 
 ```bash

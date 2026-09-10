@@ -1,0 +1,1189 @@
+{
+  "conditions": {
+    "reward_both": {
+      "agent_steps": 50005374,
+      "bayes_reference": {
+        "ci95": null,
+        "details": {
+          "attainable_policy": {
+            "alpha": 0.94,
+            "benchmark": "controlled_attainable_full_belief_policy_monte_carlo",
+            "ci95": [
+              0.6830598022048407,
+              0.6835429333566841
+            ],
+            "ci_method": "approximate Student-t interval over independent full-episode means",
+            "confidence_scope": "Monte Carlo uncertainty only; not a rigorous confidence bound on the optimum",
+            "episodes_per_chain": 1,
+            "estimator": "conditional expected arrival-state reward before each controlled edge",
+            "evaluation_discount": 1.0,
+            "expected_episode_return": 699.7006006075007,
+            "factor_normalization": "The two independent factors have separately selectable actions. Reward is the mean over selected arrival-state indicators, not joint success. Thus reward_both and reward_factor_1 have the same normalized optimal value.",
+            "filter": "exact action/token belief; no hidden-state or reward observations",
+            "grid": {
+              "grid_points": 20301,
+              "max_barycentric_sum_error": 2.220446049250313e-16,
+              "max_posterior_reconstruction_error": 4.440892098500626e-16,
+              "max_transition_row_sum_error": 4.440892098500626e-16,
+              "minimum_barycentric_weight": 0.0,
+              "sparse_transition_nonzeros": 363803,
+              "subdivisions": 200
+            },
+            "horizon": 1024,
+            "independent_chains": 4096,
+            "mean": 0.6833013677807624,
+            "metric": "mean_rewarded_factor_arrival_state_indicator",
+            "n_episodes": 4096,
+            "percentage": 68.33013677807625,
+            "planning": {
+              "bellman_increment_span": 9.939826739469027e-11,
+              "gamma": 0.99,
+              "iterations": 387,
+              "max_iterations": 10000,
+              "method": "centered discounted grid value iteration",
+              "span_tolerance": 1e-10
+            },
+            "policy": "stationary argmax barycentrically interpolated discounted grid Q; no artificial grid-state revelation",
+            "provenance": {
+              "arithmetic": "float64; not interval-arithmetic certified",
+              "kernel_sha256": "0c42207f73c9ed51f2ef46fd661f78beb96d8ca1f81f1148752437c5ed5065ae",
+              "numpy_version": "2.5.1",
+              "scipy_version": "1.18.0"
+            },
+            "random_stream": "NumPy default_rng; reset then step-major draws of shape (n_episodes,)",
+            "reset": "uniform source prior -> neutral base edge -> visible token -> arrival posterior before first action",
+            "reset_count": 4096,
+            "reward_state": 0,
+            "seed": 20260911,
+            "simulated_factors": 1,
+            "standard_error": 0.00012321357857688687,
+            "status": "Monte Carlo estimate of an attainable policy value, not the Bayes optimum or a rigorous lower confidence bound",
+            "strength": 1.0,
+            "warmup_actions": 0,
+            "x": 0.4
+          },
+          "grid_refinements": {
+            "alpha": 0.94,
+            "benchmark": "controlled_finite_horizon_grid_refinement",
+            "convergence": {
+              "interpretation": "resolution stability is not a certified error bar or proof of equality to the continuous-belief optimum; minimum of computed upper bounds selected without extrapolation",
+              "last_absolute_fraction_change": 4.2488473969370943e-05,
+              "nested_triangulations": true,
+              "observed_nonincreasing": true,
+              "successive_fraction_changes": [
+                -0.0001861768215357662,
+                -4.2488473969370943e-05
+              ]
+            },
+            "episode_return_upper_bound": 699.8435593515792,
+            "factor_normalization": "The two independent factors have separately selectable actions. Reward is the mean over selected arrival-state indicators, not joint success. Thus reward_both and reward_factor_1 have the same normalized optimal value.",
+            "horizon": 1024,
+            "metric": "mean_rewarded_factor_arrival_state_indicator",
+            "refinements": [
+              {
+                "alpha": 0.94,
+                "benchmark": "controlled_finite_horizon_belief_grid_upper_bound",
+                "bound_justification": "nonnegative barycentric posterior decomposition and convex finite-horizon POMDP values imply an information-relaxation upper bound by Bellman induction",
+                "certification": "float64 numerical upper bound; no interval arithmetic, no certified discretization gap, no extrapolation",
+                "discount": 1.0,
+                "episode_return_upper_bound": 700.0777126141764,
+                "episode_scope": "full fixed-length episodes; randomized first training-episode lengths excluded",
+                "factor_normalization": "The two independent factors have separately selectable actions. Reward is the mean over selected arrival-state indicators, not joint success. Thus reward_both and reward_factor_1 have the same normalized optimal value.",
+                "filter": "normalize(belief @ K[action, token]); no hidden-state or reward observations",
+                "grid": {
+                  "grid_points": 5151,
+                  "max_barycentric_sum_error": 2.220446049250313e-16,
+                  "max_posterior_reconstruction_error": 4.440892098500626e-16,
+                  "max_transition_row_sum_error": 4.440892098500626e-16,
+                  "minimum_barycentric_weight": 0.0,
+                  "sparse_transition_nonzeros": 91911,
+                  "subdivisions": 100
+                },
+                "horizon": 1024,
+                "metric": "mean_rewarded_factor_arrival_state_indicator",
+                "provenance": {
+                  "arithmetic": "float64; not interval-arithmetic certified",
+                  "kernel_sha256": "0c42207f73c9ed51f2ef46fd661f78beb96d8ca1f81f1148752437c5ed5065ae",
+                  "numpy_version": "2.5.1",
+                  "scipy_version": "1.18.0"
+                },
+                "reset": "uniform source prior -> neutral base edge -> visible reset token -> arrival posterior before first action; reset earns no reward",
+                "reset_beliefs": [
+                  [
+                    0.06651884700665193,
+                    0.9002217294900221,
+                    0.03325942350332597
+                  ],
+                  [
+                    0.3805413887799137,
+                    0.23303256178893683,
+                    0.3864260494311495
+                  ]
+                ],
+                "reset_evaluation": "exact Bellman backup at reset posteriors, interpolating only the remaining-horizon continuation",
+                "reset_token_probabilities": [
+                  0.15033333333333335,
+                  0.8496666666666666
+                ],
+                "reward": "belief @ sum_token K[action, token] @ one_hot(reward_state)",
+                "reward_state": 0,
+                "status": "numerical upper bound, not the exact Bayes optimum",
+                "strength": 1.0,
+                "terminal_value": 0.0,
+                "upper_bound_fraction": 0.6836696412247817,
+                "upper_bound_percentage": 68.36696412247817,
+                "warmup_actions": 0,
+                "x": 0.4
+              },
+              {
+                "alpha": 0.94,
+                "benchmark": "controlled_finite_horizon_belief_grid_upper_bound",
+                "bound_justification": "nonnegative barycentric posterior decomposition and convex finite-horizon POMDP values imply an information-relaxation upper bound by Bellman induction",
+                "certification": "float64 numerical upper bound; no interval arithmetic, no certified discretization gap, no extrapolation",
+                "discount": 1.0,
+                "episode_return_upper_bound": 699.8870675489238,
+                "episode_scope": "full fixed-length episodes; randomized first training-episode lengths excluded",
+                "factor_normalization": "The two independent factors have separately selectable actions. Reward is the mean over selected arrival-state indicators, not joint success. Thus reward_both and reward_factor_1 have the same normalized optimal value.",
+                "filter": "normalize(belief @ K[action, token]); no hidden-state or reward observations",
+                "grid": {
+                  "grid_points": 20301,
+                  "max_barycentric_sum_error": 2.220446049250313e-16,
+                  "max_posterior_reconstruction_error": 4.440892098500626e-16,
+                  "max_transition_row_sum_error": 4.440892098500626e-16,
+                  "minimum_barycentric_weight": 0.0,
+                  "sparse_transition_nonzeros": 363803,
+                  "subdivisions": 200
+                },
+                "horizon": 1024,
+                "metric": "mean_rewarded_factor_arrival_state_indicator",
+                "provenance": {
+                  "arithmetic": "float64; not interval-arithmetic certified",
+                  "kernel_sha256": "0c42207f73c9ed51f2ef46fd661f78beb96d8ca1f81f1148752437c5ed5065ae",
+                  "numpy_version": "2.5.1",
+                  "scipy_version": "1.18.0"
+                },
+                "reset": "uniform source prior -> neutral base edge -> visible reset token -> arrival posterior before first action; reset earns no reward",
+                "reset_beliefs": [
+                  [
+                    0.06651884700665193,
+                    0.9002217294900221,
+                    0.03325942350332597
+                  ],
+                  [
+                    0.3805413887799137,
+                    0.23303256178893683,
+                    0.3864260494311495
+                  ]
+                ],
+                "reset_evaluation": "exact Bellman backup at reset posteriors, interpolating only the remaining-horizon continuation",
+                "reset_token_probabilities": [
+                  0.15033333333333335,
+                  0.8496666666666666
+                ],
+                "reward": "belief @ sum_token K[action, token] @ one_hot(reward_state)",
+                "reward_state": 0,
+                "status": "numerical upper bound, not the exact Bayes optimum",
+                "strength": 1.0,
+                "terminal_value": 0.0,
+                "upper_bound_fraction": 0.6834834644032459,
+                "upper_bound_percentage": 68.34834644032459,
+                "warmup_actions": 0,
+                "x": 0.4
+              },
+              {
+                "alpha": 0.94,
+                "benchmark": "controlled_finite_horizon_belief_grid_upper_bound",
+                "bound_justification": "nonnegative barycentric posterior decomposition and convex finite-horizon POMDP values imply an information-relaxation upper bound by Bellman induction",
+                "certification": "float64 numerical upper bound; no interval arithmetic, no certified discretization gap, no extrapolation",
+                "discount": 1.0,
+                "episode_return_upper_bound": 699.8435593515792,
+                "episode_scope": "full fixed-length episodes; randomized first training-episode lengths excluded",
+                "factor_normalization": "The two independent factors have separately selectable actions. Reward is the mean over selected arrival-state indicators, not joint success. Thus reward_both and reward_factor_1 have the same normalized optimal value.",
+                "filter": "normalize(belief @ K[action, token]); no hidden-state or reward observations",
+                "grid": {
+                  "grid_points": 80601,
+                  "max_barycentric_sum_error": 2.220446049250313e-16,
+                  "max_posterior_reconstruction_error": 4.440892098500626e-16,
+                  "max_transition_row_sum_error": 4.440892098500626e-16,
+                  "minimum_barycentric_weight": 0.0,
+                  "sparse_transition_nonzeros": 1447586,
+                  "subdivisions": 400
+                },
+                "horizon": 1024,
+                "metric": "mean_rewarded_factor_arrival_state_indicator",
+                "provenance": {
+                  "arithmetic": "float64; not interval-arithmetic certified",
+                  "kernel_sha256": "0c42207f73c9ed51f2ef46fd661f78beb96d8ca1f81f1148752437c5ed5065ae",
+                  "numpy_version": "2.5.1",
+                  "scipy_version": "1.18.0"
+                },
+                "reset": "uniform source prior -> neutral base edge -> visible reset token -> arrival posterior before first action; reset earns no reward",
+                "reset_beliefs": [
+                  [
+                    0.06651884700665193,
+                    0.9002217294900221,
+                    0.03325942350332597
+                  ],
+                  [
+                    0.3805413887799137,
+                    0.23303256178893683,
+                    0.3864260494311495
+                  ]
+                ],
+                "reset_evaluation": "exact Bellman backup at reset posteriors, interpolating only the remaining-horizon continuation",
+                "reset_token_probabilities": [
+                  0.15033333333333335,
+                  0.8496666666666666
+                ],
+                "reward": "belief @ sum_token K[action, token] @ one_hot(reward_state)",
+                "reward_state": 0,
+                "status": "numerical upper bound, not the exact Bayes optimum",
+                "strength": 1.0,
+                "terminal_value": 0.0,
+                "upper_bound_fraction": 0.6834409759292766,
+                "upper_bound_percentage": 68.34409759292765,
+                "warmup_actions": 0,
+                "x": 0.4
+              }
+            ],
+            "reward_state": 0,
+            "selected_subdivisions": 400,
+            "status": "numerical upper bound, not the exact Bayes optimum",
+            "strength": 1.0,
+            "upper_bound_fraction": 0.6834409759292766,
+            "upper_bound_percentage": 68.34409759292765,
+            "x": 0.4
+          }
+        },
+        "kind": "numerical_upper_bound",
+        "label": "Bayes planning upper bound (numerical)",
+        "value": 0.6834409759292766
+      },
+      "checkpoint": "experiments/wing_two_factor_explore_cycle_2/reward_both_state_0/artifacts/20260908T001136Z-9064aabc/tune/PPO_HMMEnv_ddc21_00000_0_2026-09-08_00-11-41/checkpoint_000000/learner_group/learner/rl_module/default_policy",
+      "checkpoint_sha256": {
+        "class_and_ctor_args.pkl": "059b4375c8ba1762b8d04ed7343ca86ca421e022dce8094ebd75fbef57506b5f",
+        "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+        "module_state.pkl": "bbb595d365ae81c5217e8411d99f370c33e9aee7a1b90bc805737f4d1479cf07"
+      },
+      "ci95": [
+        0.6239947919948722,
+        0.6272258287772549
+      ],
+      "condition": "reward_both",
+      "environment_config": {
+        "delay": 0,
+        "episode_length": 1024,
+        "model": {
+          "factory": "envs.hmm:factored_model",
+          "kwargs": {
+            "factors": [
+              {
+                "factory": "envs.wing.model:wing_model",
+                "kwargs": {
+                  "alpha": 0.94,
+                  "x": 0.4
+                }
+              },
+              {
+                "factory": "envs.wing.model:wing_model",
+                "kwargs": {
+                  "alpha": 0.94,
+                  "x": 0.4
+                }
+              }
+            ]
+          }
+        },
+        "observation": {
+          "action": {
+            "depth": 1
+          },
+          "token": {
+            "depth": 1
+          }
+        },
+        "randomize_first_episode_length": false,
+        "task": {
+          "class": "envs.wing.tasks.reward_state:WingRewardTask",
+          "kwargs": {
+            "alpha": 0.94,
+            "reward_state": 0,
+            "rewarded_factors": [
+              0,
+              1
+            ],
+            "strength": 1.0,
+            "x": 0.4
+          }
+        }
+      },
+      "episode_means": [
+        0.6162949687017778,
+        0.6296984859265486,
+        0.6371046769788349,
+        0.6037164772217034,
+        0.6045872976483209,
+        0.6186209490468183,
+        0.6325937346571737,
+        0.6288996909596352,
+        0.6188706551610995,
+        0.6301903046894846,
+        0.610078766264368,
+        0.6251669533497839,
+        0.6168286269511958,
+        0.6393441876988779,
+        0.625844241978986,
+        0.6202822450089631,
+        0.6255025019645821,
+        0.6305385240231998,
+        0.6294134547923103,
+        0.6466166884559792,
+        0.6288467287262348,
+        0.6186793943425091,
+        0.6300613738458425,
+        0.6288131113596822,
+        0.6278414905493279,
+        0.616608146075688,
+        0.6169512526337735,
+        0.6254560235758011,
+        0.6179581352724789,
+        0.6316021919065513,
+        0.6141389325855462,
+        0.6257692168603055,
+        0.6156705913336344,
+        0.6375439226874737,
+        0.6122668252271217,
+        0.6270986581196325,
+        0.6224392408067649,
+        0.6187708539114538,
+        0.6201040113945337,
+        0.6180478661730717,
+        0.6211055837589091,
+        0.6216958702215197,
+        0.6397855169023163,
+        0.6179932264368849,
+        0.6242027343853298,
+        0.6245848033147797,
+        0.6285254204573245,
+        0.6407908939371337,
+        0.6399053677064201,
+        0.6310335465508148,
+        0.625815451368186,
+        0.6322169621464085,
+        0.6165824532755706,
+        0.6379829806530908,
+        0.6145449909834803,
+        0.6334344867793686,
+        0.6180322878903293,
+        0.6365054536530551,
+        0.6269240505462025,
+        0.6246154225585168,
+        0.619176116863456,
+        0.6365416924760079,
+        0.6174260275047289,
+        0.6334640032656988,
+        0.6172555462267455,
+        0.61730255745556,
+        0.6338294618981123,
+        0.6176425294067085,
+        0.6296628709636889,
+        0.6345302269200402,
+        0.6186381044437763,
+        0.6087610461119191,
+        0.6325748574930361,
+        0.6369204746265948,
+        0.6352926565277012,
+        0.614097277887832,
+        0.6113833900669667,
+        0.6196797485817143,
+        0.6425224713328512,
+        0.6338470804989901,
+        0.6292881059937085,
+        0.6288014081941935,
+        0.6202377324200902,
+        0.638665632524608,
+        0.6343372095459221,
+        0.6289662464497099,
+        0.6190939191699918,
+        0.6249646031871398,
+        0.61246116480496,
+        0.6408231406656508,
+        0.6252382579955633,
+        0.6296193834511967,
+        0.6131483088165272,
+        0.6342294613570276,
+        0.6300611863973549,
+        0.6255299438556333,
+        0.6417578453560273,
+        0.638977243835446,
+        0.6267849978106443,
+        0.6245767984006004,
+        0.6204053379495009,
+        0.6349456927022241,
+        0.6183102641513885,
+        0.6151100902938276,
+        0.6315058489748873,
+        0.6356837180735742,
+        0.6245258100438023,
+        0.628671070246064,
+        0.6217623525173145,
+        0.6231109618814815,
+        0.6176841301164251,
+        0.6273171572688848,
+        0.6062556810464735,
+        0.6338928712866212,
+        0.6091669918725966,
+        0.6202369415483386,
+        0.6265280058569794,
+        0.6349611157967081,
+        0.6340774500020899,
+        0.627936258665321,
+        0.6256938963326313,
+        0.6025355887561316,
+        0.6407214442151776,
+        0.6347883196825846,
+        0.6213784188793213,
+        0.6332156039160819,
+        0.6352675929974922,
+        0.6131814811653645
+      ],
+      "estimator": "mean exact conditional success probability under the learned stochastic policy on its own on-policy histories",
+      "horizon": 1024,
+      "mean": 0.6256103103860635,
+      "metric": "mean_rewarded_factor_arrival_occupancy",
+      "n_decisions": 131072,
+      "n_envs": 8,
+      "n_episodes": 128,
+      "policy_mode": "learned_stochastic_with_checkpoint_temperature",
+      "scope": "evaluation-sample uncertainty, not variation across training seeds",
+      "seed": 20260909,
+      "source_run": "experiments/wing_two_factor_explore_cycle_2/reward_both_state_0/results/20260908T001136Z-9064aabc",
+      "standard_error": 0.0008164051157064796,
+      "uncertainty": "Student-t interval over independent complete-episode conditional-expected-success means; one fixed trained model",
+      "warmup": 0
+    },
+    "reward_factor_1": {
+      "agent_steps": 30001584,
+      "bayes_reference": {
+        "ci95": null,
+        "details": {
+          "attainable_policy": {
+            "alpha": 0.94,
+            "benchmark": "controlled_attainable_full_belief_policy_monte_carlo",
+            "ci95": [
+              0.6830598022048407,
+              0.6835429333566841
+            ],
+            "ci_method": "approximate Student-t interval over independent full-episode means",
+            "confidence_scope": "Monte Carlo uncertainty only; not a rigorous confidence bound on the optimum",
+            "episodes_per_chain": 1,
+            "estimator": "conditional expected arrival-state reward before each controlled edge",
+            "evaluation_discount": 1.0,
+            "expected_episode_return": 699.7006006075007,
+            "factor_normalization": "The two independent factors have separately selectable actions. Reward is the mean over selected arrival-state indicators, not joint success. Thus reward_both and reward_factor_1 have the same normalized optimal value.",
+            "filter": "exact action/token belief; no hidden-state or reward observations",
+            "grid": {
+              "grid_points": 20301,
+              "max_barycentric_sum_error": 2.220446049250313e-16,
+              "max_posterior_reconstruction_error": 4.440892098500626e-16,
+              "max_transition_row_sum_error": 4.440892098500626e-16,
+              "minimum_barycentric_weight": 0.0,
+              "sparse_transition_nonzeros": 363803,
+              "subdivisions": 200
+            },
+            "horizon": 1024,
+            "independent_chains": 4096,
+            "mean": 0.6833013677807624,
+            "metric": "mean_rewarded_factor_arrival_state_indicator",
+            "n_episodes": 4096,
+            "percentage": 68.33013677807625,
+            "planning": {
+              "bellman_increment_span": 9.939826739469027e-11,
+              "gamma": 0.99,
+              "iterations": 387,
+              "max_iterations": 10000,
+              "method": "centered discounted grid value iteration",
+              "span_tolerance": 1e-10
+            },
+            "policy": "stationary argmax barycentrically interpolated discounted grid Q; no artificial grid-state revelation",
+            "provenance": {
+              "arithmetic": "float64; not interval-arithmetic certified",
+              "kernel_sha256": "0c42207f73c9ed51f2ef46fd661f78beb96d8ca1f81f1148752437c5ed5065ae",
+              "numpy_version": "2.5.1",
+              "scipy_version": "1.18.0"
+            },
+            "random_stream": "NumPy default_rng; reset then step-major draws of shape (n_episodes,)",
+            "reset": "uniform source prior -> neutral base edge -> visible token -> arrival posterior before first action",
+            "reset_count": 4096,
+            "reward_state": 0,
+            "seed": 20260911,
+            "simulated_factors": 1,
+            "standard_error": 0.00012321357857688687,
+            "status": "Monte Carlo estimate of an attainable policy value, not the Bayes optimum or a rigorous lower confidence bound",
+            "strength": 1.0,
+            "warmup_actions": 0,
+            "x": 0.4
+          },
+          "grid_refinements": {
+            "alpha": 0.94,
+            "benchmark": "controlled_finite_horizon_grid_refinement",
+            "convergence": {
+              "interpretation": "resolution stability is not a certified error bar or proof of equality to the continuous-belief optimum; minimum of computed upper bounds selected without extrapolation",
+              "last_absolute_fraction_change": 4.2488473969370943e-05,
+              "nested_triangulations": true,
+              "observed_nonincreasing": true,
+              "successive_fraction_changes": [
+                -0.0001861768215357662,
+                -4.2488473969370943e-05
+              ]
+            },
+            "episode_return_upper_bound": 699.8435593515792,
+            "factor_normalization": "The two independent factors have separately selectable actions. Reward is the mean over selected arrival-state indicators, not joint success. Thus reward_both and reward_factor_1 have the same normalized optimal value.",
+            "horizon": 1024,
+            "metric": "mean_rewarded_factor_arrival_state_indicator",
+            "refinements": [
+              {
+                "alpha": 0.94,
+                "benchmark": "controlled_finite_horizon_belief_grid_upper_bound",
+                "bound_justification": "nonnegative barycentric posterior decomposition and convex finite-horizon POMDP values imply an information-relaxation upper bound by Bellman induction",
+                "certification": "float64 numerical upper bound; no interval arithmetic, no certified discretization gap, no extrapolation",
+                "discount": 1.0,
+                "episode_return_upper_bound": 700.0777126141764,
+                "episode_scope": "full fixed-length episodes; randomized first training-episode lengths excluded",
+                "factor_normalization": "The two independent factors have separately selectable actions. Reward is the mean over selected arrival-state indicators, not joint success. Thus reward_both and reward_factor_1 have the same normalized optimal value.",
+                "filter": "normalize(belief @ K[action, token]); no hidden-state or reward observations",
+                "grid": {
+                  "grid_points": 5151,
+                  "max_barycentric_sum_error": 2.220446049250313e-16,
+                  "max_posterior_reconstruction_error": 4.440892098500626e-16,
+                  "max_transition_row_sum_error": 4.440892098500626e-16,
+                  "minimum_barycentric_weight": 0.0,
+                  "sparse_transition_nonzeros": 91911,
+                  "subdivisions": 100
+                },
+                "horizon": 1024,
+                "metric": "mean_rewarded_factor_arrival_state_indicator",
+                "provenance": {
+                  "arithmetic": "float64; not interval-arithmetic certified",
+                  "kernel_sha256": "0c42207f73c9ed51f2ef46fd661f78beb96d8ca1f81f1148752437c5ed5065ae",
+                  "numpy_version": "2.5.1",
+                  "scipy_version": "1.18.0"
+                },
+                "reset": "uniform source prior -> neutral base edge -> visible reset token -> arrival posterior before first action; reset earns no reward",
+                "reset_beliefs": [
+                  [
+                    0.06651884700665193,
+                    0.9002217294900221,
+                    0.03325942350332597
+                  ],
+                  [
+                    0.3805413887799137,
+                    0.23303256178893683,
+                    0.3864260494311495
+                  ]
+                ],
+                "reset_evaluation": "exact Bellman backup at reset posteriors, interpolating only the remaining-horizon continuation",
+                "reset_token_probabilities": [
+                  0.15033333333333335,
+                  0.8496666666666666
+                ],
+                "reward": "belief @ sum_token K[action, token] @ one_hot(reward_state)",
+                "reward_state": 0,
+                "status": "numerical upper bound, not the exact Bayes optimum",
+                "strength": 1.0,
+                "terminal_value": 0.0,
+                "upper_bound_fraction": 0.6836696412247817,
+                "upper_bound_percentage": 68.36696412247817,
+                "warmup_actions": 0,
+                "x": 0.4
+              },
+              {
+                "alpha": 0.94,
+                "benchmark": "controlled_finite_horizon_belief_grid_upper_bound",
+                "bound_justification": "nonnegative barycentric posterior decomposition and convex finite-horizon POMDP values imply an information-relaxation upper bound by Bellman induction",
+                "certification": "float64 numerical upper bound; no interval arithmetic, no certified discretization gap, no extrapolation",
+                "discount": 1.0,
+                "episode_return_upper_bound": 699.8870675489238,
+                "episode_scope": "full fixed-length episodes; randomized first training-episode lengths excluded",
+                "factor_normalization": "The two independent factors have separately selectable actions. Reward is the mean over selected arrival-state indicators, not joint success. Thus reward_both and reward_factor_1 have the same normalized optimal value.",
+                "filter": "normalize(belief @ K[action, token]); no hidden-state or reward observations",
+                "grid": {
+                  "grid_points": 20301,
+                  "max_barycentric_sum_error": 2.220446049250313e-16,
+                  "max_posterior_reconstruction_error": 4.440892098500626e-16,
+                  "max_transition_row_sum_error": 4.440892098500626e-16,
+                  "minimum_barycentric_weight": 0.0,
+                  "sparse_transition_nonzeros": 363803,
+                  "subdivisions": 200
+                },
+                "horizon": 1024,
+                "metric": "mean_rewarded_factor_arrival_state_indicator",
+                "provenance": {
+                  "arithmetic": "float64; not interval-arithmetic certified",
+                  "kernel_sha256": "0c42207f73c9ed51f2ef46fd661f78beb96d8ca1f81f1148752437c5ed5065ae",
+                  "numpy_version": "2.5.1",
+                  "scipy_version": "1.18.0"
+                },
+                "reset": "uniform source prior -> neutral base edge -> visible reset token -> arrival posterior before first action; reset earns no reward",
+                "reset_beliefs": [
+                  [
+                    0.06651884700665193,
+                    0.9002217294900221,
+                    0.03325942350332597
+                  ],
+                  [
+                    0.3805413887799137,
+                    0.23303256178893683,
+                    0.3864260494311495
+                  ]
+                ],
+                "reset_evaluation": "exact Bellman backup at reset posteriors, interpolating only the remaining-horizon continuation",
+                "reset_token_probabilities": [
+                  0.15033333333333335,
+                  0.8496666666666666
+                ],
+                "reward": "belief @ sum_token K[action, token] @ one_hot(reward_state)",
+                "reward_state": 0,
+                "status": "numerical upper bound, not the exact Bayes optimum",
+                "strength": 1.0,
+                "terminal_value": 0.0,
+                "upper_bound_fraction": 0.6834834644032459,
+                "upper_bound_percentage": 68.34834644032459,
+                "warmup_actions": 0,
+                "x": 0.4
+              },
+              {
+                "alpha": 0.94,
+                "benchmark": "controlled_finite_horizon_belief_grid_upper_bound",
+                "bound_justification": "nonnegative barycentric posterior decomposition and convex finite-horizon POMDP values imply an information-relaxation upper bound by Bellman induction",
+                "certification": "float64 numerical upper bound; no interval arithmetic, no certified discretization gap, no extrapolation",
+                "discount": 1.0,
+                "episode_return_upper_bound": 699.8435593515792,
+                "episode_scope": "full fixed-length episodes; randomized first training-episode lengths excluded",
+                "factor_normalization": "The two independent factors have separately selectable actions. Reward is the mean over selected arrival-state indicators, not joint success. Thus reward_both and reward_factor_1 have the same normalized optimal value.",
+                "filter": "normalize(belief @ K[action, token]); no hidden-state or reward observations",
+                "grid": {
+                  "grid_points": 80601,
+                  "max_barycentric_sum_error": 2.220446049250313e-16,
+                  "max_posterior_reconstruction_error": 4.440892098500626e-16,
+                  "max_transition_row_sum_error": 4.440892098500626e-16,
+                  "minimum_barycentric_weight": 0.0,
+                  "sparse_transition_nonzeros": 1447586,
+                  "subdivisions": 400
+                },
+                "horizon": 1024,
+                "metric": "mean_rewarded_factor_arrival_state_indicator",
+                "provenance": {
+                  "arithmetic": "float64; not interval-arithmetic certified",
+                  "kernel_sha256": "0c42207f73c9ed51f2ef46fd661f78beb96d8ca1f81f1148752437c5ed5065ae",
+                  "numpy_version": "2.5.1",
+                  "scipy_version": "1.18.0"
+                },
+                "reset": "uniform source prior -> neutral base edge -> visible reset token -> arrival posterior before first action; reset earns no reward",
+                "reset_beliefs": [
+                  [
+                    0.06651884700665193,
+                    0.9002217294900221,
+                    0.03325942350332597
+                  ],
+                  [
+                    0.3805413887799137,
+                    0.23303256178893683,
+                    0.3864260494311495
+                  ]
+                ],
+                "reset_evaluation": "exact Bellman backup at reset posteriors, interpolating only the remaining-horizon continuation",
+                "reset_token_probabilities": [
+                  0.15033333333333335,
+                  0.8496666666666666
+                ],
+                "reward": "belief @ sum_token K[action, token] @ one_hot(reward_state)",
+                "reward_state": 0,
+                "status": "numerical upper bound, not the exact Bayes optimum",
+                "strength": 1.0,
+                "terminal_value": 0.0,
+                "upper_bound_fraction": 0.6834409759292766,
+                "upper_bound_percentage": 68.34409759292765,
+                "warmup_actions": 0,
+                "x": 0.4
+              }
+            ],
+            "reward_state": 0,
+            "selected_subdivisions": 400,
+            "status": "numerical upper bound, not the exact Bayes optimum",
+            "strength": 1.0,
+            "upper_bound_fraction": 0.6834409759292766,
+            "upper_bound_percentage": 68.34409759292765,
+            "x": 0.4
+          }
+        },
+        "kind": "numerical_upper_bound",
+        "label": "Bayes planning upper bound (numerical)",
+        "value": 0.6834409759292766
+      },
+      "checkpoint": "experiments/wing_two_factor_explore_cycle_2/reward_factor_1_state_0/artifacts/20260908T001436Z-51c1f6cb/tune/PPO_HMMEnv_4888e_00000_0_2026-09-08_00-14-40/checkpoint_000000/learner_group/learner/rl_module/default_policy",
+      "checkpoint_sha256": {
+        "class_and_ctor_args.pkl": "b263f3cabcd921c2f567b89c0d58bc6cb7d06b41609d17395dcc0d6acb3a3a2b",
+        "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+        "module_state.pkl": "5d6be84f14ea23327c11651b0d95eb8cfe0444d63d301f884d70ba120314821f"
+      },
+      "ci95": [
+        0.6379496715245805,
+        0.6413490217906836
+      ],
+      "condition": "reward_factor_1",
+      "environment_config": {
+        "delay": 0,
+        "episode_length": 1024,
+        "model": {
+          "factory": "envs.hmm:factored_model",
+          "kwargs": {
+            "factors": [
+              {
+                "factory": "envs.wing.model:wing_model",
+                "kwargs": {
+                  "alpha": 0.94,
+                  "x": 0.4
+                }
+              },
+              {
+                "factory": "envs.wing.model:wing_model",
+                "kwargs": {
+                  "alpha": 0.94,
+                  "x": 0.4
+                }
+              }
+            ]
+          }
+        },
+        "observation": {
+          "action": {
+            "depth": 1
+          },
+          "token": {
+            "depth": 1
+          }
+        },
+        "randomize_first_episode_length": false,
+        "task": {
+          "class": "envs.wing.tasks.reward_state:WingRewardTask",
+          "kwargs": {
+            "alpha": 0.94,
+            "reward_state": 0,
+            "rewarded_factors": [
+              0
+            ],
+            "strength": 1.0,
+            "x": 0.4
+          }
+        }
+      },
+      "episode_means": [
+        0.6237048050039096,
+        0.6464788632482489,
+        0.6362853860139889,
+        0.6495423253958167,
+        0.6403054185481825,
+        0.6325894855097327,
+        0.6489104087492985,
+        0.6333999965643553,
+        0.6404103335821774,
+        0.6526792510850099,
+        0.6394939135911516,
+        0.6391395989468909,
+        0.6310169629476471,
+        0.6536975894046766,
+        0.6404617454465272,
+        0.6275527820745166,
+        0.6397380095157854,
+        0.6307731853716187,
+        0.633864841539526,
+        0.6339292292960113,
+        0.630322153912618,
+        0.6421920732438178,
+        0.6515265295028105,
+        0.6445511017184022,
+        0.6530058752209439,
+        0.6408088479265309,
+        0.623747462507441,
+        0.6467559307355497,
+        0.6322825902294071,
+        0.6501673205219314,
+        0.6252036492738966,
+        0.6435169786468595,
+        0.6256637228889885,
+        0.6433386075890946,
+        0.6313682126674602,
+        0.6428575147971647,
+        0.6314754615560151,
+        0.6260956021813027,
+        0.6301484815318833,
+        0.6391901402062876,
+        0.6409305110508803,
+        0.6437401308144173,
+        0.6420404253237899,
+        0.641626482352606,
+        0.6443911769858678,
+        0.6346949706477294,
+        0.6357242362458767,
+        0.6341319636223812,
+        0.6511101594531519,
+        0.6264102903848293,
+        0.628679799543941,
+        0.6538484965973241,
+        0.640595419687189,
+        0.6455342641512745,
+        0.6463593931067733,
+        0.6635478937493001,
+        0.6505024356308187,
+        0.6471933903729439,
+        0.6419585761374516,
+        0.6306931911326245,
+        0.6312803795485106,
+        0.6357529368891319,
+        0.637127018185187,
+        0.6628467191263486,
+        0.6378022356062598,
+        0.6488812563393945,
+        0.6330749173539612,
+        0.6398002796664564,
+        0.6476510200413412,
+        0.6319662034911055,
+        0.6360483998709343,
+        0.6352994980910756,
+        0.6437158569526825,
+        0.6593585730536229,
+        0.649644269680359,
+        0.6476028328142911,
+        0.6215029038243259,
+        0.6361358842023443,
+        0.6381682971124341,
+        0.639303678062075,
+        0.6213735176956211,
+        0.6543648895264993,
+        0.6348244186128269,
+        0.6361109185781834,
+        0.639714572093789,
+        0.652394299217526,
+        0.6298256230456591,
+        0.6167078772649011,
+        0.6487633506516219,
+        0.6545359884918851,
+        0.6361866183504603,
+        0.6442935381130441,
+        0.6385222367862721,
+        0.6566515654065912,
+        0.6429532110511123,
+        0.643869105553472,
+        0.64022539681555,
+        0.6375986199506668,
+        0.6396366867627035,
+        0.6230221538841543,
+        0.6453437825318146,
+        0.6387061746483048,
+        0.6248152071674924,
+        0.651482338651771,
+        0.6191576851308315,
+        0.6583698954721351,
+        0.6375069618240619,
+        0.648531271639352,
+        0.6527635493434327,
+        0.6418276961590859,
+        0.6484489135819538,
+        0.6377647801636779,
+        0.6170893875603709,
+        0.652296648716967,
+        0.6456904869088814,
+        0.6165105990629517,
+        0.6417861350247054,
+        0.6376616704933371,
+        0.6354595719198034,
+        0.6399540684843119,
+        0.6399129669091284,
+        0.6320711007571347,
+        0.6249162873326004,
+        0.6439489666867793,
+        0.6442029785648323,
+        0.6434799660909227,
+        0.6368518148600044,
+        0.6421221230412324
+      ],
+      "estimator": "mean exact conditional success probability under the learned stochastic policy on its own on-policy histories",
+      "horizon": 1024,
+      "mean": 0.6396493466576321,
+      "metric": "mean_rewarded_factor_arrival_occupancy",
+      "n_decisions": 131072,
+      "n_envs": 8,
+      "n_episodes": 128,
+      "policy_mode": "learned_stochastic_with_checkpoint_temperature",
+      "scope": "evaluation-sample uncertainty, not variation across training seeds",
+      "seed": 20260909,
+      "source_run": "experiments/wing_two_factor_explore_cycle_2/reward_factor_1_state_0/results/20260908T001436Z-51c1f6cb",
+      "standard_error": 0.0008589338761034445,
+      "uncertainty": "Student-t interval over independent complete-episode conditional-expected-success means; one fixed trained model",
+      "warmup": 0
+    },
+    "token_guess": {
+      "agent_steps": 2516889,
+      "bayes_reference": {
+        "ci95": null,
+        "details": {
+          "alpha": 0.94,
+          "analytic_cross_check": {
+            "emission_probabilities_of_dominant_token": [
+              0.97,
+              0.609,
+              0.97
+            ],
+            "expected_episode_return": 739.259847111111,
+            "fraction": 0.7219334444444443,
+            "joint_guess": [
+              1,
+              1
+            ],
+            "justification": "one token maximizes probability in every hidden state, hence in every history-conditioned belief; the uniform source prior is stationary, so square its per-factor correctness probability at every decision",
+            "percentage": 72.19334444444443,
+            "stationary_source_residual": 0.0,
+            "status": "exact Bayes-optimal value from a statewise-dominant token, evaluated in float64"
+          },
+          "benchmark": "passive_delay_one_exact_bayes_rule_monte_carlo",
+          "ci95": [
+            0.7209901849241214,
+            0.7223793025357996
+          ],
+          "ci_method": "approximate Student-t interval over independent full-episode means",
+          "confidence_scope": "Monte Carlo uncertainty only; not a rigorous confidence bound on the optimum",
+          "delay": 1,
+          "episode_scope": "full fixed-length episodes; randomized first training-episode lengths excluded",
+          "episodes_per_chain": 1,
+          "estimator": "mean conditional expected correctness before each pending token is revealed",
+          "expected_episode_return": 739.0051775794796,
+          "factor_count": 2,
+          "filter": "source <- normalize(source @ base_edge[revealed_token]); actions never alter the passive process",
+          "first_decision_accuracy": 0.7219334444444445,
+          "horizon": 1024,
+          "independent_chains": 4096,
+          "mean": 0.7216847437299605,
+          "metric": "joint_token_guess_accuracy",
+          "n_episodes": 4096,
+          "percentage": 72.16847437299604,
+          "policy": "argmax joint pending-token probability; independent-factor maximum probabilities are multiplied",
+          "provenance": {
+            "arithmetic": "float64; not interval-arithmetic certified",
+            "kernel_sha256": "ee7867f5306bf2612fefc2b531a976fe7ec65220bd86c52324907f1743e67a44",
+            "numpy_version": "2.5.1",
+            "scipy_version": "1.18.0"
+          },
+          "random_stream": "NumPy default_rng; step-major draws of shape (n_episodes, 2)",
+          "reset": "uniform source prior; first decision has a blank observation and guesses the pending reset-edge token",
+          "reset_count": 4096,
+          "seed": 20260910,
+          "standard_error": 0.0003542685073110332,
+          "status": "Monte Carlo estimate of the exact Bayes-optimal prediction rule, not a certified maximum",
+          "warmup_actions": 0,
+          "x": 0.4
+        },
+        "kind": "exact_optimal_accuracy",
+        "label": "Bayes maximum (exact dominant-token rule)",
+        "value": 0.7219334444444443
+      },
+      "checkpoint": "experiments/wing_token_guess_cycle_1/ppo/artifacts/20260908T000438Z-b9d3cfaa/tune/PPO_HMMEnv_e4625_00000_0_2026-09-08_00-04-42/checkpoint_000000/learner_group/learner/rl_module/default_policy",
+      "checkpoint_sha256": {
+        "class_and_ctor_args.pkl": "d0207836e3707ffd96d63ff176fc81b9a2fa15410bd65fa0aa9f79f751e39582",
+        "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+        "module_state.pkl": "c96e1119ebed06db3dc22ee40fd1c9383d3070a96f324256998d5e2b6a3d133a"
+      },
+      "ci95": [
+        0.7182074786732624,
+        0.725646300568811
+      ],
+      "condition": "token_guess",
+      "environment_config": {
+        "delay": 1,
+        "episode_length": 1024,
+        "model": {
+          "factory": "envs.hmm:factored_model",
+          "kwargs": {
+            "factors": [
+              {
+                "factory": "envs.wing.model:wing_model",
+                "kwargs": {
+                  "alpha": 0.94,
+                  "x": 0.4
+                }
+              },
+              {
+                "factory": "envs.wing.model:wing_model",
+                "kwargs": {
+                  "alpha": 0.94,
+                  "x": 0.4
+                }
+              }
+            ]
+          }
+        },
+        "observation": {
+          "action": null,
+          "token": {
+            "depth": 1
+          }
+        },
+        "randomize_first_episode_length": false,
+        "task": {
+          "class": "experiments.wing_token_guess_cycle_1.task:WingTokenGuessTask"
+        }
+      },
+      "episode_means": [
+        0.7102572501306197,
+        0.7308595167315769,
+        0.7195688681137069,
+        0.6934003727935858,
+        0.7485250552097469,
+        0.7334241897474995,
+        0.7029598800810408,
+        0.7031025831563258,
+        0.6815257202153533,
+        0.6974006819972352,
+        0.7209505852836082,
+        0.7322886157832471,
+        0.7284982087994853,
+        0.7016174376103744,
+        0.686089891759271,
+        0.7219224018299029,
+        0.7215759143482346,
+        0.7194377769805548,
+        0.7213651431749883,
+        0.6947657791539867,
+        0.7030645367580171,
+        0.7138509971413161,
+        0.717876315920573,
+        0.7283223141348962,
+        0.7015937908821204,
+        0.7351250345107498,
+        0.760048031355629,
+        0.6780689586831181,
+        0.7525683840150761,
+        0.7327765049933044,
+        0.7210775957785225,
+        0.7496157690065859,
+        0.731211827580212,
+        0.7035029199455294,
+        0.7332067161013132,
+        0.7454180854872174,
+        0.7242552057984695,
+        0.7274175789787347,
+        0.7135621203491371,
+        0.7323606644929229,
+        0.7343389343161825,
+        0.7481298861454249,
+        0.7311219640462104,
+        0.7140999095971641,
+        0.7089864315247276,
+        0.728264421845525,
+        0.7014585317889456,
+        0.6982749447314632,
+        0.7107750832467775,
+        0.7393212866777277,
+        0.7206881902646238,
+        0.7319110408077433,
+        0.7524633516197489,
+        0.7061565336298288,
+        0.705004776141876,
+        0.7037804868233264,
+        0.7419928922808354,
+        0.686003431070538,
+        0.6992394441802887,
+        0.7186610821503474,
+        0.7674906886361015,
+        0.6971403400213063,
+        0.7694665290106313,
+        0.6918906208606919,
+        0.729358300537428,
+        0.7094297171938816,
+        0.7170600474330555,
+        0.7192019027533095,
+        0.7766861012620241,
+        0.7374757550367808,
+        0.7310415455919255,
+        0.719985427978035,
+        0.7147533536500346,
+        0.698110136976866,
+        0.6903110163295858,
+        0.717446263171696,
+        0.7481443871365543,
+        0.7131412505473619,
+        0.7320613679464332,
+        0.7455777282309619,
+        0.7262929985042715,
+        0.7336849783938322,
+        0.7385839319679957,
+        0.7023341210644215,
+        0.7315764083926912,
+        0.6984090633030466,
+        0.7042715807480608,
+        0.7313480782123999,
+        0.7659578605966442,
+        0.7197790219988934,
+        0.7444691281874078,
+        0.762903015110058,
+        0.7253902466178279,
+        0.6737673717356697,
+        0.6975417467743077,
+        0.7088512437699686,
+        0.7062841608546192,
+        0.7466773448142736,
+        0.7320340701194983,
+        0.7123820504407334,
+        0.6813646968285436,
+        0.7124944725464897,
+        0.746557467632219,
+        0.7307859598396944,
+        0.7051507215404917,
+        0.743118556302286,
+        0.7130089009823486,
+        0.7236398957051566,
+        0.7385803910101911,
+        0.7359763405343455,
+        0.7176869123109868,
+        0.747121551000604,
+        0.7398509626674713,
+        0.6996221565596823,
+        0.7080174002255651,
+        0.6995446999304611,
+        0.7471753517616295,
+        0.6868192670168078,
+        0.752330508154869,
+        0.7436826107605062,
+        0.738019110380314,
+        0.7340592765777576,
+        0.751465530030142,
+        0.7024167510025694,
+        0.7150871176293003,
+        0.7468836856751357,
+        0.6817658630296868,
+        0.7209729642430555
+      ],
+      "estimator": "mean exact conditional success probability under the learned stochastic policy on its own on-policy histories",
+      "horizon": 1024,
+      "mean": 0.7219268896210367,
+      "metric": "joint_token_accuracy",
+      "n_decisions": 131072,
+      "n_envs": 8,
+      "n_episodes": 128,
+      "policy_mode": "learned_stochastic_with_checkpoint_temperature",
+      "scope": "evaluation-sample uncertainty, not variation across training seeds",
+      "seed": 20260909,
+      "source_run": "experiments/wing_token_guess_cycle_1/ppo/results/20260908T000438Z-b9d3cfaa",
+      "standard_error": 0.0018796109915767442,
+      "uncertainty": "Student-t interval over independent complete-episode conditional-expected-success means; one fixed trained model",
+      "warmup": 0
+    }
+  },
+  "metadata": {
+    "evaluation": "independent full 1024-step episodes, including all reset transients; no activation intervention",
+    "seed": 20260909,
+    "source_sha256": "3ae30c74b5673371ba620321c309564102906f20829e65ec5cf74f3c5b9bc541",
+    "success_units": "probability fractions; multiply by 100 for percentages"
+  },
+  "schema_version": 1
+}

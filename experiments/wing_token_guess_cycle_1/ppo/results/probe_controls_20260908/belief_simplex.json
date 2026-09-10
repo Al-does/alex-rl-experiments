@@ -1,0 +1,374 @@
+{
+  "factors": {
+    "factor_1": {
+      "contrast_0_minus_2": {
+        "mse": 0.01876614758915652,
+        "n_evaluated": 20000,
+        "normalized_mse": 0.8108652007712885,
+        "r_squared": 0.18913479922871146,
+        "target_variance": 0.02314336288116238
+      },
+      "max_probability_sum_error": 9.769962616701378e-15,
+      "mse": 0.007799276715561716,
+      "n_evaluated": 20000,
+      "normalized_mse": 0.13035862226580458,
+      "outside_simplex_fraction": 0.04115,
+      "r_squared": 0.8696413777341954,
+      "target_variance": 0.05982938895793782
+    },
+    "factor_2": {
+      "contrast_0_minus_2": {
+        "mse": 0.019370688575571216,
+        "n_evaluated": 20000,
+        "normalized_mse": 0.845522156234498,
+        "r_squared": 0.154477843765502,
+        "target_variance": 0.02290973504684711
+      },
+      "max_probability_sum_error": 1.3988810110276972e-14,
+      "mse": 0.008083706270594099,
+      "n_evaluated": 20000,
+      "normalized_mse": 0.1348661144332821,
+      "outside_simplex_fraction": 0.04125,
+      "r_squared": 0.8651338855667179,
+      "target_variance": 0.05993874965970852
+    }
+  },
+  "metadata": {
+    "agent_steps": 2516889,
+    "belief_timing": "delay-one current arrival belief = filtered source posterior @ transition; observed tokens only",
+    "checkpoint": "experiments/wing_token_guess_cycle_1/ppo/artifacts/20260908T000438Z-b9d3cfaa/tune/PPO_HMMEnv_e4625_00000_0_2026-09-08_00-04-42/checkpoint_000000/learner_group/learner/rl_module/default_policy",
+    "display": "raw affine outputs, common barycentric axes, no clipping or simplex projection; point colors from true targets",
+    "environment_config": {
+      "delay": 1,
+      "episode_length": 1024,
+      "model": {
+        "factory": "envs.hmm:factored_model",
+        "kwargs": {
+          "factors": [
+            {
+              "factory": "envs.wing.model:wing_model",
+              "kwargs": {
+                "alpha": 0.94,
+                "x": 0.4
+              }
+            },
+            {
+              "factory": "envs.wing.model:wing_model",
+              "kwargs": {
+                "alpha": 0.94,
+                "x": 0.4
+              }
+            }
+          ]
+        }
+      },
+      "observation": {
+        "action": null,
+        "token": {
+          "depth": 1
+        }
+      },
+      "randomize_first_episode_length": true,
+      "task": {
+        "class": "experiments.wing_token_guess_cycle_1.task:WingTokenGuessTask"
+      }
+    },
+    "feature_width": 64,
+    "fits": {
+      "factor_1": {
+        "cv_mse": [
+          0.007533529355527347,
+          0.007533529355527347,
+          0.007533529355527347,
+          0.007754455336972629
+        ],
+        "cv_weighting": "sample",
+        "fit_source": "train",
+        "fold_mse": [
+          [
+            0.00792283543944389,
+            0.00792283543944389,
+            0.00792283543944389,
+            0.008094784481508403
+          ],
+          [
+            0.007622396446257063,
+            0.007622396446257063,
+            0.007622396446257063,
+            0.007856780347351855
+          ],
+          [
+            0.00786522601135339,
+            0.00786522601135339,
+            0.00786522601135339,
+            0.008104897169848486
+          ],
+          [
+            0.006650897696898595,
+            0.006650897696898595,
+            0.006650897696898595,
+            0.006877313828631578
+          ],
+          [
+            0.0078498237763035,
+            0.0078498237763035,
+            0.0078498237763035,
+            0.008063906201283852
+          ]
+        ],
+        "fold_validation_groups": [
+          [
+            29,
+            16,
+            7,
+            25,
+            24,
+            22
+          ],
+          [
+            5,
+            21,
+            26,
+            10,
+            19,
+            20
+          ],
+          [
+            9,
+            6,
+            18,
+            3,
+            0,
+            15
+          ],
+          [
+            17,
+            23,
+            12,
+            11,
+            14,
+            28
+          ],
+          [
+            2,
+            4,
+            27,
+            1,
+            13,
+            8
+          ]
+        ],
+        "fold_validation_sizes": [
+          2853,
+          4187,
+          4453,
+          4713,
+          3794
+        ],
+        "folds": 5,
+        "method": "grouped_svd_cutoff_cv",
+        "n_features": 64,
+        "n_groups": 30,
+        "n_samples": 20000,
+        "n_targets": 3,
+        "rank": 64,
+        "rconds": [
+          1e-12,
+          1e-08,
+          0.0001,
+          0.01
+        ],
+        "requested_folds": 5,
+        "seed": 42,
+        "selected_rcond": 1e-12,
+        "singular_value_cutoff": 4.2162409153887525e-11
+      },
+      "factor_2": {
+        "cv_mse": [
+          0.008201979512286826,
+          0.008201979512286826,
+          0.008201979512286826,
+          0.00847687269834533
+        ],
+        "cv_weighting": "sample",
+        "fit_source": "train",
+        "fold_mse": [
+          [
+            0.008120649034735283,
+            0.008120649034735283,
+            0.008120649034735283,
+            0.008363681019436171
+          ],
+          [
+            0.007582085358213443,
+            0.007582085358213443,
+            0.007582085358213443,
+            0.007793773398333672
+          ],
+          [
+            0.008170553296578042,
+            0.008170553296578042,
+            0.008170553296578042,
+            0.008437634986842212
+          ],
+          [
+            0.009023571389966307,
+            0.009023571389966307,
+            0.009023571389966307,
+            0.009307395984747417
+          ],
+          [
+            0.007858125437172103,
+            0.007858125437172103,
+            0.007858125437172103,
+            0.008209404115015926
+          ]
+        ],
+        "fold_validation_groups": [
+          [
+            13,
+            25,
+            27,
+            5,
+            10,
+            1
+          ],
+          [
+            18,
+            6,
+            7,
+            16,
+            29,
+            12
+          ],
+          [
+            23,
+            2,
+            24,
+            8,
+            11,
+            28
+          ],
+          [
+            19,
+            26,
+            9,
+            14,
+            17,
+            21
+          ],
+          [
+            4,
+            20,
+            15,
+            22,
+            0,
+            3
+          ]
+        ],
+        "fold_validation_sizes": [
+          3215,
+          3801,
+          3618,
+          5107,
+          4259
+        ],
+        "folds": 5,
+        "method": "grouped_svd_cutoff_cv",
+        "n_features": 64,
+        "n_groups": 30,
+        "n_samples": 20000,
+        "n_targets": 3,
+        "rank": 64,
+        "rconds": [
+          1e-12,
+          1e-08,
+          0.0001,
+          0.01
+        ],
+        "requested_folds": 5,
+        "seed": 43,
+        "selected_rcond": 1e-12,
+        "singular_value_cutoff": 4.2162409153887525e-11
+      }
+    },
+    "layer": 3,
+    "layer_selection": "last layer, not best test layer",
+    "n_fit": 20000,
+    "n_test": 20000,
+    "plot_source_sha256": "9548eba3bcfb3ce0f4177bd5a2a08396e2f375949efe78ec4a2bd85fffe6a5e2",
+    "provenance": {
+      "command": [
+        "/Users/alex/Software/XOR/alex-rl-experiments/experiments/wing_token_guess_cycle_1/simplex.py",
+        "--output",
+        "experiments/wing_token_guess_cycle_1/ppo/results/probe_controls_20260908/belief_simplex.png"
+      ],
+      "framework_versions": {
+        "numpy": "2.5.1",
+        "python": "3.13.7",
+        "ray": "2.56.0",
+        "torch": "2.12.1"
+      },
+      "module_checkpoint_sha256": {
+        "class_and_ctor_args.pkl": "d0207836e3707ffd96d63ff176fc81b9a2fa15410bd65fa0aa9f79f751e39582",
+        "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+        "module_state.pkl": "c96e1119ebed06db3dc22ee40fd1c9383d3070a96f324256998d5e2b6a3d133a"
+      },
+      "repositories": {
+        "/Users/alex/Software/XOR/RL Harness": {
+          "commit": "3853e279b8dc9ee6fc309e868b70677a704e6bb9",
+          "dirty": false
+        },
+        "/Users/alex/Software/XOR/alex-rl-experiments": {
+          "commit": "ab5fb18739cb022330c7f6a7fb96d54b3ff44ebb",
+          "dirty": true
+        }
+      },
+      "source_sha256": {
+        "/Users/alex/Software/XOR/RL Harness/analysis/probes/controls.py": "e35f8f6908372e184029964fe770207cb36eb506f5f3f1d197931536083dc041",
+        "/Users/alex/Software/XOR/alex-rl-experiments/experiments/wing_two_factor_explore_cycle_1/control_analysis.py": "4df3213135d56ae1fea220bd57f54b6c221f7391e733f7469b0d18e78587068a",
+        "/Users/alex/Software/XOR/alex-rl-experiments/experiments/wing_two_factor_explore_cycle_1/control_data.py": "c206c98cae3390bb28605835ee891a7b125cb6552b7559fce2fb23f5fd78d344"
+      }
+    },
+    "replay_max_abs_error": 5.551115123125783e-16,
+    "sampling_distribution": "learned_stochastic_policy_process_weighted",
+    "seed": 42,
+    "source_run": "experiments/wing_token_guess_cycle_1/ppo/results/20260908T000438Z-b9d3cfaa",
+    "test_episodes": 28,
+    "train_episodes": 30,
+    "vertex_colors_by_state": [
+      [
+        0.88,
+        0.28,
+        0.2
+      ],
+      [
+        0.18,
+        0.67,
+        0.35
+      ],
+      [
+        0.23,
+        0.39,
+        0.87
+      ]
+    ],
+    "vertices_by_state": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.5,
+        0.8660254037844386
+      ],
+      [
+        1.0,
+        0.0
+      ]
+    ],
+    "warmup_per_episode": 32
+  },
+  "png_sha256": "d246e6771fa66313eb3b6123b9502082c9fc6725e7c42c1b64deb52ea718244f",
+  "schema_version": 1
+}
