@@ -77,6 +77,8 @@ as Cursor dashboard secrets (see `README.md` and `rl-harness/docs/artifact_stora
 ### More context
 
 See `experiments/AGENTS.md` for experiment layout and promotion rules.
+For post-hoc belief analysis, read `.devin/skills/belief-geometry/SKILL.md` and
+the installed harness's `analysis/README.md`; keep task adapters in this repo.
 
 ### Wing study verification
 

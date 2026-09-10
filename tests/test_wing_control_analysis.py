@@ -132,3 +132,69 @@ def test_shuffled_history_targets_are_recomputed_not_taken_from_stale_cache():
 def test_cli_refuses_existing_output_before_loading_checkpoint(tmp_path):
     with pytest.raises(SystemExit):
         analysis.main(["--study", "token_guess", "--checkpoint", str(tmp_path), "--output", str(tmp_path)])
+
+
+def test_simplex_picture_preserves_raw_predictions_and_paired_colors(monkeypatch):
+    from experiments.wing_token_guess_cycle_1 import simplex
+
+    rng = np.random.default_rng(15)
+    target = rng.dirichlet(np.ones(3), size=(50, 2))
+    decoded = target.copy()
+    decoded[0, 0] = [1.2, -0.3, 0.1]
+    saved = decoded.copy()
+    captured = []
+    original = simplex.simplex_scatter
+
+    def capture(axis, points, **kwargs):
+        captured.append((axis, points.copy(), kwargs["colors"].copy()))
+        return original(axis, points, **kwargs)
+
+    monkeypatch.setattr(simplex, "simplex_scatter", capture)
+    png = simplex.render_simplexes(target, decoded, layer=3, n_fit=100, agent_steps=123, seed=42)
+    assert png.startswith(b"\x89PNG\r\n\x1a\n")
+    assert len(captured) == 4
+    figure = captured[0][0].figure
+    figure.canvas.draw()
+    title, subtitle = figure.texts[:2]
+    assert subtitle.get_window_extent().y1 < title.get_window_extent().y0
+    assert subtitle.get_window_extent().y0 > max(axis.title.get_window_extent().y1 for axis, _, _ in captured[:2])
+    order = np.random.default_rng(42).permutation(len(target))
+    np.testing.assert_array_equal(captured[1][1], decoded[order, 0])
+    assert captured[1][1].min() == -0.3
+    for factor in range(2):
+        np.testing.assert_array_equal(captured[factor * 2][2], captured[factor * 2 + 1][2])
+        np.testing.assert_allclose(captured[factor * 2][2], target[order, factor] @ simplex.VERTEX_COLORS)
+    assert len({axis.get_xlim() for axis, _, _ in captured}) == 1
+    assert len({axis.get_ylim() for axis, _, _ in captured}) == 1
+    np.testing.assert_array_equal(decoded, saved)
+    metrics = simplex.geometry_metrics(target, decoded)
+    assert metrics["factor_1"]["outside_simplex_fraction"] == 1 / 50
+    assert metrics["factor_1"]["mse"] == pytest.approx(np.mean((target[:, 0] - decoded[:, 0]) ** 2))
+    assert metrics["factor_2"]["r_squared"] == 1
+    assert png == simplex.render_simplexes(target, decoded, layer=3, n_fit=100, agent_steps=123, seed=42)
+    invalid = decoded.copy()
+    invalid[0, 0, 0] += 0.1
+    with pytest.raises(ValueError, match="sum to one"):
+        simplex.geometry_metrics(target, invalid)
+
+
+def test_simplex_fit_reuses_independent_seed_streams_and_last_layer(monkeypatch):
+    from experiments.wing_token_guess_cycle_1 import simplex
+
+    train, _ = _data(51, True)
+    test, _ = _data(52, True)
+    datasets = [replace(data, activations=np.concatenate([np.zeros_like(data.activations), data.activations], axis=1)) for data in (train, test)]
+    calls = []
+
+    def collect(module, **kwargs):
+        calls.append(kwargs)
+        return datasets[len(calls) - 1]
+
+    monkeypatch.setattr(simplex, "collect_control_data", collect)
+    target, decoded, metadata = simplex.collect_and_fit(object(), seed=42, n_steps=224)
+    expected_seeds = [int(stream.generate_state(1)[0]) for stream in np.random.SeedSequence(42).spawn(4)[:2]]
+    assert [call["seed"] for call in calls] == expected_seeds
+    assert expected_seeds[0] != expected_seeds[1]
+    assert metadata["layer"] == 2
+    np.testing.assert_allclose(target, test.beliefs[test.mask], atol=1e-12)
+    np.testing.assert_allclose(decoded, target, atol=1e-12)

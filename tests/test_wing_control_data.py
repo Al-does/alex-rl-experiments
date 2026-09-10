@@ -201,6 +201,68 @@ def test_collection_keeps_complete_histories_and_exact_scored_budget(passive, wa
 
 
 @pytest.mark.parametrize("passive", [True, False])
+def test_collector_composes_with_belief_geometry_facade(passive):
+    import json
+
+    from analysis.belief_geometry import evaluate_belief_geometry
+    from analysis.probes.controls import fit_grouped_affine
+
+    config = _config(passive, length=9, randomized=False)
+    module = _module(config)
+    train, test = (
+        collect_control_data(module, env_config=config, n_steps=budget, seed=seed,
+                             device=DEVICE, n_envs=2, warmup=3)
+        for budget, seed in ((24, 101), (18, 102))
+    )
+    assert not np.array_equal(train.observations[:len(test.observations)], test.observations)
+    replayed = []
+    for data, budget in ((train, 24), (test, 18)):
+        assert data.mask.sum() == budget < len(data.mask)
+        np.testing.assert_array_equal(data.mask, data.episode_steps >= 3)
+        beliefs, pending = replay_beliefs(data, alpha=0.94, x=0.4, strength=None if passive else 1.0)
+        np.testing.assert_allclose(beliefs, data.beliefs, atol=3e-14, rtol=0)
+        replayed.append((beliefs[data.mask, 0], pending[data.mask, 0]))
+    train_beliefs, train_pending = replayed[0]
+    test_beliefs, test_pending = replayed[1]
+    name = "last_layer_pre_final_norm"
+    train_features = {name: train.activations[train.mask, -1]}
+    test_features = {name: test.activations[test.mask, -1]}
+    train_groups = np.array([f"train/{group}" for group in train.episode_ids[train.mask]])
+    test_groups = np.array([f"test/{group}" for group in test.episode_ids[test.mask]])
+    result = evaluate_belief_geometry(
+        train_features, test_features, train_beliefs, test_beliefs,
+        train_groups=train_groups, test_groups=test_groups,
+        nuisance_features={"pending_token": (train_pending, test_pending)},
+        contrasts={"state_0_minus_2": np.array([1.0, 0.0, -1.0]) / np.sqrt(2)},
+        seed=42, n_null_repeats=1, n_resamples=3,
+    )
+    json.dumps(result.report, allow_nan=False)
+    assert set(result.predictions) == {name}
+    assert (result.report["n_train"], result.report["n_test"], result.report["n_states"]) == (24, 18, 3)
+    assert result.report["n_train_groups"] == len(np.unique(train_groups)) == 4
+    assert result.report["n_test_groups"] == len(np.unique(test_groups)) == 4
+    assert result.report["n_null_repeats"] == 1 and result.report["n_resamples"] == 3
+    record = result.report["representations"][name]
+    assert record["fit"]["fit_source"] == "train"
+    assert sorted(group for fold in record["fit"]["fold_validation_groups"] for group in fold) == sorted(np.unique(train_groups))
+    weight, bias, fit = fit_grouped_affine(train_features[name], train.beliefs[train.mask, 0], train_groups, seed=42)
+    np.testing.assert_allclose(result.predictions[name], test_features[name] @ weight + bias, atol=1e-10)
+    assert record["fit"]["method"] == fit["method"] == "grouped_svd_cutoff_cv"
+    assert result.predictions[name].shape == (18, 3)
+    assert np.isfinite(result.predictions[name]).all()
+    np.testing.assert_allclose(result.predictions[name].sum(axis=1), 1, atol=1e-10)
+    assert record["metrics"]["mse"] == pytest.approx(np.square(result.predictions[name] - test.beliefs[test.mask, 0]).mean())
+    np.testing.assert_allclose(result.baseline_predictions["train_mean"], np.broadcast_to(train_beliefs.mean(axis=0), test_beliefs.shape))
+    comparison = record["comparisons"]["baselines"]["nuisance/pending_token"]
+    assert comparison["bootstrap_unit"] == "group" and comparison["n_groups"] == 4
+    assert comparison["bootstrap_refit"] is False
+    assert set(record["nulls"]) == {"permuted_labels", "gaussian_features"}
+    for repeats in record["nulls"].values():
+        assert len(repeats) == 1
+        assert result.baseline_predictions[repeats[0]["prediction_key"]].shape == test_beliefs.shape
+
+
+@pytest.mark.parametrize("passive", [True, False])
 def test_shuffling_preserves_joint_rows_resets_and_replays_observations(passive):
     config = _config(passive, length=13, randomized=False)
     module = _module(config)

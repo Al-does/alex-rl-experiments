@@ -251,6 +251,8 @@ def test_probe_collection_uses_reward_aligned_targets_without_reward_inputs():
     assert data.observations.shape == (64, TOKEN_COUNT)
     assert data.episode_steps.min() >= CONTEXT_LENGTH
     assert data.product_consistency_max_abs < 1e-10
+    assert data.episode_ids.shape == (64,)
+    assert len(np.unique(data.episode_ids)) >= 2
     np.testing.assert_array_equal(
         data.rewards,
         (data.actions == data.hidden_tokens).astype(np.float64),
@@ -266,3 +268,82 @@ def test_task_rejects_invalid_token_guesses(action):
             env.step(action)
     finally:
         env.close()
+
+
+def test_probe_episode_groups_survive_interleaved_resets(monkeypatch):
+    config = environment_config()
+    config.update(episode_length=40, randomize_first_episode_length=False)
+    monkeypatch.setattr(analysis, "environment_config", lambda: dict(config))
+    original_threads = torch.get_num_threads()
+    torch.set_num_threads(1)
+    try:
+        data = analysis.collect_probe_data(_module(), n_steps=192, seed=np.random.SeedSequence(72), device=torch.device("cpu"))
+    finally:
+        torch.set_num_threads(original_threads)
+    assert len(np.unique(data.episode_ids)) == 24
+    for group in np.unique(data.episode_ids):
+        np.testing.assert_array_equal(data.episode_steps[data.episode_ids == group], np.arange(32, 40))
+
+
+@pytest.mark.parametrize("constant_target", [False, True])
+def test_single_simplex_preserves_raw_predictions_and_paired_colors(monkeypatch, constant_target):
+    from experiments.wing_token_guess_cycle_2 import simplex
+
+    target = np.random.default_rng(12).dirichlet(np.ones(3), size=50)
+    if constant_target:
+        target[:] = [0.25, 0.5, 0.25]
+    decoded = target.copy()
+    decoded[0] = [1.2, -0.3, 0.1]
+    expected_target, expected_decoded = target.copy(), decoded.copy()
+    original = simplex.plot_belief_comparison
+    captured = []
+
+    def capture(targets, predicted, **kwargs):
+        figure = original(targets, predicted, **kwargs)
+        captured.append((targets.copy(), predicted.copy(), kwargs, figure))
+        return figure
+
+    monkeypatch.setattr(simplex, "plot_belief_comparison", capture)
+    png = simplex.render_simplex(target, decoded, layer=3, n_fit=100, agent_steps=123, seed=7)
+    assert isinstance(png, bytes) and png.startswith(b"\x89PNG\r\n\x1a\n")
+    assert len(captured) == 1
+    targets, predicted, kwargs, figure = captured[0]
+    np.testing.assert_array_equal(targets, expected_target)
+    np.testing.assert_array_equal(predicted, expected_decoded)
+    np.testing.assert_array_equal(target, expected_target)
+    np.testing.assert_array_equal(decoded, expected_decoded)
+    np.testing.assert_array_equal(kwargs["coordinates"], simplex.VERTICES)
+    np.testing.assert_array_equal(kwargs["point_colors"], target @ simplex.COLORS)
+    assert kwargs["state_labels"] == ("State 0", "State 1", "State 2")
+    assert kwargs["seed"] == 7
+    axes = figure.axes
+    order = np.random.default_rng(7).permutation(len(target))
+    for axis in axes:
+        np.testing.assert_allclose(axis.collections[0].get_facecolors()[:, :3], (target @ simplex.COLORS)[order])
+    assert axes[0].get_xlim() == axes[1].get_xlim()
+    assert axes[0].get_ylim() == axes[1].get_ylim()
+    assert not simplex.plt.fignum_exists(figure.number)
+    figure.canvas.draw()
+    subtitle = next(text for text in figure.texts if "Single 3-state Wing" in text.get_text())
+    assert "Layer 3, pre-final-LayerNorm residual" in subtitle.get_text()
+    assert "100 fit samples and 50 independent held-out samples" in subtitle.get_text()
+    assert figure._suptitle.get_window_extent().y0 > subtitle.get_window_extent().y1
+    assert subtitle.get_window_extent().y0 > max(axis.title.get_window_extent().y1 for axis in axes)
+    metrics = simplex.geometry_metrics(target, decoded)
+    contrast = metrics["contrast_0_minus_2"]["r_squared"]
+    label = "N/A" if constant_target else f"{contrast:.3f}"
+    annotation = next(text for text in figure.texts if "0–2 contrast" in text.get_text())
+    assert annotation.get_text() == f"0–2 contrast R² = {label}"
+    assert annotation.get_position() == (0.5, 0.21)
+    assert annotation.get_window_extent().y1 < min(axis.get_window_extent().y0 for axis in axes)
+    core_metrics = next(text for text in figure.texts if text.get_text().startswith("Raw MSE"))
+    assert annotation.get_window_extent().y0 > core_metrics.get_window_extent().y1
+    assert any("decision-time arrival beliefs conditioned on delayed observed tokens only" in text.get_text() for text in figure.texts)
+    assert any("First 32 steps/episode excluded" in text.get_text() for text in figure.texts)
+    if constant_target:
+        assert metrics["r_squared"] is None and contrast is None
+    assert metrics["outside_simplex_fraction"] == pytest.approx(1 / 50)
+    invalid = decoded.copy()
+    invalid[0, 0] += 0.1
+    with pytest.raises(ValueError, match="sum to one"):
+        simplex.geometry_metrics(target, invalid)

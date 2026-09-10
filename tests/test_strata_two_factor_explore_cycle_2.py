@@ -100,8 +100,9 @@ def test_rotations_preserve_emission_map_and_exact_transducer_filter():
         assert observation.shape == (10,)
         assert observation[4:].sum() == 0
         np.testing.assert_allclose(info["belief_current"], belief)
-        factor = controlled_kernels(strength=1.0)
-        base = strata_model().edge_transition_matrices
+        parameters = config["model"]["kwargs"]["factors"][0]["kwargs"]
+        factor = controlled_kernels(strength=CONTROL_STRENGTH, **parameters)
+        base = strata_model(**parameters).edge_transition_matrices
         for action, shift in enumerate((0, 1, -1)):
             np.testing.assert_allclose(factor[action], np.roll(base, shift, axis=2))
         for action in range(9):

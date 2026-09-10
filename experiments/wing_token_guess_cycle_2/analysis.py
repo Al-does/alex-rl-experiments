@@ -16,6 +16,7 @@ from experiments.factored_representations_reproduction_PPO_2026_08.analysis impo
     cross_validated_svd_affine,
 )
 from experiments.factored_representations_reproduction_PPO_2026_08.probe import (
+    _episode_ids,
     _initial_state,
 )
 from experiments.wing_token_guess_cycle_2.process import (
@@ -54,6 +55,7 @@ class ProbeData:
     rewards: np.ndarray
     episode_steps: np.ndarray
     product_consistency_max_abs: float
+    episode_ids: np.ndarray | None = None
 
 
 def _device(context: RunContext) -> torch.device:
@@ -89,6 +91,7 @@ def _target_adapter(
             dtype=np.int64,
         ),
         "episode_step": np.asarray(episode_steps, dtype=np.int64),
+        "env_index": np.arange(len(infos), dtype=np.int64),
     }
 
 
@@ -215,6 +218,9 @@ def collect_probe_data(
         ),
         product_consistency_max_abs=float(
             np.max(np.abs(joint - reconstructed))
+        ),
+        episode_ids=_episode_ids(
+            collected.targets["env_index"], collected.targets["episode_step"],
         ),
     )
 

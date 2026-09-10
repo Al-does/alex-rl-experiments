@@ -1,0 +1,74 @@
+{
+  "action_semantics": "two categorical action logits, one per Strata token",
+  "algorithm": "clipped PPO",
+  "analysis": "held-out layerwise affine probes of the exact delayed Strata belief",
+  "checkpoint_schedule": "initial, powers of two iterations, final",
+  "clip_param": 0.2,
+  "condition": "ppo",
+  "context_semantics": "strict last 32 delayed token frames including current",
+  "controls": [
+    "train-mean belief predictor",
+    "current-visible-token belief predictor",
+    "shuffled-label affine probe"
+  ],
+  "entropy_coeff": 0.0,
+  "environment": {
+    "delay": 1,
+    "episode_length": 1024,
+    "model": {
+      "factory": "envs.strata.model:strata_model",
+      "kwargs": {
+        "alpha": 0.98,
+        "t0": 0.3,
+        "t1": 0.8
+      }
+    },
+    "observation": {
+      "action": null,
+      "token": {
+        "depth": 1
+      }
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "experiments.strata_token_guess_cycle_2.task:StrataTokenGuessTask"
+    }
+  },
+  "gamma": 0.0,
+  "hypothesis": "PPO can learn the finite-context predictor for the pending single-HMM Strata token from delayed token history.",
+  "intended_hardware": "CPU smoke; hardware-profile learner device for full training",
+  "lambda": 0.0,
+  "learning_rate": 0.0001,
+  "minibatch_size": 4096,
+  "model": {
+    "activation": "relu",
+    "context_length": 32,
+    "d_mlp": 256,
+    "d_model": 64,
+    "max_seq_len": 32,
+    "n_heads": 1,
+    "n_layers": 3,
+    "normalization": "layer_norm",
+    "positional_embedding": "rope",
+    "sampling_temperature": 1.5
+  },
+  "num_epochs": 6,
+  "optimizer": "Adam (RLlib default)",
+  "previous_action_in_observation": false,
+  "previous_reward_in_observation": false,
+  "primary_comparison": "initial versus trained token accuracy and linear belief decodability",
+  "process_change": {
+    "after": "Strata(alpha=0.98, t0=0.30, t1=0.80)",
+    "before": "Strata(alpha=0.97, t0=0.38, t1=0.54)"
+  },
+  "reference_experiment": "wing_token_guess_cycle_2",
+  "reward": "1 when the sampled action equals event.raw_token_before, else 0",
+  "seed": 42,
+  "smoke": false,
+  "stopping_metric": "env_runners/num_env_steps_sampled_lifetime",
+  "study": "strata_token_guess_cycle_2",
+  "total_env_steps": 2500000,
+  "train_batch_size_per_learner": 32768,
+  "use_kl_loss": false,
+  "value_loss_coeff": 0.5
+}
