@@ -170,8 +170,12 @@ def _load_inputs(
             "no_retraining": True,
             "selected_checkpoints_only": True,
             "checkpoint_count": 9,
+            "randomize_first_episode_length": True,
             "layer_selection": "all layers reported; final layer fixed for summaries",
             "test_metrics_used_for_selection": False,
+            "initialization_baseline": (
+                "separately restored and sampled checkpoint; not matched-history initialization_features"
+            ),
             "confidence_intervals": (
                 "paired 95% percentile intervals from 200 held-out whole-episode bootstrap resamples"
             ),
@@ -491,6 +495,10 @@ def _report_markdown(metrics: dict[str, Any]) -> str:
         "RLModule checkpoints for each run. It does not retrain models or select "
         "layers/checkpoints using held-out probe performance.",
         "",
+        "Initialization is a separately restored and sampled checkpoint baseline, "
+        "not a matched-history `initialization_features` comparison: on-policy "
+        "histories differ across checkpoints.",
+        "",
         "Each checkpoint uses 20,000 process-weighted learned-policy samples for "
         "fit and 20,000 independent samples for test, eight environments, a 64-step "
         "per-episode warmup, and whole-episode grouped fitting/bootstrap. The "
@@ -558,6 +566,22 @@ def _report_markdown(metrics: dict[str, Any]) -> str:
                 f"{_format_number(comparison['delta_r_squared'])} "
                 f"[{_format_number(interval[0])}, {_format_number(interval[1])}] |"
             )
+    token = metrics["runs"]["token_guess"]["selected_checkpoints"]["final"][
+        "factors"
+    ]["strata"]["layers"]["layer_3"]
+    both = metrics["runs"]["reward_both"]["selected_checkpoints"]["final"][
+        "factors"
+    ]
+    single = metrics["runs"]["reward_factor_1"]["selected_checkpoints"][
+        "final"
+    ]["factors"]
+    token_comparison = token["comparisons"][
+        "nuisance/log_next_token_probability"
+    ]
+    both_factor_1 = both["factor_1"]["layers"]["layer_3"]
+    both_factor_2 = both["factor_2"]["layers"]["layer_3"]
+    single_factor_1 = single["factor_1"]["layers"]["layer_3"]
+    single_factor_2 = single["factor_2"]["layers"]["layer_3"]
     lines.extend(
         [
             "",
@@ -566,6 +590,32 @@ def _report_markdown(metrics: dict[str, Any]) -> str:
             "emission-null-direction contrasts, and activation geometry are in "
             "`metrics.json` and `metrics.csv`.",
             "",
+            "## Findings",
+            "",
+            "- All three archived policy scores rise substantially from initialization; "
+            "penultimate and final scores are close, so the requested late-checkpoint "
+            "comparison does not hinge on a large task-performance swing.",
+            f"- Token-guess final-layer accessibility reaches "
+            f"{token['metrics']['r_squared']:.3f} R² and exceeds the log-NTP "
+            f"control by {token_comparison['delta_r_squared']:.3f} "
+            f"[{token_comparison['delta_r_squared_ci'][0]:.3f}, "
+            f"{token_comparison['delta_r_squared_ci'][1]:.3f}]. Its Strata "
+            f"emission-null-direction R² is "
+            f"{token['metrics']['contrasts']['prediction_null_1']['r_squared']:.3f}.",
+            f"- Reward-both final-layer probes decode both factors "
+            f"(factor 1 {both_factor_1['metrics']['r_squared']:.3f} R²; "
+            f"factor 2 {both_factor_2['metrics']['r_squared']:.3f} R²). "
+            f"Factor 1 robustly exceeds log-NTP; factor 2's overall paired "
+            f"difference is "
+            f"{both_factor_2['comparisons']['nuisance/log_next_token_probability']['delta_r_squared']:.3f} "
+            "with an interval spanning zero.",
+            f"- Reward-factor-1 is selective at the final layer: factor 1 reaches "
+            f"{single_factor_1['metrics']['r_squared']:.3f} R², while factor 2 "
+            f"is {single_factor_2['metrics']['r_squared']:.3f} R² despite a "
+            f"{single['factor_2']['baselines']['nuisance/log_next_token_probability']['r_squared']:.3f} "
+            "log-NTP baseline. This is an accessibility association with the "
+            "rewarded factor, not evidence of causal use.",
+            "",
             "## Timing and controls",
             "",
             "- Targets are read from `info[\"belief_current\"]` before the current action.",
@@ -573,9 +623,15 @@ def _report_markdown(metrics: dict[str, Any]) -> str:
             "the completed action is scored against `event.raw_token_before`.",
             "- Two-factor beliefs already include the preceding executed action through "
             "the prior edge-belief update, never reward information.",
+            "- Reward both pays factor indices 0 and 1; reward factor 1 pays factor "
+            "index 0 only. Report labels `factor_1` and `factor_2` are one-indexed.",
             "- The token-guess NTP control is recovered from the filtered source belief "
             "and predicts the pending hidden token; the two-factor NTP control projects "
             "the current factor belief through the Strata emission matrix.",
+            "- First-episode lengths are randomized, and recurrent histories continue "
+            "through resets before the 64-step warmup filter is applied.",
+            "- Fit/test streams are independent: token spawn keys 800/801 and "
+            "two-factor spawn keys 700/701 under run seed 42.",
             "",
             "## Limitations",
             "",
@@ -619,6 +675,11 @@ def main(argv: list[str] | None = None) -> None:
         root,
         args.analysis_dir.resolve(),
     )
+    report_source = Path(__file__).resolve()
+    provenance["report_generator"] = {
+        "path": str(report_source.relative_to(root)),
+        "sha256": _sha256(report_source),
+    }
     metrics_path = output / "metrics.json"
     provenance_path = output / "provenance.json"
     report_path = output / "report.md"
