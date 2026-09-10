@@ -10,6 +10,7 @@ from typing import Any
 import matplotlib
 
 matplotlib.use("Agg")
+matplotlib.rcParams["svg.hashsalt"] = "strata-context-64-entropy-4x"
 from matplotlib import pyplot as plt
 import numpy as np
 
@@ -369,7 +370,11 @@ def _metric_rows(metrics: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     with path.open("x", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=list(rows[0]),
+            lineterminator="\n",
+        )
         writer.writeheader()
         writer.writerows(rows)
 
@@ -408,7 +413,7 @@ def _task_figure(metrics: dict[str, Any], output: Path) -> None:
         fontsize=11,
     )
     figure.savefig(output.with_suffix(".png"), dpi=180)
-    figure.savefig(output.with_suffix(".svg"))
+    figure.savefig(output.with_suffix(".svg"), metadata={"Date": None})
     _normalize_svg(output.with_suffix(".svg"))
     plt.close(figure)
 
@@ -485,7 +490,7 @@ def _geometry_figure(metrics: dict[str, Any], output: Path) -> None:
         fontsize=11,
     )
     figure.savefig(output.with_suffix(".png"), dpi=180)
-    figure.savefig(output.with_suffix(".svg"))
+    figure.savefig(output.with_suffix(".svg"), metadata={"Date": None})
     _normalize_svg(output.with_suffix(".svg"))
     plt.close(figure)
 
