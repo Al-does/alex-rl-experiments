@@ -17,6 +17,7 @@ from experiments.factored_representations_reproduction_PPO_2026_08.analysis impo
     cross_validated_svd_affine,
 )
 from experiments.factored_representations_reproduction_PPO_2026_08.probe import (
+    _episode_ids,
     _initial_state,
 )
 from experiments.strata_token_guess_cycle_2.context_length_64_entropy_4x.process import (
@@ -56,6 +57,7 @@ class ProbeData:
     hidden_tokens: np.ndarray
     actions: np.ndarray
     rewards: np.ndarray
+    episode_ids: np.ndarray
     episode_steps: np.ndarray
     product_consistency_max_abs: float
 
@@ -92,6 +94,7 @@ def _target_adapter(
             [info["raw_token_current"] for info in infos],
             dtype=np.int64,
         ),
+        "env_index": np.arange(len(infos), dtype=np.int64),
         "episode_step": np.asarray(episode_steps, dtype=np.int64),
     }
 
@@ -213,6 +216,10 @@ def collect_probe_data(
         hidden_tokens=hidden_tokens,
         actions=actions,
         rewards=rewards,
+        episode_ids=_episode_ids(
+            np.asarray(collected.targets["env_index"], dtype=np.int64),
+            np.asarray(collected.targets["episode_step"], dtype=np.int64),
+        ),
         episode_steps=np.asarray(
             collected.targets["episode_step"],
             dtype=np.int64,
