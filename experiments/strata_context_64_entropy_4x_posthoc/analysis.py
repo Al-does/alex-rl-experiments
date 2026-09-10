@@ -142,7 +142,10 @@ def _policy_report(data: Any, *, token_guess: bool) -> dict[str, Any]:
         "temperature": POLICY_TEMPERATURE,
         "mean_reward": float(np.mean(data.rewards)),
         "action_fractions": (
-            np.bincount(data.actions, minlength=4 if token_guess else 9)
+            np.bincount(
+                data.actions,
+                minlength=token_process.TOKEN_COUNT if token_guess else 9,
+            )
             / count
         ).tolist(),
     }
@@ -150,7 +153,11 @@ def _policy_report(data: Any, *, token_guess: bool) -> dict[str, Any]:
         report.update(
             token_accuracy=float(np.mean(data.actions == data.hidden_tokens)),
             hidden_token_fractions=(
-                np.bincount(data.hidden_tokens, minlength=4) / count
+                np.bincount(
+                    data.hidden_tokens,
+                    minlength=token_process.TOKEN_COUNT,
+                )
+                / count
             ).tolist(),
         )
     else:

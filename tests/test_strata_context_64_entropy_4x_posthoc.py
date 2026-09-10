@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import numpy as np
 
 from envs.strata.model import strata_model
 from experiments.strata_context_64_entropy_4x_posthoc.analysis import (
+    _policy_report,
     _probability_rows,
     _token_ntp,
 )
@@ -23,6 +26,19 @@ def test_probability_rows_removes_roundoff_without_changing_distribution():
     normalized = _probability_rows(values)
     np.testing.assert_allclose(normalized.sum(axis=1), 1.0)
     np.testing.assert_allclose(normalized[1], values[1])
+
+
+def test_token_policy_report_uses_two_action_bins():
+    report = _policy_report(
+        SimpleNamespace(
+            actions=np.asarray([0, 1, 1, 0]),
+            hidden_tokens=np.asarray([1, 1, 0, 0]),
+            rewards=np.asarray([0.0, 1.0, 0.0, 1.0]),
+        ),
+        token_guess=True,
+    )
+    assert report["action_fractions"] == [0.5, 0.5]
+    assert report["hidden_token_fractions"] == [0.5, 0.5]
 
 
 def test_delay_one_ntp_recovers_pending_token_distribution():
