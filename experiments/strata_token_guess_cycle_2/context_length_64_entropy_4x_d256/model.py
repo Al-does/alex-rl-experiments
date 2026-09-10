@@ -15,7 +15,7 @@ from ray.rllib.core.columns import Columns
 
 from experiments.wing_two_factor_explore_cycle_1.model import WingActorCritic
 
-VALUE_CHUNK_ROWS = 512
+VALUE_CHUNK_TIMESTEPS = 1_024
 
 
 class WideWingActorCritic(WingActorCritic):
@@ -27,10 +27,12 @@ class WideWingActorCritic(WingActorCritic):
         observations = batch[Columns.OBS]
         state = batch[Columns.STATE_IN]
         rows = observations.shape[0]
+        timesteps = observations.shape[1] if observations.dim() > 2 else 1
+        chunk_rows = max(1, VALUE_CHUNK_TIMESTEPS // timesteps)
         values = []
         with torch.no_grad():
-            for start in range(0, rows, VALUE_CHUNK_ROWS):
-                stop = min(start + VALUE_CHUNK_ROWS, rows)
+            for start in range(0, rows, chunk_rows):
+                stop = min(start + chunk_rows, rows)
                 chunk = {
                     Columns.OBS: observations[start:stop],
                     Columns.STATE_IN: {
