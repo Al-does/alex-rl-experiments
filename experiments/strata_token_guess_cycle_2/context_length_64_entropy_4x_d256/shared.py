@@ -23,7 +23,9 @@ from experiments.strata_token_guess_cycle_2.context_length_64_entropy_4x_d256.pr
     CONTEXT_LENGTH,
     environment_config,
 )
-from experiments.wing_two_factor_explore_cycle_1.model import WingActorCritic
+from experiments.strata_token_guess_cycle_2.context_length_64_entropy_4x_d256.model import (
+    WideWingActorCritic,
+)
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
 from harness.hardware import PROFILES, resolve_env_runners
@@ -34,7 +36,7 @@ TOTAL_ENV_STEPS = 2_500_000
 SMOKE_ENV_STEPS = 4_096
 TRAIN_BATCH_SIZE = 8_192
 SMOKE_BATCH_SIZE = 2_048
-MINIBATCH_SIZE = 256
+MINIBATCH_SIZE = 1_024
 SMOKE_MINIBATCH_SIZE = 256
 LEARNING_RATE = 1e-4
 NUM_EPOCHS = 6
@@ -86,7 +88,7 @@ def build_config(context: RunContext) -> PPOConfig:
         )
         .rl_module(
             rl_module_spec=RLModuleSpec(
-                module_class=WingActorCritic,
+                module_class=WideWingActorCritic,
                 model_config=dict(MODEL_CONFIG),
             )
         )
@@ -169,8 +171,7 @@ def resolved_recipe(context: RunContext) -> dict[str, Any]:
         "model": dict(MODEL_CONFIG),
         "context_semantics": (
             "strict last 64 delayed token frames including current; "
-            "entropy coefficient 4x (0.012); transformer width d_model=256, d_mlp=1024; "
-            "minibatch 256 (down from 1024) to fit GPU memory"
+            "entropy coefficient 4x (0.012); transformer width d_model=256, d_mlp=1024"
         ),
         "total_env_steps": (
             SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
