@@ -34,7 +34,7 @@ TOTAL_ENV_STEPS = 2_500_000
 SMOKE_ENV_STEPS = 4_096
 TRAIN_BATCH_SIZE = 8_192
 SMOKE_BATCH_SIZE = 2_048
-MINIBATCH_SIZE = 1_024
+MINIBATCH_SIZE = 256
 SMOKE_MINIBATCH_SIZE = 256
 LEARNING_RATE = 1e-4
 NUM_EPOCHS = 6
@@ -169,7 +169,8 @@ def resolved_recipe(context: RunContext) -> dict[str, Any]:
         "model": dict(MODEL_CONFIG),
         "context_semantics": (
             "strict last 64 delayed token frames including current; "
-            "entropy coefficient 4x (0.012); transformer width d_model=256, d_mlp=1024"
+            "entropy coefficient 4x (0.012); transformer width d_model=256, d_mlp=1024; "
+            "minibatch 256 (down from 1024) to fit GPU memory"
         ),
         "total_env_steps": (
             SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
