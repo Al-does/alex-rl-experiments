@@ -24,12 +24,12 @@ from experiments.factored_representations_reproduction_PPO_2026_08.shared import
 from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.process import (
     COMPONENT_PARAMETERS,
     CONTEXT_LENGTH,
+    EFFECT_SIZE,
     EPISODE_LENGTH,
     environment_config,
 )
 from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.task import (
     DIRECTIONS,
-    EFFECT_SIZE,
 )
 from experiments.storage.training_curves import write_training_curves
 from harness.artifacts import RunArtifacts
@@ -187,6 +187,12 @@ def resolved_recipe(
         ),
         "variant_directions": DIRECTIONS[variant].tolist(),
         "effect_size": EFFECT_SIZE,
+        "effect_size_selection": (
+            "increased from cycle 5's 1.5 to 3.0 because an exact-filter "
+            "expected-reward controller collapses to constant positive action "
+            "in variant 2 at 1.5; at 3.0 a feasible belief-conditioned policy "
+            "strictly beats every constant action"
+        ),
         "action_control": (
             "exponential tilt of each component's local reward-state "
             "destination probability with the original transition support "
@@ -246,6 +252,9 @@ def resolved_recipe(
         "stopping_metric": "env_runners/num_env_steps_sampled_lifetime",
         "checkpoint_schedule": "initial, powers of two iterations, final",
         "analysis": [
+            "exact-filter expected-reward policy audit against exact "
+            "constant-action returns; this is a feasible Bayes-observer "
+            "certificate, not a claim of solving the continuous-belief POMDP",
             "action-conditioned edge-transducer reconstruction of the exact "
             "six-state decision-time belief",
             "held-out layerwise affine probes of weighted belief, component "

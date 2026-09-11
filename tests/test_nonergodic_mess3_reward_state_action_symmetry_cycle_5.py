@@ -17,9 +17,16 @@ from experiments.factored_representations_reproduction_PPO_2026_08.model import 
 from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5 import (
     analysis,
 )
+from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.design import (
+    bayes_observer_reward_audit,
+    constant_action_expected_return,
+    controlled_kernels,
+    expected_next_reward_scores,
+)
 from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.process import (
     COMPONENT_COUNT,
     CONTEXT_LENGTH,
+    EFFECT_SIZE,
     EPISODE_LENGTH,
     STATE_COUNT,
     STATES_PER_COMPONENT,
@@ -244,6 +251,71 @@ def test_reward_uses_pre_transition_local_state():
         env.close()
 
 
+def test_expected_next_reward_scores_use_belief_not_hidden_state():
+    transitions, _ = controlled_kernels(3)
+    belief = np.asarray([0.08, 0.12, 0.30, 0.20, 0.10, 0.20])
+    scores = expected_next_reward_scores(belief, transitions)
+    reward = np.asarray([0.0, 0.0, 1.0, 0.0, 0.0, 1.0])
+    np.testing.assert_allclose(
+        scores,
+        [belief @ transition @ reward for transition in transitions],
+    )
+    assert scores.shape == (N_ACTIONS,)
+
+
+def test_constant_action_returns_are_exact_finite_horizon_expectations():
+    transitions, _ = controlled_kernels(2)
+    belief = (
+        nonergodic_mess3_model().initial_distribution
+        @ transitions[NOOP_ACTION]
+    )
+    reward = np.asarray([0.0, 0.0, 1.0, 0.0, 0.0, 1.0])
+    expected = 0.0
+    for _ in range(EPISODE_LENGTH):
+        expected += belief @ reward
+        belief = belief @ transitions[POSITIVE_ACTION]
+    assert constant_action_expected_return(2, POSITIVE_ACTION) == (
+        pytest.approx(expected)
+    )
+
+
+def test_bayes_observer_reward_audit_certifies_the_control_ladder():
+    audits = {
+        variant: bayes_observer_reward_audit(
+            variant,
+            n_episodes=4_096,
+            seed=20_260_920 + variant,
+        )
+        for variant in (1, 2, 3)
+    }
+    assert EFFECT_SIZE == 3.0
+    assert audits[1]["action_fractions"] == [0.0, 1.0, 0.0]
+    assert not audits[1]["nonconstant_optimum_certificate"]
+
+    variant_2_fractions = np.asarray(audits[2]["action_fractions"])
+    assert variant_2_fractions[NOOP_ACTION] > 0.20
+    assert variant_2_fractions[POSITIVE_ACTION] > 0.65
+    assert variant_2_fractions[NEGATIVE_ACTION] == 0.0
+    assert audits[2]["advantage_normal_95_interval"][0] > 1.5
+    assert audits[2]["nonconstant_optimum_certificate"]
+
+    variant_3_fractions = np.asarray(audits[3]["action_fractions"])
+    assert np.all(variant_3_fractions > 0.25)
+    assert audits[3]["advantage_normal_95_interval"][0] > 6.5
+    assert audits[3]["nonconstant_optimum_certificate"]
+
+
+def test_original_effect_collapses_variant_2_to_constant_positive_action():
+    audit = bayes_observer_reward_audit(
+        2,
+        effect_size=1.5,
+        n_episodes=2_048,
+        seed=20_260_930,
+    )
+    assert audit["action_fractions"] == [0.0, 1.0, 0.0]
+    assert not audit["nonconstant_optimum_certificate"]
+
+
 def test_delay_one_transducer_uses_preceding_edges_and_current_action():
     env = HMMEnv(_diagnostic_config(3))
     target = analysis.ActionConditionedTransducerTarget(env.model, 1)
@@ -323,8 +395,12 @@ def test_complete_episode_ppo_config_and_recipe(tmp_path):
 
     recipe = resolved_recipe(context, 3)
     assert recipe["total_env_steps"] == SMOKE_ENV_STEPS == 1_024
+    assert recipe["effect_size"] == EFFECT_SIZE == 3.0
     assert recipe["previous_action_in_observation"] is True
     assert recipe["environment"] == environment_config(3)
+    assert recipe["environment"]["task"]["kwargs"]["effect_size"] == (
+        EFFECT_SIZE
+    )
     assert recipe["variant_directions"] == DIRECTIONS[3].tolist()
     full_context = replace(context, smoke=False)
     full_config = build_config(full_context, 3)

@@ -8,6 +8,7 @@ import numpy as np
 from envs.hmm import ActionDecision, HMMModel, TransitionEvent
 from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.process import (
     COMPONENT_COUNT,
+    EFFECT_SIZE,
     STATES_PER_COMPONENT,
 )
 
@@ -17,7 +18,6 @@ POSITIVE_ACTION = 1
 NEGATIVE_ACTION = 2
 N_ACTIONS = 3
 REWARD_STATE = 2
-EFFECT_SIZE = 1.5
 
 DIRECTIONS = {
     1: np.asarray(

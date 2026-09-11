@@ -12,6 +12,8 @@ from experiments.nonergodic_mess3_token_guess_cycle_1.process import (
     nonergodic_mess3_model,
 )
 
+EFFECT_SIZE = 3.0
+
 
 def environment_config(variant: int) -> dict[str, object]:
     if variant not in (1, 2, 3):
@@ -30,7 +32,7 @@ def environment_config(variant: int) -> dict[str, object]:
             ),
             "kwargs": {
                 "variant": variant,
-                "effect_size": 1.5,
+                "effect_size": EFFECT_SIZE,
             },
         },
         "observation": {
@@ -47,6 +49,7 @@ __all__ = [
     "COMPONENT_COUNT",
     "COMPONENT_PARAMETERS",
     "CONTEXT_LENGTH",
+    "EFFECT_SIZE",
     "EPISODE_LENGTH",
     "STATE_COUNT",
     "STATES_PER_COMPONENT",
