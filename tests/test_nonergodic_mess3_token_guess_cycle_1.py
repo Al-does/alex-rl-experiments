@@ -266,7 +266,7 @@ def test_fresh_gamma_zero_ppo_config_and_article_recipe(tmp_path):
     )
 
 
-def test_h100_estimate_uses_conservative_full_batch_and_cpu_smoke(tmp_path):
+def test_h100_estimate_uses_large_batch_and_32k_minibatches(tmp_path):
     context = _context(tmp_path)
     smoke_config = h100_experiment.build_config(context)
     assert smoke_config is not h100_experiment.build_config(context)
@@ -281,10 +281,13 @@ def test_h100_estimate_uses_conservative_full_batch_and_cpu_smoke(tmp_path):
     full_config = h100_experiment.build_config(full_context)
     assert (
         full_config.train_batch_size_per_learner
-        == full_config.minibatch_size
         == h100_experiment.TRAIN_BATCH_SIZE
-        == h100_experiment.MINIBATCH_SIZE
         == 262_144
+    )
+    assert (
+        full_config.minibatch_size
+        == h100_experiment.MINIBATCH_SIZE
+        == 32_768
     )
     assert (
         full_config.num_envs_per_env_runner
@@ -302,6 +305,8 @@ def test_h100_estimate_uses_conservative_full_batch_and_cpu_smoke(tmp_path):
     assert smoke_recipe["minibatch_size"] == SMOKE_MINIBATCH_SIZE
     full_recipe = h100_experiment.resolved_recipe(full_context)
     assert full_recipe["condition"] == h100_experiment.CONDITION
+    assert full_recipe["train_batch_size_per_learner"] == 262_144
+    assert full_recipe["minibatch_size"] == 32_768
     assert full_recipe["model"] == MODEL_CONFIG
     assert full_recipe["environment"] == environment_config()
     assert full_recipe["training_batch_component_mix"] == {
@@ -319,16 +324,28 @@ def test_h100_estimate_uses_conservative_full_batch_and_cpu_smoke(tmp_path):
     )
     estimate = full_recipe["hardware_estimate"]
     assert estimate["status"] == (
-        "unmeasured estimate; no H100 benchmark was run"
+        "conservative capacity estimate validated by a short H100 NVL run; "
+        "no maximum-capacity benchmark was run"
     )
-    assert estimate["assumed_gpu"] == "NVIDIA H100 80 GB"
+    assert estimate["assumed_gpu"] == "NVIDIA H100 80 GB capacity estimate"
     extrapolation = estimate["linear_memory_extrapolation"]
     assert extrapolation["selected_batch_steps"] == 262_144
+    assert extrapolation["selected_minibatch_steps"] == 32_768
     assert extrapolation["estimated_reserved_memory_gb"] == pytest.approx(
         17.76
     )
     assert extrapolation["estimated_fraction_of_80_gb"] == pytest.approx(
         0.222
+    )
+    validation = estimate["h100_validation_run"]
+    assert validation["sampled_steps"] == 2_702_560
+    assert validation["training_iterations"] == 10
+    assert validation["full_minibatch_optimizer_updates"] == 70
+    assert validation["sampling_timer_seconds_final_iteration"] == pytest.approx(
+        103.4
+    )
+    assert validation["learner_timer_seconds_final_iteration"] == pytest.approx(
+        3.2
     )
 
 
