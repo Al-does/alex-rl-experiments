@@ -1,4 +1,4 @@
-"""A 64-dimensional paper-style transformer adapted to stateful RLlib PPO."""
+"""A configurable paper-style transformer adapted to stateful RLlib PPO."""
 
 from __future__ import annotations
 
@@ -45,10 +45,10 @@ class FactoredReproductionModelConfig:
             raise ValueError("transformer dimensions must be positive")
         if self.d_model % self.n_heads:
             raise ValueError("d_model must be divisible by n_heads")
-        if self.activation != "relu":
-            raise ValueError("the paper architecture uses ReLU")
-        if self.normalization != "layer_norm":
-            raise ValueError("the paper architecture uses LayerNorm")
+        if self.activation not in {"relu", "gated_gelu"}:
+            raise ValueError("activation must be relu or gated_gelu")
+        if self.normalization not in {"layer_norm", "rms_norm"}:
+            raise ValueError("normalization must be layer_norm or rms_norm")
         if self.positional_embedding not in {"learned_absolute", "rope"}:
             raise ValueError("positional_embedding must be learned_absolute or rope")
         if self.positional_embedding == "rope" and (self.d_model // self.n_heads) % 2:
@@ -103,19 +103,45 @@ class MultiHeadCausalAttention(nn.Module):
         return self.output(attended)
 
 
+class GatedGELUMLP(nn.Module):
+    def __init__(self, config: FactoredReproductionModelConfig) -> None:
+        super().__init__()
+        self.gate = nn.Linear(config.d_model, config.d_mlp)
+        self.value = nn.Linear(config.d_model, config.d_mlp)
+        self.output = nn.Linear(config.d_mlp, config.d_model)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        gated = torch.nn.functional.gelu(self.gate(inputs))
+        return self.output(gated * self.value(inputs))
+
+
+def _normalization(
+    config: FactoredReproductionModelConfig,
+) -> nn.LayerNorm | nn.RMSNorm:
+    if config.normalization == "rms_norm":
+        return nn.RMSNorm(config.d_model, eps=1e-5)
+    return nn.LayerNorm(config.d_model)
+
+
+def _mlp(config: FactoredReproductionModelConfig) -> nn.Module:
+    if config.activation == "gated_gelu":
+        return GatedGELUMLP(config)
+    return nn.Sequential(
+        nn.Linear(config.d_model, config.d_mlp),
+        nn.ReLU(),
+        nn.Linear(config.d_mlp, config.d_model),
+    )
+
+
 class ReproductionTransformerBlock(nn.Module):
-    """Pre-LayerNorm attention and ReLU MLP residual block."""
+    """Pre-normalization attention and MLP residual block."""
 
     def __init__(self, config: FactoredReproductionModelConfig) -> None:
         super().__init__()
-        self.attention_norm = nn.LayerNorm(config.d_model)
+        self.attention_norm = _normalization(config)
         self.attention = MultiHeadCausalAttention(config)
-        self.mlp_norm = nn.LayerNorm(config.d_model)
-        self.mlp = nn.Sequential(
-            nn.Linear(config.d_model, config.d_mlp),
-            nn.ReLU(),
-            nn.Linear(config.d_mlp, config.d_model),
-        )
+        self.mlp_norm = _normalization(config)
+        self.mlp = _mlp(config)
 
     def forward(
         self,
@@ -148,7 +174,7 @@ class ReproductionResidualEncoder(nn.Module):
             ReproductionTransformerBlock(config)
             for _ in range(config.n_layers)
         )
-        self.final_norm = nn.LayerNorm(config.d_model)
+        self.final_norm = _normalization(config)
         self.apply(self._initialize)
         nn.init.normal_(self.bos_embedding, mean=0.0, std=0.02)
 
@@ -161,6 +187,8 @@ class ReproductionResidualEncoder(nn.Module):
         elif isinstance(module, nn.LayerNorm):
             nn.init.ones_(module.weight)
             nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.RMSNorm):
+            nn.init.ones_(module.weight)
 
     def token_embedding_matrix(self) -> torch.Tensor:
         """Return one row per visible joint-token embedding, excluding BOS."""

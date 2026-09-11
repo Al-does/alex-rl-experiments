@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from functools import partial
+import math
 from pathlib import Path
 
 from ray import tune
@@ -40,13 +41,19 @@ MINIBATCH_SIZE = 4_096
 SMOKE_MINIBATCH_SIZE = 128
 LEARNING_RATE = 1e-4
 NUM_EPOCHS = 6
+MIN_EPISODES_PER_TRAIN_BATCH = math.ceil(TRAIN_BATCH_SIZE / EPISODE_LENGTH)
+ALL_ONE_COMPONENT_BATCH_PROBABILITY = 2.0 ** (
+    1 - MIN_EPISODES_PER_TRAIN_BATCH
+)
 MODEL_CONFIG = FactoredReproductionModelConfig(
     d_model=128,
     n_layers=4,
     n_heads=4,
     d_mlp=512,
     context_length=CONTEXT_LENGTH,
-    max_seq_len=16,
+    max_seq_len=CONTEXT_LENGTH,
+    activation="gated_gelu",
+    normalization="rms_norm",
     positional_embedding="rope",
 ).to_dict()
 
@@ -114,6 +121,8 @@ def build_config(context: RunContext) -> PPOConfig:
                 1 if context.smoke else profile.num_envs_per_env_runner
             ),
             num_gpus_per_env_runner=0,
+            rollout_fragment_length="auto",
+            batch_mode="complete_episodes",
             sample_timeout_s=600.0,
         )
         .learners(
@@ -143,6 +152,15 @@ def resolved_recipe(context: RunContext) -> dict[str, object]:
             "one component is selected at reset and remains fixed for all "
             "127 emissions"
         ),
+        "training_batch_component_mix": {
+            "sampling": "independent equal-probability draw per complete episode",
+            "minimum_episodes_per_full_train_batch": (
+                MIN_EPISODES_PER_TRAIN_BATCH
+            ),
+            "probability_full_train_batch_uses_one_component_only": (
+                ALL_ONE_COMPONENT_BATCH_PROBABILITY
+            ),
+        },
         "environment": environment_config(),
         "action_semantics": "three categorical logits, one per pending token",
         "reward": "1 when the sampled action equals the pending token, else 0",
@@ -172,17 +190,18 @@ def resolved_recipe(context: RunContext) -> dict[str, object]:
             "MLP width 512",
             "rotary positions",
             "context length 128",
+            "128-step maximum BPTT sequence length",
+            "gated GELU MLP",
+            "RMS normalization",
             "weight initialization standard deviation 0.02",
-            "learned BOS embedding for the zero reset frame",
+            "learned BOS embedding at every episode reset",
         ],
         "article_architecture_deviations": [
             "PPO actor-critic heads replace the language-model unembedding",
-            "the existing repository encoder uses ReLU MLPs and LayerNorm "
-            "rather than gated GELU and RMSNorm",
-            "RLlib trains 16-step chunks while carrying the full 128-frame state",
         ],
         "context_semantics": (
-            "BOS-like zero reset frame followed by up to 127 delayed emissions"
+            "each complete 127-decision episode is one learner sequence; the "
+            "first input is learned BOS and subsequent inputs are delayed emissions"
         ),
         "episode_length": EPISODE_LENGTH,
         "total_env_steps": (

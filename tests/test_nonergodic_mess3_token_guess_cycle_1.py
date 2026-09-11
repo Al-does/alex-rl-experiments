@@ -6,11 +6,15 @@ import gymnasium as gym
 import numpy as np
 import pytest
 import torch
+from ray.rllib.connectors.common import AddTimeDimToBatchAndZeroPad
 from ray.rllib.core.columns import Columns
+from ray.rllib.env.single_agent_episode import SingleAgentEpisode
+from torch import nn
 
 from envs.hmm import HMMEnv
 from experiments.factored_representations_reproduction_PPO_2026_08.model import (
     FactoredReproductionActorCritic,
+    GatedGELUMLP,
 )
 from experiments.nonergodic_mess3_token_guess_cycle_1 import analysis
 from experiments.nonergodic_mess3_token_guess_cycle_1.process import (
@@ -25,6 +29,8 @@ from experiments.nonergodic_mess3_token_guess_cycle_1.process import (
     nonergodic_mess3_model,
 )
 from experiments.nonergodic_mess3_token_guess_cycle_1.shared import (
+    ALL_ONE_COMPONENT_BATCH_PROBABILITY,
+    MIN_EPISODES_PER_TRAIN_BATCH,
     MODEL_CONFIG,
     SMOKE_BATCH_SIZE,
     SMOKE_ENV_STEPS,
@@ -184,7 +190,12 @@ def test_fresh_gamma_zero_ppo_config_and_article_recipe(tmp_path):
     assert config.rl_module_spec.model_config["n_heads"] == 4
     assert config.rl_module_spec.model_config["d_mlp"] == 512
     assert config.rl_module_spec.model_config["context_length"] == CONTEXT_LENGTH
+    assert config.rl_module_spec.model_config["max_seq_len"] == CONTEXT_LENGTH
+    assert config.rl_module_spec.model_config["activation"] == "gated_gelu"
+    assert config.rl_module_spec.model_config["normalization"] == "rms_norm"
     assert config.rl_module_spec.model_config["positional_embedding"] == "rope"
+    assert config.rollout_fragment_length == "auto"
+    assert config.batch_mode == "complete_episodes"
     recipe = resolved_recipe(context)
     assert recipe["objective"] == (
         "sampled next-token correctness only; no cross-entropy loss"
@@ -193,6 +204,15 @@ def test_fresh_gamma_zero_ppo_config_and_article_recipe(tmp_path):
     assert recipe["component_prior"] == [0.5, 0.5]
     assert recipe["previous_reward_in_observation"] is False
     assert recipe["previous_action_in_observation"] is False
+    assert recipe["training_batch_component_mix"] == {
+        "sampling": "independent equal-probability draw per complete episode",
+        "minimum_episodes_per_full_train_batch": 259,
+        "probability_full_train_batch_uses_one_component_only": (
+            ALL_ONE_COMPONENT_BATCH_PROBABILITY
+        ),
+    }
+    assert MIN_EPISODES_PER_TRAIN_BATCH == 259
+    assert ALL_ONE_COMPONENT_BATCH_PROBABILITY < 3e-78
     assert recipe["total_env_steps"] == SMOKE_ENV_STEPS == 1_024
     assert (
         resolved_recipe(replace(context, smoke=False))["total_env_steps"]
@@ -219,6 +239,101 @@ def test_model_emits_one_logit_per_shared_mess3_token():
         TOKEN_COUNT,
     )
     assert module.compute_values(batch).shape == (1, 2)
+
+
+def test_model_matches_article_rmsnorm_gated_gelu_and_bos_sequence():
+    torch.manual_seed(37)
+    module = _module()
+    assert isinstance(module.encoder.final_norm, nn.RMSNorm)
+    assert all(
+        isinstance(block.attention_norm, nn.RMSNorm)
+        and isinstance(block.mlp_norm, nn.RMSNorm)
+        and isinstance(block.mlp, GatedGELUMLP)
+        for block in module.encoder.blocks
+    )
+
+    block_inputs = []
+    handle = module.encoder.blocks[0].register_forward_pre_hook(
+        lambda _, inputs: block_inputs.append(inputs[0].detach().clone())
+    )
+    try:
+        state = {
+            key: torch.from_numpy(value).unsqueeze(0)
+            for key, value in module.get_initial_state().items()
+        }
+        _, state = module.encode_step(torch.zeros((1, TOKEN_COUNT)), state)
+        bos_input = block_inputs.pop()
+        torch.testing.assert_close(
+            bos_input[0, -1],
+            module.encoder.bos_embedding,
+        )
+
+        token = torch.eye(TOKEN_COUNT)[1].unsqueeze(0)
+        module.encode_step(token, state)
+        token_input = block_inputs.pop()
+        torch.testing.assert_close(
+            token_input[0, -2],
+            module.encoder.bos_embedding,
+        )
+        torch.testing.assert_close(
+            token_input[0, -1],
+            module.encoder.input_embedding(token)[0],
+        )
+    finally:
+        handle.remove()
+
+
+def test_rllib_uses_128_step_bptt_without_splitting_complete_episodes():
+    module = _module()
+    connector = AddTimeDimToBatchAndZeroPad(as_learner_connector=True)
+    for length, expected_seq_lens in ((EPISODE_LENGTH, [127]), (129, [128, 1])):
+        observations = [np.zeros(TOKEN_COUNT, dtype=np.float32)]
+        observations.extend(
+            np.eye(TOKEN_COUNT, dtype=np.float32)[
+                index % TOKEN_COUNT
+            ]
+            for index in range(length)
+        )
+        episode = SingleAgentEpisode(
+            observations=observations,
+            actions=[0] * length,
+            rewards=[0.0] * length,
+            len_lookback_buffer=0,
+        )
+        key = (episode.id_,)
+        output = connector(
+            rl_module=module,
+            batch={Columns.OBS: {key: observations[:-1]}},
+            episodes=[episode],
+            shared_data={},
+        )
+        assert np.asarray(output[Columns.OBS][key]).shape == (
+            len(expected_seq_lens),
+            CONTEXT_LENGTH,
+            TOKEN_COUNT,
+        )
+        assert output[Columns.SEQ_LENS][key] == expected_seq_lens
+        assert int(np.asarray(output[Columns.LOSS_MASK][key]).sum()) == length
+
+
+def test_full_training_batch_draws_many_independent_components():
+    env = HMMEnv(
+        {
+            **environment_config(),
+            "diagnostics": {"state": True},
+        }
+    )
+    try:
+        components = []
+        _, info = env.reset(seed=42)
+        components.append(info["state_current"] // STATES_PER_COMPONENT)
+        for _ in range(MIN_EPISODES_PER_TRAIN_BATCH - 1):
+            _, info = env.reset()
+            components.append(info["state_current"] // STATES_PER_COMPONENT)
+        assert set(components) == {0, 1}
+        assert 90 < sum(components) < 170
+    finally:
+        env.close()
 
 
 def test_probe_targets_separate_weighted_belief_from_next_token_distribution():
