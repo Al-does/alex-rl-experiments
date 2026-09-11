@@ -57,6 +57,16 @@ assigned seed. Pass the agreed experiment-repo ref with `--branch` or
 forms before bootstrap; short hashes in launch prompts are fine once the ref
 exists locally and on the remote.
 
+### GPU model (`--gpu`)
+
+Boxes default to RTX 4090. If the launch contract names a GPU model, pass it
+with `--gpu NAME` (`RTX_5090`, `H100_PCIE`, `H200_NVL`, ...; separator- and
+case-insensitive). When the contracted model has no acceptable offers, dry-run
+one or two equivalents (see the "GPU model selection" section of
+`vast-provisioning`) and confirm the substitution and price with the user
+before renting — never silently swap GPU models or absorb a large price
+increase.
+
 ### Vast mode: on-demand only
 
 Always pass `--mode ondemand`. **Never** use `--mode interruptible` or
