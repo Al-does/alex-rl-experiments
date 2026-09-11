@@ -38,7 +38,7 @@ TOTAL_ENV_STEPS = 10_000_000
 SMOKE_ENV_STEPS = 1_024
 TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 512
-MINIBATCH_SIZE = 4_096
+MINIBATCH_SIZE = TRAIN_BATCH_SIZE
 SMOKE_MINIBATCH_SIZE = 128
 LEARNING_RATE = 1e-4
 NUM_EPOCHS = 6
@@ -247,6 +247,7 @@ def resolved_recipe(context: RunContext) -> dict[str, object]:
         "performance_optimizations": [
             "PyTorch scaled-dot-product attention avoids explicit score tensors",
             "complete learner sequences evaluate all prefixes in one causal pass",
+            "full-batch PPO updates reduce learner launch overhead",
         ],
         "episode_length": EPISODE_LENGTH,
         "total_env_steps": (

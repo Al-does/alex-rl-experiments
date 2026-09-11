@@ -37,6 +37,7 @@ from experiments.nonergodic_mess3_token_guess_cycle_1.shared import (
     SMOKE_ENV_STEPS,
     SMOKE_MINIBATCH_SIZE,
     TOTAL_ENV_STEPS,
+    TRAIN_BATCH_SIZE,
     build_config,
     resolved_recipe,
 )
@@ -246,7 +247,8 @@ def test_fresh_gamma_zero_ppo_config_and_article_recipe(tmp_path):
     assert (
         build_config(replace(context, smoke=False)).minibatch_size
         == MINIBATCH_SIZE
-        == 4_096
+        == TRAIN_BATCH_SIZE
+        == 32_768
     )
     full_config = build_config(replace(context, smoke=False))
     assert (
