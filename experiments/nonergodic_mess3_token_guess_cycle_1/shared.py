@@ -29,7 +29,7 @@ from experiments.storage.training_curves import write_training_curves
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
 from harness.env_runners import FreshEpisodeSingleAgentEnvRunner
-from harness.hardware import PROFILES, resolve_env_runners
+from harness.hardware import HardwareProfile, PROFILES, resolve_env_runners
 from harness.runners import run_tune
 
 
@@ -38,7 +38,7 @@ TOTAL_ENV_STEPS = 10_000_000
 SMOKE_ENV_STEPS = 1_024
 TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 512
-MINIBATCH_SIZE = 1_024
+MINIBATCH_SIZE = 4_096
 SMOKE_MINIBATCH_SIZE = 128
 LEARNING_RATE = 1e-4
 NUM_EPOCHS = 6
@@ -56,11 +56,30 @@ MODEL_CONFIG = FactoredReproductionModelConfig(
     activation="gated_gelu",
     normalization="rms_norm",
     positional_embedding="rope",
+    attention_implementation="sdpa",
+    training_sequence_mode="complete_episode",
 ).to_dict()
+
+
+def _sampling_layout(
+    context: RunContext,
+    profile: HardwareProfile,
+) -> tuple[int, int]:
+    if context.smoke:
+        return 0, 1
+    num_env_runners = resolve_env_runners(profile, default=16)
+    return (
+        num_env_runners,
+        math.ceil(MIN_EPISODES_PER_TRAIN_BATCH / num_env_runners),
+    )
 
 
 def build_config(context: RunContext) -> PPOConfig:
     profile = context.hardware or PROFILES["cpu"]
+    num_env_runners, num_envs_per_env_runner = _sampling_layout(
+        context,
+        profile,
+    )
     return (
         PPOConfig()
         .environment(HMMEnv, env_config=environment_config())
@@ -116,12 +135,8 @@ def build_config(context: RunContext) -> PPOConfig:
         .debugging(seed=context.seed)
         .env_runners(
             env_runner_cls=FreshEpisodeSingleAgentEnvRunner,
-            num_env_runners=(
-                0 if context.smoke else resolve_env_runners(profile, default=16)
-            ),
-            num_envs_per_env_runner=(
-                1 if context.smoke else profile.num_envs_per_env_runner
-            ),
+            num_env_runners=num_env_runners,
+            num_envs_per_env_runner=num_envs_per_env_runner,
             num_gpus_per_env_runner=0,
             rollout_fragment_length="auto",
             batch_mode="complete_episodes",
@@ -136,6 +151,11 @@ def build_config(context: RunContext) -> PPOConfig:
 
 
 def resolved_recipe(context: RunContext) -> dict[str, object]:
+    profile = context.hardware or PROFILES["cpu"]
+    num_env_runners, num_envs_per_env_runner = _sampling_layout(
+        context,
+        profile,
+    )
     return {
         "study": "nonergodic_mess3_token_guess_cycle_1",
         "condition": "ppo",
@@ -168,6 +188,17 @@ def resolved_recipe(context: RunContext) -> dict[str, object]:
             ),
             "probability_full_train_batch_uses_one_component_only": (
                 ALL_ONE_COMPONENT_BATCH_PROBABILITY
+            ),
+        },
+        "sampling_layout": {
+            "num_env_runners": num_env_runners,
+            "num_envs_per_env_runner": num_envs_per_env_runner,
+            "episodes_per_sampling_round": (
+                num_env_runners * num_envs_per_env_runner
+            ),
+            "semantics": (
+                "use the smallest vector-environment count per resolved runner "
+                "that supplies a complete-episode PPO train batch"
             ),
         },
         "environment": environment_config(),
@@ -210,8 +241,13 @@ def resolved_recipe(context: RunContext) -> dict[str, object]:
         ],
         "context_semantics": (
             "each complete 127-decision episode is one learner sequence; the "
-            "first input is learned BOS and subsequent inputs are delayed emissions"
+            "first input is learned BOS and subsequent inputs are delayed emissions; "
+            "training computes all causal prefixes in one equivalent sequence pass"
         ),
+        "performance_optimizations": [
+            "PyTorch scaled-dot-product attention avoids explicit score tensors",
+            "complete learner sequences evaluate all prefixes in one causal pass",
+        ],
         "episode_length": EPISODE_LENGTH,
         "total_env_steps": (
             SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS

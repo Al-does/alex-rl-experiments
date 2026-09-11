@@ -196,6 +196,11 @@ def test_fresh_gamma_zero_ppo_config_and_article_recipe(tmp_path):
     assert config.rl_module_spec.model_config["activation"] == "gated_gelu"
     assert config.rl_module_spec.model_config["normalization"] == "rms_norm"
     assert config.rl_module_spec.model_config["positional_embedding"] == "rope"
+    assert config.rl_module_spec.model_config["attention_implementation"] == "sdpa"
+    assert (
+        config.rl_module_spec.model_config["training_sequence_mode"]
+        == "complete_episode"
+    )
     assert config.rollout_fragment_length == "auto"
     assert config.batch_mode == "complete_episodes"
     assert config.env_runner_cls is FreshEpisodeSingleAgentEnvRunner
@@ -221,6 +226,15 @@ def test_fresh_gamma_zero_ppo_config_and_article_recipe(tmp_path):
             ALL_ONE_COMPONENT_BATCH_PROBABILITY
         ),
     }
+    assert recipe["sampling_layout"] == {
+        "num_env_runners": 0,
+        "num_envs_per_env_runner": 1,
+        "episodes_per_sampling_round": 0,
+        "semantics": (
+            "use the smallest vector-environment count per resolved runner "
+            "that supplies a complete-episode PPO train batch"
+        ),
+    }
     assert MIN_EPISODES_PER_TRAIN_BATCH == 259
     assert ALL_ONE_COMPONENT_BATCH_PROBABILITY < 3e-78
     assert recipe["total_env_steps"] == SMOKE_ENV_STEPS == 1_024
@@ -232,7 +246,17 @@ def test_fresh_gamma_zero_ppo_config_and_article_recipe(tmp_path):
     assert (
         build_config(replace(context, smoke=False)).minibatch_size
         == MINIBATCH_SIZE
-        == 1_024
+        == 4_096
+    )
+    full_config = build_config(replace(context, smoke=False))
+    assert (
+        full_config.num_env_runners * full_config.num_envs_per_env_runner
+        >= MIN_EPISODES_PER_TRAIN_BATCH
+    )
+    assert (
+        full_config.num_env_runners
+        * (full_config.num_envs_per_env_runner - 1)
+        < MIN_EPISODES_PER_TRAIN_BATCH
     )
 
 
