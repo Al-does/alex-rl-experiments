@@ -1,0 +1,158 @@
+{
+  "analysis": {
+    "contexts": "all positive-probability binary length-10 strings",
+    "controls": [
+      "initialization",
+      "current token",
+      "three-token suffix",
+      "exact next-token probabilities and logs",
+      "prediction-null belief contrasts",
+      "permuted targets",
+      "Gaussian features",
+      "suffix-matched features",
+      "paper pairwise-distance comparison"
+    ],
+    "fit_fraction": 0.2,
+    "positions": "all ten positions in every context",
+    "probe": "grouped held-out affine regression"
+  },
+  "bayesian_floor_nats": 0.5865014866378115,
+  "condition": "paper_supervised_replication",
+  "hypothesis": "next-token cross-entropy learns RRXOR belief geometry that is weak in individual residual layers and recoverable from their concatenation",
+  "model": {
+    "activation": "relu",
+    "context_length": 10,
+    "d_head": 8,
+    "d_mlp": 256,
+    "d_model": 64,
+    "d_vocab": 2,
+    "n_heads": 1,
+    "n_layers": 4,
+    "normalization": "layer_norm",
+    "parameter_count": 142946,
+    "positional_embedding": "learned_absolute",
+    "residual_probe_locations": [
+      "post-block residual for each of four blocks",
+      "concatenation of all four post-block residuals",
+      "post-final-LayerNorm residual"
+    ]
+  },
+  "objective": {
+    "belief_supervision": false,
+    "sequence_length": 10,
+    "shifted_target_positions": 9,
+    "type": "next_token_cross_entropy"
+  },
+  "paper": "arXiv:2405.15943",
+  "rrxor": {
+    "edge_transition_matrices": [
+      [
+        [
+          0.0,
+          0.5,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.5
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.5,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      [
+        [
+          0.0,
+          0.0,
+          0.5,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.5,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.5
+        ],
+        [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      ]
+    ],
+    "path_probability_mass": 0.9999999999999999,
+    "positive_probability_length_10_paths": 436,
+    "reachable_belief_states": 36,
+    "stationary_initial_distribution": [
+      0.3333333333333333,
+      0.16666666666666666,
+      0.16666666666666666,
+      0.16666666666666666,
+      0.16666666666666666
+    ]
+  },
+  "runtime": {
+    "compiled_training": true,
+    "device": "cuda",
+    "seed": 42,
+    "smoke": false
+  },
+  "study": "rrxor_supervised",
+  "training": {
+    "analyzed_step": 1000000,
+    "auxiliary_learning_rate": null,
+    "auxiliary_weight_decay": 0.0,
+    "batch_size": 64,
+    "checkpoint_every": 10000,
+    "learning_rate": 0.01,
+    "log_every": 1000,
+    "momentum": 0.0,
+    "optimizer_name": "sgd",
+    "retain_periodic_checkpoints": false,
+    "total_steps": 1000000,
+    "validation_batch_size": 4096,
+    "validation_every": 50000,
+    "weight_decay": 0.0
+  }
+}

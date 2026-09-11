@@ -178,7 +178,7 @@ def exact_validation_loss(
     *,
     batch_size: int,
 ) -> float:
-    """Evaluate expected ten-position CE over all supplied length-11 paths."""
+    """Evaluate expected shifted CE over all supplied complete paths."""
     was_training = model.training
     model.eval()
     total = torch.zeros(
@@ -365,7 +365,9 @@ def train(
                     active_rate * config.batch_size
                 ),
                 "target_tokens_per_second_active": (
-                    active_rate * config.batch_size * 10
+                    active_rate
+                    * config.batch_size
+                    * (paths.shape[1] - 1)
                 ),
                 "end_to_end_wall_seconds": end_to_end_elapsed,
             }
@@ -434,7 +436,7 @@ def train(
         "updates_per_second_active": active_rate,
         "sequences_per_second_active": active_rate * config.batch_size,
         "target_tokens_per_second_active": (
-            active_rate * config.batch_size * 10
+            active_rate * config.batch_size * (paths.shape[1] - 1)
         ),
         "end_to_end_training_wall_seconds": end_to_end_wall_seconds,
         # Compatibility name used by the experiment summary and older readers.
