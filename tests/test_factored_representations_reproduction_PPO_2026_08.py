@@ -219,6 +219,47 @@ def test_model_is_64d_pre_ln_causal_and_has_learned_bos():
     assert not torch.allclose(first_residual[:, 4:], second_residual[:, 4:])
 
 
+def test_value_loss_keeps_gradients_when_training_embeddings_are_reused():
+    module = FactoredReproductionActorCritic(
+        observation_space=gym.spaces.Box(0.0, 1.0, shape=(9,), dtype=np.float32),
+        action_space=gym.spaces.Discrete(9),
+        model_config=FactoredReproductionModelConfig().to_dict(),
+    )
+    embeddings = torch.randn(2, 3, 64, requires_grad=True)
+
+    module.compute_values({}, embeddings=embeddings).square().mean().backward()
+
+    assert embeddings.grad is not None
+    assert module.heads.value.weight.grad is not None
+
+
+def test_chunked_pre_gae_values_match_single_pass():
+    module = FactoredReproductionActorCritic(
+        observation_space=gym.spaces.Box(0.0, 1.0, shape=(9,), dtype=np.float32),
+        action_space=gym.spaces.Discrete(9),
+        model_config=FactoredReproductionModelConfig().to_dict(),
+    ).eval()
+    module._VALUE_CHUNK_STEPS = 4
+    initial_state = module.get_initial_state()
+    batch = {
+        Columns.OBS: torch.randn(3, 2, 9),
+        Columns.STATE_IN: {
+            key: torch.from_numpy(value)
+            .unsqueeze(0)
+            .repeat(3, *([1] * value.ndim))
+            for key, value in initial_state.items()
+        },
+    }
+
+    with torch.no_grad():
+        embeddings, _ = module._encode_train(batch)
+        expected = module.heads.values(embeddings)
+    actual = module.compute_values(batch)
+
+    torch.testing.assert_close(actual, expected)
+    assert not actual.requires_grad
+
+
 @pytest.mark.parametrize("factor_count", FACTOR_COUNTS)
 @pytest.mark.parametrize("condition", ["ppo", "ppo_aux_ce"])
 def test_smoke_configs_are_fresh_and_resolve_each_design_cell(
