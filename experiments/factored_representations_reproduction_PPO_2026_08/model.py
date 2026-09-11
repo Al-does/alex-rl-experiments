@@ -318,7 +318,6 @@ class FactoredReproductionActorCritic(BaseActorCriticModel):
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         return self._encode_with_norm(batch, apply_final_norm=True)
 
-    @torch.no_grad()
     def compute_values(
         self,
         batch: dict[str, Any],
@@ -326,25 +325,26 @@ class FactoredReproductionActorCritic(BaseActorCriticModel):
     ):
         if embeddings is not None:
             return self.heads.values(embeddings)
-        observations = batch[Columns.OBS]
-        state_in = batch[Columns.STATE_IN]
-        steps = int(observations.shape[1])
-        rows_per_chunk = max(1, self._VALUE_CHUNK_STEPS // steps)
-        if int(observations.shape[0]) <= rows_per_chunk:
-            embeddings, _ = self._encode_train(batch)
-            return self.heads.values(embeddings)
-        values = []
-        for start in range(0, int(observations.shape[0]), rows_per_chunk):
-            stop = start + rows_per_chunk
-            chunk = {
-                Columns.OBS: observations[start:stop],
-                Columns.STATE_IN: {
-                    key: value[start:stop] for key, value in state_in.items()
-                },
-            }
-            chunk_embeddings, _ = self._encode_train(chunk)
-            values.append(self.heads.values(chunk_embeddings))
-        return torch.cat(values, dim=0)
+        with torch.no_grad():
+            observations = batch[Columns.OBS]
+            state_in = batch[Columns.STATE_IN]
+            steps = int(observations.shape[1])
+            rows_per_chunk = max(1, self._VALUE_CHUNK_STEPS // steps)
+            if int(observations.shape[0]) <= rows_per_chunk:
+                embeddings, _ = self._encode_train(batch)
+                return self.heads.values(embeddings)
+            values = []
+            for start in range(0, int(observations.shape[0]), rows_per_chunk):
+                stop = start + rows_per_chunk
+                chunk = {
+                    Columns.OBS: observations[start:stop],
+                    Columns.STATE_IN: {
+                        key: value[start:stop] for key, value in state_in.items()
+                    },
+                }
+                chunk_embeddings, _ = self._encode_train(chunk)
+                values.append(self.heads.values(chunk_embeddings))
+            return torch.cat(values, dim=0)
 
     def _encode_rollout(
         self,
