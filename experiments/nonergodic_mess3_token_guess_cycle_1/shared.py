@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
 from functools import partial
 import math
@@ -61,24 +62,46 @@ MODEL_CONFIG = FactoredReproductionModelConfig(
 ).to_dict()
 
 
+def _minimum_episodes_per_train_batch(train_batch_size: int) -> int:
+    return math.ceil(train_batch_size / EPISODE_LENGTH)
+
+
 def _sampling_layout(
     context: RunContext,
     profile: HardwareProfile,
+    *,
+    train_batch_size: int = TRAIN_BATCH_SIZE,
+    production_num_envs_per_env_runner: int | None = None,
 ) -> tuple[int, int]:
     if context.smoke:
         return 0, 1
     num_env_runners = resolve_env_runners(profile, default=16)
+    if production_num_envs_per_env_runner is not None:
+        return num_env_runners, production_num_envs_per_env_runner
     return (
         num_env_runners,
-        math.ceil(MIN_EPISODES_PER_TRAIN_BATCH / num_env_runners),
+        math.ceil(
+            _minimum_episodes_per_train_batch(train_batch_size)
+            / num_env_runners
+        ),
     )
 
 
-def build_config(context: RunContext) -> PPOConfig:
+def build_config(
+    context: RunContext,
+    *,
+    train_batch_size: int = TRAIN_BATCH_SIZE,
+    minibatch_size: int = MINIBATCH_SIZE,
+    production_num_envs_per_env_runner: int | None = None,
+) -> PPOConfig:
     profile = context.hardware or PROFILES["cpu"]
     num_env_runners, num_envs_per_env_runner = _sampling_layout(
         context,
         profile,
+        train_batch_size=train_batch_size,
+        production_num_envs_per_env_runner=(
+            production_num_envs_per_env_runner
+        ),
     )
     return (
         PPOConfig()
@@ -104,10 +127,10 @@ def build_config(context: RunContext) -> PPOConfig:
             vf_loss_coeff=0.5,
             entropy_coeff=0.0,
             train_batch_size_per_learner=(
-                SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
+                SMOKE_BATCH_SIZE if context.smoke else train_batch_size
             ),
             minibatch_size=(
-                SMOKE_MINIBATCH_SIZE if context.smoke else MINIBATCH_SIZE
+                SMOKE_MINIBATCH_SIZE if context.smoke else minibatch_size
             ),
             num_epochs=NUM_EPOCHS,
             shuffle_batch_per_epoch=True,
@@ -150,15 +173,39 @@ def build_config(context: RunContext) -> PPOConfig:
     )
 
 
-def resolved_recipe(context: RunContext) -> dict[str, object]:
+def resolved_recipe(
+    context: RunContext,
+    *,
+    condition: str = "ppo",
+    train_batch_size: int = TRAIN_BATCH_SIZE,
+    minibatch_size: int = MINIBATCH_SIZE,
+    production_num_envs_per_env_runner: int | None = None,
+) -> dict[str, object]:
     profile = context.hardware or PROFILES["cpu"]
     num_env_runners, num_envs_per_env_runner = _sampling_layout(
         context,
         profile,
+        train_batch_size=train_batch_size,
+        production_num_envs_per_env_runner=(
+            production_num_envs_per_env_runner
+        ),
     )
+    minimum_episodes = _minimum_episodes_per_train_batch(train_batch_size)
+    one_component_probability = 2.0 ** (1 - minimum_episodes)
+    if production_num_envs_per_env_runner is None:
+        sampling_semantics = (
+            "use the smallest vector-environment count per resolved runner "
+            "that supplies a complete-episode PPO train batch"
+        )
+    else:
+        sampling_semantics = (
+            "reuse the measured vector-environment count per resolved runner; "
+            "automatic rollout fragments collect repeated complete episodes "
+            "until the PPO train batch is filled"
+        )
     return {
         "study": "nonergodic_mess3_token_guess_cycle_1",
-        "condition": "ppo",
+        "condition": condition,
         "seed": context.seed,
         "smoke": context.smoke,
         "source": ARTICLE_URL,
@@ -183,12 +230,11 @@ def resolved_recipe(context: RunContext) -> dict[str, object]:
         ),
         "training_batch_component_mix": {
             "sampling": "independent equal-probability draw per complete episode",
-            "minimum_episodes_per_full_train_batch": (
-                MIN_EPISODES_PER_TRAIN_BATCH
-            ),
+            "minimum_episodes_per_full_train_batch": minimum_episodes,
             "probability_full_train_batch_uses_one_component_only": (
-                ALL_ONE_COMPONENT_BATCH_PROBABILITY
+                one_component_probability
             ),
+            "exact_probability_power_of_two": f"2^{1 - minimum_episodes}",
         },
         "sampling_layout": {
             "num_env_runners": num_env_runners,
@@ -196,10 +242,7 @@ def resolved_recipe(context: RunContext) -> dict[str, object]:
             "episodes_per_sampling_round": (
                 num_env_runners * num_envs_per_env_runner
             ),
-            "semantics": (
-                "use the smallest vector-environment count per resolved runner "
-                "that supplies a complete-episode PPO train batch"
-            ),
+            "semantics": sampling_semantics,
         },
         "environment": environment_config(),
         "action_semantics": "three categorical logits, one per pending token",
@@ -216,10 +259,10 @@ def resolved_recipe(context: RunContext) -> dict[str, object]:
         "value_loss_coeff": 0.5,
         "entropy_coeff": 0.0,
         "train_batch_size_per_learner": (
-            SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
+            SMOKE_BATCH_SIZE if context.smoke else train_batch_size
         ),
         "minibatch_size": (
-            SMOKE_MINIBATCH_SIZE if context.smoke else MINIBATCH_SIZE
+            SMOKE_MINIBATCH_SIZE if context.smoke else minibatch_size
         ),
         "num_epochs": NUM_EPOCHS,
         "model": dict(MODEL_CONFIG),
@@ -268,7 +311,16 @@ def resolved_recipe(context: RunContext) -> dict[str, object]:
     }
 
 
-def run_condition(context: RunContext) -> dict[str, object]:
+def run_condition(
+    context: RunContext,
+    *,
+    condition: str = "ppo",
+    config_builder: Callable[[RunContext], PPOConfig] = build_config,
+    recipe_builder: Callable[
+        [RunContext],
+        dict[str, object],
+    ] = resolved_recipe,
+) -> dict[str, object]:
     from experiments.nonergodic_mess3_token_guess_cycle_1.analysis import (
         analyze_checkpoint,
     )
@@ -279,9 +331,9 @@ def run_condition(context: RunContext) -> dict[str, object]:
         raise ValueError("continuation is not defined for this experiment")
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
-    outputs.write_json("resolved_recipe.json", resolved_recipe(context))
+    outputs.write_json("resolved_recipe.json", recipe_builder(context))
     result_grid = run_tune(
-        build_config(context),
+        config_builder(context),
         context,
         stop={
             "env_runners/num_env_steps_sampled_lifetime": (
@@ -333,7 +385,7 @@ def run_condition(context: RunContext) -> dict[str, object]:
             )
         )
     summary = {
-        "condition": "ppo",
+        "condition": condition,
         "seed": context.seed,
         "smoke": context.smoke,
         "objective": "sampled next-token correctness only",
