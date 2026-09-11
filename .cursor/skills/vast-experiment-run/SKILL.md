@@ -61,11 +61,11 @@ exists locally and on the remote.
 
 Boxes default to RTX 4090. If the launch contract names a GPU model, pass it
 with `--gpu NAME` (`RTX_5090`, `H100_PCIE`, `H200_NVL`, ...; separator- and
-case-insensitive). When the contracted model has no acceptable offers, dry-run
-one or two equivalents (see the "GPU model selection" section of
-`vast-provisioning`) and confirm the substitution and price with the user
-before renting — never silently swap GPU models or absorb a large price
-increase.
+case-insensitive). When the contracted model has no acceptable offers, follow
+the two-tier default in the `vast-provisioning` "GPU model selection" section:
+auto dry-run near-equivalents (RTX 3090/3090 Ti, 4080-class, 5080/5090,
+L40/L40S — similar VRAM and price) and rent the best gated candidate; escalate
+to H100/H200/B200-class only after the user authorizes it.
 
 ### Vast mode: on-demand only
 
