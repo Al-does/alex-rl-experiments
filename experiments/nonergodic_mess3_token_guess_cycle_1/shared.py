@@ -34,7 +34,7 @@ from harness.runners import run_tune
 
 
 ARTICLE_URL = "https://simplex.pub/nonergodic-geometry/"
-TOTAL_ENV_STEPS = 10_000_000
+TOTAL_ENV_STEPS = 2_000_000
 SMOKE_ENV_STEPS = 1_024
 TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 512
