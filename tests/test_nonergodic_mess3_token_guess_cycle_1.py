@@ -30,6 +30,7 @@ from experiments.nonergodic_mess3_token_guess_cycle_1.process import (
 )
 from experiments.nonergodic_mess3_token_guess_cycle_1.shared import (
     ALL_ONE_COMPONENT_BATCH_PROBABILITY,
+    MINIBATCH_SIZE,
     MIN_EPISODES_PER_TRAIN_BATCH,
     MODEL_CONFIG,
     SMOKE_BATCH_SIZE,
@@ -43,6 +44,7 @@ from experiments.nonergodic_mess3_token_guess_cycle_1.task import (
     NextTokenGuessTask,
 )
 from harness.context import RunContext
+from harness.env_runners import FreshEpisodeSingleAgentEnvRunner
 from harness.hardware import PROFILES
 
 
@@ -196,6 +198,7 @@ def test_fresh_gamma_zero_ppo_config_and_article_recipe(tmp_path):
     assert config.rl_module_spec.model_config["positional_embedding"] == "rope"
     assert config.rollout_fragment_length == "auto"
     assert config.batch_mode == "complete_episodes"
+    assert config.env_runner_cls is FreshEpisodeSingleAgentEnvRunner
     recipe = resolved_recipe(context)
     assert recipe["objective"] == (
         "sampled next-token correctness only; no cross-entropy loss"
@@ -204,6 +207,13 @@ def test_fresh_gamma_zero_ppo_config_and_article_recipe(tmp_path):
     assert recipe["component_prior"] == [0.5, 0.5]
     assert recipe["previous_reward_in_observation"] is False
     assert recipe["previous_action_in_observation"] is False
+    assert recipe["env_runner"] == (
+        "harness.env_runners:FreshEpisodeSingleAgentEnvRunner"
+    )
+    assert recipe["environment_seed_semantics"] == (
+        "the fixed worker seed initializes each vector environment once; "
+        "later complete-episode resets advance the same RNG stream"
+    )
     assert recipe["training_batch_component_mix"] == {
         "sampling": "independent equal-probability draw per complete episode",
         "minimum_episodes_per_full_train_batch": 259,
@@ -217,7 +227,12 @@ def test_fresh_gamma_zero_ppo_config_and_article_recipe(tmp_path):
     assert (
         resolved_recipe(replace(context, smoke=False))["total_env_steps"]
         == TOTAL_ENV_STEPS
-        == 2_500_000
+        == 10_000_000
+    )
+    assert (
+        build_config(replace(context, smoke=False)).minibatch_size
+        == MINIBATCH_SIZE
+        == 1_024
     )
 
 

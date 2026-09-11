@@ -28,12 +28,13 @@ from experiments.nonergodic_mess3_token_guess_cycle_1.process import (
 from experiments.storage.training_curves import write_training_curves
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
+from harness.env_runners import FreshEpisodeSingleAgentEnvRunner
 from harness.hardware import PROFILES, resolve_env_runners
 from harness.runners import run_tune
 
 
 ARTICLE_URL = "https://simplex.pub/nonergodic-geometry/"
-TOTAL_ENV_STEPS = 2_500_000
+TOTAL_ENV_STEPS = 10_000_000
 SMOKE_ENV_STEPS = 1_024
 TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 512
@@ -114,6 +115,7 @@ def build_config(context: RunContext) -> PPOConfig:
         )
         .debugging(seed=context.seed)
         .env_runners(
+            env_runner_cls=FreshEpisodeSingleAgentEnvRunner,
             num_env_runners=(
                 0 if context.smoke else resolve_env_runners(profile, default=16)
             ),
@@ -151,6 +153,13 @@ def resolved_recipe(context: RunContext) -> dict[str, object]:
         "component_sampling": (
             "one component is selected at reset and remains fixed for all "
             "127 emissions"
+        ),
+        "environment_seed_semantics": (
+            "the fixed worker seed initializes each vector environment once; "
+            "later complete-episode resets advance the same RNG stream"
+        ),
+        "env_runner": (
+            "harness.env_runners:FreshEpisodeSingleAgentEnvRunner"
         ),
         "training_batch_component_mix": {
             "sampling": "independent equal-probability draw per complete episode",
