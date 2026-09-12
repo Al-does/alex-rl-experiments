@@ -125,7 +125,7 @@ def build_config(
             use_gae=True,
             use_kl_loss=False,
             vf_loss_coeff=0.5,
-            entropy_coeff=0.0,
+            entropy_coeff=0.01,
             train_batch_size_per_learner=(
                 SMOKE_BATCH_SIZE if context.smoke else train_batch_size
             ),
@@ -257,7 +257,7 @@ def resolved_recipe(
         "clip_param": 0.2,
         "use_kl_loss": False,
         "value_loss_coeff": 0.5,
-        "entropy_coeff": 0.0,
+        "entropy_coeff": 0.01,
         "train_batch_size_per_learner": (
             SMOKE_BATCH_SIZE if context.smoke else train_batch_size
         ),
