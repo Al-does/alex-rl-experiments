@@ -1,0 +1,129 @@
+{
+  "action_control": "exponential tilt of each component's local reward-state destination probability with the original transition support preserved; edge kernels retain P(token | source, destination)",
+  "algorithm": "clipped PPO",
+  "analysis": [
+    "exact-filter expected-reward policy audit against exact constant-action returns; this is a feasible Bayes-observer certificate, not a claim of solving the continuous-belief POMDP",
+    "action-conditioned edge-transducer reconstruction of the exact six-state decision-time belief",
+    "held-out layerwise affine probes of weighted belief, component posterior, reward-state belief, and antisymmetric belief",
+    "pending-token-distribution and observable token/action controls"
+  ],
+  "checkpoint_schedule": "initial, powers of two iterations, final",
+  "clip_param": 0.2,
+  "component_prior": [
+    0.5,
+    0.5
+  ],
+  "component_sampling": "one component is selected at reset and remains fixed for the complete 127-decision episode",
+  "components": [
+    {
+      "alpha": 0.95,
+      "name": "mess3_a",
+      "x": 0.2
+    },
+    {
+      "alpha": 0.95,
+      "name": "mess3_b",
+      "x": 0.4666666666666667
+    }
+  ],
+  "condition": "variant_2",
+  "context_semantics": "one learned BOS position plus 127 delayed token/action decisions forms one 128-position complete learner sequence",
+  "effect_size": 3.0,
+  "effect_size_selection": "increased from cycle 5's 1.5 to 3.0 because an exact-filter expected-reward controller collapses to constant positive action in variant 2 at 1.5; at 3.0 a feasible belief-conditioned policy strictly beats every constant action",
+  "entropy_coeff": 0.01,
+  "env_runner": "harness.env_runners:FreshEpisodeSingleAgentEnvRunner",
+  "environment": {
+    "delay": 1,
+    "episode_length": 127,
+    "model": {
+      "factory": "experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.process:nonergodic_mess3_model",
+      "kwargs": {
+        "component_parameters": [
+          {
+            "alpha": 0.95,
+            "name": "mess3_a",
+            "x": 0.2
+          },
+          {
+            "alpha": 0.95,
+            "name": "mess3_b",
+            "x": 0.4666666666666667
+          }
+        ]
+      }
+    },
+    "observation": {
+      "action": {
+        "depth": 1
+      },
+      "token": {
+        "depth": 1
+      }
+    },
+    "randomize_first_episode_length": false,
+    "task": {
+      "class": "experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.task:ActionSymmetryTask",
+      "kwargs": {
+        "effect_size": 3.0,
+        "variant": 2
+      }
+    }
+  },
+  "environment_seed_semantics": "the fixed worker seed initializes each vector environment once; later complete-episode resets advance the same RNG stream",
+  "episode_length": 127,
+  "gamma": 0.99,
+  "hypothesis": "The action-symmetry ladder changes which coordinates of the six-state non-ergodic belief are useful for reward control.",
+  "intended_hardware": "CPU smoke; hardware-profile learner device for full training",
+  "lambda": 0.95,
+  "learning_rate": 0.00042,
+  "minibatch_size": 8192,
+  "model": {
+    "activation": "gated_gelu",
+    "attention_implementation": "sdpa",
+    "context_length": 128,
+    "d_mlp": 512,
+    "d_model": 128,
+    "max_seq_len": 128,
+    "n_heads": 4,
+    "n_layers": 4,
+    "normalization": "rms_norm",
+    "positional_embedding": "rope",
+    "training_sequence_mode": "complete_episode"
+  },
+  "num_epochs": 6,
+  "previous_action_in_observation": true,
+  "previous_reward_in_observation": false,
+  "reward": "one when the pre-transition local state is state 2 in either component, else zero",
+  "sampling_layout": {
+    "episodes_per_sampling_round": 2080,
+    "num_env_runners": 16,
+    "num_envs_per_env_runner": 130
+  },
+  "seed": 42,
+  "smoke": false,
+  "source": "https://simplex.pub/nonergodic-geometry/",
+  "stopping_metric": "env_runners/num_env_steps_sampled_lifetime",
+  "study": "nonergodic_mess3_reward_state_action_symmetry_cycle_5",
+  "support_note": "under the default component set, mess3_b has zero self-transition probability, so finite exponential tilts preserve that zero exactly",
+  "total_env_steps": 15000000,
+  "train_batch_size_per_learner": 262144,
+  "use_kl_loss": false,
+  "value_loss_coeff": 0.5,
+  "variant_directions": [
+    [
+      0.0,
+      1.0,
+      -1.0
+    ],
+    [
+      0.0,
+      1.0,
+      -1.0
+    ],
+    [
+      0.0,
+      -1.0,
+      -1.0
+    ]
+  ]
+}
