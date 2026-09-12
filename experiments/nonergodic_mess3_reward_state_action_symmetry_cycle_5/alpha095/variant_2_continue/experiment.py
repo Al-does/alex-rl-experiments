@@ -32,5 +32,8 @@ def run(context: RunContext):
         recipe_extra={
             "continued_from_run": "nem3-rsa-c5-alpha095-variant_2-s42",
             "continuation_env_steps": CONTINUATION_ENV_STEPS,
+            "warm_start_scope": (
+                "rl_module weights only; optimizer and step counters reset"
+            ),
         },
     )

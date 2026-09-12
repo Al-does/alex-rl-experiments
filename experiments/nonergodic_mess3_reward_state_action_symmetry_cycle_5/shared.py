@@ -9,7 +9,7 @@ from typing import Any
 
 from ray import tune
 from ray.rllib.algorithms.ppo import PPOConfig
-from ray.rllib.core.rl_module.rl_module import RLModuleSpec
+from ray.rllib.core.rl_module.rl_module import RLModule, RLModuleSpec
 
 from envs.hmm import HMMEnv
 from experiments.factored_representations_reproduction_PPO_2026_08.model import (
@@ -79,7 +79,18 @@ def _init_algorithm(
         algorithm=algorithm, checkpoint_path=checkpoint_path, **kwargs
     )
     if warm_start_path is not None:
-        algorithm.restore_from_path(str(Path(warm_start_path).resolve()))
+        # Weights-only warm start: a full restore_from_path also restores
+        # counters, which would instantly satisfy step-based stop rules and
+        # schedules. Load just the trained module instead.
+        module_checkpoint = (
+            Path(warm_start_path)
+            / "learner_group"
+            / "learner"
+            / "rl_module"
+            / "default_policy"
+        )
+        warm_module = RLModule.from_checkpoint(module_checkpoint)
+        algorithm.get_module().set_state(warm_module.get_state())
 
 
 def _sampling_layout(
