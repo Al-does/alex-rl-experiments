@@ -41,8 +41,25 @@ TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 512
 MINIBATCH_SIZE = TRAIN_BATCH_SIZE
 SMOKE_MINIBATCH_SIZE = 128
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 5e-5
 NUM_EPOCHS = 6
+ENTROPY_COEFF_SCHEDULE = [
+    [0, 0.01],
+    [6_000_000, 0.01],
+    [8_000_000, 0.0],
+]
+
+
+def _init_algorithm(
+    *, algorithm, checkpoint_path: str, warm_start_path: str | None = None, **kwargs
+) -> None:
+    _save_initial_checkpoint(
+        algorithm=algorithm, checkpoint_path=checkpoint_path, **kwargs
+    )
+    if warm_start_path is not None:
+        algorithm.restore_from_path(warm_start_path)
+
+
 MIN_EPISODES_PER_TRAIN_BATCH = math.ceil(TRAIN_BATCH_SIZE / EPISODE_LENGTH)
 ALL_ONE_COMPONENT_BATCH_PROBABILITY = 2.0 ** (
     1 - MIN_EPISODES_PER_TRAIN_BATCH
@@ -124,8 +141,8 @@ def build_config(
             use_critic=True,
             use_gae=True,
             use_kl_loss=False,
-            vf_loss_coeff=0.5,
-            entropy_coeff=0.0,
+            vf_loss_coeff=0.25,
+            entropy_coeff=ENTROPY_COEFF_SCHEDULE,
             train_batch_size_per_learner=(
                 SMOKE_BATCH_SIZE if context.smoke else train_batch_size
             ),
@@ -143,9 +160,14 @@ def build_config(
         )
         .callbacks(
             on_algorithm_init=partial(
-                _save_initial_checkpoint,
+                _init_algorithm,
                 checkpoint_path=str(
                     context.artifacts_dir / "initial_checkpoint"
+                ),
+                warm_start_path=(
+                    str(context.resume_from)
+                    if context.resume_from is not None
+                    else None
                 ),
             ),
             on_train_result=partial(
@@ -256,8 +278,11 @@ def resolved_recipe(
         "lambda": 0.0,
         "clip_param": 0.2,
         "use_kl_loss": False,
-        "value_loss_coeff": 0.5,
-        "entropy_coeff": 0.0,
+        "value_loss_coeff": 0.25,
+        "entropy_coeff": (
+            "0.01 constant until 6M env steps, then linear anneal to 0 "
+            "at 8M env steps"
+        ),
         "train_batch_size_per_learner": (
             SMOKE_BATCH_SIZE if context.smoke else train_batch_size
         ),
@@ -327,14 +352,18 @@ def run_condition(
 
     if context.seed is None:
         raise ValueError("non-ergodic MESS3 PPO requires a resolved seed")
-    if context.resume_from is not None:
-        raise ValueError("continuation is not defined for this experiment")
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     outputs.write_json("resolved_recipe.json", recipe_builder(context))
+    config = config_builder(context)
+    tune_context = (
+        replace(context, resume_from=None)
+        if context.resume_from is not None
+        else context
+    )
     result_grid = run_tune(
-        config_builder(context),
-        context,
+        config,
+        tune_context,
         stop={
             "env_runners/num_env_steps_sampled_lifetime": (
                 SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS

@@ -33,6 +33,7 @@ from experiments.nonergodic_mess3_token_guess_cycle_1.ppo_h100_estimated import 
 )
 from experiments.nonergodic_mess3_token_guess_cycle_1.shared import (
     ALL_ONE_COMPONENT_BATCH_PROBABILITY,
+    ENTROPY_COEFF_SCHEDULE,
     MINIBATCH_SIZE,
     MIN_EPISODES_PER_TRAIN_BATCH,
     MODEL_CONFIG,
@@ -181,8 +182,8 @@ def test_fresh_gamma_zero_ppo_config_and_article_recipe(tmp_path):
     assert config.clip_param == 0.2
     assert config.use_critic and config.use_gae
     assert not config.use_kl_loss
-    assert config.vf_loss_coeff == 0.5
-    assert config.entropy_coeff == 0.0
+    assert config.vf_loss_coeff == 0.25
+    assert config.entropy_coeff == ENTROPY_COEFF_SCHEDULE
     assert config.train_batch_size_per_learner == SMOKE_BATCH_SIZE
     assert config.minibatch_size == SMOKE_MINIBATCH_SIZE
     assert config.num_epochs == 6
@@ -266,7 +267,7 @@ def test_fresh_gamma_zero_ppo_config_and_article_recipe(tmp_path):
     )
 
 
-def test_h100_estimate_uses_large_batch_and_32k_minibatches(tmp_path):
+def test_h100_estimate_uses_large_batch_and_8k_minibatches(tmp_path):
     context = _context(tmp_path)
     smoke_config = h100_experiment.build_config(context)
     assert smoke_config is not h100_experiment.build_config(context)
@@ -287,7 +288,7 @@ def test_h100_estimate_uses_large_batch_and_32k_minibatches(tmp_path):
     assert (
         full_config.minibatch_size
         == h100_experiment.MINIBATCH_SIZE
-        == 32_768
+        == 8_192
     )
     assert (
         full_config.num_envs_per_env_runner
@@ -306,7 +307,7 @@ def test_h100_estimate_uses_large_batch_and_32k_minibatches(tmp_path):
     full_recipe = h100_experiment.resolved_recipe(full_context)
     assert full_recipe["condition"] == h100_experiment.CONDITION
     assert full_recipe["train_batch_size_per_learner"] == 262_144
-    assert full_recipe["minibatch_size"] == 32_768
+    assert full_recipe["minibatch_size"] == 8_192
     assert full_recipe["model"] == MODEL_CONFIG
     assert full_recipe["environment"] == environment_config()
     assert full_recipe["training_batch_component_mix"] == {
@@ -330,7 +331,7 @@ def test_h100_estimate_uses_large_batch_and_32k_minibatches(tmp_path):
     assert estimate["assumed_gpu"] == "NVIDIA H100 80 GB capacity estimate"
     extrapolation = estimate["linear_memory_extrapolation"]
     assert extrapolation["selected_batch_steps"] == 262_144
-    assert extrapolation["selected_minibatch_steps"] == 32_768
+    assert extrapolation["selected_minibatch_steps"] == 8_192
     assert extrapolation["estimated_reserved_memory_gb"] == pytest.approx(
         17.76
     )
