@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 import numpy as np
 
@@ -51,16 +51,19 @@ def mess3_edge_matrices(*, x: float, alpha: float) -> np.ndarray:
 def nonergodic_mess3_model(
     *,
     component_prior: Sequence[float] = (0.5, 0.5),
+    component_parameters: Sequence[Mapping[str, object]] = COMPONENT_PARAMETERS,
 ) -> HMMModel:
     prior = np.asarray(component_prior, dtype=np.float64)
     if prior.shape != (COMPONENT_COUNT,):
         raise ValueError("component_prior must contain two probabilities")
     if (prior < 0.0).any() or not np.isclose(prior.sum(), 1.0):
         raise ValueError("component_prior must be a probability distribution")
+    if len(component_parameters) != COMPONENT_COUNT:
+        raise ValueError("component_parameters must describe two components")
 
     edges = np.zeros((TOKEN_COUNT, STATE_COUNT, STATE_COUNT), dtype=np.float64)
     initial = np.zeros(STATE_COUNT, dtype=np.float64)
-    for component, parameters in enumerate(COMPONENT_PARAMETERS):
+    for component, parameters in enumerate(component_parameters):
         start = component * STATES_PER_COMPONENT
         stop = start + STATES_PER_COMPONENT
         component_edges = mess3_edge_matrices(
@@ -80,7 +83,7 @@ def nonergodic_mess3_model(
         edge_transition_matrices=edges,
         state_labels=tuple(
             f"{parameters['name']}_state_{state}"
-            for parameters in COMPONENT_PARAMETERS
+            for parameters in component_parameters
             for state in range(STATES_PER_COMPONENT)
         ),
         token_labels=("a", "b", "c"),
