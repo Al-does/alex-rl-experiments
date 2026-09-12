@@ -39,6 +39,15 @@ overlaid or shown separately. Predicted planes use the raw predicted component
 mass. Common axis limits include negative coordinates, excess mass, and plane
 vertices; no projection, clipping, or renormalization is performed.
 
+Points and planes blend state-vertex colors (red, green, blue) by local state
+composition. Brightness interpolates from dark gray at weight zero to the state
+color at weight one, using square-root weight. For raw overshoots, positive
+coordinates determine hue and weight is bounded to [0,1] **for color only**.
+Checkpoint colors remain on outlines/trails; initialization uses diamonds,
+final uses circles. Serialized coordinates retain float64 precision and small
+weights use scientific notation. Movement at extremely small mass is naturally
+invisible on the common unit scale.
+
 The sequence slider covers reset/BOS (`t=0`) through the terminal observation
 (`t=127`): **128 contexts, 127 executed actions**. At `t>0`, the displayed
 preceding action is `actions[t-1]`; the action selected after observing the
@@ -87,4 +96,5 @@ OPENBLAS_NUM_THREADS=2 OMP_NUM_THREADS=2 uv run pytest -q \
   tests/test_nonergodic_simplex.py \
   tests/test_nonergodic_mess3_reward_state_action_symmetry_cycle_5.py
 uv run pytest -q -m "not slow"
+node --test tests/test_simplex_viewer.cjs
 ```

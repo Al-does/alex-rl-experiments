@@ -315,27 +315,24 @@ def analyze_run(name: str, *, episodes: int, seed: int, cache: Path) -> tuple[di
     examples = np.sort(np.concatenate([np.flatnonzero(test.components == component)[:4] for component in range(2)]))
     example_rows = (examples[:, None] * HORIZON + np.arange(HORIZON)).reshape(-1)
 
-    def rounded(values: np.ndarray) -> list:
-        return np.round(values, 7).tolist()
-
     viewer = {
         "name": name, "run_id": provenance["run_id"],
         "components": provenance["recipe"]["components"],
         "agent_steps": provenance["agent_steps"], "metrics": metrics,
-        "cloud": {"targets": rounded(y_test[cloud_rows]), "rows": cloud_rows.tolist()},
+        "cloud": {"targets": y_test[cloud_rows].tolist(), "rows": cloud_rows.tolist()},
         "sequences": [
             {
                 "id": int(index), "component": int(test.components[index]),
                 "tokens": test.tokens[index].tolist(), "actions": test.actions[index].tolist(),
-                "targets": rounded(test.beliefs[index]),
+                "targets": test.beliefs[index].tolist(),
             }
             for index in examples
         ],
         "predictions": {
             checkpoint: {
                 layer: {
-                    "cloud": rounded(values[cloud_rows]),
-                    "sequences": rounded(values[example_rows].reshape(len(examples), HORIZON, 6)),
+                    "cloud": values[cloud_rows].tolist(),
+                    "sequences": values[example_rows].reshape(len(examples), HORIZON, 6).tolist(),
                 }
                 for layer, values in layer_values.items()
             }

@@ -2,6 +2,7 @@
 "use strict";
 
 const colors = {target: "#168379", init: "#bd7336", final: "#7257ba"};
+const vertexColors = [[229, 83, 94], [38, 158, 115], [60, 111, 214]];
 const ids = ["target-a", "target-b", "probe-a", "probe-b"];
 const el = id => document.getElementById(id);
 const initialCamera = {eye: {x: 1.55, y: 1.55, z: 1.25}};
@@ -19,14 +20,36 @@ function mass(row) {
   return row.reduce((a, b) => a + b, 0);
 }
 
+function beliefColor(point) {
+  const positive = point.map(value => Math.max(0, value));
+  const total = mass(positive);
+  const depth = Math.sqrt(Math.max(0, Math.min(1, mass(point))));
+  const rgb = [0, 1, 2].map(channel => {
+    const hue = total > 0
+      ? positive.reduce((sum, value, state) => sum + value / total * vertexColors[state][channel], 0)
+      : 40;
+    return Math.round(40 + depth * (hue - 40));
+  });
+  return `rgb(${rgb.join(",")})`;
+}
+
+function formatMass(value) {
+  return value !== 0 && Math.abs(value) < 0.0001 ? value.toExponential(3) : value.toFixed(4);
+}
+
 function axes(points) {
   return {x: points.map(p => p[0]), y: points.map(p => p[1]), z: points.map(p => p[2])};
 }
 
-function plane(weight, color, opacity = 0.12) {
+function plane(weight, color = null, opacity = 0.24) {
   return {
     type: "mesh3d", x: [weight, 0, 0], y: [0, weight, 0], z: [0, 0, weight],
-    i: [0], j: [1], k: [2], color, opacity, hoverinfo: "skip", showscale: false,
+    i: [0], j: [1], k: [2],
+    ...(color ? {color} : {vertexcolor: [
+      beliefColor([weight, 0, 0]), beliefColor([0, weight, 0]), beliefColor([0, 0, weight]),
+    ]}),
+    lighting: {ambient: 1, diffuse: 0, specular: 0, fresnel: 0},
+    opacity, hoverinfo: "skip", showscale: false,
   };
 }
 
@@ -49,13 +72,17 @@ function envelope() {
   ];
 }
 
-function pointTrace(points, name, color, {sequence = false, current = false, labels = []} = {}) {
+function pointTrace(points, name, color, {sequence = false, current = false, labels = [], symbol = "circle"} = {}) {
   return {
     type: "scatter3d", mode: sequence ? "lines+markers" : "markers", ...axes(points),
     name, customdata: points.map((p, i) => [mass(p), labels[i] ?? i]),
-    marker: {color, size: current ? 6 : sequence ? 2 : 1.7, opacity: current ? 1 : 0.55},
+    marker: {
+      color: points.map(beliefColor), symbol,
+      size: current ? 7 : sequence ? 2.5 : 2, opacity: current ? 1 : 0.75,
+      line: {color, width: current ? 2 : 0},
+    },
     line: {color, width: 2}, showlegend: false,
-    hovertemplate: `${name}<br>row / t = %{customdata[1]}<br>S0=%{x:.4f}<br>S1=%{y:.4f}<br>S2=%{z:.4f}<br>mass=%{customdata[0]:.4f}<extra></extra>`,
+    hovertemplate: `${name}<br>row / t = %{customdata[1]}<br>S0=%{x:.4g}<br>S1=%{y:.4g}<br>S2=%{z:.4g}<br>mass=%{customdata[0]:.4g}<extra></extra>`,
   };
 }
 
@@ -169,10 +196,10 @@ async function render() {
     const probeTraces = envelope();
     if (sequenceMode) {
       const point = targetPoints[time], weight = mass(point);
-      targetTraces.push(plane(weight, colors.target), outline(weight, colors.target));
+      targetTraces.push(plane(weight), outline(weight, colors.target));
       targetTraces.push(pointTrace(targetPoints.slice(0, time + 1), "Bayesian", colors.target, {sequence: true}));
       targetTraces.push(pointTrace([point], "Bayesian · current", colors.target, {current: true, labels: [time]}));
-      el(`target-${suffix}-caption`).textContent = `Posterior w${suffix.toUpperCase()} = ${weight.toFixed(4)}`;
+      el(`target-${suffix}-caption`).textContent = `Posterior w${suffix.toUpperCase()} = ${formatMass(weight)}`;
     } else {
       targetTraces.push(pointTrace(targetPoints, "Bayesian", colors.target, {labels: run.cloud.rows}));
       el(`target-${suffix}-caption`).textContent = "Coordinates = posterior weight × local state belief";
@@ -182,14 +209,15 @@ async function render() {
       const prediction = run.predictions[checkpoint][layer];
       const points = (sequenceMode ? prediction.sequences[sequenceIndex] : prediction.cloud).map(row => block(row, component));
       const name = checkpoint === "init" ? "Initialization" : "Final";
+      const symbol = checkpoint === "init" ? "diamond" : "circle";
       if (sequenceMode) {
         const point = points[time], weight = mass(point);
-        probeTraces.push(plane(weight, colors[checkpoint], 0.08), outline(weight, colors[checkpoint]));
-        probeTraces.push(pointTrace(points.slice(0, time + 1), name, colors[checkpoint], {sequence: true}));
-        probeTraces.push(pointTrace([point], `${name} · current`, colors[checkpoint], {current: true, labels: [time]}));
-        captions.push(`${name} mass = ${weight.toFixed(4)}`);
+        probeTraces.push(plane(weight, null, 0.16), outline(weight, colors[checkpoint]));
+        probeTraces.push(pointTrace(points.slice(0, time + 1), name, colors[checkpoint], {sequence: true, symbol}));
+        probeTraces.push(pointTrace([point], `${name} · current`, colors[checkpoint], {current: true, labels: [time], symbol}));
+        captions.push(`${name} mass = ${formatMass(weight)}`);
       } else {
-        probeTraces.push(pointTrace(points, name, colors[checkpoint], {labels: run.cloud.rows}));
+        probeTraces.push(pointTrace(points, name, colors[checkpoint], {labels: run.cloud.rows, symbol}));
       }
     }
     el(`probe-${suffix}-caption`).textContent = captions.join(" · ") || "Raw affine predictions · no projection onto the simplex";
