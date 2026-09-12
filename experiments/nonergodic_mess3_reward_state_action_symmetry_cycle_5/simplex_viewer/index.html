@@ -40,7 +40,11 @@
     <div class="metric final"><span>Final · six-state R²</span><strong id="final-r2"></strong><small id="final-error"></small></div>
     <div class="metric"><span>Component-posterior R²</span><strong id="weight-r2"></strong><small>Initialization → final · full held-out sample</small></div>
   </section>
-  <div class="legend"><span class="target">Bayesian</span><span class="init">Initialization</span><span class="final">Final</span><span>Drag to rotate · scroll to zoom · cameras linked</span></div>
+  <div class="color-key" aria-label="Geometry color key">
+    <span>Local state:</span><span class="state-0">State 0</span><span class="state-1">State 1</span><span class="state-2">State 2</span>
+    <span>Mixtures blend hues · component weight: 0 <i class="depth-key" aria-hidden="true"></i> 1 (brighter)</span>
+  </div>
+  <div class="legend"><span class="target">Bayesian outline</span><span class="init">Initialization · diamonds</span><span class="final">Final · circles</span><span>Drag to rotate · scroll to zoom · cameras linked</span></div>
   <section class="plots" aria-label="Four component simplex plots">
     <article><h2>Bayesian <span>Component A</span></h2><div id="target-a" class="plot"></div><p id="target-a-caption"></p></article>
     <article><h2>Bayesian <span>Component B</span></h2><div id="target-b" class="plot"></div><p id="target-b-caption"></p></article>
@@ -53,6 +57,7 @@
     <div class="method">
       <p>Each point is a three-coordinate block of the six-state belief, <b>w<sub>n</sub>η<sub>n</sub></b>. Its coordinate sum is the posterior probability of that component. The triangular plane has vertices (w,0,0), (0,w,0), (0,0,w); it shrinks toward the origin as w approaches zero. Sweeping w from zero to one fills a tetrahedral envelope. The pair of blocks lives in a 5-simplex.</p>
       <p>Sequence mode shows a growing trajectory, a large point at the current position, and the current weighted plane. Probe planes use the <b>raw decoded component mass</b>, which may be negative or exceed one. Predictions are never clipped or renormalized. All four plots use identical axes, expanded to include plotted predictions.</p>
+      <p>Point and plane colors blend red (state 0), green (state 1), and blue (state 2) by local state composition. Brightness increases with the square root of component weight, from dark at zero to vivid at one. For out-of-simplex predictions, only the color calculation uses positive coordinates and a weight bounded to [0,1]; plotted coordinates remain raw. Outline and trail colors identify checkpoints, with diamonds for initialization and circles for final.</p>
       <p>Both checkpoints see the <b>same final-policy greedy histories</b>. Initialization is an off-policy representation control, not an initialization-policy rollout. Independent complete episodes form the fit and held-out sets. Post-final RMSNorm is the primary representation, fixed before evaluation; all four pre-normalization residual streams are available as robustness comparisons. Affine probes use training-only whole-episode cross-validation. R² and out-of-simplex rates use all held-out positions, not just the displayed sample.</p>
       <p>The filter conditions on visible delayed tokens and executed actions, never reward or latent state. At position 0 the input is BOS; positions 1–127 reveal delayed tokens. Position 127 is the terminal observation, so the 128-position context contains <b>127 executed actions</b>. The target is the decision-time arrival belief, after the preceding action transition. This adapts the passive article to the experiment's controlled HMM.</p>
       <p>High probe fit measures linear accessibility; it does not establish causal use or uniquely identify internal computations. Predictive, current-observation, initialization, Gaussian-feature and shuffled-label controls, target variance, and episode-bootstrap comparisons are in the full reports. One training seed per run limits generalization across trained models.</p>
