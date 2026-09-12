@@ -1,4 +1,4 @@
-"""A 64-dimensional paper-style transformer adapted to stateful RLlib PPO."""
+"""A configurable paper-style transformer adapted to stateful RLlib PPO."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import numpy as np
 import torch
 from ray.rllib.core.columns import Columns
 from torch import nn
+from torch.nn import functional as F
 
 from learners.components.transformer import _apply_rope, _rope_angles
 from learners.models.base import BaseActorCriticModel
@@ -32,6 +33,8 @@ class FactoredReproductionModelConfig:
     activation: str = "relu"
     normalization: str = "layer_norm"
     positional_embedding: str = "learned_absolute"
+    attention_implementation: str = "manual"
+    training_sequence_mode: str = "sliding_window"
 
     def __post_init__(self) -> None:
         if min(
@@ -45,12 +48,21 @@ class FactoredReproductionModelConfig:
             raise ValueError("transformer dimensions must be positive")
         if self.d_model % self.n_heads:
             raise ValueError("d_model must be divisible by n_heads")
-        if self.activation != "relu":
-            raise ValueError("the paper architecture uses ReLU")
-        if self.normalization != "layer_norm":
-            raise ValueError("the paper architecture uses LayerNorm")
+        if self.activation not in {"relu", "gated_gelu"}:
+            raise ValueError("activation must be relu or gated_gelu")
+        if self.normalization not in {"layer_norm", "rms_norm"}:
+            raise ValueError("normalization must be layer_norm or rms_norm")
         if self.positional_embedding not in {"learned_absolute", "rope"}:
             raise ValueError("positional_embedding must be learned_absolute or rope")
+        if self.attention_implementation not in {"manual", "sdpa"}:
+            raise ValueError("attention_implementation must be manual or sdpa")
+        if self.training_sequence_mode not in {
+            "sliding_window",
+            "complete_episode",
+        }:
+            raise ValueError(
+                "training_sequence_mode must be sliding_window or complete_episode"
+            )
         if self.positional_embedding == "rope" and (self.d_model // self.n_heads) % 2:
             raise ValueError("RoPE requires an even head dimension")
 
@@ -74,13 +86,14 @@ class MultiHeadCausalAttention(nn.Module):
         self.n_heads = config.n_heads
         self.d_head = config.d_model // config.n_heads
         self.use_rope = config.positional_embedding == "rope"
+        self.use_sdpa = config.attention_implementation == "sdpa"
         self.qkv = nn.Linear(config.d_model, 3 * config.d_model)
         self.output = nn.Linear(config.d_model, config.d_model)
 
     def forward(
         self,
         inputs: torch.Tensor,
-        allowed: torch.Tensor,
+        allowed: torch.Tensor | None,
     ) -> torch.Tensor:
         batch, length, width = inputs.shape
         qkv = self.qkv(inputs).reshape(
@@ -94,33 +107,77 @@ class MultiHeadCausalAttention(nn.Module):
         if self.use_rope:
             cos, sin = _rope_angles(length, self.d_head, query.device, query.dtype)
             query, key = _apply_rope(query, cos, sin), _apply_rope(key, cos, sin)
-        scores = torch.matmul(query, key.transpose(-1, -2))
-        scores = scores / math.sqrt(self.d_head)
-        scores = scores.masked_fill(~allowed[:, None, :, :], -torch.inf)
-        attention = torch.softmax(scores, dim=-1)
-        attended = torch.matmul(attention, value)
+        if self.use_sdpa:
+            attended = F.scaled_dot_product_attention(
+                query,
+                key,
+                value,
+                attn_mask=(
+                    None if allowed is None else allowed[:, None, :, :]
+                ),
+                is_causal=allowed is None,
+            )
+        else:
+            scores = torch.matmul(query, key.transpose(-1, -2))
+            scores = scores / math.sqrt(self.d_head)
+            if allowed is None:
+                allowed = torch.ones(
+                    length,
+                    length,
+                    dtype=torch.bool,
+                    device=inputs.device,
+                ).tril().reshape(1, length, length)
+            scores = scores.masked_fill(~allowed[:, None, :, :], -torch.inf)
+            attention = torch.softmax(scores, dim=-1)
+            attended = torch.matmul(attention, value)
         attended = attended.transpose(1, 2).reshape(batch, length, width)
         return self.output(attended)
 
 
+class GatedGELUMLP(nn.Module):
+    def __init__(self, config: FactoredReproductionModelConfig) -> None:
+        super().__init__()
+        self.gate = nn.Linear(config.d_model, config.d_mlp)
+        self.value = nn.Linear(config.d_model, config.d_mlp)
+        self.output = nn.Linear(config.d_mlp, config.d_model)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        gated = torch.nn.functional.gelu(self.gate(inputs))
+        return self.output(gated * self.value(inputs))
+
+
+def _normalization(
+    config: FactoredReproductionModelConfig,
+) -> nn.LayerNorm | nn.RMSNorm:
+    if config.normalization == "rms_norm":
+        return nn.RMSNorm(config.d_model, eps=1e-5)
+    return nn.LayerNorm(config.d_model)
+
+
+def _mlp(config: FactoredReproductionModelConfig) -> nn.Module:
+    if config.activation == "gated_gelu":
+        return GatedGELUMLP(config)
+    return nn.Sequential(
+        nn.Linear(config.d_model, config.d_mlp),
+        nn.ReLU(),
+        nn.Linear(config.d_mlp, config.d_model),
+    )
+
+
 class ReproductionTransformerBlock(nn.Module):
-    """Pre-LayerNorm attention and ReLU MLP residual block."""
+    """Pre-normalization attention and MLP residual block."""
 
     def __init__(self, config: FactoredReproductionModelConfig) -> None:
         super().__init__()
-        self.attention_norm = nn.LayerNorm(config.d_model)
+        self.attention_norm = _normalization(config)
         self.attention = MultiHeadCausalAttention(config)
-        self.mlp_norm = nn.LayerNorm(config.d_model)
-        self.mlp = nn.Sequential(
-            nn.Linear(config.d_model, config.d_mlp),
-            nn.ReLU(),
-            nn.Linear(config.d_mlp, config.d_model),
-        )
+        self.mlp_norm = _normalization(config)
+        self.mlp = _mlp(config)
 
     def forward(
         self,
         inputs: torch.Tensor,
-        allowed: torch.Tensor,
+        allowed: torch.Tensor | None,
     ) -> torch.Tensor:
         hidden = inputs + self.attention(self.attention_norm(inputs), allowed)
         return hidden + self.mlp(self.mlp_norm(hidden))
@@ -148,7 +205,7 @@ class ReproductionResidualEncoder(nn.Module):
             ReproductionTransformerBlock(config)
             for _ in range(config.n_layers)
         )
-        self.final_norm = nn.LayerNorm(config.d_model)
+        self.final_norm = _normalization(config)
         self.apply(self._initialize)
         nn.init.normal_(self.bos_embedding, mean=0.0, std=0.02)
 
@@ -161,6 +218,8 @@ class ReproductionResidualEncoder(nn.Module):
         elif isinstance(module, nn.LayerNorm):
             nn.init.ones_(module.weight)
             nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.RMSNorm):
+            nn.init.ones_(module.weight)
 
     def token_embedding_matrix(self) -> torch.Tensor:
         """Return one row per visible joint-token embedding, excluding BOS."""
@@ -226,9 +285,37 @@ class ReproductionResidualEncoder(nn.Module):
         encoded = hidden[:, -1, :]
         return encoded.reshape(batch_size, steps, self.config.d_model)
 
+    def forward_complete_episode(
+        self,
+        observations: torch.Tensor,
+        *,
+        apply_final_norm: bool = True,
+    ) -> torch.Tensor:
+        if observations.ndim != 3:
+            raise ValueError("observations must have shape (B, T, D)")
+        _, steps, width = observations.shape
+        if width != self.obs_dim:
+            raise ValueError("observation width does not match the encoder")
+        if steps > self.config.context_length:
+            raise ValueError("complete episode exceeds configured context length")
+
+        positions = torch.arange(steps, device=observations.device)
+        hidden = self.input_embedding(observations)
+        is_bos = observations.abs().sum(dim=-1) < 0.5
+        hidden = hidden + is_bos.unsqueeze(-1).to(hidden.dtype) * self.bos_embedding
+        if self.position_embedding is not None:
+            hidden = hidden + self.position_embedding(positions)
+        for block in self.blocks:
+            hidden = block(hidden, None)
+        if apply_final_norm:
+            hidden = self.final_norm(hidden)
+        return hidden
+
 
 class FactoredReproductionActorCritic(BaseActorCriticModel):
     """Stateful actor-critic whose probe representation matches Appendix F."""
+
+    _VALUE_CHUNK_STEPS = 4096
 
     def _build_encoder(self) -> int:
         self.reproduction_config = FactoredReproductionModelConfig.from_dict(
@@ -286,7 +373,41 @@ class FactoredReproductionActorCritic(BaseActorCriticModel):
         self,
         batch: dict[str, Any],
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+        if self.reproduction_config.training_sequence_mode == "complete_episode":
+            observations = batch[Columns.OBS]
+            return (
+                self.encoder.forward_complete_episode(observations),
+                self._advance_context(observations, batch[Columns.STATE_IN]),
+            )
         return self._encode_with_norm(batch, apply_final_norm=True)
+
+    def compute_values(
+        self,
+        batch: dict[str, Any],
+        embeddings: torch.Tensor | None = None,
+    ):
+        if embeddings is not None:
+            return self.heads.values(embeddings)
+        with torch.no_grad():
+            observations = batch[Columns.OBS]
+            state_in = batch[Columns.STATE_IN]
+            steps = int(observations.shape[1])
+            rows_per_chunk = max(1, self._VALUE_CHUNK_STEPS // steps)
+            if int(observations.shape[0]) <= rows_per_chunk:
+                embeddings, _ = self._encode_train(batch)
+                return self.heads.values(embeddings)
+            values = []
+            for start in range(0, int(observations.shape[0]), rows_per_chunk):
+                stop = start + rows_per_chunk
+                chunk = {
+                    Columns.OBS: observations[start:stop],
+                    Columns.STATE_IN: {
+                        key: value[start:stop] for key, value in state_in.items()
+                    },
+                }
+                chunk_embeddings, _ = self._encode_train(chunk)
+                values.append(self.heads.values(chunk_embeddings))
+            return torch.cat(values, dim=0)
 
     def _encode_rollout(
         self,
