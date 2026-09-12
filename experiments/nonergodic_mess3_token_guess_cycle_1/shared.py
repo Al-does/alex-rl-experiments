@@ -35,7 +35,7 @@ from harness.runners import run_tune
 
 
 ARTICLE_URL = "https://simplex.pub/nonergodic-geometry/"
-TOTAL_ENV_STEPS = 10_000_000
+TOTAL_ENV_STEPS = 6_000_000
 SMOKE_ENV_STEPS = 1_024
 TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 512
@@ -125,7 +125,11 @@ def build_config(
             use_gae=True,
             use_kl_loss=False,
             vf_loss_coeff=0.5,
-            entropy_coeff=0.01,
+            entropy_coeff=[
+                [0, 0.01],
+                [1_500_000, 0.01],
+                [2_500_000, 0.0],
+            ],
             train_batch_size_per_learner=(
                 SMOKE_BATCH_SIZE if context.smoke else train_batch_size
             ),
@@ -257,7 +261,7 @@ def resolved_recipe(
         "clip_param": 0.2,
         "use_kl_loss": False,
         "value_loss_coeff": 0.5,
-        "entropy_coeff": 0.01,
+        "entropy_coeff": [[0, 0.01], [1_500_000, 0.01], [2_500_000, 0.0]],
         "train_batch_size_per_learner": (
             SMOKE_BATCH_SIZE if context.smoke else train_batch_size
         ),
