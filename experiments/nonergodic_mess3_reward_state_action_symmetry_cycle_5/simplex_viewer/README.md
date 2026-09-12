@@ -6,10 +6,11 @@ against the run's B2 durability manifest. No training or Ray cluster is started.
 
 ## Generate
 
-Use this experiment checkout with the editable sibling `rl-harness`. The
-experiment's existing tests require harness commit
-`bafed8e` (`devin/1789107129-record-rllib-reseed-issue`), which provides
-`FreshEpisodeSingleAgentEnvRunner`. B2 access uses the existing `B2_*`
+Use this experiment checkout with the editable sibling `rl-harness` including
+`analysis.simplex` and its packaged viewer assets. The library owns generic
+metrics, serialization and rendering; this experiment owns its controlled target,
+checkpoint restoration, histories, activation extraction and scientific protocol.
+B2 access uses the existing `B2_*`
 environment variables; never put credentials in this directory.
 
 ```bash
@@ -26,7 +27,8 @@ restores and loads the four checkpoints without running probes.
 Open the generated `index.html` directly, or serve its directory with
 `python -m http.server`. Plotly and data are bundled locally; the viewer requires
 no CDN, server API, login, or Python after generation. Keep its HTML, CSS, scripts,
-and three JSON reports together. The `raw/` NPZ files are optional for the viewer.
+and three JSON reports (`report_0.json` through `report_2.json`) together.
+The `raw/` NPZ files are optional for the viewer.
 Do not commit generated point clouds, raw trajectories, or downloaded checkpoints.
 
 ## Geometry and controls
@@ -95,5 +97,10 @@ OPENBLAS_NUM_THREADS=2 OMP_NUM_THREADS=2 uv run pytest -q \
   tests/test_nonergodic_simplex.py \
   tests/test_nonergodic_mess3_reward_state_action_symmetry_cycle_5.py
 uv run pytest -q -m "not slow"
-node --test tests/test_simplex_viewer.cjs
 ```
+
+Viewer tests moved with the assets to the harness:
+`node --test ../rl-harness/tests/test_simplex_viewer.cjs`.
+See the installed `analysis/simplex_viewer/README.md` for the shared API and
+[passive PR 119 adoption](../../nonergodic_mess3_token_guess_cycle_1/simplex_adoption.md)
+for a concrete adaptation and reusable prompt.
