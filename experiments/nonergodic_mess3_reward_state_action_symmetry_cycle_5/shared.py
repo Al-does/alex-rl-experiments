@@ -68,6 +68,20 @@ MODEL_CONFIG = FactoredReproductionModelConfig(
 ).to_dict()
 
 
+def _init_algorithm(
+    *,
+    algorithm,
+    checkpoint_path: str,
+    warm_start_path: str | None = None,
+    **kwargs: Any,
+) -> None:
+    _save_initial_checkpoint(
+        algorithm=algorithm, checkpoint_path=checkpoint_path, **kwargs
+    )
+    if warm_start_path is not None:
+        algorithm.restore_from_path(str(Path(warm_start_path).resolve()))
+
+
 def _sampling_layout(
     context: RunContext,
     profile: HardwareProfile,
@@ -86,6 +100,7 @@ def build_config(
     variant: int,
     *,
     component_parameters: Sequence[Mapping[str, object]] | None = None,
+    entropy_coeff: float | Sequence[Sequence[float]] = DEFAULT_ENTROPY_COEFF,
 ) -> PPOConfig:
     profile = context.hardware or PROFILES["cpu"]
     num_env_runners, num_envs_per_env_runner = _sampling_layout(
@@ -120,7 +135,7 @@ def build_config(
             use_gae=True,
             use_kl_loss=False,
             vf_loss_coeff=0.5,
-            entropy_coeff=DEFAULT_ENTROPY_COEFF,
+            entropy_coeff=entropy_coeff,
             train_batch_size_per_learner=(
                 SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
             ),
@@ -138,9 +153,14 @@ def build_config(
         )
         .callbacks(
             on_algorithm_init=partial(
-                _save_initial_checkpoint,
+                _init_algorithm,
                 checkpoint_path=str(
                     context.artifacts_dir / "initial_checkpoint"
+                ),
+                warm_start_path=(
+                    str(context.resume_from)
+                    if context.resume_from is not None
+                    else None
                 ),
             ),
             on_train_result=partial(
@@ -173,6 +193,9 @@ def resolved_recipe(
     variant: int,
     *,
     component_parameters: Sequence[Mapping[str, object]] | None = None,
+    entropy_coeff: float | Sequence[Sequence[float]] = DEFAULT_ENTROPY_COEFF,
+    total_env_steps: int = TOTAL_ENV_STEPS,
+    recipe_extra: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     profile = context.hardware or PROFILES["cpu"]
     num_env_runners, num_envs_per_env_runner = _sampling_layout(
@@ -184,11 +207,14 @@ def resolved_recipe(
         if component_parameters is None
         else component_parameters
     )
-    return {
+    recipe = {
         "study": "nonergodic_mess3_reward_state_action_symmetry_cycle_5",
         "condition": f"variant_{variant}",
         "seed": context.seed,
         "smoke": context.smoke,
+        "warm_start_from": (
+            str(context.resume_from) if context.resume_from else None
+        ),
         "source": ARTICLE_URL,
         "hypothesis": (
             "The action-symmetry ladder changes which coordinates of the "
@@ -253,7 +279,7 @@ def resolved_recipe(
         "clip_param": 0.2,
         "use_kl_loss": False,
         "value_loss_coeff": 0.5,
-        "entropy_coeff": DEFAULT_ENTROPY_COEFF,
+        "entropy_coeff": entropy_coeff,
         "train_batch_size_per_learner": (
             SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
         ),
@@ -268,7 +294,7 @@ def resolved_recipe(
         ),
         "episode_length": EPISODE_LENGTH,
         "total_env_steps": (
-            SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
+            SMOKE_ENV_STEPS if context.smoke else total_env_steps
         ),
         "stopping_metric": "env_runners/num_env_steps_sampled_lifetime",
         "checkpoint_schedule": "initial, powers of two iterations, final",
@@ -286,6 +312,9 @@ def resolved_recipe(
             "CPU smoke; hardware-profile learner device for full training"
         ),
     }
+    if recipe_extra:
+        recipe.update(recipe_extra)
+    return recipe
 
 
 def run_condition(
@@ -293,6 +322,10 @@ def run_condition(
     variant: int,
     *,
     component_parameters: Sequence[Mapping[str, object]] | None = None,
+    total_env_steps: int = TOTAL_ENV_STEPS,
+    entropy_coeff: float | Sequence[Sequence[float]] = DEFAULT_ENTROPY_COEFF,
+    continuation: bool = False,
+    recipe_extra: Mapping[str, object] | None = None,
 ) -> dict[str, Any]:
     from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.analysis import (
         analyze_checkpoint,
@@ -300,8 +333,10 @@ def run_condition(
 
     if context.seed is None:
         raise ValueError("non-ergodic action symmetry requires a resolved seed")
-    if context.resume_from is not None:
+    if context.resume_from is not None and not continuation:
         raise ValueError("continuation is not defined for this experiment")
+    if context.resume_from is None and continuation:
+        raise ValueError("continuation runs require --resume-from")
     condition = f"variant_{variant}"
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
@@ -311,18 +346,29 @@ def run_condition(
             context,
             variant,
             component_parameters=component_parameters,
+            entropy_coeff=entropy_coeff,
+            total_env_steps=total_env_steps,
+            recipe_extra=recipe_extra,
         ),
+    )
+    # Warm-start is handled by the on_algorithm_init callback inside
+    # build_config; a Tune-level resume would demand a full trial directory.
+    tune_context = (
+        replace(context, resume_from=None)
+        if context.resume_from is not None
+        else context
     )
     result_grid = run_tune(
         build_config(
             context,
             variant,
             component_parameters=component_parameters,
+            entropy_coeff=entropy_coeff,
         ),
-        context,
+        tune_context,
         stop={
             "env_runners/num_env_steps_sampled_lifetime": (
-                SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
+                SMOKE_ENV_STEPS if context.smoke else total_env_steps
             )
         },
         run_config_kwargs={
