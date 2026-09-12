@@ -44,9 +44,8 @@ composition. Brightness interpolates from dark gray at weight zero to the state
 color at weight one, using square-root weight. For raw overshoots, positive
 coordinates determine hue and weight is bounded to [0,1] **for color only**.
 Checkpoint colors remain on outlines/trails; initialization uses diamonds,
-final uses circles. Serialized coordinates retain float64 precision and small
-weights use scientific notation. Movement at extremely small mass is naturally
-invisible on the common unit scale.
+final uses circles. Serialized coordinates retain float64 precision; captions
+and hover values use four decimal places.
 
 The sequence slider covers reset/BOS (`t=0`) through the terminal observation
 (`t=127`): **128 contexts, 127 executed actions**. At `t>0`, the displayed

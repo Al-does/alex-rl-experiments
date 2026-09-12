@@ -80,7 +80,7 @@ test("bounded colors preserve signed, out-of-simplex geometry", async () => {
   assert.equal(plane.vertexcolor.length, 3);
 });
 
-test("tiny masses remain nonzero in slider points, planes, captions and hover", async () => {
+test("tiny masses remain nonzero in geometry while labels use fixed decimals", async () => {
   const {get, plots, targets} = await viewer();
   let previous;
   for (const t of [25, 30, 100, 127]) {
@@ -96,8 +96,8 @@ test("tiny masses remain nonzero in slider points, planes, captions and hover", 
     assert.notEqual(current.x[0], previous);
     previous = current.x[0];
     assert.equal(traces[3].x[0], expected.reduce((a, b) => a + b, 0));
-    assert.match(get("target-b-caption").textContent, /e-\d+/);
-    assert.match(current.hovertemplate, /customdata\[0\]:\.4g/);
+    assert.equal(get("target-b-caption").textContent, "Posterior wB = 0.0000");
+    assert.match(current.hovertemplate, /customdata\[0\]:\.4f/);
     assert.ok(layout.scene.xaxis.range[1] >= 1);
   }
 });
