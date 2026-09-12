@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nonergodic belief geometry · Alpha 0.95</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="plotly.min.js"></script>
+  <script defer src="data.js"></script>
+  <script defer src="viewer.js"></script>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">MESS3 / ALPHA 0.95 / CHECKPOINT STUDY</div>
+    <h1>Two worlds. One belief.</h1>
+    <p>Bayesian component simplexes and the geometry decoded from transformer activations.</p>
+  </header>
+  <section class="toolbar" aria-label="Comparison controls">
+    <label>Policy variant<select id="run"><option value="0">Variant 2</option><option value="1">Variant 3</option></select></label>
+    <label>View<select id="mode"><option value="cloud">Held-out point cloud</option><option value="sequence">Sequence explorer</option></select></label>
+    <label>Representation<select id="layer"><option value="post_final_norm" selected>Final RMSNorm · primary</option><option value="layer_1">Layer 1 residual</option><option value="layer_2">Layer 2 residual</option><option value="layer_3">Layer 3 residual</option><option value="layer_4">Layer 4 residual</option></select></label>
+    <label>Checkpoints<select id="checkpoint"><option value="both">Initialization + final</option><option value="init">Initialization only</option><option value="final">Final only</option></select></label>
+    <button id="reset-camera" type="button">Reset cameras</button>
+  </section>
+  <div class="meta" id="run-meta"></div>
+  <section id="sequence-controls" hidden>
+    <div class="sequence-toolbar">
+      <label>Example history<select id="sequence"></select></label>
+      <button id="play" type="button" aria-label="Play sequence">Play</button>
+      <label class="slider-label">Position <output id="position">0 / 127</output>
+        <input id="time" type="range" min="0" max="127" value="0" step="1">
+      </label>
+    </div>
+    <div id="step-meta" class="meta" aria-live="polite"></div>
+    <div id="tokens" aria-label="Visible token sequence"></div>
+  </section>
+  <section class="metrics" aria-label="Held-out probe metrics">
+    <div class="metric init"><span>Initialization · six-state R²</span><strong id="init-r2"></strong><small id="init-error"></small></div>
+    <div class="metric final"><span>Final · six-state R²</span><strong id="final-r2"></strong><small id="final-error"></small></div>
+    <div class="metric"><span>Component-posterior R²</span><strong id="weight-r2"></strong><small>Initialization → final · full held-out sample</small></div>
+  </section>
+  <div class="legend"><span class="target">Bayesian</span><span class="init">Initialization</span><span class="final">Final</span><span>Drag to rotate · scroll to zoom · cameras linked</span></div>
+  <section class="plots" aria-label="Four component simplex plots">
+    <article><h2>Bayesian <span>Component A</span></h2><div id="target-a" class="plot"></div><p id="target-a-caption"></p></article>
+    <article><h2>Bayesian <span>Component B</span></h2><div id="target-b" class="plot"></div><p id="target-b-caption"></p></article>
+    <article><h2>Activation probe <span>Component A</span></h2><div id="probe-a" class="plot"></div><p id="probe-a-caption"></p></article>
+    <article><h2>Activation probe <span>Component B</span></h2><div id="probe-b" class="plot"></div><p id="probe-b-caption"></p></article>
+  </section>
+  <p class="note" id="plot-note"></p>
+  <details>
+    <summary>How to read this study</summary>
+    <div class="method">
+      <p>Each point is a three-coordinate block of the six-state belief, <b>w<sub>n</sub>η<sub>n</sub></b>. Its coordinate sum is the posterior probability of that component. The triangular plane has vertices (w,0,0), (0,w,0), (0,0,w); it shrinks toward the origin as w approaches zero. Sweeping w from zero to one fills a tetrahedral envelope. The pair of blocks lives in a 5-simplex.</p>
+      <p>Sequence mode shows a growing trajectory, a large point at the current position, and the current weighted plane. Probe planes use the <b>raw decoded component mass</b>, which may be negative or exceed one. Predictions are never clipped or renormalized. All four plots use identical axes, expanded to include plotted predictions.</p>
+      <p>Both checkpoints see the <b>same final-policy greedy histories</b>. Initialization is an off-policy representation control, not an initialization-policy rollout. Independent complete episodes form the fit and held-out sets. Post-final RMSNorm is the primary representation, fixed before evaluation; all four pre-normalization residual streams are available as robustness comparisons. Affine probes use training-only whole-episode cross-validation. R² and out-of-simplex rates use all held-out positions, not just the displayed sample.</p>
+      <p>The filter conditions on visible delayed tokens and executed actions, never reward or latent state. At position 0 the input is BOS; positions 1–127 reveal delayed tokens. Position 127 is the terminal observation, so the 128-position context contains <b>127 executed actions</b>. The target is the decision-time arrival belief, after the preceding action transition. This adapts the passive article to the experiment's controlled HMM.</p>
+      <p>High probe fit measures linear accessibility; it does not establish causal use or uniquely identify internal computations. Predictive, current-observation, initialization, Gaussian-feature and shuffled-label controls, target variance, and episode-bootstrap comparisons are in the full reports. One training seed per run limits generalization across trained models.</p>
+      <p><a href="variant_2_report.json" download>Variant 2 full report</a> · <a href="variant_3_report.json" download>Variant 3 full report</a> · <a href="summary.json" download>Provenance and metrics</a> · <a href="https://simplex.pub/nonergodic-geometry/" target="_blank" rel="noopener">Simplex article</a></p>
+    </div>
+  </details>
+  <footer>Actual initialization and final checkpoints from PR 122 · affine probes · no new training</footer>
+  <p id="error" role="alert" hidden></p>
+</main>
+</body>
+</html>
