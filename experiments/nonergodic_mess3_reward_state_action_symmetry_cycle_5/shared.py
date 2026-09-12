@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from functools import partial
 import math
@@ -40,15 +40,15 @@ from harness.runners import run_tune
 
 
 ARTICLE_URL = "https://simplex.pub/nonergodic-geometry/"
-TOTAL_ENV_STEPS = 700_000
+TOTAL_ENV_STEPS = 15_000_000
 SMOKE_ENV_STEPS = 1_024
-TRAIN_BATCH_SIZE = 32_768
+TRAIN_BATCH_SIZE = 262_144
 SMOKE_BATCH_SIZE = 512
-MINIBATCH_SIZE = 2_048
+MINIBATCH_SIZE = 8_192
 SMOKE_MINIBATCH_SIZE = 128
 LEARNING_RATE = 4.2e-4
 SMOKE_LEARNING_RATE = 3e-4
-DEFAULT_ENTROPY_COEFF = 0.003
+DEFAULT_ENTROPY_COEFF = 0.01
 NUM_EPOCHS = 6
 MIN_EPISODES_PER_TRAIN_BATCH = math.ceil(
     TRAIN_BATCH_SIZE / EPISODE_LENGTH
@@ -81,7 +81,12 @@ def _sampling_layout(
     )
 
 
-def build_config(context: RunContext, variant: int) -> PPOConfig:
+def build_config(
+    context: RunContext,
+    variant: int,
+    *,
+    component_parameters: Sequence[Mapping[str, object]] | None = None,
+) -> PPOConfig:
     profile = context.hardware or PROFILES["cpu"]
     num_env_runners, num_envs_per_env_runner = _sampling_layout(
         context,
@@ -91,7 +96,10 @@ def build_config(context: RunContext, variant: int) -> PPOConfig:
         PPOConfig()
         .environment(
             HMMEnv,
-            env_config=environment_config(variant),
+            env_config=environment_config(
+                variant,
+                component_parameters=component_parameters,
+            ),
         )
         .framework(
             "torch",
@@ -163,11 +171,18 @@ def build_config(context: RunContext, variant: int) -> PPOConfig:
 def resolved_recipe(
     context: RunContext,
     variant: int,
+    *,
+    component_parameters: Sequence[Mapping[str, object]] | None = None,
 ) -> dict[str, object]:
     profile = context.hardware or PROFILES["cpu"]
     num_env_runners, num_envs_per_env_runner = _sampling_layout(
         context,
         profile,
+    )
+    resolved_components = (
+        COMPONENT_PARAMETERS
+        if component_parameters is None
+        else component_parameters
     )
     return {
         "study": "nonergodic_mess3_reward_state_action_symmetry_cycle_5",
@@ -179,7 +194,9 @@ def resolved_recipe(
             "The action-symmetry ladder changes which coordinates of the "
             "six-state non-ergodic belief are useful for reward control."
         ),
-        "components": [dict(parameters) for parameters in COMPONENT_PARAMETERS],
+        "components": [
+            dict(parameters) for parameters in resolved_components
+        ],
         "component_prior": [0.5, 0.5],
         "component_sampling": (
             "one component is selected at reset and remains fixed for the "
@@ -199,14 +216,18 @@ def resolved_recipe(
             "preserved; edge kernels retain P(token | source, destination)"
         ),
         "support_note": (
-            "mess3_b has zero self-transition probability, so finite "
-            "exponential tilts preserve that zero exactly"
+            "under the default component set, mess3_b has zero "
+            "self-transition probability, so finite exponential tilts "
+            "preserve that zero exactly"
         ),
         "reward": (
             "one when the pre-transition local state is state 2 in either "
             "component, else zero"
         ),
-        "environment": environment_config(variant),
+        "environment": environment_config(
+            variant,
+            component_parameters=component_parameters,
+        ),
         "previous_action_in_observation": True,
         "previous_reward_in_observation": False,
         "environment_seed_semantics": (
@@ -267,7 +288,12 @@ def resolved_recipe(
     }
 
 
-def run_condition(context: RunContext, variant: int) -> dict[str, Any]:
+def run_condition(
+    context: RunContext,
+    variant: int,
+    *,
+    component_parameters: Sequence[Mapping[str, object]] | None = None,
+) -> dict[str, Any]:
     from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.analysis import (
         analyze_checkpoint,
     )
@@ -281,10 +307,18 @@ def run_condition(context: RunContext, variant: int) -> dict[str, Any]:
     outputs.prepare()
     outputs.write_json(
         "resolved_recipe.json",
-        resolved_recipe(context, variant),
+        resolved_recipe(
+            context,
+            variant,
+            component_parameters=component_parameters,
+        ),
     )
     result_grid = run_tune(
-        build_config(context, variant),
+        build_config(
+            context,
+            variant,
+            component_parameters=component_parameters,
+        ),
         context,
         stop={
             "env_runners/num_env_steps_sampled_lifetime": (
@@ -334,6 +368,7 @@ def run_condition(context: RunContext, variant: int) -> dict[str, Any]:
                 checkpoint_label=str(record["checkpoint_name"]),
                 agent_steps=int(record["agent_steps"]),
                 training_iteration=int(record["training_iteration"]),
+                component_parameters=component_parameters,
             )
         )
     summary = {

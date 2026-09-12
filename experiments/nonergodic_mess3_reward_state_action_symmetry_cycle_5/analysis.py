@@ -225,8 +225,12 @@ def collect_probe_data(
     policy_mode: str = "greedy",
     n_envs: int = N_ENVS,
     warmup: int = WARMUP,
+    component_parameters: Sequence[Mapping[str, object]] | None = None,
 ) -> ProbeData:
-    config = environment_config(variant)
+    config = environment_config(
+        variant,
+        component_parameters=component_parameters,
+    )
     config["diagnostics"] = {
         "belief": True,
         "state": True,
@@ -621,6 +625,7 @@ def analyze_checkpoint(
     checkpoint_label: str,
     agent_steps: int,
     training_iteration: int,
+    component_parameters: Sequence[Mapping[str, object]] | None = None,
 ) -> dict[str, object]:
     if context.seed is None:
         raise ValueError("belief probing requires a resolved seed")
@@ -637,6 +642,7 @@ def analyze_checkpoint(
             n_steps=steps,
             seed=streams["probe_train"],
             device=_device(context),
+            component_parameters=component_parameters,
         )
         test = collect_probe_data(
             module,
@@ -644,6 +650,7 @@ def analyze_checkpoint(
             n_steps=test_steps,
             seed=streams["probe_test"],
             device=_device(context),
+            component_parameters=component_parameters,
         )
     return _analyze_samples(
         context,

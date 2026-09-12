@@ -14,6 +14,9 @@ from envs.hmm import HMMEnv, condition_edge
 from experiments.factored_representations_reproduction_PPO_2026_08.model import (
     FactoredReproductionActorCritic,
 )
+from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.alpha095.process import (
+    COMPONENT_PARAMETERS as ALPHA095_COMPONENT_PARAMETERS,
+)
 from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5 import (
     analysis,
 )
@@ -375,7 +378,7 @@ def test_complete_episode_ppo_config_and_recipe(tmp_path):
     assert config.use_critic and config.use_gae
     assert not config.use_kl_loss
     assert config.vf_loss_coeff == 0.5
-    assert config.entropy_coeff == 0.003
+    assert config.entropy_coeff == 0.01
     assert config.train_batch_size_per_learner == SMOKE_BATCH_SIZE
     assert config.minibatch_size == SMOKE_MINIBATCH_SIZE
     assert config.num_epochs == 6
@@ -494,3 +497,58 @@ def test_task_rejects_invalid_actions(action):
             env.step(action)
     finally:
         env.close()
+
+
+def test_component_parameters_override_reaches_model_and_recipe(tmp_path):
+    context = _context(tmp_path)
+    config = build_config(
+        context,
+        3,
+        component_parameters=ALPHA095_COMPONENT_PARAMETERS,
+    )
+    expected_kwargs = {
+        "component_parameters": [
+            dict(parameters)
+            for parameters in ALPHA095_COMPONENT_PARAMETERS
+        ]
+    }
+    assert config.env_config["model"]["kwargs"] == expected_kwargs
+
+    env = HMMEnv(config.env_config)
+    try:
+        reference = nonergodic_mess3_model()
+        expected = nonergodic_mess3_model(
+            component_parameters=ALPHA095_COMPONENT_PARAMETERS
+        )
+        np.testing.assert_allclose(
+            env.model.transition_matrix,
+            expected.transition_matrix,
+        )
+        assert not np.allclose(
+            env.model.transition_matrix,
+            reference.transition_matrix,
+        )
+    finally:
+        env.close()
+
+    recipe = resolved_recipe(
+        context,
+        3,
+        component_parameters=ALPHA095_COMPONENT_PARAMETERS,
+    )
+    assert recipe["components"] == expected_kwargs["component_parameters"]
+    assert recipe["environment"]["model"]["kwargs"] == expected_kwargs
+
+
+def test_alpha095_components_validate_and_stay_within_bounds():
+    model = nonergodic_mess3_model(
+        component_parameters=ALPHA095_COMPONENT_PARAMETERS
+    )
+    np.testing.assert_allclose(
+        model.transition_matrix.sum(axis=1),
+        np.ones(STATE_COUNT),
+    )
+    np.testing.assert_allclose(
+        model.initial_distribution.sum(),
+        1.0,
+    )

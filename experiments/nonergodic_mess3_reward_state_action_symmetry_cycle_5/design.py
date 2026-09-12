@@ -46,8 +46,16 @@ def reward_state_indicator() -> np.ndarray:
 def controlled_kernels(
     variant: int,
     effect_size: float = EFFECT_SIZE,
+    *,
+    component_parameters=None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    model = nonergodic_mess3_model()
+    model = nonergodic_mess3_model(
+        component_parameters=(
+            COMPONENT_PARAMETERS
+            if component_parameters is None
+            else component_parameters
+        )
+    )
     task = ActionSymmetryTask(
         model=model,
         variant=variant,
@@ -95,14 +103,25 @@ def constant_action_expected_return(
     *,
     effect_size: float = EFFECT_SIZE,
     horizon: int = EPISODE_LENGTH,
+    component_parameters=None,
 ) -> float:
     horizon = _positive_integer(horizon, "horizon")
     if isinstance(action, bool) or not isinstance(action, (int, np.integer)):
         raise ValueError("action must be an integer")
     if not 0 <= int(action) < N_ACTIONS:
         raise ValueError("action is outside the action space")
-    model = nonergodic_mess3_model()
-    transitions, _ = controlled_kernels(variant, effect_size)
+    model = nonergodic_mess3_model(
+        component_parameters=(
+            COMPONENT_PARAMETERS
+            if component_parameters is None
+            else component_parameters
+        )
+    )
+    transitions, _ = controlled_kernels(
+        variant,
+        effect_size,
+        component_parameters=component_parameters,
+    )
     belief = model.initial_distribution @ transitions[NOOP_ACTION]
     reward = reward_state_indicator()
     total = 0.0
@@ -133,12 +152,23 @@ def bayes_observer_reward_audit(
     horizon: int = EPISODE_LENGTH,
     n_episodes: int = DEFAULT_AUDIT_EPISODES,
     seed: int = DEFAULT_AUDIT_SEED,
+    component_parameters=None,
 ) -> dict[str, object]:
     horizon = _positive_integer(horizon, "horizon", 2)
     n_episodes = _positive_integer(n_episodes, "n_episodes", 2)
     seed = _positive_integer(seed, "seed", 0)
-    model = nonergodic_mess3_model()
-    transitions, edges = controlled_kernels(variant, effect_size)
+    model = nonergodic_mess3_model(
+        component_parameters=(
+            COMPONENT_PARAMETERS
+            if component_parameters is None
+            else component_parameters
+        )
+    )
+    transitions, edges = controlled_kernels(
+        variant,
+        effect_size,
+        component_parameters=component_parameters,
+    )
     reward = reward_state_indicator()
     constant_returns = np.asarray(
         [
@@ -147,6 +177,7 @@ def bayes_observer_reward_audit(
                 action,
                 effect_size=effect_size,
                 horizon=horizon,
+                component_parameters=component_parameters,
             )
             for action in range(N_ACTIONS)
         ]
@@ -286,7 +317,9 @@ def design_audit(
             "numpy_version": np.__version__,
             "arithmetic": "float64",
         },
-        "components": [dict(parameters) for parameters in COMPONENT_PARAMETERS],
+        "components": [
+            dict(parameters) for parameters in COMPONENT_PARAMETERS
+        ],
         "variant_1_role": (
             "intentional constant-positive-action control inherited from the "
             "cycle-5 symmetry ladder"
