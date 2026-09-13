@@ -1,0 +1,260 @@
+{
+  "analysis": {
+    "fit_sequences": 128,
+    "inference_batch_size": 32,
+    "max_plot_points": 20000,
+    "n_bootstrap_resamples": 100,
+    "n_null_repeats": 2,
+    "test_sequences": 128
+  },
+  "data": {
+    "bos_token": 3,
+    "component_fixed_for_sequence": true,
+    "component_parameters": [
+      {
+        "alpha": 0.6,
+        "name": "mess3_a",
+        "x": 0.15
+      },
+      {
+        "alpha": 0.66,
+        "name": "mess3_b",
+        "x": 0.5
+      }
+    ],
+    "component_prior": [
+      0.5,
+      0.5
+    ],
+    "edge_transition_matrices": [
+      [
+        [
+          0.42,
+          0.03,
+          0.03,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.09,
+          0.13999999999999999,
+          0.03,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.09,
+          0.03,
+          0.13999999999999999,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.08499999999999999,
+          0.08499999999999999
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.33,
+          0.0,
+          0.08499999999999999
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.33,
+          0.08499999999999999,
+          0.0
+        ]
+      ],
+      [
+        [
+          0.13999999999999999,
+          0.09,
+          0.03,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.03,
+          0.42,
+          0.03,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.03,
+          0.09,
+          0.13999999999999999,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.33,
+          0.08499999999999999
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.08499999999999999,
+          0.0,
+          0.08499999999999999
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.08499999999999999,
+          0.33,
+          0.0
+        ]
+      ],
+      [
+        [
+          0.13999999999999999,
+          0.03,
+          0.09,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.03,
+          0.13999999999999999,
+          0.09,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.03,
+          0.03,
+          0.42,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.08499999999999999,
+          0.33
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.08499999999999999,
+          0.0,
+          0.33
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.08499999999999999,
+          0.08499999999999999,
+          0.0
+        ]
+      ]
+    ],
+    "emissions_per_sequence": 127,
+    "sequence_length": 128,
+    "vocabulary_size": 4
+  },
+  "hypothesis": "next-token cross-entropy on a fixed-component nonergodic composition produces a linearly readable weighted six-state belief geometry in the residual stream",
+  "model": {
+    "activation": "gated_gelu",
+    "article_headline_location": "block_3",
+    "attention_implementation": "scaled_dot_product_attention",
+    "context_length": 128,
+    "d_mlp": 512,
+    "d_model": 128,
+    "d_vocab": 4,
+    "head_dimension": 32,
+    "implementation": "experiment-local PyTorch equivalent of the article's TransformerLens HookedTransformer",
+    "initialization_std": 0.02,
+    "n_heads": 4,
+    "n_layers": 4,
+    "normalization": "rms_norm",
+    "normalization_epsilon": 1e-05,
+    "parameter_count": 1057408,
+    "positional_embedding": "rope",
+    "probe_locations": [
+      "embedding",
+      "block_1",
+      "block_2",
+      "block_3",
+      "block_4"
+    ],
+    "rope_base": 10000.0
+  },
+  "objective": {
+    "belief_supervision": false,
+    "target_positions_per_sequence": 127,
+    "type": "shifted next-token cross-entropy"
+  },
+  "runtime": {
+    "derived_seeds": {
+      "model_initialization": 16138347438539916964,
+      "probe_analysis": 1206282609,
+      "probe_fit_sampling": 3747978530954135749,
+      "probe_test_sampling": 9900477637622965334,
+      "training_sampling": 134183728835869882,
+      "validation_sampling": 11601846009883706861
+    },
+    "device": "cuda",
+    "seed": 42,
+    "smoke": false
+  },
+  "source": {
+    "article": "https://simplex.pub/nonergodic-geometry/",
+    "condition": "geometry_checkpoint",
+    "section": "Training details"
+  },
+  "training": {
+    "analyzed_step": 45000,
+    "batch_size": 512,
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "checkpoint_steps": [
+      1,
+      3,
+      10,
+      30,
+      100,
+      300,
+      1000,
+      3000,
+      10000,
+      30000,
+      45000
+    ],
+    "learning_rate": 0.001,
+    "log_every": 100,
+    "total_steps": 45000,
+    "validation_batch_size": 4096,
+    "validation_minibatch_size": 512,
+    "weight_decay": 0.0
+  }
+}
