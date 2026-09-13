@@ -48,6 +48,13 @@ from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.shared im
     build_config,
     resolved_recipe,
 )
+from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.shot_a.shared import (
+    ENTROPY_COEFF_SCHEDULE as SHOT_A_ENTROPY_COEFF_SCHEDULE,
+    LEARNING_RATE_SCHEDULE as SHOT_A_LEARNING_RATE_SCHEDULE,
+    VALUE_LOSS_COEFF as SHOT_A_VALUE_LOSS_COEFF,
+    build_config as build_shot_a_config,
+    resolved_recipe as resolved_shot_a_recipe,
+)
 from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.task import (
     DIRECTIONS,
     N_ACTIONS,
@@ -412,6 +419,30 @@ def test_complete_episode_ppo_config_and_recipe(tmp_path):
     assert resolved_recipe(full_context, 3)["total_env_steps"] == (
         TOTAL_ENV_STEPS
     )
+
+
+@pytest.mark.parametrize("variant", [2, 3])
+def test_shot_a_profile_uses_pr_127_training_defaults(tmp_path, variant):
+    context = _context(tmp_path)
+    config = build_shot_a_config(context, variant)
+    assert config.lr == SHOT_A_LEARNING_RATE_SCHEDULE
+    assert config.vf_loss_coeff == SHOT_A_VALUE_LOSS_COEFF == 0.25
+    assert config.entropy_coeff == SHOT_A_ENTROPY_COEFF_SCHEDULE
+    assert config.gamma == 0.99
+    assert config.lambda_ == 0.95
+    assert config.train_batch_size_per_learner == SMOKE_BATCH_SIZE
+    assert config.minibatch_size == SMOKE_MINIBATCH_SIZE
+    assert config.env_config == environment_config(variant)
+
+    recipe = resolved_shot_a_recipe(context, variant)
+    assert recipe["condition"] == f"shot_a_variant_{variant}"
+    assert recipe["learning_rate"] == SHOT_A_LEARNING_RATE_SCHEDULE
+    assert recipe["value_loss_coeff"] == SHOT_A_VALUE_LOSS_COEFF
+    assert recipe["entropy_coeff"] == SHOT_A_ENTROPY_COEFF_SCHEDULE
+    assert recipe["components"] == [
+        {"name": "mess3_a", "x": 0.15, "alpha": 0.60},
+        {"name": "mess3_b", "x": 0.50, "alpha": 0.66},
+    ]
 
 
 def test_model_dimensions_and_complete_episode_sequence():
