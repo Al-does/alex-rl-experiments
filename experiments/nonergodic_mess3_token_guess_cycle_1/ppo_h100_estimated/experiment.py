@@ -83,9 +83,10 @@ def resolved_recipe(context: RunContext) -> dict[str, object]:
         },
         "selection_rationale": (
             "use an 8x larger PPO train batch than the measured 4090 recipe "
-            "while retaining its 32,768-step minibatch; this preserves "
-            "optimizer updates per sampled step because H100 wall-clock time "
-            "was rollout-bound rather than learner-bound"
+            "with an 8,192-step minibatch; H100 wall-clock time was "
+            "rollout-bound rather than learner-bound, so the smaller "
+            "minibatch buys 4x more optimizer updates per sampled step "
+            "at negligible wall-clock cost"
         ),
     }
     recipe["sampling_layout"]["configuration_basis"] = (
