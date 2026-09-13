@@ -9,12 +9,12 @@ structural example, but its target adapter cannot be reused here.
 ## Shared API and installation
 
 Use the sibling RL-harness checkout containing `analysis.simplex`. Its packaged
-`analysis/simplex_viewer/README.md` documents the complete contract.
+`analysis/nonergodic_belief_explorer/README.md` documents the complete contract.
 From this experiment repo, run:
 
 ```bash
 uv sync --group dev --extra visualization
-uv run python -c "from analysis.simplex import build_simplex_run, write_simplex_viewer"
+uv run python -c "from analysis.simplex import build_simplex_run, write_nonergodic_belief_explorer"
 ```
 
 The visualization extra now requests `rl-harness[visualization]`. There is no
@@ -120,7 +120,7 @@ from pathlib import Path
 
 import numpy as np
 
-from analysis.simplex import build_simplex_run, write_simplex_viewer
+from analysis.simplex import build_simplex_run, write_nonergodic_belief_explorer
 
 run = build_simplex_run(
     name="PR 119 · token guess",
@@ -143,10 +143,10 @@ run = build_simplex_run(
     cloud_rows=heldout_cloud_rows,
     example_episodes=np.arange(min(8, len(test_source_beliefs))),
 )
-write_simplex_viewer(
+write_nonergodic_belief_explorer(
     Path("experiments/nonergodic_mess3_token_guess_cycle_1/ppo/artifacts/simplex"),
     [run],
-    title="PR 119 · nonergodic belief geometry",
+    title="Nonergodic Belief Explorer · PR 119",
     description=protocol_description,
     reports={"Probe battery": battery.report, "Provenance": provenance},
 )
@@ -164,6 +164,27 @@ sampling and any warmup. The exporter bundles reports, Plotly and data for
 offline use and refuses to overwrite its files. Keep the full output tree
 under ignored `artifacts/`; publish compact findings separately.
 
+### Selected layers and saved scores
+
+Extract and fit only the site(s) requested for the study; a single last-layer
+entry works. Use the actual selected keys in `test_features`, `predictions` and
+`primary_site`. Checkpoints may have different site subsets. The table can also
+show scores from layers whose geometry was not exported.
+
+Follow the harness guide's `ExplorerScore` and `add_explorer_scores` example for
+optional activation-to-NTP/log-NTP scores and run-level task/reference scores.
+Reuse actual saved measurements, omit missing ones and describe their policy,
+sampling and target timing. The nuisance baselines predicting belief from
+NTP/log-NTP are not activation-to-NTP probes.
+
+If a requested predictive probe is missing, select a final or penultimate site
+before fitting. PR #119's target is `source @ model.emission_matrix`, not the
+arrival belief one transition later; guesses and rewards do not enter it.
+Use its natural log with a recorded floor for log-NTP. Fit affine maps using
+whole-episode training groups and evaluate on independent held-out episodes.
+The viewer merely displays supplied scores; it never reruns probes or computes
+reward references to fill missing cells.
+
 ## Example prompt
 
 Copy this after adopting the shared-library and experiment migration PRs:
@@ -171,7 +192,7 @@ Copy this after adopting the shared-library and experiment migration PRs:
 > Update the experiment from https://github.com/Al-does/alex-rl-experiments/pull/119
 > to generate and display its belief geometry with RL-harness's shared
 > `analysis.simplex` API. Follow this experiment's `simplex_adoption.md` and the
-> harness's packaged simplex-viewer guide.
+> harness's packaged Nonergodic Belief Explorer guide.
 >
 > Use the completed PPO run `20260911T003313Z-d1b8abe3`. Restore and verify its
 > actual initialization and final native module checkpoints through the recorded
@@ -189,7 +210,7 @@ Copy this after adopting the shared-library and experiment migration PRs:
 > Fit with `evaluate_belief_geometry`, keeping whole episodes grouped, training-only
 > regularization, initialization, predictive/observation controls, nulls and
 > episode-bootstrap comparisons. Use post-final normalization as primary.
-> Export with `build_simplex_run` and `write_simplex_viewer`, with components
+> Export with `build_simplex_run` and `write_nonergodic_belief_explorer`, with components
 > [0,1,2] and [3,4,5], no action fields, raw affine coordinates, and full precision.
 > Provide held-out point clouds, initialization/final controls and complete example
 > histories with a timestep slider in the shared four-panel viewer.

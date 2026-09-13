@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import subprocess
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,7 +14,7 @@ import numpy as np
 import torch
 from analysis.belief_geometry import evaluate_belief_geometry
 from analysis.checkpoints import load_module_only
-from analysis.simplex import build_simplex_run, write_simplex_viewer
+from analysis.simplex import build_simplex_run, write_nonergodic_belief_explorer
 from analysis.simplex import geometry_metrics as score_geometry
 from envs.hmm import HMMEnv
 from harness.storage.b2 import B2StorageConfig
@@ -32,13 +33,12 @@ RUNS = {
     "variant_3": ("alpha095/variant_3", "nem3-rsa-c5-alpha095-variant_3-s42"),
 }
 HORIZON = 128
-SITES = ("layer_1", "layer_2", "layer_3", "layer_4", "post_final_norm")
 COMPONENT_INDICES = {"Component A": [0, 1, 2], "Component B": [3, 4, 5]}
 STUDY_DESCRIPTION = (
     "Alpha095 variants 2 and 3: actual initialization and final checkpoints from PR 122. "
     "Both checkpoints see identical final-policy greedy histories; initialization is an "
     "off-policy representation control. Independent complete episodes form the fit and test sets. "
-    "Post-final RMSNorm is primary; all four pre-normalization residual streams are robustness comparisons.\n\n"
+    "The representation menu contains only the requested probe sites; the primary site is declared before evaluation.\n\n"
     "The target is the decision-time arrival belief, conditioned on visible delayed tokens and "
     "executed actions, never reward or latent state. Position 0 is BOS; positions 1–127 reveal "
     "delayed tokens. Position 127 is terminal, with no next action. The independent filter is "
@@ -194,23 +194,42 @@ def collect_histories(
     return Histories(**{key: np.concatenate(value) for key, value in output.items()}, diagnostic_error=diagnostic_error)
 
 
+def representation_sites(
+    model: FactoredReproductionActorCritic, sites: Sequence[str] | None = None,
+) -> tuple[str, ...]:
+    available = tuple(f"layer_{i + 1}" for i in range(len(model.encoder.blocks))) + ("post_final_norm",)
+    selected = available if sites is None else tuple(sites)
+    if not selected or len(set(selected)) != len(selected) or not set(selected) <= set(available):
+        raise ValueError(f"sites must be a nonempty distinct subset of {available}")
+    return selected
+
+
 @torch.inference_mode()
-def extract_layers(model: FactoredReproductionActorCritic, observations: np.ndarray) -> np.ndarray:
+def extract_layers(
+    model: FactoredReproductionActorCritic, observations: np.ndarray,
+    *, sites: Sequence[str] | None = None,
+) -> np.ndarray:
+    selected = representation_sites(model, sites)
     captured = {}
 
-    def capture(layer: int):
+    def capture(layer: str):
         def hook(_module, _inputs, output):
             captured[layer] = output.detach().numpy().copy()
         return hook
 
-    handles = [block.register_forward_hook(capture(i)) for i, block in enumerate(model.encoder.blocks)]
+    handles = [
+        block.register_forward_hook(capture(f"layer_{i + 1}"))
+        for i, block in enumerate(model.encoder.blocks) if f"layer_{i + 1}" in selected
+    ]
     batches = []
     try:
         for start in range(0, len(observations), 32):
             captured.clear()
             normalized = model.encoder.forward_complete_episode(torch.from_numpy(observations[start:start + 32]))
+            if "post_final_norm" in selected:
+                captured["post_final_norm"] = normalized.numpy().copy()
             batches.append(np.stack(
-                [captured[i] for i in range(len(handles))] + [normalized.numpy().copy()],
+                [captured[site] for site in selected],
                 axis=2,
             ))
     finally:
@@ -223,9 +242,16 @@ def geometry_metrics(prediction: np.ndarray, beliefs: np.ndarray) -> dict:
     return score_geometry(prediction, beliefs, components=COMPONENT_INDICES)
 
 
-def analyze_run(name: str, *, episodes: int, seed: int, cache: Path) -> tuple[dict, dict]:
+def analyze_run(
+    name: str, *, episodes: int, seed: int, cache: Path,
+    sites: Sequence[str] | None = None, primary_site: str | None = None,
+) -> tuple[dict, dict]:
     provenance, checkpoints = restore_run(name)
     final = load_model(checkpoints["final"])
+    layers = representation_sites(final, sites)
+    primary = primary_site or ("post_final_norm" if "post_final_norm" in layers else layers[-1])
+    if primary not in layers:
+        raise ValueError("primary_site must be one of the selected sites")
     histories = {}
     for split, offset in (("fit", 0), ("test", 1)):
         histories[split] = collect_histories(
@@ -235,14 +261,11 @@ def analyze_run(name: str, *, episodes: int, seed: int, cache: Path) -> tuple[di
     for checkpoint, path in checkpoints.items():
         module = final if checkpoint == "final" else load_model(path)
         features[checkpoint] = {
-            split: extract_layers(module, data.observations)
+            split: extract_layers(module, data.observations, sites=layers)
             for split, data in histories.items()
         }
     fit, test = histories["fit"], histories["test"]
     y_fit, y_test = fit.beliefs.reshape(-1, 6), test.beliefs.reshape(-1, 6)
-    layers = SITES
-    if features["final"]["fit"].shape[2] != len(layers):
-        raise ValueError("expected four residual blocks and the final RMSNorm output")
 
     def feature_dict(checkpoint: str, split: str) -> dict:
         values = features[checkpoint][split]
@@ -288,8 +311,8 @@ def analyze_run(name: str, *, episodes: int, seed: int, cache: Path) -> tuple[di
             "target": "decision-time arrival belief conditioned on visible tokens and executed actions, without rewards",
             "timing": "t=0 is reset/BOS; t=1..127 reveal delayed tokens. t=127 is the terminal observation, with no action.",
             "warmup": 0,
-            "representation": "post-final RMSNorm primary; residual after each of four blocks as robustness controls",
-            "primary_layer": "post_final_norm (fixed before evaluation, not selected on test scores)",
+            "representation_sites": list(layers),
+            "primary_layer": f"{primary} (fixed before evaluation, not selected on test scores)",
             "probe": "affine; SVD cutoff chosen by whole-episode training-only cross-validation",
             "uncertainty": "fixed-probe episode bootstrap; one training seed per component set",
             "log_probability_floor": 1e-12,
@@ -323,7 +346,7 @@ def analyze_run(name: str, *, episodes: int, seed: int, cache: Path) -> tuple[di
         ),
         targets=test.beliefs,
         components=COMPONENT_INDICES,
-        primary_site="post_final_norm",
+        primary_site=primary,
         predictions={
             {"init": "Initialization", "final": "Final"}[checkpoint]: {
                 layer: values.reshape(test.beliefs.shape) for layer, values in layer_values.items()
@@ -362,6 +385,8 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--episodes", type=int, default=160, help="independent episodes per fit/test split")
     parser.add_argument("--seed", type=int, default=20260912)
+    parser.add_argument("--sites", nargs="+", help="only fit these sites, e.g. post_final_norm or layer_3 layer_4")
+    parser.add_argument("--primary-site", help="default: post_final_norm if selected, otherwise the last requested site")
     parser.add_argument("--download-only", action="store_true")
     args = parser.parse_args()
     if args.download_only:
@@ -382,6 +407,7 @@ def main() -> None:
         report, viewer = analyze_run(
             name, episodes=args.episodes, seed=args.seed + 100 * index,
             cache=args.output / "raw",
+            sites=args.sites, primary_site=args.primary_site,
         )
         reports[name] = report
         viewer_runs.append(viewer)
@@ -395,9 +421,9 @@ def main() -> None:
         "analysis": analysis_metadata,
         "runs": {name: {key: value for key, value in report.items() if key != "battery"} for name, report in reports.items()},
     }
-    write_simplex_viewer(
+    write_nonergodic_belief_explorer(
         args.output, viewer_runs,
-        title="Nonergodic belief geometry · Alpha 0.95",
+        title="Nonergodic Belief Explorer · Alpha 0.95",
         description=STUDY_DESCRIPTION,
         reports={**{f"{name} full report": report for name, report in reports.items()}, "Provenance and metrics": summary},
     )
