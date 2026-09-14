@@ -8,7 +8,7 @@ from experiments.pusher_b_reward_state_action_symmetry_cycle_1.throughput.shared
 )
 
 
-MAX_ENV_RUNNERS = 65
+MAX_ENV_RUNNERS = 52
 
 
 def build_config(context: RunContext):
@@ -18,6 +18,6 @@ def build_config(context: RunContext):
 def run(context: RunContext):
     return run_condition(
         context,
-        label="b10_reward_b_variant_2_cpu_65",
+        label="b10_reward_b_variant_2_cpu_52",
         max_env_runners=MAX_ENV_RUNNERS,
     )

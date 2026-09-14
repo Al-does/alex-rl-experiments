@@ -20,7 +20,7 @@ from harness.hardware import PROFILES
 LAYOUTS = {
     16: (16, 130),
     32: (32, 65),
-    65: (65, 32),
+    52: (52, 40),
 }
 
 
@@ -101,19 +101,19 @@ def test_recipe_records_isolated_benchmark_provenance(tmp_path, monkeypatch):
     monkeypatch.setattr(shared, "available_cpus", lambda: 144)
     recipe = shared.resolved_recipe(
         _context(tmp_path),
-        label="b10_reward_b_variant_2_cpu_65",
-        max_env_runners=65,
+        label="b10_reward_b_variant_2_cpu_52",
+        max_env_runners=52,
     )
     assert recipe["study"].endswith("_throughput")
     assert recipe["source_recipe"].endswith(
         "b10_reward_b.variant_2.experiment"
     )
     assert recipe["total_env_steps"] == shared.BENCHMARK_ENV_STEPS
-    assert recipe["sampling_layout"]["num_env_runners"] == 65
+    assert recipe["sampling_layout"]["num_env_runners"] == 52
     assert recipe["sampling_layout"]["episodes_per_sampling_round"] == 2_080
 
 
-@pytest.mark.parametrize("leaf", ["baseline_16", "cpu_32", "cpu_65"])
+@pytest.mark.parametrize("leaf", ["baseline_16", "cpu_32", "cpu_52"])
 def test_throughput_leaves_are_importable(leaf):
     module = importlib.import_module(
         "experiments.pusher_b_reward_state_action_symmetry_cycle_1."

@@ -100,7 +100,7 @@ def resolved_recipe(
             ),
             "primary_comparison": (
                 "same-seed b10 reward-B variant-2 PPO with at most 16, 32, "
-                "or 65 CPU EnvRunners on one matched GPU host"
+                "or 52 CPU EnvRunners on one matched GPU host"
             ),
             "total_env_steps": (
                 SMOKE_ENV_STEPS if context.smoke else BENCHMARK_ENV_STEPS
@@ -120,7 +120,7 @@ def resolved_recipe(
                 "env_runner_device": "cpu",
             },
             "intended_hardware": (
-                "one RTX 4090-equivalent learner GPU and at least 65 CPUs"
+                "one RTX 4090-equivalent learner GPU and at least 53 CPUs"
             ),
         }
     )

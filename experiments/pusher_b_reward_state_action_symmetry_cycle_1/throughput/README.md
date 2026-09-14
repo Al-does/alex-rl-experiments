@@ -17,9 +17,9 @@ sampling wall time without materially changing early learning.
 - Seed: `42`
 - Budget: 1,048,576 environment steps
 - Baseline: at most 16 CPU EnvRunners
-- Candidates: at most 32 or 65 CPU EnvRunners
+- Candidates: at most 32 or 52 CPU EnvRunners
 - Environments per runner: recomputed to preserve at least one 262,144-step
-  complete-episode sampling batch. The 16, 32, and 65 runner layouts all
+  complete-episode sampling batch. The 16, 32, and 52 runner layouts all
   collect exactly 2,080 complete episodes per sampling round on the target host.
 - Learner: one CUDA GPU under the `cuda4090` hardware profile
 - Comparison: sampling and learner timers, sampled steps per second, CPU/GPU
