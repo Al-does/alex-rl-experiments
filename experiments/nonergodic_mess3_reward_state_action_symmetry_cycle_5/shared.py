@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
 from functools import partial
 import math
@@ -293,6 +293,9 @@ def run_condition(
     variant: int,
     *,
     component_parameters: Sequence[Mapping[str, object]] | None = None,
+    condition: str | None = None,
+    config_builder: Callable[[RunContext], PPOConfig] | None = None,
+    recipe_builder: Callable[[RunContext], Mapping[str, object]] | None = None,
 ) -> dict[str, Any]:
     from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.analysis import (
         analyze_checkpoint,
@@ -302,22 +305,30 @@ def run_condition(
         raise ValueError("non-ergodic action symmetry requires a resolved seed")
     if context.resume_from is not None:
         raise ValueError("continuation is not defined for this experiment")
-    condition = f"variant_{variant}"
+    resolved_condition = condition or f"variant_{variant}"
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     outputs.write_json(
         "resolved_recipe.json",
-        resolved_recipe(
-            context,
-            variant,
-            component_parameters=component_parameters,
+        (
+            dict(recipe_builder(context))
+            if recipe_builder is not None
+            else resolved_recipe(
+                context,
+                variant,
+                component_parameters=component_parameters,
+            )
         ),
     )
     result_grid = run_tune(
-        build_config(
-            context,
-            variant,
-            component_parameters=component_parameters,
+        (
+            config_builder(context)
+            if config_builder is not None
+            else build_config(
+                context,
+                variant,
+                component_parameters=component_parameters,
+            )
         ),
         context,
         stop={
@@ -334,7 +345,7 @@ def run_condition(
     )
     results = list(result_grid)
     if len(results) != 1 or results[0].error is not None:
-        raise RuntimeError(f"{condition} PPO training failed")
+        raise RuntimeError(f"{resolved_condition} PPO training failed")
     write_training_curves(context)
     records: list[Mapping[str, Any]] = [
         {
@@ -372,7 +383,7 @@ def run_condition(
             )
         )
     summary = {
-        "condition": condition,
+        "condition": resolved_condition,
         "seed": context.seed,
         "smoke": context.smoke,
         "algorithm": "PPO",
