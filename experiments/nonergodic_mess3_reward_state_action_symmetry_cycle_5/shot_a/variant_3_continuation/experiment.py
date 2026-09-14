@@ -152,16 +152,44 @@ def fetch_source_checkpoint(context: RunContext) -> Path:
     return destination
 
 
+def _is_checkpoint(path: Path) -> bool:
+    return (path / "rllib_checkpoint.json").is_file()
+
+
+def _restore_source(algorithm: Any, source: Path, rehomed: Path) -> None:
+    """Load the source state and save it under this box's resource layout.
+
+    The source checkpoint stores the config of the box that trained it, so
+    restoring it verbatim can demand more env-runner CPUs than this machine
+    has. Probes therefore read the re-saved copy, whose stored config fits.
+    """
+
+    algorithm.restore_from_path(str(source))
+    if not _is_checkpoint(rehomed):
+        algorithm.save_to_path(str(rehomed))
+
+
+def rehome_source_checkpoint(config: Any, source: Path, rehomed: Path) -> Path:
+    if not _is_checkpoint(rehomed):
+        algorithm = config.build_algo()
+        try:
+            _restore_source(algorithm, source, rehomed)
+        finally:
+            algorithm.stop()
+    return rehomed
+
+
 class _RestoringConfig:
     """Build the fresh Shot A Algorithm, then load the source checkpoint."""
 
-    def __init__(self, config: Any, checkpoint: Path) -> None:
+    def __init__(self, config: Any, checkpoint: Path, rehomed: Path) -> None:
         self._config = config
         self._checkpoint = checkpoint
+        self._rehomed = rehomed
 
     def build_algo(self) -> Any:
         algorithm = self._config.build_algo()
-        algorithm.restore_from_path(str(self._checkpoint))
+        _restore_source(algorithm, self._checkpoint, self._rehomed)
         return algorithm
 
     def to_dict(self) -> dict[str, Any]:
@@ -181,6 +209,37 @@ def build_config(context: RunContext, checkpoint_root: Path):
             start_steps=0 if smoke else SOURCE_AGENT_STEPS,
         ),
     )
+
+
+def _saved_checkpoints(index_path: Path) -> list[dict[str, Any]]:
+    if not index_path.is_file():
+        return []
+    return list(json.loads(index_path.read_text())["checkpoints"])
+
+
+def _completed_training_result(
+    outputs: RunArtifacts, index_path: Path, total_steps: int
+) -> Mapping[str, Any] | None:
+    """Return the recorded final iteration when this run already trained.
+
+    Lets a rerun with the same ``--run-id`` (after a post-training failure)
+    skip straight to probing instead of retraining from the source.
+    """
+
+    saved = _saved_checkpoints(index_path)
+    if not saved or int(saved[-1]["agent_steps"]) < total_steps:
+        return None
+    if not _is_checkpoint(Path(saved[-1]["path"])):
+        return None
+    lines = [
+        line
+        for line in outputs.metrics_path.read_text().splitlines()
+        if line.strip()
+    ]
+    final = json.loads(lines[-1])
+    if _lifetime_steps(final) < total_steps:
+        return None
+    return final
 
 
 def resolved_recipe(context: RunContext) -> dict[str, object]:
@@ -238,21 +297,26 @@ def run(context: RunContext) -> dict[str, Any]:
     outputs.prepare()
     outputs.write_json("resolved_recipe.json", resolved_recipe(context))
     checkpoint_root = context.artifacts_dir / "step_checkpoints"
+    rehomed_source = checkpoint_root / "source_final_checkpoint"
+    index_path = checkpoint_root / CHECKPOINT_INDEX
     total_steps = SMOKE_TOTAL_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
-    final_result = run_algorithm(
-        _RestoringConfig(build_config(context, checkpoint_root), source),
-        replace(context, resume_from=None),
-        should_stop=lambda result: _lifetime_steps(result) >= total_steps,
-        checkpoint_at_end=True,
-    )
+    final_result = _completed_training_result(outputs, index_path, total_steps)
+    if final_result is None:
+        final_result = run_algorithm(
+            _RestoringConfig(
+                build_config(context, checkpoint_root), source, rehomed_source
+            ),
+            replace(context, resume_from=None),
+            should_stop=lambda result: _lifetime_steps(result) >= total_steps,
+            checkpoint_at_end=True,
+        )
+    else:
+        rehome_source_checkpoint(
+            build_config(context, checkpoint_root), source, rehomed_source
+        )
     write_training_curves(context)
 
-    index_path = checkpoint_root / CHECKPOINT_INDEX
-    saved = (
-        list(json.loads(index_path.read_text())["checkpoints"])
-        if index_path.is_file()
-        else []
-    )
+    saved = _saved_checkpoints(index_path)
     final_steps = _lifetime_steps(final_result)
     if not saved or int(saved[-1]["agent_steps"]) < final_steps:
         for final_dir in sorted(outputs.checkpoints_dir.glob("*_final")):
@@ -269,8 +333,8 @@ def run(context: RunContext) -> dict[str, Any]:
             break
     records: list[Mapping[str, Any]] = [
         {
-            "path": str(source),
-            "checkpoint_name": "source_final_checkpoint",
+            "path": str(rehomed_source),
+            "checkpoint_name": rehomed_source.name,
             "training_iteration": (
                 0 if context.smoke else SOURCE_TRAINING_ITERATION
             ),
