@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import replace
+import json
+from dataclasses import dataclass, replace
 from functools import partial
-from typing import Mapping
+from pathlib import Path
+from typing import Any, Mapping
 
 from ray import tune
 from ray.rllib.algorithms.ppo import PPOConfig
@@ -67,6 +69,42 @@ MODEL_CONFIG = FactoredReproductionModelConfig(
 ).to_dict()
 
 
+@dataclass(frozen=True)
+class PPOSettings:
+    """Budget and optimizer knobs for a full (non-smoke) Pusher-B PPO run."""
+
+    total_env_steps: int = TOTAL_ENV_STEPS
+    train_batch_size: int = TRAIN_BATCH_SIZE
+    minibatch_size: int = MINIBATCH_SIZE
+    lr: float | list[list[float]] = tuple(map(tuple, LEARNING_RATE_SCHEDULE))
+    entropy_coeff: float | list[list[float]] = tuple(
+        map(tuple, ENTROPY_COEFF_SCHEDULE)
+    )
+    checkpoint_every_env_steps: int | None = None
+    checkpoint_origin_env_steps: int = 0
+
+    def _schedule(self, value):
+        if isinstance(value, (int, float)):
+            return value
+        return [list(row) for row in value]
+
+    def resolved(self, smoke: bool) -> dict[str, Any]:
+        return {
+            "total_env_steps": SMOKE_ENV_STEPS if smoke else self.total_env_steps,
+            "train_batch_size": (
+                SMOKE_BATCH_SIZE if smoke else self.train_batch_size
+            ),
+            "minibatch_size": SMOKE_MINIBATCH_SIZE if smoke else self.minibatch_size,
+            "lr": self._schedule(self.lr),
+            "entropy_coeff": self._schedule(self.entropy_coeff),
+            "checkpoint_every_env_steps": self.checkpoint_every_env_steps,
+            "checkpoint_origin_env_steps": self.checkpoint_origin_env_steps,
+        }
+
+
+DEFAULT_SETTINGS = PPOSettings()
+
+
 def _init_algorithm(
     *,
     algorithm,
@@ -74,13 +112,63 @@ def _init_algorithm(
     warm_start_path: str | None = None,
     **kwargs,
 ) -> None:
+    if warm_start_path is not None:
+        algorithm.restore_from_path(warm_start_path)
     _save_initial_checkpoint(
         algorithm=algorithm,
         checkpoint_path=checkpoint_path,
         **kwargs,
     )
-    if warm_start_path is not None:
-        algorithm.restore_from_path(warm_start_path)
+
+
+def _save_interval_checkpoint(
+    *,
+    algorithm,
+    result: Mapping[str, Any],
+    checkpoint_root: str,
+    every_env_steps: int,
+    origin_env_steps: int,
+    **_: Any,
+) -> None:
+    """Save a public Algorithm checkpoint each time a step boundary is crossed."""
+
+    iteration_value = _metric(result, "training_iteration")
+    steps_value = _metric(result, "env_runners/num_env_steps_sampled_lifetime")
+    if iteration_value is None or steps_value is None:
+        return
+    steps = int(steps_value)
+    bucket = (steps - origin_env_steps) // every_env_steps
+    if bucket <= 0:
+        return
+    root = Path(checkpoint_root)
+    index_path = root / "index.json"
+    records = (
+        json.loads(index_path.read_text()).get("checkpoints", [])
+        if index_path.is_file()
+        else []
+    )
+    if any(int(record["bucket"]) >= bucket for record in records):
+        return
+    root.mkdir(parents=True, exist_ok=True)
+    destination = root / (
+        f"iteration_{int(iteration_value):06d}_steps_{steps:09d}"
+    )
+    saved = Path(algorithm.save_to_path(str(destination)))
+    records.append(
+        {
+            "path": str(saved),
+            "checkpoint_name": saved.name,
+            "training_iteration": int(iteration_value),
+            "agent_steps": steps,
+            "bucket": bucket,
+            "target_agent_steps": origin_env_steps + bucket * every_env_steps,
+        }
+    )
+    temporary = index_path.with_suffix(".json.tmp")
+    temporary.write_text(
+        json.dumps({"checkpoints": records}, indent=2, sort_keys=True) + "\n"
+    )
+    temporary.replace(index_path)
 
 
 def _sampling_layout(
@@ -92,7 +180,12 @@ def _sampling_layout(
     return resolve_env_runners(profile, default=16), NUM_ENVS_PER_ENV_RUNNER
 
 
-def build_config(context: RunContext, *, preset: str) -> PPOConfig:
+def build_config(
+    context: RunContext,
+    *,
+    preset: str,
+    settings: PPOSettings = DEFAULT_SETTINGS,
+) -> PPOConfig:
     if preset not in PRESETS:
         raise ValueError(f"unknown Pusher-B preset: {preset!r}")
     profile = context.hardware or PROFILES["cpu"]
@@ -100,6 +193,26 @@ def build_config(context: RunContext, *, preset: str) -> PPOConfig:
         context,
         profile,
     )
+    knobs = settings.resolved(context.smoke)
+    on_train_result = [
+        partial(
+            _save_log_spaced_checkpoint,
+            checkpoint_root=str(
+                context.artifacts_dir / "log_spaced_checkpoints"
+            ),
+        )
+    ]
+    if knobs["checkpoint_every_env_steps"]:
+        on_train_result.append(
+            partial(
+                _save_interval_checkpoint,
+                checkpoint_root=str(
+                    context.artifacts_dir / "interval_checkpoints"
+                ),
+                every_env_steps=int(knobs["checkpoint_every_env_steps"]),
+                origin_env_steps=int(knobs["checkpoint_origin_env_steps"]),
+            )
+        )
     return (
         PPOConfig()
         .environment(HMMEnv, env_config=environment_config(preset))
@@ -114,7 +227,7 @@ def build_config(context: RunContext, *, preset: str) -> PPOConfig:
             torch_compile_worker=False,
         )
         .training(
-            lr=LEARNING_RATE_SCHEDULE,
+            lr=knobs["lr"],
             gamma=0.0,
             lambda_=0.0,
             clip_param=0.2,
@@ -122,13 +235,9 @@ def build_config(context: RunContext, *, preset: str) -> PPOConfig:
             use_gae=True,
             use_kl_loss=False,
             vf_loss_coeff=0.25,
-            entropy_coeff=ENTROPY_COEFF_SCHEDULE,
-            train_batch_size_per_learner=(
-                SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
-            ),
-            minibatch_size=(
-                SMOKE_MINIBATCH_SIZE if context.smoke else MINIBATCH_SIZE
-            ),
+            entropy_coeff=knobs["entropy_coeff"],
+            train_batch_size_per_learner=knobs["train_batch_size"],
+            minibatch_size=knobs["minibatch_size"],
             num_epochs=NUM_EPOCHS,
             shuffle_batch_per_epoch=True,
         )
@@ -150,12 +259,7 @@ def build_config(context: RunContext, *, preset: str) -> PPOConfig:
                     else None
                 ),
             ),
-            on_train_result=partial(
-                _save_log_spaced_checkpoint,
-                checkpoint_root=str(
-                    context.artifacts_dir / "log_spaced_checkpoints"
-                ),
-            ),
+            on_train_result=on_train_result,
         )
         .debugging(seed=context.seed)
         .env_runners(
@@ -179,6 +283,7 @@ def resolved_recipe(
     context: RunContext,
     *,
     preset: str,
+    settings: PPOSettings = DEFAULT_SETTINGS,
 ) -> dict[str, object]:
     if preset not in PRESETS:
         raise ValueError(f"unknown Pusher-B preset: {preset!r}")
@@ -187,6 +292,7 @@ def resolved_recipe(
         context,
         profile,
     )
+    knobs = settings.resolved(context.smoke)
     model = pusher_b_model(preset)
     return {
         "study": "pusher_b",
@@ -213,19 +319,15 @@ def resolved_recipe(
         "previous_action_in_observation": False,
         "algorithm": "clipped PPO",
         "objective": "sampled next-token correctness only; no cross-entropy loss",
-        "learning_rate": LEARNING_RATE_SCHEDULE,
+        "learning_rate": knobs["lr"],
         "gamma": 0.0,
         "lambda": 0.0,
         "clip_param": 0.2,
         "use_kl_loss": False,
         "value_loss_coeff": 0.25,
-        "entropy_coeff": ENTROPY_COEFF_SCHEDULE,
-        "train_batch_size_per_learner": (
-            SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
-        ),
-        "minibatch_size": (
-            SMOKE_MINIBATCH_SIZE if context.smoke else MINIBATCH_SIZE
-        ),
+        "entropy_coeff": knobs["entropy_coeff"],
+        "train_batch_size_per_learner": knobs["train_batch_size"],
+        "minibatch_size": knobs["minibatch_size"],
         "num_epochs": NUM_EPOCHS,
         "model": dict(MODEL_CONFIG),
         "sampling_layout": {
@@ -237,11 +339,20 @@ def resolved_recipe(
             ),
         },
         "episode_length": EPISODE_LENGTH,
-        "total_env_steps": (
-            SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
-        ),
+        "total_env_steps": knobs["total_env_steps"],
         "stopping_metric": "env_runners/num_env_steps_sampled_lifetime",
-        "checkpoint_schedule": "initial, powers of two iterations, final",
+        "checkpoint_schedule": (
+            "initial, powers of two iterations, final"
+            + (
+                f", every {knobs['checkpoint_every_env_steps']} lifetime steps"
+                f" from {knobs['checkpoint_origin_env_steps']}"
+                if knobs["checkpoint_every_env_steps"]
+                else ""
+            )
+        ),
+        "warm_start_from": (
+            str(context.resume_from) if context.resume_from is not None else None
+        ),
         "intended_hardware": (
             "CPU smoke; full training sized for one NVIDIA H100-class GPU"
         ),
@@ -257,23 +368,28 @@ def _metric(metrics: Mapping[str, object], path: str) -> object | None:
     return value
 
 
-def run_ppo(context: RunContext, *, preset: str) -> dict[str, object]:
+def run_ppo(
+    context: RunContext,
+    *,
+    preset: str,
+    settings: PPOSettings = DEFAULT_SETTINGS,
+) -> dict[str, object]:
     if context.seed is None:
         raise ValueError("Pusher-B PPO requires a resolved seed")
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     outputs.write_json(
         "resolved_recipe.json",
-        resolved_recipe(context, preset=preset),
+        resolved_recipe(context, preset=preset, settings=settings),
     )
     tune_context = (
         replace(context, resume_from=None)
         if context.resume_from is not None
         else context
     )
-    target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
+    target_steps = int(settings.resolved(context.smoke)["total_env_steps"])
     result_grid = run_tune(
-        build_config(context, preset=preset),
+        build_config(context, preset=preset, settings=settings),
         tune_context,
         stop={
             "env_runners/num_env_steps_sampled_lifetime": target_steps,
