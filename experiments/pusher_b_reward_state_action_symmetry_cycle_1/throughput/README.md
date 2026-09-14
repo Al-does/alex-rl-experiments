@@ -15,7 +15,7 @@ sampling wall time without materially changing early learning.
 
 - Condition: `b10`, reward state `B`, variant `2`
 - Seed: `42`
-- Budget: 1,048,576 environment steps
+- Budget: 524,288 requested environment steps (two complete PPO iterations)
 - Baseline: at most 16 CPU EnvRunners
 - Candidates: at most 32 or 52 CPU EnvRunners
 - Environments per runner: recomputed to preserve at least one 262,144-step
@@ -23,7 +23,7 @@ sampling wall time without materially changing early learning.
   collect exactly 2,080 complete episodes per sampling round on the target host.
 - Learner: one CUDA GPU under the `cuda4090` hardware profile
 - Comparison: sampling and learner timers, sampled steps per second, CPU/GPU
-  utilization, wall time, and the four initial training-curve points
+  utilization, wall time, and the two initial training-curve points
 
 Each runnable leaf writes to its own result and artifact paths. Nothing in the
 historical experiment or its result directories is modified.

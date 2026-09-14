@@ -20,7 +20,7 @@ from harness.hardware import PROFILES, available_cpus
 from harness.runners import run_tune
 
 
-BENCHMARK_ENV_STEPS = 1_048_576
+BENCHMARK_ENV_STEPS = 524_288
 PRESET = "b10"
 VARIANT = 2
 REWARD_STATE = "B"
