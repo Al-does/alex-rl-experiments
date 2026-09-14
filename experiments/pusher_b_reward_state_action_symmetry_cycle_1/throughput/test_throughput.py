@@ -4,6 +4,9 @@ import importlib
 
 import pytest
 
+from experiments.pusher_b_reward_state_action_symmetry_cycle_1 import (
+    shared as pusher_shared,
+)
 from experiments.pusher_b_reward_state_action_symmetry_cycle_1.shared import (
     MODEL_CONFIG,
     TRAIN_BATCH_SIZE,
@@ -45,7 +48,7 @@ def test_layouts_preserve_sampling_round_size(
     max_env_runners,
     expected,
 ):
-    monkeypatch.setattr(shared, "available_cpus", lambda: 144)
+    monkeypatch.setattr(pusher_shared, "available_cpus", lambda: 144)
     context = _context(tmp_path)
     assert shared.sampling_layout(
         context,
@@ -60,7 +63,7 @@ def test_throughput_config_changes_only_sampling_parallelism(
     monkeypatch,
     max_env_runners,
 ):
-    monkeypatch.setattr(shared, "available_cpus", lambda: 144)
+    monkeypatch.setattr(pusher_shared, "available_cpus", lambda: 144)
     context = _context(tmp_path)
     source = build_source_config(
         context,
@@ -98,7 +101,7 @@ def test_throughput_config_changes_only_sampling_parallelism(
 
 
 def test_recipe_records_isolated_benchmark_provenance(tmp_path, monkeypatch):
-    monkeypatch.setattr(shared, "available_cpus", lambda: 144)
+    monkeypatch.setattr(pusher_shared, "available_cpus", lambda: 144)
     recipe = shared.resolved_recipe(
         _context(tmp_path),
         label="b10_reward_b_variant_2_cpu_52",

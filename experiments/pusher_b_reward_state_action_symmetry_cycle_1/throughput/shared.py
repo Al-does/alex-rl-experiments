@@ -1,22 +1,21 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-import math
 from typing import Any
 
 from ray import tune
 from ray.rllib.algorithms.ppo import PPOConfig
 
 from experiments.pusher_b_reward_state_action_symmetry_cycle_1.shared import (
-    MIN_EPISODES_PER_TRAIN_BATCH,
     SMOKE_ENV_STEPS,
     build_config as build_source_config,
+    pusher_sampling_layout,
     resolved_recipe as source_resolved_recipe,
 )
 from experiments.storage.training_curves import write_training_curves
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
-from harness.hardware import PROFILES, available_cpus
+from harness.hardware import PROFILES
 from harness.runners import run_tune
 
 
@@ -33,15 +32,11 @@ def sampling_layout(
 ) -> tuple[int, int]:
     if max_env_runners <= 0:
         raise ValueError("max_env_runners must be positive")
-    if context.smoke:
-        return 0, 1
-    num_env_runners = min(
-        max_env_runners,
-        max(1, int(available_cpus()) - 1),
-    )
-    return (
-        num_env_runners,
-        math.ceil(MIN_EPISODES_PER_TRAIN_BATCH / num_env_runners),
+    profile = context.hardware or PROFILES["cpu"]
+    return pusher_sampling_layout(
+        context,
+        profile,
+        preferred_env_runners=max_env_runners,
     )
 
 

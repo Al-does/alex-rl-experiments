@@ -51,3 +51,7 @@ Mean returns across the first two iterations were 32.7→34.5, 33.1→35.2, and
 two-iteration check found no material early-learning divergence, but it is not
 a statistical equivalence test. The 52-runner layout is the fastest measured
 option on a host with sufficient RAM; 32 runners is the lower-memory fallback.
+
+The 52-runner preference is now shared by the full action-symmetry recipes,
+with an automatic cap at the available CPU count minus one. Host selection and
+worker-tuning guidance lives in the parent experiment's `README.md`.
