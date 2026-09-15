@@ -82,6 +82,7 @@ class PPOSettings:
     )
     checkpoint_every_env_steps: int | None = None
     checkpoint_origin_env_steps: int = 0
+    num_env_runners: int | None = None
 
     def _schedule(self, value):
         if isinstance(value, (int, float)):
@@ -99,6 +100,7 @@ class PPOSettings:
             "entropy_coeff": self._schedule(self.entropy_coeff),
             "checkpoint_every_env_steps": self.checkpoint_every_env_steps,
             "checkpoint_origin_env_steps": self.checkpoint_origin_env_steps,
+            "num_env_runners": self.num_env_runners,
         }
 
 
@@ -174,9 +176,13 @@ def _save_interval_checkpoint(
 def _sampling_layout(
     context: RunContext,
     profile: HardwareProfile,
+    settings: PPOSettings = DEFAULT_SETTINGS,
 ) -> tuple[int, int]:
     if context.smoke:
         return 0, 1
+    requested = settings.num_env_runners
+    if requested is not None:
+        profile = replace(profile, num_env_runners=requested)
     return resolve_env_runners(profile, default=16), NUM_ENVS_PER_ENV_RUNNER
 
 
@@ -192,6 +198,7 @@ def build_config(
     num_env_runners, num_envs_per_env_runner = _sampling_layout(
         context,
         profile,
+        settings,
     )
     knobs = settings.resolved(context.smoke)
     on_train_result = [
@@ -291,6 +298,7 @@ def resolved_recipe(
     num_env_runners, num_envs_per_env_runner = _sampling_layout(
         context,
         profile,
+        settings,
     )
     knobs = settings.resolved(context.smoke)
     model = pusher_b_model(preset)
