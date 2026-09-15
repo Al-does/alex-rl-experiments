@@ -83,6 +83,7 @@ class PPOSettings:
     checkpoint_every_env_steps: int | None = None
     checkpoint_origin_env_steps: int = 0
     num_env_runners: int | None = None
+    max_train_time_s: float | None = None
 
     def _schedule(self, value):
         if isinstance(value, (int, float)):
@@ -101,6 +102,7 @@ class PPOSettings:
             "checkpoint_every_env_steps": self.checkpoint_every_env_steps,
             "checkpoint_origin_env_steps": self.checkpoint_origin_env_steps,
             "num_env_runners": self.num_env_runners,
+            "max_train_time_s": self.max_train_time_s,
         }
 
 
@@ -349,6 +351,7 @@ def resolved_recipe(
         "episode_length": EPISODE_LENGTH,
         "total_env_steps": knobs["total_env_steps"],
         "stopping_metric": "env_runners/num_env_steps_sampled_lifetime",
+        "max_train_time_s": knobs["max_train_time_s"],
         "checkpoint_schedule": (
             "initial, powers of two iterations, final"
             + (
@@ -395,13 +398,17 @@ def run_ppo(
         if context.resume_from is not None
         else context
     )
-    target_steps = int(settings.resolved(context.smoke)["total_env_steps"])
+    knobs = settings.resolved(context.smoke)
+    target_steps = int(knobs["total_env_steps"])
+    stop: dict[str, float] = {
+        "env_runners/num_env_steps_sampled_lifetime": target_steps,
+    }
+    if knobs["max_train_time_s"] is not None:
+        stop["time_total_s"] = float(knobs["max_train_time_s"])
     result_grid = run_tune(
         build_config(context, preset=preset, settings=settings),
         tune_context,
-        stop={
-            "env_runners/num_env_steps_sampled_lifetime": target_steps,
-        },
+        stop=stop,
         run_config_kwargs={
             "checkpoint_config": tune.CheckpointConfig(
                 num_to_keep=1,
@@ -422,6 +429,8 @@ def run_ppo(
         "seed": context.seed,
         "smoke": context.smoke,
         "target_env_steps": target_steps,
+        "max_train_time_s": knobs["max_train_time_s"],
+        "train_time_s": _metric(metrics, "time_total_s"),
         "completed_env_steps": _metric(
             metrics,
             "env_runners/num_env_steps_sampled_lifetime",

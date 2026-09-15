@@ -277,3 +277,13 @@ def test_fresh_ppo_config_matches_pr_127_guide(tmp_path, preset):
 def test_all_four_experiment_leaves_import(module_name):
     module = importlib.import_module(module_name)
     assert callable(module.run)
+
+
+def test_continue2_is_time_bounded_and_warm_starts_from_continue():
+    from experiments.pusher_b.rl_b10_continue2 import experiment as leaf
+
+    assert leaf.PRIOR_LEAF == "rl_b10_continue"
+    knobs = leaf.SETTINGS.resolved(smoke=False)
+    assert knobs["max_train_time_s"] == 11.5 * 3600
+    assert knobs["checkpoint_origin_env_steps"] == leaf.PRIOR_ENV_STEPS
+    assert knobs["total_env_steps"] > leaf.PRIOR_ENV_STEPS
