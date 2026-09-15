@@ -347,8 +347,8 @@ def test_aux_ce_leaf_settings_shape():
 
     assert SETTINGS.next_token_aux
     assert SETTINGS.total_env_steps == 116_000_000
-    assert SETTINGS.train_batch_size == 1_048_576
-    assert SETTINGS.minibatch_size == 65_536
+    assert SETTINGS.train_batch_size == 262_144
+    assert SETTINGS.minibatch_size == 8_192
     assert SETTINGS.num_env_runners == 224
-    assert SETTINGS.num_envs_per_env_runner == 37
+    assert SETTINGS.num_envs_per_env_runner == 10
     assert SETTINGS.sample_timeout_s == 3600.0
