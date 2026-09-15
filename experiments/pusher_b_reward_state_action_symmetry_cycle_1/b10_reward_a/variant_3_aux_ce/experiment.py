@@ -9,13 +9,13 @@ from experiments.pusher_b_reward_state_action_symmetry_cycle_1.shared import (
     run_condition,
 )
 
-# Sized for the ~128-core Vast host: leaves ~18 cores for the driver,
-# learner, and Ray overhead. Final value confirmed by the on-box benchmark.
+# Sized for the ~123-effective-core Vast host (EPYC 9554): leaves ~13
+# cores for the driver, learner, and Ray overhead.
 PREFERRED_ENV_RUNNERS = 110
-# Budget targets the ~33,500 s wall-clock of run 20260914T093608Z-3e9fde2a
-# at this host's measured throughput. Final value confirmed by the on-box
-# benchmark.
-TARGET_ENV_STEPS = 80_000_000
+# On-box benchmark measured ~4,590 env steps/s steady-state (57.8 s per
+# 265k-step iteration); 154M steps matches the ~33,500 s wall-clock of
+# run 20260914T093608Z-3e9fde2a.
+TARGET_ENV_STEPS = 154_000_000
 
 
 def build_config(context: RunContext):
