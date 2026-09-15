@@ -1,19 +1,24 @@
-"""Probe the rl_b10_continue checkpoints and append them to probe_curves.json."""
+"""Probe the rl_b10_continue* checkpoints and append them to probe_curves.json.
+
+Usage: python -m experiments.pusher_b.probe_analysis.probe_continue [LEAF]
+"""
 import json
 import re
+import sys
 from pathlib import Path
 
 from experiments.pusher_b.probe_analysis.probe_curves import (CKPTS, EPISODE_LENGTH, N_FIT, N_TEST, ROOT, SEEDS, load_module_only,
                           r2_pooled, rl_forward, sample, targets)
 
-LEAF = "rl_b10_continue"
+LEAF = sys.argv[1] if len(sys.argv) > 1 else "rl_b10_continue"
 PRESET = "b10"
-PRIOR_STEPS = 15_134_336
+PRIOR_STEPS = {"rl_b10_continue": 15_134_336, "rl_b10_continue2": 115_901_216}[LEAF]
+SKIP_RESTORE = LEAF == "rl_b10_continue2"  # identical to rl_b10_continue final
 
 
 def checkpoints():
     base = CKPTS / LEAF
-    items = [(base / "initial_checkpoint", PRIOR_STEPS, "restore (iter 56)")]
+    items = [] if SKIP_RESTORE else [(base / "initial_checkpoint", PRIOR_STEPS, "restore (iter 56)")]
     for d in sorted((base / "interval_checkpoints").iterdir()):
         m = re.match(r"iteration_(\d+)_steps_(\d+)", d.name)
         if m and d.is_dir():
