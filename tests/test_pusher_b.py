@@ -352,3 +352,13 @@ def test_aux_ce_leaf_settings_shape():
     assert SETTINGS.num_env_runners == 224
     assert SETTINGS.num_envs_per_env_runner == 10
     assert SETTINGS.sample_timeout_s == 3600.0
+
+
+def test_continue2_is_time_bounded_and_warm_starts_from_continue():
+    from experiments.pusher_b.rl_b10_continue2 import experiment as leaf
+
+    assert leaf.PRIOR_LEAF == "rl_b10_continue"
+    knobs = leaf.SETTINGS.resolved(smoke=False)
+    assert knobs["max_train_time_s"] == 11.5 * 3600
+    assert knobs["checkpoint_origin_env_steps"] == leaf.PRIOR_ENV_STEPS
+    assert knobs["total_env_steps"] > leaf.PRIOR_ENV_STEPS
