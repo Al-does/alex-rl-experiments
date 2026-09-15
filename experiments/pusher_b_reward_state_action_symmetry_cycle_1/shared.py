@@ -21,12 +21,19 @@ from experiments.factored_representations_reproduction_PPO_2026_08.shared import
 from experiments.pusher_b_reward_state_action_symmetry_cycle_1.design import (
     condition_design_summary,
 )
+from experiments.pusher_b_reward_state_action_symmetry_cycle_1.learning import (
+    NEXT_TOKEN_AUX_COEFFICIENT,
+    ActorCriticWithNextTokenAux,
+    PPOWithNextTokenAux,
+    next_token_targets,
+)
 from experiments.pusher_b_reward_state_action_symmetry_cycle_1.process import (
     CONTEXT_LENGTH,
     EFFECT_SIZE,
     EPISODE_LENGTH,
     PRESETS,
     REWARD_STATES,
+    TOKEN_COUNT,
     environment_config,
     pusher_b_model,
 )
@@ -120,13 +127,29 @@ def build_config(
     preset: str,
     variant: int,
     reward_state: str,
+    preferred_env_runners: int = DEFAULT_ENV_RUNNERS,
+    next_token_aux: bool = False,
 ) -> PPOConfig:
     _validate_condition(preset, variant, reward_state)
     profile = context.hardware or PROFILES["cpu"]
     num_env_runners, num_envs_per_env_runner = pusher_sampling_layout(
         context,
         profile,
+        preferred_env_runners=preferred_env_runners,
     )
+    model_config = dict(MODEL_CONFIG)
+    module_class: type[FactoredReproductionActorCritic] = (
+        FactoredReproductionActorCritic
+    )
+    learner_kwargs: dict[str, Any] = {}
+    if next_token_aux:
+        model_config["next_token_aux"] = {"num_classes": TOKEN_COUNT}
+        module_class = ActorCriticWithNextTokenAux
+        learner_kwargs["learner_class"] = PPOWithNextTokenAux
+        learner_kwargs["learner_config_dict"] = {
+            "next_token_aux/lambda": NEXT_TOKEN_AUX_COEFFICIENT,
+            "next_token_aux/target_extractor": next_token_targets,
+        }
     return (
         PPOConfig()
         .environment(
@@ -168,8 +191,8 @@ def build_config(
         )
         .rl_module(
             rl_module_spec=RLModuleSpec(
-                module_class=FactoredReproductionActorCritic,
-                model_config=dict(MODEL_CONFIG),
+                module_class=module_class,
+                model_config=model_config,
             )
         )
         .callbacks(
@@ -199,7 +222,8 @@ def build_config(
         .learners(
             num_gpus_per_learner=(
                 1 if profile.learner_device == "cuda" else 0
-            )
+            ),
+            **learner_kwargs,
         )
     )
 
@@ -210,12 +234,16 @@ def resolved_recipe(
     preset: str,
     variant: int,
     reward_state: str,
+    preferred_env_runners: int = DEFAULT_ENV_RUNNERS,
+    next_token_aux: bool = False,
+    total_env_steps: int = TOTAL_ENV_STEPS,
 ) -> dict[str, object]:
     _validate_condition(preset, variant, reward_state)
     profile = context.hardware or PROFILES["cpu"]
     num_env_runners, num_envs_per_env_runner = pusher_sampling_layout(
         context,
         profile,
+        preferred_env_runners=preferred_env_runners,
     )
     model = pusher_b_model(preset)
     reward_state_index = model.state_labels.index(reward_state)
@@ -293,6 +321,10 @@ def resolved_recipe(
         "smoke": context.smoke,
         "seed_policy": "one fixed runtime seed per experiment; default 42",
         "algorithm": "clipped PPO",
+        "next_token_aux": next_token_aux,
+        "next_token_aux_coefficient": (
+            NEXT_TOKEN_AUX_COEFFICIENT if next_token_aux else 0.0
+        ),
         "learning_rate": (
             SMOKE_LEARNING_RATE if context.smoke else LEARNING_RATE
         ),
@@ -316,7 +348,7 @@ def resolved_recipe(
         ),
         "episode_length": EPISODE_LENGTH,
         "total_env_steps": (
-            SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
+            SMOKE_ENV_STEPS if context.smoke else total_env_steps
         ),
         "stopping_metric": "env_runners/num_env_steps_sampled_lifetime",
         "success_metrics": (
@@ -333,7 +365,7 @@ def resolved_recipe(
             "tune_summary.json",
         ],
         "sampling_layout": {
-            "preferred_num_env_runners": DEFAULT_ENV_RUNNERS,
+            "preferred_num_env_runners": preferred_env_runners,
             "num_env_runners": num_env_runners,
             "num_envs_per_env_runner": num_envs_per_env_runner,
             "episodes_per_sampling_round": (
@@ -372,6 +404,9 @@ def run_condition(
     preset: str,
     variant: int,
     reward_state: str,
+    preferred_env_runners: int = DEFAULT_ENV_RUNNERS,
+    next_token_aux: bool = False,
+    total_env_steps: int = TOTAL_ENV_STEPS,
 ) -> dict[str, Any]:
     _validate_condition(preset, variant, reward_state)
     if context.seed is None:
@@ -379,6 +414,8 @@ def run_condition(
     if context.resume_from is not None:
         raise ValueError("continuation is not defined for this experiment")
     condition = f"{preset}_reward_{reward_state.lower()}_variant_{variant}"
+    if next_token_aux:
+        condition += "_aux_ce"
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     outputs.write_json(
@@ -388,15 +425,22 @@ def run_condition(
             preset=preset,
             variant=variant,
             reward_state=reward_state,
+            preferred_env_runners=preferred_env_runners,
+            next_token_aux=next_token_aux,
+            total_env_steps=total_env_steps,
         ),
     )
-    target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
+    target_steps = (
+        SMOKE_ENV_STEPS if context.smoke else total_env_steps
+    )
     result_grid = run_tune(
         build_config(
             context,
             preset=preset,
             variant=variant,
             reward_state=reward_state,
+            preferred_env_runners=preferred_env_runners,
+            next_token_aux=next_token_aux,
         ),
         context,
         stop={
@@ -425,6 +469,10 @@ def run_condition(
         "seed": context.seed,
         "smoke": context.smoke,
         "target_env_steps": target_steps,
+        "next_token_aux": next_token_aux,
+        "next_token_aux_coefficient": (
+            NEXT_TOKEN_AUX_COEFFICIENT if next_token_aux else 0.0
+        ),
         "completed_env_steps": _metric(
             metrics,
             "env_runners/num_env_steps_sampled_lifetime",
