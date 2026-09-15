@@ -1,9 +1,10 @@
-"""Plot reward-state-2 occupancy vs held-out belief-probe MSE for variant 3.
+"""Plot reward-state-2 occupancy and belief-probe MSE vs training steps.
 
-Reads every ``checkpoint_probe_curve.json`` under ``results/`` and renders one
-training trajectory per seed: x = fraction of greedy steps spent in reward
-state 2, y = held-out affine belief-probe MSE. Checkpoints are connected in
-training order so each curve runs from initialization to the final checkpoint.
+Reads every ``checkpoint_probe_curve.json`` under ``results/`` and renders two
+stacked panels sharing a log-scaled agent-steps x-axis: the top panel shows the
+fraction of greedy steps spent in reward state 2, the bottom the held-out
+affine belief-probe MSE. The untrained initialization checkpoint is shown at a
+synthetic ``init`` x position to the left of the first trained checkpoint.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
-from matplotlib.ticker import FuncFormatter  # noqa: E402
+from matplotlib.ticker import NullFormatter, NullLocator  # noqa: E402
 
 RESULTS_DIR = Path(__file__).parent / "results"
 OUTPUT = RESULTS_DIR / "reward_occupancy_vs_mse.png"
@@ -44,56 +45,83 @@ def main() -> Path:
     if not runs:
         raise SystemExit(f"no checkpoint_probe_curve.json files under {RESULTS_DIR}")
 
-    fig, ax = plt.subplots(figsize=(8, 5.5), dpi=160)
+    checkpoint_steps = sorted({p["agent_steps"] for _, pts in runs for p in pts})
+    positive_steps = [s for s in checkpoint_steps if s > 0]
+    init_x = positive_steps[0] / 4.0 if positive_steps else 1.0
+
+    # Seeds record slightly different step counts; cluster values within ~2%
+    # so each nominal checkpoint gets one tick position.
+    clusters: list[list[int]] = []
+    for step in checkpoint_steps:
+        if clusters and step <= clusters[-1][-1] * 1.02:
+            clusters[-1].append(step)
+        else:
+            clusters.append([step])
+    tick_x = [init_x if c[0] == 0 else float(c[-1]) for c in clusters]
+    tick_label = [_format_steps(0 if c[0] == 0 else c[-1]) for c in clusters]
+    step_to_x = {s: x for c, x in zip(clusters, tick_x) for s in c}
+
+    def x_of(steps: int) -> float:
+        return step_to_x[steps]
+
+    fig, (ax_occ, ax_mse) = plt.subplots(
+        2,
+        1,
+        figsize=(8, 7),
+        dpi=160,
+        sharex=True,
+        gridspec_kw={"hspace": 0.08},
+    )
     legend_handles = []
     for index, (seed, points) in enumerate(sorted(runs)):
         color = SEED_COLORS[index % len(SEED_COLORS)]
-        xs = [p["reward_state_2_fraction_greedy"] for p in points]
-        ys = [p["mse"] for p in points]
-        ax.plot(xs, ys, "-", color=color, alpha=0.35, linewidth=1.2, zorder=2)
-        ax.plot(
+        xs = [x_of(p["agent_steps"]) for p in points]
+        ax_occ.plot(
             xs,
-            ys,
-            "o",
+            [p["reward_state_2_fraction_greedy"] for p in points],
+            "-o",
             color=color,
-            markersize=5.5,
+            alpha=0.85,
+            linewidth=1.4,
+            markersize=4.5,
             markeredgecolor="white",
-            markeredgewidth=0.6,
-            zorder=3,
+            markeredgewidth=0.5,
         )
-        ax.annotate(
-            _format_steps(points[0]["agent_steps"]),
-            (xs[0], ys[0]),
-            textcoords="offset points",
-            xytext=(6, 6),
-            fontsize=7.5,
+        ax_mse.plot(
+            xs,
+            [p["mse"] for p in points],
+            "-o",
             color=color,
+            alpha=0.85,
+            linewidth=1.4,
+            markersize=4.5,
+            markeredgecolor="white",
+            markeredgewidth=0.5,
         )
         legend_handles.append(
-            Line2D([], [], color=color, marker="o", linewidth=1.2, label=f"seed {seed}")
+            Line2D([], [], color=color, marker="o", linewidth=1.4, label=f"seed {seed}")
         )
 
-    final_x = max(p["reward_state_2_fraction_greedy"] for _, pts in runs for p in pts[-1:])
-    final_y = max(p["mse"] for _, pts in runs for p in pts[-1:])
-    final_steps = max(pts[-1]["agent_steps"] for _, pts in runs)
-    ax.annotate(
-        f"final ≈{_format_steps(final_steps)}",
-        (final_x, final_y),
-        textcoords="offset points",
-        xytext=(8, 10),
-        fontsize=8,
-        color="#333333",
+    ax_occ.set_ylabel("Reward-state occupancy\n(greedy fraction in state 2)")
+    ax_occ.set_title(
+        "Variant 3: reward occupancy and belief-probe MSE vs training steps\n"
+        "mess3_reward_state_action_symmetry_cycle_4"
     )
-
-    ax.set_xlabel("Reward-state occupancy (greedy fraction in reward state 2)")
-    ax.set_ylabel("Belief-probe MSE (held out)")
-    ax.set_title("Variant 3: reward occupancy vs belief-probe MSE\n"
-                 "mess3_reward_state_action_symmetry_cycle_4")
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
-    ax.grid(True, alpha=0.3, linewidth=0.6)
-    ax.legend(handles=legend_handles, loc="upper right", fontsize=8.5, framealpha=0.9)
-    fig.tight_layout()
-    fig.savefig(OUTPUT)
+    ax_mse.set_ylabel("Belief-probe MSE (held out)")
+    ax_mse.set_xlabel("Agent steps (log scale; init shown before first checkpoint)")
+    ax_mse.set_xscale("log")
+    ax_mse.set_xticks(tick_x)
+    ax_mse.set_xticklabels(tick_label)
+    ax_mse.xaxis.set_minor_locator(NullLocator())
+    ax_mse.xaxis.set_minor_formatter(NullFormatter())
+    ax_mse.tick_params(axis="x", rotation=30)
+    for ax in (ax_occ, ax_mse):
+        ax.grid(True, alpha=0.3, linewidth=0.6)
+        ax.margins(x=0.03)
+    ax_occ.legend(
+        handles=legend_handles, loc="lower right", fontsize=8.5, framealpha=0.9
+    )
+    fig.savefig(OUTPUT, bbox_inches="tight")
     return OUTPUT
 
 
