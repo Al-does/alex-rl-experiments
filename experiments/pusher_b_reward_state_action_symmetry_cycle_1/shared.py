@@ -38,7 +38,12 @@ from experiments.storage.training_curves import write_training_curves
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
 from harness.env_runners import FreshEpisodeSingleAgentEnvRunner
-from harness.hardware import HardwareProfile, PROFILES, resolve_env_runners
+from harness.hardware import (
+    AUTO_RUNNERS,
+    HardwareProfile,
+    PROFILES,
+    available_cpus,
+)
 from harness.runners import run_tune
 
 
@@ -52,6 +57,7 @@ LEARNING_RATE = 4.2e-4
 SMOKE_LEARNING_RATE = 3e-4
 ENTROPY_COEFF = 0.01
 NUM_EPOCHS = 6
+DEFAULT_ENV_RUNNERS = 52
 MIN_EPISODES_PER_TRAIN_BATCH = math.ceil(
     TRAIN_BATCH_SIZE / EPISODE_LENGTH
 )
@@ -83,13 +89,25 @@ def _validate_condition(
         raise ValueError("reward_state must be 'A' or 'B'")
 
 
-def _sampling_layout(
+def pusher_sampling_layout(
     context: RunContext,
     profile: HardwareProfile,
+    *,
+    preferred_env_runners: int = DEFAULT_ENV_RUNNERS,
 ) -> tuple[int, int]:
+    if preferred_env_runners <= 0:
+        raise ValueError("preferred_env_runners must be positive")
     if context.smoke:
         return 0, 1
-    num_env_runners = resolve_env_runners(profile, default=16)
+    requested_env_runners = (
+        preferred_env_runners
+        if profile.num_env_runners in (None, AUTO_RUNNERS, 0)
+        else profile.num_env_runners
+    )
+    num_env_runners = min(
+        requested_env_runners,
+        max(1, int(available_cpus()) - 1),
+    )
     return (
         num_env_runners,
         math.ceil(MIN_EPISODES_PER_TRAIN_BATCH / num_env_runners),
@@ -105,7 +123,7 @@ def build_config(
 ) -> PPOConfig:
     _validate_condition(preset, variant, reward_state)
     profile = context.hardware or PROFILES["cpu"]
-    num_env_runners, num_envs_per_env_runner = _sampling_layout(
+    num_env_runners, num_envs_per_env_runner = pusher_sampling_layout(
         context,
         profile,
     )
@@ -195,7 +213,7 @@ def resolved_recipe(
 ) -> dict[str, object]:
     _validate_condition(preset, variant, reward_state)
     profile = context.hardware or PROFILES["cpu"]
-    num_env_runners, num_envs_per_env_runner = _sampling_layout(
+    num_env_runners, num_envs_per_env_runner = pusher_sampling_layout(
         context,
         profile,
     )
@@ -315,11 +333,13 @@ def resolved_recipe(
             "tune_summary.json",
         ],
         "sampling_layout": {
+            "preferred_num_env_runners": DEFAULT_ENV_RUNNERS,
             "num_env_runners": num_env_runners,
             "num_envs_per_env_runner": num_envs_per_env_runner,
             "episodes_per_sampling_round": (
                 num_env_runners * num_envs_per_env_runner
             ),
+            "cpu_limit_policy": "at most available CPUs minus one",
             "batch_mode": "complete_episodes",
             "env_runner": (
                 "harness.env_runners:FreshEpisodeSingleAgentEnvRunner"
