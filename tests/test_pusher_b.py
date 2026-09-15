@@ -6,10 +6,17 @@ import importlib
 import numpy as np
 import pytest
 import torch
+from ray.rllib.core.columns import Columns
 
 from envs.hmm import HMMEnv
 from experiments.factored_representations_reproduction_PPO_2026_08.model import (
     FactoredReproductionActorCritic,
+)
+from experiments.pusher_b.learning import (
+    NEXT_TOKEN_AUX_COEFFICIENT,
+    ActorCriticWithNextTokenAux,
+    PPOWithNextTokenAux,
+    next_token_targets,
 )
 from experiments.pusher_b.process import (
     BOS_TOKEN,
@@ -24,6 +31,7 @@ from experiments.pusher_b.process import (
 )
 from experiments.pusher_b.rl import (
     ENTROPY_COEFF_SCHEDULE,
+    PPOSettings,
     LEARNING_RATE_SCHEDULE,
     MINIBATCH_SIZE,
     MODEL_CONFIG as RL_MODEL_CONFIG,
@@ -272,11 +280,78 @@ def test_fresh_ppo_config_matches_pr_127_guide(tmp_path, preset):
         "experiments.pusher_b.supervised_b10.experiment",
         "experiments.pusher_b.rl_b90.experiment",
         "experiments.pusher_b.rl_b10.experiment",
+        "experiments.pusher_b.rl_b10_aux_ce.experiment",
     ],
 )
-def test_all_four_experiment_leaves_import(module_name):
+def test_experiment_leaves_import(module_name):
     module = importlib.import_module(module_name)
     assert callable(module.run)
+
+
+def test_next_token_targets_aligns_logits_with_following_observation():
+    observations = torch.tensor(
+        [
+            [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 0.0]],
+            [[0.0, 0.0], [0.0, 1.0], [0.0, 0.0], [0.0, 1.0]],
+        ]
+    )
+    logits = torch.randn(2, 4, 2)
+    aux_logits, targets, valid = next_token_targets(
+        {Columns.OBS: observations},
+        logits,
+    )
+    torch.testing.assert_close(aux_logits, logits[:, :-1, :])
+    assert targets.tolist() == [[0, 1, 0], [1, 0, 1]]
+    # Position t is supervised on the token revealed at t+1; unpopulated
+    # (all-zero) next observations are dropped.
+    assert valid.tolist() == [[True, True, True], [True, False, True]]
+
+
+def test_next_token_targets_respects_loss_mask():
+    observations = torch.tensor(
+        [[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 0.0]]]
+    )
+    loss_mask = torch.tensor([[True, True, False, True]])
+    logits = torch.randn(1, 4, 2)
+    _, _, valid = next_token_targets(
+        {Columns.OBS: observations, Columns.LOSS_MASK: loss_mask},
+        logits,
+    )
+    assert valid.tolist() == [[True, False, False]]
+
+
+def test_aux_ce_ppo_config_wiring(tmp_path):
+    context = _context(tmp_path)
+    settings = PPOSettings(next_token_aux=True)
+    config = build_config(context, preset="b10", settings=settings)
+    assert (
+        config.rl_module_spec.module_class is ActorCriticWithNextTokenAux
+    )
+    assert config.rl_module_spec.model_config["next_token_aux"] == {
+        "num_classes": TOKEN_COUNT
+    }
+    assert config.learner_class is PPOWithNextTokenAux
+    learner_config = config.learner_config_dict
+    assert learner_config["next_token_aux/lambda"] == NEXT_TOKEN_AUX_COEFFICIENT
+    assert learner_config["next_token_aux/target_extractor"] is next_token_targets
+
+    recipe = resolved_recipe(context, preset="b10", settings=settings)
+    assert recipe["next_token_aux_coefficient"] == NEXT_TOKEN_AUX_COEFFICIENT
+    assert recipe["objective"] == (
+        "sampled next-token correctness plus next-token cross-entropy"
+    )
+
+
+def test_aux_ce_leaf_settings_shape():
+    from experiments.pusher_b.rl_b10_aux_ce.experiment import SETTINGS
+
+    assert SETTINGS.next_token_aux
+    assert SETTINGS.total_env_steps == 116_000_000
+    assert SETTINGS.train_batch_size == 262_144
+    assert SETTINGS.minibatch_size == 8_192
+    assert SETTINGS.num_env_runners == 224
+    assert SETTINGS.num_envs_per_env_runner == 10
+    assert SETTINGS.sample_timeout_s == 3600.0
 
 
 def test_continue2_is_time_bounded_and_warm_starts_from_continue():
