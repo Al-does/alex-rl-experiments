@@ -18,32 +18,25 @@ from experiments.factored_representations_reproduction_PPO_2026_08.shared import
     _save_initial_checkpoint,
     _save_log_spaced_checkpoint,
 )
-from experiments.pusher_b_reward_state_action_symmetry_cycle_1.design import (
+from experiments.pusher_b_reward_state_action_symmetry_cycle_2.design import (
+    VARIANTS,
     condition_design_summary,
 )
-from experiments.pusher_b_reward_state_action_symmetry_cycle_1.process import (
+from experiments.pusher_b_reward_state_action_symmetry_cycle_2.process import (
     CONTEXT_LENGTH,
+    DESTINATION_EMISSION_MATRIX,
     EFFECT_SIZE,
     EPISODE_LENGTH,
-    PRESETS,
-    REWARD_STATES,
+    REWARD_STATE,
+    TRANSITION_MATRIX,
     environment_config,
-    pusher_b_model,
-)
-from experiments.pusher_b_reward_state_action_symmetry_cycle_1.task import (
-    N_ACTIONS,
-    direction_matrix,
+    sticky_cycle_model,
 )
 from experiments.storage.training_curves import write_training_curves
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
 from harness.env_runners import FreshEpisodeSingleAgentEnvRunner
-from harness.hardware import (
-    AUTO_RUNNERS,
-    HardwareProfile,
-    PROFILES,
-    available_cpus,
-)
+from harness.hardware import HardwareProfile, PROFILES, resolve_env_runners
 from harness.runners import run_tune
 
 
@@ -57,7 +50,6 @@ LEARNING_RATE = 4.2e-4
 SMOKE_LEARNING_RATE = 3e-4
 ENTROPY_COEFF = 0.01
 NUM_EPOCHS = 6
-DEFAULT_ENV_RUNNERS = 52
 MIN_EPISODES_PER_TRAIN_BATCH = math.ceil(
     TRAIN_BATCH_SIZE / EPISODE_LENGTH
 )
@@ -76,54 +68,28 @@ MODEL_CONFIG = FactoredReproductionModelConfig(
 ).to_dict()
 
 
-def _validate_condition(
-    preset: str,
-    variant: int,
-    reward_state: str,
-) -> None:
-    if preset not in PRESETS:
-        raise ValueError(f"unknown Pusher-B preset: {preset!r}")
-    if variant not in (1, 2, 3):
-        raise ValueError("variant must be one of 1, 2, or 3")
-    if reward_state not in REWARD_STATES:
-        raise ValueError("reward_state must be 'A' or 'B'")
+def _validate_variant(variant: int) -> None:
+    if variant not in VARIANTS:
+        raise ValueError("variant must be 2 or 3")
 
 
-def pusher_sampling_layout(
+def _sampling_layout(
     context: RunContext,
     profile: HardwareProfile,
-    *,
-    preferred_env_runners: int = DEFAULT_ENV_RUNNERS,
 ) -> tuple[int, int]:
-    if preferred_env_runners <= 0:
-        raise ValueError("preferred_env_runners must be positive")
     if context.smoke:
         return 0, 1
-    requested_env_runners = (
-        preferred_env_runners
-        if profile.num_env_runners in (None, AUTO_RUNNERS, 0)
-        else profile.num_env_runners
-    )
-    num_env_runners = min(
-        requested_env_runners,
-        max(1, int(available_cpus()) - 1),
-    )
+    num_env_runners = resolve_env_runners(profile, default=16)
     return (
         num_env_runners,
         math.ceil(MIN_EPISODES_PER_TRAIN_BATCH / num_env_runners),
     )
 
 
-def build_config(
-    context: RunContext,
-    *,
-    preset: str,
-    variant: int,
-    reward_state: str,
-) -> PPOConfig:
-    _validate_condition(preset, variant, reward_state)
+def build_config(context: RunContext, variant: int) -> PPOConfig:
+    _validate_variant(variant)
     profile = context.hardware or PROFILES["cpu"]
-    num_env_runners, num_envs_per_env_runner = pusher_sampling_layout(
+    num_env_runners, num_envs_per_env_runner = _sampling_layout(
         context,
         profile,
     )
@@ -131,11 +97,7 @@ def build_config(
         PPOConfig()
         .environment(
             HMMEnv,
-            env_config=environment_config(
-                preset,
-                variant,
-                reward_state,
-            ),
+            env_config=environment_config(variant),
         )
         .framework(
             "torch",
@@ -206,63 +168,37 @@ def build_config(
 
 def resolved_recipe(
     context: RunContext,
-    *,
-    preset: str,
     variant: int,
-    reward_state: str,
 ) -> dict[str, object]:
-    _validate_condition(preset, variant, reward_state)
+    _validate_variant(variant)
     profile = context.hardware or PROFILES["cpu"]
-    num_env_runners, num_envs_per_env_runner = pusher_sampling_layout(
+    num_env_runners, num_envs_per_env_runner = _sampling_layout(
         context,
         profile,
     )
-    model = pusher_b_model(preset)
-    reward_state_index = model.state_labels.index(reward_state)
+    model = sticky_cycle_model()
     return {
-        "study": "pusher_b_reward_state_action_symmetry_cycle_1",
-        "condition": (
-            f"{preset}_reward_{reward_state.lower()}_variant_{variant}"
-        ),
+        "study": "pusher_b_reward_state_action_symmetry_cycle_2",
+        "condition": f"variant_{variant}",
         "hypothesis": (
-            "Delayed Pusher-B token and action history can support policies "
-            "whose required hidden-state action symmetry ranges from one "
-            "constant action to three distinct actions."
+            "Sticky latent states and noisy emissions require accumulating "
+            "token/action history, separating Bayes filtering from constant "
+            "and one- or two-token shortcuts."
         ),
         "primary_comparison": (
-            "within each Pusher-B preset and reward-state choice, compare "
-            "variants requiring one, two, or three state-conditioned optimal "
-            "actions"
+            "variant 2 requires two state-conditioned optimal actions; "
+            "variant 3 requires three"
         ),
-        "preset": preset,
-        "parameters": PRESETS[preset],
-        "reward_state": reward_state,
-        "reward_state_index": reward_state_index,
         "variant": variant,
-        "variant_directions": direction_matrix(
-            variant,
-            reward_state_index,
-        ).tolist(),
+        "reward_state": REWARD_STATE,
         "effect_size": EFFECT_SIZE,
-        "effect_size_selection": (
-            "odds tilt 1.5 matches the established cycle-5 symmetry recipe; "
-            "all 12 full-state oracle policies have the requested action "
-            "structure while every controlled destination probability stays "
-            "below 0.96"
-        ),
         "action_control": (
-            "three actions exponentially tilt the odds of the designated "
-            "reward-state destination while preserving transition support, "
-            "the ratio between non-reward destinations, and "
-            "P(token | source, destination)"
+            "three actions exponentially tilt reward-state destination odds "
+            "while preserving transition support, non-reward destination "
+            "ratios, and P(token | source, destination)"
         ),
-        "action_semantics": {
-            "0": "noop baseline transition",
-            "1": "positive cyclic-control action",
-            "2": "negative cyclic-control action",
-        },
         "reward": (
-            f"one when the pre-transition hidden state is {reward_state}, "
+            f"one when the pre-transition hidden state is {REWARD_STATE}, "
             "else zero"
         ),
         "observation": (
@@ -273,22 +209,19 @@ def resolved_recipe(
             "states": list(model.state_labels),
             "tokens": list(model.token_labels),
             "initial_distribution": model.initial_distribution.tolist(),
-            "transition_matrix": model.transition_matrix.tolist(),
-            "emission_matrix": model.emission_matrix.tolist(),
+            "transition_matrix": TRANSITION_MATRIX.tolist(),
+            "destination_emission_matrix": (
+                DESTINATION_EMISSION_MATRIX.tolist()
+            ),
+            "source_marginal_emission_matrix": (
+                model.emission_matrix.tolist()
+            ),
             "edge_transition_matrices": (
                 model.edge_transition_matrices.tolist()
             ),
         },
-        "environment": environment_config(
-            preset,
-            variant,
-            reward_state,
-        ),
-        "design_diagnostics": condition_design_summary(
-            preset,
-            variant,
-            reward_state,
-        ),
+        "environment": environment_config(variant),
+        "design_diagnostics": condition_design_summary(variant),
         "seed": context.seed,
         "smoke": context.smoke,
         "seed_policy": "one fixed runtime seed per experiment; default 42",
@@ -320,9 +253,7 @@ def resolved_recipe(
         ),
         "stopping_metric": "env_runners/num_env_steps_sampled_lifetime",
         "success_metrics": (
-            "episode return and reward-state occupancy learning curves, with "
-            "the exact full-state oracle occupancy recorded as a design "
-            "diagnostic rather than a POMDP-optimality claim"
+            "episode return and reward-state occupancy learning curves"
         ),
         "checkpoint_schedule": "initial, powers of two iterations, final",
         "compact_outputs": [
@@ -333,13 +264,11 @@ def resolved_recipe(
             "tune_summary.json",
         ],
         "sampling_layout": {
-            "preferred_num_env_runners": DEFAULT_ENV_RUNNERS,
             "num_env_runners": num_env_runners,
             "num_envs_per_env_runner": num_envs_per_env_runner,
             "episodes_per_sampling_round": (
                 num_env_runners * num_envs_per_env_runner
             ),
-            "cpu_limit_policy": "at most available CPUs minus one",
             "batch_mode": "complete_episodes",
             "env_runner": (
                 "harness.env_runners:FreshEpisodeSingleAgentEnvRunner"
@@ -368,36 +297,23 @@ def _metric(metrics: Mapping[str, object], path: str) -> object | None:
 
 def run_condition(
     context: RunContext,
-    *,
-    preset: str,
     variant: int,
-    reward_state: str,
 ) -> dict[str, Any]:
-    _validate_condition(preset, variant, reward_state)
+    _validate_variant(variant)
     if context.seed is None:
-        raise ValueError("Pusher-B action symmetry requires a resolved seed")
+        raise ValueError("sticky-cycle action symmetry requires a resolved seed")
     if context.resume_from is not None:
         raise ValueError("continuation is not defined for this experiment")
-    condition = f"{preset}_reward_{reward_state.lower()}_variant_{variant}"
+    condition = f"variant_{variant}"
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     outputs.write_json(
         "resolved_recipe.json",
-        resolved_recipe(
-            context,
-            preset=preset,
-            variant=variant,
-            reward_state=reward_state,
-        ),
+        resolved_recipe(context, variant),
     )
     target_steps = SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
     result_grid = run_tune(
-        build_config(
-            context,
-            preset=preset,
-            variant=variant,
-            reward_state=reward_state,
-        ),
+        build_config(context, variant),
         context,
         stop={
             "env_runners/num_env_steps_sampled_lifetime": target_steps,
@@ -415,12 +331,10 @@ def run_condition(
     write_training_curves(context)
     metrics = results[0].metrics
     summary = {
-        "study": "pusher_b_reward_state_action_symmetry_cycle_1",
+        "study": "pusher_b_reward_state_action_symmetry_cycle_2",
         "condition": condition,
-        "preset": preset,
-        "parameters": PRESETS[preset],
         "variant": variant,
-        "reward_state": reward_state,
+        "reward_state": REWARD_STATE,
         "effect_size": EFFECT_SIZE,
         "seed": context.seed,
         "smoke": context.smoke,

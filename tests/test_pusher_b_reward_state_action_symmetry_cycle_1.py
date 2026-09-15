@@ -7,6 +7,9 @@ import numpy as np
 import pytest
 
 from envs.hmm import HMMEnv
+from experiments.pusher_b_reward_state_action_symmetry_cycle_1 import (
+    shared as pusher_shared,
+)
 from experiments.pusher_b_reward_state_action_symmetry_cycle_1.design import (
     MAX_CONTROLLED_TRANSITION_PROBABILITY,
     analytic_design_summary,
@@ -43,7 +46,7 @@ from experiments.pusher_b_reward_state_action_symmetry_cycle_1.task import (
 )
 from harness.context import RunContext
 from harness.env_runners import FreshEpisodeSingleAgentEnvRunner
-from harness.hardware import PROFILES
+from harness.hardware import HardwareProfile, PROFILES
 
 
 CONDITIONS = [
@@ -211,7 +214,8 @@ def test_reward_uses_pre_transition_designated_state(reward_state):
         env.close()
 
 
-def test_complete_episode_ppo_config_and_recipe(tmp_path):
+def test_complete_episode_ppo_config_and_recipe(tmp_path, monkeypatch):
+    monkeypatch.setattr(pusher_shared, "available_cpus", lambda: 64)
     context = _context(tmp_path)
     config = build_config(
         context,
@@ -268,12 +272,59 @@ def test_complete_episode_ppo_config_and_recipe(tmp_path):
     )
     assert full_config.train_batch_size_per_learner == TRAIN_BATCH_SIZE
     assert full_config.minibatch_size == MINIBATCH_SIZE
+    assert full_config.num_env_runners == 52
+    assert full_config.num_envs_per_env_runner == 40
+    full_recipe = resolved_recipe(
+        full_context,
+        preset="b90",
+        variant=3,
+        reward_state="B",
+    )
+    assert full_recipe["sampling_layout"]["preferred_num_env_runners"] == 52
+    assert full_recipe["sampling_layout"]["cpu_limit_policy"] == (
+        "at most available CPUs minus one"
+    )
+    assert (
+        full_recipe["sampling_layout"]["episodes_per_sampling_round"] == 2_080
+    )
     assert resolved_recipe(
         full_context,
         preset="b90",
         variant=3,
         reward_state="B",
     )["total_env_steps"] == TOTAL_ENV_STEPS == 50_000_000
+
+
+@pytest.mark.parametrize(
+    ("available_cpus", "profile_runners", "expected"),
+    [
+        (64, None, (52, 40)),
+        (33, None, (32, 65)),
+        (64, 16, (16, 130)),
+    ],
+)
+def test_sampling_layout_respects_cpu_and_profile_limits(
+    tmp_path,
+    monkeypatch,
+    available_cpus,
+    profile_runners,
+    expected,
+):
+    monkeypatch.setattr(
+        pusher_shared,
+        "available_cpus",
+        lambda: available_cpus,
+    )
+    profile = HardwareProfile(
+        "test",
+        "cpu",
+        profile_runners,
+        24,
+        None,
+    )
+    context = replace(_context(tmp_path), smoke=False, hardware=profile)
+    assert pusher_shared.pusher_sampling_layout(context, profile) == expected
+    assert expected[0] * expected[1] >= 2_065
 
 
 @pytest.mark.parametrize(("preset", "reward_state", "variant"), CONDITIONS)
