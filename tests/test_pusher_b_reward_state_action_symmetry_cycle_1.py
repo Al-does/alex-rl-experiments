@@ -5,10 +5,18 @@ import importlib
 
 import numpy as np
 import pytest
+import torch
+from ray.rllib.core.columns import Columns
 
 from envs.hmm import HMMEnv
 from experiments.pusher_b_reward_state_action_symmetry_cycle_1 import (
     shared as pusher_shared,
+)
+from experiments.pusher_b_reward_state_action_symmetry_cycle_1.learning import (
+    NEXT_TOKEN_AUX_COEFFICIENT,
+    ActorCriticWithNextTokenAux,
+    PPOWithNextTokenAux,
+    next_token_targets,
 )
 from experiments.pusher_b_reward_state_action_symmetry_cycle_1.design import (
     MAX_CONTROLLED_TRANSITION_PROBABILITY,
@@ -22,6 +30,7 @@ from experiments.pusher_b_reward_state_action_symmetry_cycle_1.process import (
     EPISODE_LENGTH,
     PRESETS,
     REWARD_STATES,
+    TOKEN_COUNT,
     environment_config,
     pusher_b_model,
 )
@@ -365,3 +374,104 @@ def test_controlled_kernel_shapes():
 def test_environment_config_rejects_unknown_conditions(args, match):
     with pytest.raises(ValueError, match=match):
         environment_config(*args)
+
+
+def test_next_token_targets_aligns_logits_with_following_observation():
+    # Observation layout: 2-column delayed-token one-hot then 3-column
+    # executed-action one-hot; only the token slice supervises.
+    observations = torch.tensor(
+        [
+            [
+                [0.0, 0.0, 1.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0, 1.0],
+                [1.0, 0.0, 1.0, 0.0, 0.0],
+            ],
+            [
+                [0.0, 0.0, 0.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0, 1.0],
+                [0.0, 0.0, 1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 1.0, 0.0],
+            ],
+        ]
+    )
+    logits = torch.randn(2, 4, TOKEN_COUNT)
+    aux_logits, targets, valid = next_token_targets(
+        {Columns.OBS: observations},
+        logits,
+    )
+    torch.testing.assert_close(aux_logits, logits[:, :-1, :])
+    assert targets.tolist() == [[0, 1, 0], [1, 0, 1]]
+    # Position t is supervised on the token revealed at t+1; unpopulated
+    # (all-zero) next observations are dropped.
+    assert valid.tolist() == [[True, True, True], [True, False, True]]
+
+
+def test_next_token_targets_respects_loss_mask():
+    observations = torch.tensor(
+        [
+            [
+                [0.0, 0.0, 1.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0, 1.0],
+                [1.0, 0.0, 1.0, 0.0, 0.0],
+            ]
+        ]
+    )
+    loss_mask = torch.tensor([[True, True, False, True]])
+    logits = torch.randn(1, 4, TOKEN_COUNT)
+    _, _, valid = next_token_targets(
+        {Columns.OBS: observations, Columns.LOSS_MASK: loss_mask},
+        logits,
+    )
+    assert valid.tolist() == [[True, False, False]]
+
+
+def test_aux_ce_ppo_config_wiring(tmp_path, monkeypatch):
+    monkeypatch.setattr(pusher_shared, "available_cpus", lambda: 64)
+    context = _context(tmp_path)
+    config = build_config(
+        context,
+        preset="b10",
+        variant=3,
+        reward_state="A",
+        next_token_aux=True,
+    )
+    assert (
+        config.rl_module_spec.module_class is ActorCriticWithNextTokenAux
+    )
+    assert config.rl_module_spec.model_config["next_token_aux"] == {
+        "num_classes": TOKEN_COUNT
+    }
+    assert config.learner_class is PPOWithNextTokenAux
+    learner_config = config.learner_config_dict
+    assert learner_config["next_token_aux/lambda"] == NEXT_TOKEN_AUX_COEFFICIENT
+    assert (
+        learner_config["next_token_aux/target_extractor"]
+        is next_token_targets
+    )
+
+    recipe = resolved_recipe(
+        context,
+        preset="b10",
+        variant=3,
+        reward_state="A",
+        next_token_aux=True,
+    )
+    assert recipe["next_token_aux"] is True
+    assert recipe["next_token_aux_coefficient"] == NEXT_TOKEN_AUX_COEFFICIENT
+
+
+def test_aux_ce_leaf_module_is_importable_and_bound(tmp_path):
+    module_name = (
+        "experiments.pusher_b_reward_state_action_symmetry_cycle_1."
+        "b10_reward_a.variant_3_aux_ce.experiment"
+    )
+    module = importlib.import_module(module_name)
+    assert callable(module.run)
+    config = module.build_config(_context(tmp_path))
+    assert config.env_config == environment_config("b10", 3, "A")
+    assert (
+        config.rl_module_spec.module_class is ActorCriticWithNextTokenAux
+    )
+    assert config.learner_class is PPOWithNextTokenAux
