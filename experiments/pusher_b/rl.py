@@ -91,6 +91,7 @@ class PPOSettings:
     checkpoint_origin_env_steps: int = 0
     num_env_runners: int | None = None
     num_envs_per_env_runner: int | None = None
+    sample_timeout_s: float = 600.0
     next_token_aux: bool = False
 
     def _schedule(self, value):
@@ -111,6 +112,7 @@ class PPOSettings:
             "checkpoint_origin_env_steps": self.checkpoint_origin_env_steps,
             "num_env_runners": self.num_env_runners,
             "num_envs_per_env_runner": self.num_envs_per_env_runner,
+            "sample_timeout_s": self.sample_timeout_s,
             "next_token_aux": self.next_token_aux,
         }
 
@@ -311,7 +313,10 @@ def build_config(
             num_gpus_per_env_runner=0,
             rollout_fragment_length="auto",
             batch_mode="complete_episodes",
-            sample_timeout_s=600.0,
+            # Must exceed one full sampling round on all workers: timed-out
+            # sample() calls are dropped and orphaned rounds queue behind new
+            # calls, starving every subsequent iteration.
+            sample_timeout_s=settings.sample_timeout_s,
         )
         .learners(**learner_kwargs)
     )

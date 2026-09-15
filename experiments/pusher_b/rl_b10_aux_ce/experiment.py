@@ -9,7 +9,9 @@ by the delayed observation at t+1.
 Worker count and envs-per-runner are sized for a ~245-CPU Vast box: 224
 runners x 37 vector envs = 8,288 envs >= the ~8,256 episodes per 1M-step
 batch, i.e. roughly one collection round per iteration while leaving ~20
-cores for the driver, learner, and Ray overhead.
+cores for the driver, learner, and Ray overhead. sample_timeout_s must
+exceed one full round: timed-out sample() calls are dropped by the actor
+manager and orphaned rounds starve later iterations.
 """
 
 from experiments.pusher_b.rl import (
@@ -24,6 +26,7 @@ SETTINGS = PPOSettings(
     checkpoint_every_env_steps=20_000_000,
     num_env_runners=224,
     num_envs_per_env_runner=37,
+    sample_timeout_s=3600.0,
     next_token_aux=True,
 )
 

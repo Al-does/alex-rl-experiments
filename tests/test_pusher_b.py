@@ -351,3 +351,4 @@ def test_aux_ce_leaf_settings_shape():
     assert SETTINGS.minibatch_size == 65_536
     assert SETTINGS.num_env_runners == 224
     assert SETTINGS.num_envs_per_env_runner == 37
+    assert SETTINGS.sample_timeout_s == 3600.0
