@@ -10,6 +10,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.ticker import ScalarFormatter
 
 ROOT = Path(__file__).resolve().parent
 data = json.loads((ROOT / "results" / "probe_curves.json").read_text())
@@ -56,14 +57,20 @@ ax2.annotate("chance (constant guess) = 0.500", xy=(1, 0.5), xycoords=("axes fra
 ax1.set_yscale("log")
 ax1.set_ylabel(r"1 - R$^2$  (affine probe, last-layer residual -> Bayesian belief, held-out)")
 ax1.set_title("Pusher-B: belief-probe error vs agent steps")
-ax2.set_ylabel("greedy next-token accuracy (held-out)")
+ax2.set_ylabel("greedy next-token accuracy (held-out, log scale)")
 ax2.set_title("Pusher-B: task accuracy vs agent steps")
 ax2.set_xlabel("agent steps  (PPO: env steps;  supervised: sequences x 127 labelled tokens)")
-ax2.set_xlim(0, 6.7e8)
-ax2.ticklabel_format(axis="x", style="sci", scilimits=(6, 6))
+ax2.set_xscale("symlog", linthresh=1e5)
+ax2.set_xlim(-2e4, 1e9)
+ax2.set_yscale("log")
+ax2.set_ylim(0.49, 0.75)
+ax2.yaxis.set_major_formatter(ScalarFormatter())
+ax2.yaxis.set_minor_formatter(ScalarFormatter())
+ax2.set_yticks([0.5, 0.55, 0.6, 0.65, 0.7, 0.75], minor=False)
+ax2.set_yticks([], minor=True)
 for ax in (ax1, ax2):
     ax.grid(True, which="both", alpha=0.3)
-    ax.legend(loc="upper right" if ax is ax1 else "lower right", fontsize=9)
+    ax.legend(loc="lower left" if ax is ax1 else "lower right", fontsize=9)
 fig.tight_layout()
 out = ROOT / "results" / "pusher_b_probe_panels.png"
 fig.savefig(out, dpi=150)
