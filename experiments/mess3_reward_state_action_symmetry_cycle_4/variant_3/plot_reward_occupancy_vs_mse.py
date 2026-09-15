@@ -64,7 +64,7 @@ def main() -> Path:
     def x_of(steps: int) -> float:
         return step_to_x[steps]
 
-    fig, (ax_occ, ax_mse) = plt.subplots(
+    fig, (ax_mse, ax_occ) = plt.subplots(
         2,
         1,
         figsize=(8, 7),
@@ -103,23 +103,23 @@ def main() -> Path:
         )
 
     ax_occ.set_ylabel("Reward-state occupancy\n(greedy fraction in state 2)")
-    ax_occ.set_title(
-        "Variant 3: reward occupancy and belief-probe MSE vs training steps\n"
+    ax_mse.set_title(
+        "Variant 3: belief-probe MSE and reward occupancy vs training steps\n"
         "mess3_reward_state_action_symmetry_cycle_4"
     )
     ax_mse.set_ylabel("Belief-probe MSE (held out)")
-    ax_mse.set_xlabel("Agent steps (log scale; init shown before first checkpoint)")
-    ax_mse.set_xscale("log")
-    ax_mse.set_xticks(tick_x)
-    ax_mse.set_xticklabels(tick_label)
-    ax_mse.xaxis.set_minor_locator(NullLocator())
-    ax_mse.xaxis.set_minor_formatter(NullFormatter())
-    ax_mse.tick_params(axis="x", rotation=30)
+    ax_occ.set_xlabel("Agent steps (log scale; init shown before first checkpoint)")
+    ax_occ.set_xscale("log")
+    ax_occ.set_xticks(tick_x)
+    ax_occ.set_xticklabels(tick_label)
+    ax_occ.xaxis.set_minor_locator(NullLocator())
+    ax_occ.xaxis.set_minor_formatter(NullFormatter())
+    ax_occ.tick_params(axis="x", rotation=30)
     for ax in (ax_occ, ax_mse):
         ax.grid(True, alpha=0.3, linewidth=0.6)
         ax.margins(x=0.03)
     ax_occ.legend(
-        handles=legend_handles, loc="lower right", fontsize=8.5, framealpha=0.9
+        handles=legend_handles, loc="upper left", fontsize=8.5, framealpha=0.9
     )
     fig.savefig(OUTPUT, bbox_inches="tight")
     return OUTPUT
