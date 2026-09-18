@@ -17,7 +17,8 @@ from experiments.pusher_b.probe_analysis.probe_curves import (CKPTS, MODEL_CONFI
 PRESET = "b10"
 RUNS = {"rl_b10_continue": "PPO b=0.1 (no aux, 116M steps)", "rl_b10_aux_ce": "PPO b=0.1 + next-token CE aux (116M steps)",
         "supervised_b10": "supervised next-token b=0.1 (10k steps x 512 seqs, run 20260913T224010Z-054af3e0)"}
-N_POINTS = 20_000
+N_POINTS = 50_000
+POINT_SIZE = 1.5
 
 
 def fit_decode(a_fit, y_fit, a_test, ridge=1e-6):
@@ -49,7 +50,7 @@ def main():
         dec = fit_decode(a_fit, fb, a_test)
         # affine probe output onto the belief plane: it sums to 1 only approximately, so project for the simplex check
         dec = dec - (dec.sum(1, keepdims=True) - 1) / 3
-        fig = plot_belief_comparison(flat_t[idx], dec[idx], state_labels=["state 0", "state 1", "state 2"],
+        fig = plot_belief_comparison(flat_t[idx], dec[idx], state_labels=["state 0", "state 1", "state 2"], point_size=POINT_SIZE,
                                      title=f"{name}\nheld-out beliefs ({N_POINTS} positions): true vs affine-decoded")
         fig.savefig(ROOT / "results" / f"pusher_b_decoded_belief_{leaf}.png", dpi=150)
         plt.close(fig)
