@@ -1,0 +1,117 @@
+{
+  "action_semantics": "two categorical token-guess logits",
+  "algorithm": "clipped PPO",
+  "analysis": {
+    "representations": "four pre-final-LN block outputs, their concatenation, and the post-final-LN policy embedding control",
+    "sampling": "independent process-weighted paper-length prefixes",
+    "target": "exact float64 filtered edge-source belief reconstructed from public visible-token diagnostics"
+  },
+  "artifact_policy": {
+    "compact_reports": "results/",
+    "tune_checkpoints_raw_rollouts": "artifacts/"
+  },
+  "checkpoint_schedule": "initial, powers of two iterations, final",
+  "clip_param": 0.2,
+  "condition": "ppo",
+  "controls": [
+    "train-mean belief predictor",
+    "current-visible-token and two-token-history predictors",
+    "exact next-token probability and log-probability affine predictors",
+    "policy-probability nuisance predictor",
+    "held-out shuffled-label probes",
+    "training-covariance-matched Gaussian features",
+    "two-token-history-matched feature resampling",
+    "true step-zero initialization"
+  ],
+  "entropy_coeff": 0.0,
+  "environment": {
+    "delay": 1,
+    "diagnostics": {
+      "belief": true,
+      "raw_belief": true,
+      "rewards": true,
+      "state": true,
+      "tokens": true,
+      "transitions": false
+    },
+    "episode_length": 11,
+    "model": {
+      "factory": "experiments.rrxor_token_guess_cycle_1.process:rrxor_model"
+    },
+    "observation": {
+      "action": null,
+      "belief": false,
+      "hidden_state": false,
+      "token": {
+        "depth": 1,
+        "offset": 0
+      }
+    },
+    "randomize_first_episode_length": false,
+    "task": {
+      "class": "experiments.rrxor_token_guess_cycle_1.task:RRXORTokenGuessTask"
+    }
+  },
+  "gamma": 0.0,
+  "hardware": {
+    "intended": "CPU smoke; selected hardware-profile learner for a full run",
+    "learner_device": "cuda",
+    "profile": "cuda4090"
+  },
+  "hypothesis": "Gamma-zero PPO can learn the pending-token predictor from delayed RRXOR token history while exposing the exact Bayesian source belief across transformer depth.",
+  "lambda": 0.0,
+  "leakage": {
+    "belief": false,
+    "hidden_state": false,
+    "previous_action": false,
+    "previous_reward": false
+  },
+  "learning_rate": 0.0001,
+  "minibatch_size": 4096,
+  "model": {
+    "activation": "relu",
+    "context_length": 10,
+    "d_head": 8,
+    "d_mlp": 256,
+    "d_model": 64,
+    "max_seq_len": 32,
+    "n_heads": 1,
+    "n_layers": 4,
+    "normalization": "layer_norm",
+    "positional_embedding": "learned_absolute"
+  },
+  "num_epochs": 6,
+  "observation_semantics": "one delayed token one-hot; zero vector before the first token",
+  "optimizer": "Adam (RLlib default)",
+  "paper": "Shai et al., arXiv:2405.15943",
+  "primary_comparison": "initial versus trained token accuracy and held-out affine belief decoding from each layer versus all layers concatenated",
+  "process": {
+    "hidden_states": 5,
+    "initial_distribution": "stationary",
+    "name": "Random-Random-XOR",
+    "reachable_belief_states": 36,
+    "tokens": 2
+  },
+  "reward": "1 when the sampled action equals event.raw_token_before, else 0",
+  "seed": 42,
+  "sequence_design": {
+    "context_length": 10,
+    "episode_length": 11,
+    "rationale": "eleven decisions retain the empty prior plus ten history-conditioned guesses, matching paper-length prefixes"
+  },
+  "smoke": false,
+  "stopping_metric": "env_runners/num_env_steps_sampled_lifetime",
+  "study": "rrxor_token_guess_cycle_1",
+  "success_metrics": [
+    "held-out stochastic token accuracy",
+    "Bayes expected token accuracy",
+    "layerwise and concatenated held-out belief MSE/R2",
+    "next-token-invisible belief contrast MSE/R2"
+  ],
+  "total_env_steps": 2500000,
+  "train_batch_size_per_learner": 32768,
+  "use_critic": true,
+  "use_gae": true,
+  "use_kl_loss": false,
+  "value_loss_coeff": 0.5
+}
