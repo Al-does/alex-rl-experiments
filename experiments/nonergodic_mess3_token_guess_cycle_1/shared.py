@@ -35,7 +35,7 @@ from harness.runners import run_tune
 
 
 ARTICLE_URL = "https://simplex.pub/nonergodic-geometry/"
-TOTAL_ENV_STEPS = 10_000_000
+TOTAL_ENV_STEPS = 15_000_000
 SMOKE_ENV_STEPS = 1_024
 TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 512
@@ -134,7 +134,11 @@ def build_config(
             torch_compile_worker=False,
         )
         .training(
-            lr=LEARNING_RATE,
+            lr=[
+                [0, LEARNING_RATE],
+                [5_000_000, LEARNING_RATE],
+                [10_000_000, 1e-5],
+            ],
             gamma=0.0,
             lambda_=0.0,
             clip_param=0.2,
@@ -273,7 +277,7 @@ def resolved_recipe(
         "previous_action_in_observation": False,
         "algorithm": "clipped PPO",
         "objective": "sampled next-token correctness only; no cross-entropy loss",
-        "learning_rate": LEARNING_RATE,
+        "learning_rate": [[0, LEARNING_RATE], [5_000_000, LEARNING_RATE], [10_000_000, 1e-5]],
         "gamma": 0.0,
         "lambda": 0.0,
         "clip_param": 0.2,
