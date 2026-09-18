@@ -26,10 +26,17 @@ from harness.env_runners import FreshEpisodeSingleAgentEnvRunner
 from harness.hardware import HardwareProfile, PROFILES, resolve_env_runners
 from harness.runners import run_tune
 
+from .learning import (
+    NEXT_TOKEN_AUX_COEFFICIENT,
+    ActorCriticWithNextTokenAux,
+    PPOWithNextTokenAux,
+    next_token_targets,
+)
 from .process import (
     CONTEXT_LENGTH,
     EPISODE_LENGTH,
     PRESETS,
+    TOKEN_COUNT,
     environment_config,
     pusher_b_model,
 )
@@ -83,6 +90,9 @@ class PPOSettings:
     checkpoint_every_env_steps: int | None = None
     checkpoint_origin_env_steps: int = 0
     num_env_runners: int | None = None
+    num_envs_per_env_runner: int | None = None
+    sample_timeout_s: float = 600.0
+    next_token_aux: bool = False
     max_train_time_s: float | None = None
 
     def _schedule(self, value):
@@ -102,6 +112,9 @@ class PPOSettings:
             "checkpoint_every_env_steps": self.checkpoint_every_env_steps,
             "checkpoint_origin_env_steps": self.checkpoint_origin_env_steps,
             "num_env_runners": self.num_env_runners,
+            "num_envs_per_env_runner": self.num_envs_per_env_runner,
+            "sample_timeout_s": self.sample_timeout_s,
+            "next_token_aux": self.next_token_aux,
             "max_train_time_s": self.max_train_time_s,
         }
 
@@ -185,7 +198,12 @@ def _sampling_layout(
     requested = settings.num_env_runners
     if requested is not None:
         profile = replace(profile, num_env_runners=requested)
-    return resolve_env_runners(profile, default=16), NUM_ENVS_PER_ENV_RUNNER
+    envs_per_runner = (
+        settings.num_envs_per_env_runner
+        if settings.num_envs_per_env_runner is not None
+        else NUM_ENVS_PER_ENV_RUNNER
+    )
+    return resolve_env_runners(profile, default=16), envs_per_runner
 
 
 def build_config(
@@ -222,6 +240,21 @@ def build_config(
                 origin_env_steps=int(knobs["checkpoint_origin_env_steps"]),
             )
         )
+    next_token_aux = settings.next_token_aux
+    model_config = dict(MODEL_CONFIG)
+    if next_token_aux:
+        model_config["next_token_aux"] = {"num_classes": TOKEN_COUNT}
+    learner_kwargs: dict[str, Any] = {
+        "num_gpus_per_learner": (
+            1 if profile.learner_device == "cuda" else 0
+        )
+    }
+    if next_token_aux:
+        learner_kwargs["learner_class"] = PPOWithNextTokenAux
+        learner_kwargs["learner_config_dict"] = {
+            "next_token_aux/lambda": NEXT_TOKEN_AUX_COEFFICIENT,
+            "next_token_aux/target_extractor": next_token_targets,
+        }
     return (
         PPOConfig()
         .environment(HMMEnv, env_config=environment_config(preset))
@@ -252,8 +285,12 @@ def build_config(
         )
         .rl_module(
             rl_module_spec=RLModuleSpec(
-                module_class=FactoredReproductionActorCritic,
-                model_config=dict(MODEL_CONFIG),
+                module_class=(
+                    ActorCriticWithNextTokenAux
+                    if next_token_aux
+                    else FactoredReproductionActorCritic
+                ),
+                model_config=model_config,
             )
         )
         .callbacks(
@@ -278,13 +315,12 @@ def build_config(
             num_gpus_per_env_runner=0,
             rollout_fragment_length="auto",
             batch_mode="complete_episodes",
-            sample_timeout_s=600.0,
+            # Must exceed one full sampling round on all workers: timed-out
+            # sample() calls are dropped and orphaned rounds queue behind new
+            # calls, starving every subsequent iteration.
+            sample_timeout_s=settings.sample_timeout_s,
         )
-        .learners(
-            num_gpus_per_learner=(
-                1 if profile.learner_device == "cuda" else 0
-            )
-        )
+        .learners(**learner_kwargs)
     )
 
 
@@ -328,7 +364,14 @@ def resolved_recipe(
         "previous_reward_in_observation": False,
         "previous_action_in_observation": False,
         "algorithm": "clipped PPO",
-        "objective": "sampled next-token correctness only; no cross-entropy loss",
+        "objective": (
+            "sampled next-token correctness plus next-token cross-entropy"
+            if settings.next_token_aux
+            else "sampled next-token correctness only; no cross-entropy loss"
+        ),
+        "next_token_aux_coefficient": (
+            NEXT_TOKEN_AUX_COEFFICIENT if settings.next_token_aux else 0.0
+        ),
         "learning_rate": knobs["lr"],
         "gamma": 0.0,
         "lambda": 0.0,
