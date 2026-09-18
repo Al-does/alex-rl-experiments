@@ -9,7 +9,7 @@ from envs.hmm import HMMModel, stationary_distribution
 
 COMPONENT_PARAMETERS = (
     {"name": "mess3_a", "x": 0.20, "alpha": 0.95},
-    {"name": "mess3_b", "x": 0.4666666666666667, "alpha": 0.95},
+    {"name": "mess3_b", "x": 0.4667, "alpha": 0.95},
 )
 COMPONENT_COUNT = 2
 STATES_PER_COMPONENT = 3
