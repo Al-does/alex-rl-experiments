@@ -1,0 +1,105 @@
+{
+  "action_semantics": "three categorical logits, one per pending token",
+  "algorithm": "clipped PPO",
+  "analysis": [
+    "held-out layerwise affine probe of six weighted belief entries",
+    "held-out component-posterior probe",
+    "held-out next-token-distribution probe",
+    "next-token-distribution-only control for weighted belief",
+    "current-visible-token and shuffled-label controls"
+  ],
+  "article_architecture_deviations": [
+    "PPO actor-critic heads replace the language-model unembedding"
+  ],
+  "article_architecture_matches": [
+    "four decoder blocks",
+    "d_model=128",
+    "four attention heads",
+    "MLP width 512",
+    "rotary positions",
+    "context length 128",
+    "128-step maximum BPTT sequence length",
+    "gated GELU MLP",
+    "RMS normalization",
+    "weight initialization standard deviation 0.02",
+    "learned BOS embedding at every episode reset"
+  ],
+  "checkpoint_schedule": "initial, powers of two iterations, final",
+  "clip_param": 0.2,
+  "component_prior": [
+    0.5,
+    0.5
+  ],
+  "component_sampling": "one component is selected at reset and remains fixed for all 127 emissions",
+  "components": [
+    {
+      "alpha": 0.6,
+      "name": "mess3_a",
+      "x": 0.15
+    },
+    {
+      "alpha": 0.66,
+      "name": "mess3_b",
+      "x": 0.5
+    }
+  ],
+  "condition": "ppo",
+  "context_semantics": "each complete 127-decision episode is one learner sequence; the first input is learned BOS and subsequent inputs are delayed emissions",
+  "entropy_coeff": 0.0,
+  "env_runner": "harness.env_runners:FreshEpisodeSingleAgentEnvRunner",
+  "environment": {
+    "delay": 1,
+    "episode_length": 127,
+    "model": {
+      "factory": "experiments.nonergodic_mess3_token_guess_cycle_1.process:nonergodic_mess3_model"
+    },
+    "observation": {
+      "action": null,
+      "token": {
+        "depth": 1
+      }
+    },
+    "randomize_first_episode_length": false,
+    "task": {
+      "class": "experiments.nonergodic_mess3_token_guess_cycle_1.task:NextTokenGuessTask"
+    }
+  },
+  "environment_seed_semantics": "the fixed worker seed initializes each vector environment once; later complete-episode resets advance the same RNG stream",
+  "episode_length": 127,
+  "gamma": 0.0,
+  "hypothesis": "Correctness-only PPO can learn the next-token policy while its residual stream retains the higher-dimensional weighted belief (w_A eta_A, w_B eta_B), including information unavailable from the three-way next-token distribution alone.",
+  "intended_hardware": "CPU smoke; hardware-profile learner device for full training",
+  "lambda": 0.0,
+  "learning_rate": 0.0001,
+  "minibatch_size": 1024,
+  "model": {
+    "activation": "gated_gelu",
+    "context_length": 128,
+    "d_mlp": 512,
+    "d_model": 128,
+    "max_seq_len": 128,
+    "n_heads": 4,
+    "n_layers": 4,
+    "normalization": "rms_norm",
+    "positional_embedding": "rope"
+  },
+  "num_epochs": 6,
+  "objective": "sampled next-token correctness only; no cross-entropy loss",
+  "previous_action_in_observation": false,
+  "previous_reward_in_observation": false,
+  "reward": "1 when the sampled action equals the pending token, else 0",
+  "seed": 42,
+  "smoke": false,
+  "source": "https://simplex.pub/nonergodic-geometry/",
+  "stopping_metric": "env_runners/num_env_steps_sampled_lifetime",
+  "study": "nonergodic_mess3_token_guess_cycle_1",
+  "total_env_steps": 10000000,
+  "train_batch_size_per_learner": 32768,
+  "training_batch_component_mix": {
+    "minimum_episodes_per_full_train_batch": 259,
+    "probability_full_train_batch_uses_one_component_only": 2.1590421387736112e-78,
+    "sampling": "independent equal-probability draw per complete episode"
+  },
+  "use_kl_loss": false,
+  "value_loss_coeff": 0.5
+}

@@ -28,8 +28,12 @@ from experiments.nonergodic_mess3_token_guess_cycle_1.process import (
     mess3_edge_matrices,
     nonergodic_mess3_model,
 )
+from experiments.nonergodic_mess3_token_guess_cycle_1.ppo_h100_estimated import (
+    experiment as h100_experiment,
+)
 from experiments.nonergodic_mess3_token_guess_cycle_1.shared import (
     ALL_ONE_COMPONENT_BATCH_PROBABILITY,
+    ENTROPY_COEFF_SCHEDULE,
     MINIBATCH_SIZE,
     MIN_EPISODES_PER_TRAIN_BATCH,
     MODEL_CONFIG,
@@ -37,6 +41,7 @@ from experiments.nonergodic_mess3_token_guess_cycle_1.shared import (
     SMOKE_ENV_STEPS,
     SMOKE_MINIBATCH_SIZE,
     TOTAL_ENV_STEPS,
+    TRAIN_BATCH_SIZE,
     build_config,
     resolved_recipe,
 )
@@ -177,8 +182,8 @@ def test_fresh_gamma_zero_ppo_config_and_article_recipe(tmp_path):
     assert config.clip_param == 0.2
     assert config.use_critic and config.use_gae
     assert not config.use_kl_loss
-    assert config.vf_loss_coeff == 0.5
-    assert config.entropy_coeff == 0.0
+    assert config.vf_loss_coeff == 0.25
+    assert config.entropy_coeff == ENTROPY_COEFF_SCHEDULE
     assert config.train_batch_size_per_learner == SMOKE_BATCH_SIZE
     assert config.minibatch_size == SMOKE_MINIBATCH_SIZE
     assert config.num_epochs == 6
@@ -196,6 +201,11 @@ def test_fresh_gamma_zero_ppo_config_and_article_recipe(tmp_path):
     assert config.rl_module_spec.model_config["activation"] == "gated_gelu"
     assert config.rl_module_spec.model_config["normalization"] == "rms_norm"
     assert config.rl_module_spec.model_config["positional_embedding"] == "rope"
+    assert config.rl_module_spec.model_config["attention_implementation"] == "sdpa"
+    assert (
+        config.rl_module_spec.model_config["training_sequence_mode"]
+        == "complete_episode"
+    )
     assert config.rollout_fragment_length == "auto"
     assert config.batch_mode == "complete_episodes"
     assert config.env_runner_cls is FreshEpisodeSingleAgentEnvRunner
@@ -220,6 +230,16 @@ def test_fresh_gamma_zero_ppo_config_and_article_recipe(tmp_path):
         "probability_full_train_batch_uses_one_component_only": (
             ALL_ONE_COMPONENT_BATCH_PROBABILITY
         ),
+        "exact_probability_power_of_two": "2^-258",
+    }
+    assert recipe["sampling_layout"] == {
+        "num_env_runners": 0,
+        "num_envs_per_env_runner": 1,
+        "episodes_per_sampling_round": 0,
+        "semantics": (
+            "use the smallest vector-environment count per resolved runner "
+            "that supplies a complete-episode PPO train batch"
+        ),
     }
     assert MIN_EPISODES_PER_TRAIN_BATCH == 259
     assert ALL_ONE_COMPONENT_BATCH_PROBABILITY < 3e-78
@@ -232,7 +252,101 @@ def test_fresh_gamma_zero_ppo_config_and_article_recipe(tmp_path):
     assert (
         build_config(replace(context, smoke=False)).minibatch_size
         == MINIBATCH_SIZE
-        == 1_024
+        == TRAIN_BATCH_SIZE
+        == 32_768
+    )
+    full_config = build_config(replace(context, smoke=False))
+    assert (
+        full_config.num_env_runners * full_config.num_envs_per_env_runner
+        >= MIN_EPISODES_PER_TRAIN_BATCH
+    )
+    assert (
+        full_config.num_env_runners
+        * (full_config.num_envs_per_env_runner - 1)
+        < MIN_EPISODES_PER_TRAIN_BATCH
+    )
+
+
+def test_h100_estimate_uses_large_batch_and_8k_minibatches(tmp_path):
+    context = _context(tmp_path)
+    smoke_config = h100_experiment.build_config(context)
+    assert smoke_config is not h100_experiment.build_config(context)
+    assert smoke_config.train_batch_size_per_learner == SMOKE_BATCH_SIZE
+    assert smoke_config.minibatch_size == SMOKE_MINIBATCH_SIZE
+    assert smoke_config.num_env_runners == 0
+    assert smoke_config.num_envs_per_env_runner == 1
+    assert smoke_config.env_runner_cls is FreshEpisodeSingleAgentEnvRunner
+    assert smoke_config.rl_module_spec.model_config == MODEL_CONFIG
+
+    full_context = replace(context, smoke=False)
+    full_config = h100_experiment.build_config(full_context)
+    assert (
+        full_config.train_batch_size_per_learner
+        == h100_experiment.TRAIN_BATCH_SIZE
+        == 262_144
+    )
+    assert (
+        full_config.minibatch_size
+        == h100_experiment.MINIBATCH_SIZE
+        == 8_192
+    )
+    assert (
+        full_config.num_envs_per_env_runner
+        == h100_experiment.NUM_ENVS_PER_ENV_RUNNER
+        == 19
+    )
+    assert full_config.rollout_fragment_length == "auto"
+    assert (
+        full_config.get_rollout_fragment_length(worker_index=1)
+        > EPISODE_LENGTH
+    )
+
+    smoke_recipe = h100_experiment.resolved_recipe(context)
+    assert smoke_recipe["train_batch_size_per_learner"] == SMOKE_BATCH_SIZE
+    assert smoke_recipe["minibatch_size"] == SMOKE_MINIBATCH_SIZE
+    full_recipe = h100_experiment.resolved_recipe(full_context)
+    assert full_recipe["condition"] == h100_experiment.CONDITION
+    assert full_recipe["train_batch_size_per_learner"] == 262_144
+    assert full_recipe["minibatch_size"] == 8_192
+    assert full_recipe["model"] == MODEL_CONFIG
+    assert full_recipe["environment"] == environment_config()
+    assert full_recipe["training_batch_component_mix"] == {
+        "sampling": "independent equal-probability draw per complete episode",
+        "minimum_episodes_per_full_train_batch": 2_065,
+        "probability_full_train_batch_uses_one_component_only": 0.0,
+        "exact_probability_power_of_two": "2^-2064",
+    }
+    assert (
+        full_recipe["sampling_layout"]["num_envs_per_env_runner"] == 19
+    )
+    assert (
+        full_recipe["sampling_layout"]["episodes_per_sampling_round"]
+        < 2_065
+    )
+    estimate = full_recipe["hardware_estimate"]
+    assert estimate["status"] == (
+        "conservative capacity estimate validated by a short H100 NVL run; "
+        "no maximum-capacity benchmark was run"
+    )
+    assert estimate["assumed_gpu"] == "NVIDIA H100 80 GB capacity estimate"
+    extrapolation = estimate["linear_memory_extrapolation"]
+    assert extrapolation["selected_batch_steps"] == 262_144
+    assert extrapolation["selected_minibatch_steps"] == 8_192
+    assert extrapolation["estimated_reserved_memory_gb"] == pytest.approx(
+        17.76
+    )
+    assert extrapolation["estimated_fraction_of_80_gb"] == pytest.approx(
+        0.222
+    )
+    validation = estimate["h100_validation_run"]
+    assert validation["sampled_steps"] == 2_702_560
+    assert validation["training_iterations"] == 10
+    assert validation["full_minibatch_optimizer_updates"] == 70
+    assert validation["sampling_timer_seconds_final_iteration"] == pytest.approx(
+        103.4
+    )
+    assert validation["learner_timer_seconds_final_iteration"] == pytest.approx(
+        3.2
     )
 
 

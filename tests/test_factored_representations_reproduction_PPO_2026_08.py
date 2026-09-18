@@ -260,6 +260,81 @@ def test_chunked_pre_gae_values_match_single_pass():
     assert not actual.requires_grad
 
 
+def test_complete_episode_sdpa_matches_sliding_window_training():
+    torch.manual_seed(19)
+    reference_config = FactoredReproductionModelConfig(
+        d_model=32,
+        n_layers=2,
+        n_heads=4,
+        d_mlp=64,
+        context_length=8,
+        max_seq_len=8,
+        activation="gated_gelu",
+        normalization="rms_norm",
+        positional_embedding="rope",
+    )
+    optimized_config = FactoredReproductionModelConfig(
+        **{
+            **reference_config.to_dict(),
+            "attention_implementation": "sdpa",
+            "training_sequence_mode": "complete_episode",
+        }
+    )
+    observation_space = gym.spaces.Box(
+        0.0,
+        1.0,
+        shape=(3,),
+        dtype=np.float32,
+    )
+    action_space = gym.spaces.Discrete(3)
+    reference = FactoredReproductionActorCritic(
+        observation_space=observation_space,
+        action_space=action_space,
+        model_config=reference_config.to_dict(),
+    )
+    optimized = FactoredReproductionActorCritic(
+        observation_space=observation_space,
+        action_space=action_space,
+        model_config=optimized_config.to_dict(),
+    )
+    optimized.load_state_dict(reference.state_dict())
+
+    observations = torch.nn.functional.one_hot(
+        torch.randint(0, 3, (2, 7)),
+        num_classes=3,
+    ).to(torch.float32)
+    observations[:, 0] = 0.0
+    initial_state = reference.get_initial_state()
+    batch = {
+        Columns.OBS: observations,
+        Columns.STATE_IN: {
+            key: torch.from_numpy(value)
+            .unsqueeze(0)
+            .repeat(2, *([1] * value.ndim))
+            for key, value in initial_state.items()
+        },
+    }
+
+    expected, expected_state = reference._encode_train(batch)
+    actual, actual_state = optimized._encode_train(batch)
+    torch.testing.assert_close(actual, expected, atol=2e-6, rtol=2e-5)
+    for key in expected_state:
+        torch.testing.assert_close(actual_state[key], expected_state[key])
+
+    weights = torch.randn_like(expected)
+    (expected * weights).sum().backward()
+    (actual * weights).sum().backward()
+    optimized_parameters = dict(optimized.named_parameters())
+    for name, parameter in reference.named_parameters():
+        if parameter.grad is not None:
+            torch.testing.assert_close(
+                optimized_parameters[name].grad,
+                parameter.grad,
+                atol=1e-4,
+                rtol=2e-4,
+            )
+
+
 @pytest.mark.parametrize("factor_count", FACTOR_COUNTS)
 @pytest.mark.parametrize("condition", ["ppo", "ppo_aux_ce"])
 def test_smoke_configs_are_fresh_and_resolve_each_design_cell(

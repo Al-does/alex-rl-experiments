@@ -10,6 +10,7 @@ import numpy as np
 import torch
 from ray.rllib.core.columns import Columns
 from torch import nn
+from torch.nn import functional as F
 
 from learners.components.transformer import _apply_rope, _rope_angles
 from learners.models.base import BaseActorCriticModel
@@ -32,6 +33,8 @@ class FactoredReproductionModelConfig:
     activation: str = "relu"
     normalization: str = "layer_norm"
     positional_embedding: str = "learned_absolute"
+    attention_implementation: str = "manual"
+    training_sequence_mode: str = "sliding_window"
 
     def __post_init__(self) -> None:
         if min(
@@ -51,6 +54,15 @@ class FactoredReproductionModelConfig:
             raise ValueError("normalization must be layer_norm or rms_norm")
         if self.positional_embedding not in {"learned_absolute", "rope"}:
             raise ValueError("positional_embedding must be learned_absolute or rope")
+        if self.attention_implementation not in {"manual", "sdpa"}:
+            raise ValueError("attention_implementation must be manual or sdpa")
+        if self.training_sequence_mode not in {
+            "sliding_window",
+            "complete_episode",
+        }:
+            raise ValueError(
+                "training_sequence_mode must be sliding_window or complete_episode"
+            )
         if self.positional_embedding == "rope" and (self.d_model // self.n_heads) % 2:
             raise ValueError("RoPE requires an even head dimension")
 
@@ -74,13 +86,14 @@ class MultiHeadCausalAttention(nn.Module):
         self.n_heads = config.n_heads
         self.d_head = config.d_model // config.n_heads
         self.use_rope = config.positional_embedding == "rope"
+        self.use_sdpa = config.attention_implementation == "sdpa"
         self.qkv = nn.Linear(config.d_model, 3 * config.d_model)
         self.output = nn.Linear(config.d_model, config.d_model)
 
     def forward(
         self,
         inputs: torch.Tensor,
-        allowed: torch.Tensor,
+        allowed: torch.Tensor | None,
     ) -> torch.Tensor:
         batch, length, width = inputs.shape
         qkv = self.qkv(inputs).reshape(
@@ -94,11 +107,29 @@ class MultiHeadCausalAttention(nn.Module):
         if self.use_rope:
             cos, sin = _rope_angles(length, self.d_head, query.device, query.dtype)
             query, key = _apply_rope(query, cos, sin), _apply_rope(key, cos, sin)
-        scores = torch.matmul(query, key.transpose(-1, -2))
-        scores = scores / math.sqrt(self.d_head)
-        scores = scores.masked_fill(~allowed[:, None, :, :], -torch.inf)
-        attention = torch.softmax(scores, dim=-1)
-        attended = torch.matmul(attention, value)
+        if self.use_sdpa:
+            attended = F.scaled_dot_product_attention(
+                query,
+                key,
+                value,
+                attn_mask=(
+                    None if allowed is None else allowed[:, None, :, :]
+                ),
+                is_causal=allowed is None,
+            )
+        else:
+            scores = torch.matmul(query, key.transpose(-1, -2))
+            scores = scores / math.sqrt(self.d_head)
+            if allowed is None:
+                allowed = torch.ones(
+                    length,
+                    length,
+                    dtype=torch.bool,
+                    device=inputs.device,
+                ).tril().reshape(1, length, length)
+            scores = scores.masked_fill(~allowed[:, None, :, :], -torch.inf)
+            attention = torch.softmax(scores, dim=-1)
+            attended = torch.matmul(attention, value)
         attended = attended.transpose(1, 2).reshape(batch, length, width)
         return self.output(attended)
 
@@ -146,7 +177,7 @@ class ReproductionTransformerBlock(nn.Module):
     def forward(
         self,
         inputs: torch.Tensor,
-        allowed: torch.Tensor,
+        allowed: torch.Tensor | None,
     ) -> torch.Tensor:
         hidden = inputs + self.attention(self.attention_norm(inputs), allowed)
         return hidden + self.mlp(self.mlp_norm(hidden))
@@ -254,6 +285,32 @@ class ReproductionResidualEncoder(nn.Module):
         encoded = hidden[:, -1, :]
         return encoded.reshape(batch_size, steps, self.config.d_model)
 
+    def forward_complete_episode(
+        self,
+        observations: torch.Tensor,
+        *,
+        apply_final_norm: bool = True,
+    ) -> torch.Tensor:
+        if observations.ndim != 3:
+            raise ValueError("observations must have shape (B, T, D)")
+        _, steps, width = observations.shape
+        if width != self.obs_dim:
+            raise ValueError("observation width does not match the encoder")
+        if steps > self.config.context_length:
+            raise ValueError("complete episode exceeds configured context length")
+
+        positions = torch.arange(steps, device=observations.device)
+        hidden = self.input_embedding(observations)
+        is_bos = observations.abs().sum(dim=-1) < 0.5
+        hidden = hidden + is_bos.unsqueeze(-1).to(hidden.dtype) * self.bos_embedding
+        if self.position_embedding is not None:
+            hidden = hidden + self.position_embedding(positions)
+        for block in self.blocks:
+            hidden = block(hidden, None)
+        if apply_final_norm:
+            hidden = self.final_norm(hidden)
+        return hidden
+
 
 class FactoredReproductionActorCritic(BaseActorCriticModel):
     """Stateful actor-critic whose probe representation matches Appendix F."""
@@ -316,6 +373,12 @@ class FactoredReproductionActorCritic(BaseActorCriticModel):
         self,
         batch: dict[str, Any],
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+        if self.reproduction_config.training_sequence_mode == "complete_episode":
+            observations = batch[Columns.OBS]
+            return (
+                self.encoder.forward_complete_episode(observations),
+                self._advance_context(observations, batch[Columns.STATE_IN]),
+            )
         return self._encode_with_norm(batch, apply_final_norm=True)
 
     def compute_values(
