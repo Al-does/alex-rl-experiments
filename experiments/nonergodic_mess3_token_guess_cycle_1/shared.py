@@ -134,7 +134,11 @@ def build_config(
             torch_compile_worker=False,
         )
         .training(
-            lr=LEARNING_RATE,
+            lr=[
+                [0, LEARNING_RATE],
+                [5_000_000, LEARNING_RATE],
+                [10_000_000, 1e-5],
+            ],
             gamma=0.0,
             lambda_=0.0,
             clip_param=0.2,
@@ -273,7 +277,7 @@ def resolved_recipe(
         "previous_action_in_observation": False,
         "algorithm": "clipped PPO",
         "objective": "sampled next-token correctness only; no cross-entropy loss",
-        "learning_rate": LEARNING_RATE,
+        "learning_rate": [[0, LEARNING_RATE], [5_000_000, LEARNING_RATE], [10_000_000, 1e-5]],
         "gamma": 0.0,
         "lambda": 0.0,
         "clip_param": 0.2,
