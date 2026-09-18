@@ -21,18 +21,17 @@ from experiments.factored_representations_reproduction_PPO_2026_08.shared import
     _save_log_spaced_checkpoint,
     checkpoint_records,
 )
-from experiments.gol_reward_state_action_symmetry_cycle_1.design import analytic_design_summary
-from experiments.gol_reward_state_action_symmetry_cycle_1.process import SPEED, environment_config
+from experiments.gol_reward_state_action_symmetry_cycle_1_entropy_0_01_20m.design import analytic_design_summary
+from experiments.gol_reward_state_action_symmetry_cycle_1_entropy_0_01_20m.process import SPEED, environment_config
 from experiments.storage.training_curves import write_training_curves
 from harness.artifacts import RunArtifacts, flatten_scalar_metrics
 from harness.context import RunContext
-from harness.env_runners import ContinuingSingleAgentEnvRunner
 from harness.hardware import PROFILES, resolve_env_runners
 from harness.runners import run_algorithm, run_tune
 from learners.models.transformer import TransformerModel, TransformerModelConfig
 
 
-TOTAL_ENV_STEPS = 7_500_000
+TOTAL_ENV_STEPS = 20_000_000
 SMOKE_ENV_STEPS = 2_048
 TRAIN_BATCH_SIZE = 32_768
 SMOKE_BATCH_SIZE = 1_024
@@ -88,7 +87,7 @@ def build_config(context: RunContext, variant: int, *, speed: str = SPEED) -> PP
             vf_clip_param=1e9,
             grad_clip=0.5,
             grad_clip_by="global_norm",
-            entropy_coeff=0.003,
+            entropy_coeff=0.01,
             train_batch_size_per_learner=SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE,
             minibatch_size=SMOKE_MINIBATCH_SIZE if context.smoke else MINIBATCH_SIZE,
             num_epochs=6,
@@ -129,8 +128,8 @@ def build_config(context: RunContext, variant: int, *, speed: str = SPEED) -> PP
 
 def resolved_recipe(context: RunContext, variant: int, *, speed: str = SPEED) -> dict[str, Any]:
     return {
-        "study": "gol_reward_state_action_symmetry_cycle_1",
-        "reference_recipe": "mess3_reward_state_action_symmetry_cycle_4 PPO",
+        "study": "gol_reward_state_action_symmetry_cycle_1_entropy_0_01_20m",
+        "reference_recipe": "mess3_reward_state_action_symmetry_cycle_4 PPO with entropy 0.01 and 20M steps",
         "variant": variant,
         "condition": f"variant_{variant}",
         "speed": speed,
@@ -142,7 +141,7 @@ def resolved_recipe(context: RunContext, variant: int, *, speed: str = SPEED) ->
         "gamma": 0.99,
         "lambda": 0.95,
         "learning_rate": 3e-4 if context.smoke else 4.2e-4,
-        "entropy_coeff": 0.003,
+        "entropy_coeff": 0.01,
         "clip_param": 0.2,
         "use_kl_loss": False,
         "value_loss_coeff": 0.5,
@@ -158,8 +157,6 @@ def resolved_recipe(context: RunContext, variant: int, *, speed: str = SPEED) ->
         "filter_conditions_on_reward": False,
         "reset": "Sample stationary uniform-action prior; zero-padded start observation; no emission or reward.",
         "rollout_boundaries": "Continuing task; truncate batches with bootstrap, not environments or filter/model contexts.",
-        "env_runner": "harness.env_runners:ContinuingSingleAgentEnvRunner",
-        "episode_metrics_retention": "Release metrics-only chunk references after each sample; no completed-episode metrics for this continuing task.",
         "total_env_steps": SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS,
         "budget_semantics": "Stop after crossing the threshold at a complete training iteration; full budget is an untuned starting point.",
         "checkpoint_schedule": "Exact trained initialization, powers of two training iterations, final.",
@@ -221,7 +218,7 @@ def _resume_checkpoint_records(
 
 
 def run_condition(context: RunContext, variant: int, *, speed: str = SPEED) -> dict[str, Any]:
-    from experiments.gol_reward_state_action_symmetry_cycle_1.analysis import analyze_checkpoint
+    from experiments.gol_reward_state_action_symmetry_cycle_1_entropy_0_01_20m.analysis import analyze_checkpoint
 
     if context.seed is None:
         raise ValueError("gol PPO requires a resolved seed")
