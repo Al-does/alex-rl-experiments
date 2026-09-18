@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
 from functools import partial
 import math
@@ -333,6 +333,9 @@ def run_condition(
     variant: int,
     *,
     component_parameters: Sequence[Mapping[str, object]] | None = None,
+    condition: str | None = None,
+    config_builder: Callable[[RunContext], PPOConfig] | None = None,
+    recipe_builder: Callable[[RunContext], Mapping[str, object]] | None = None,
     total_env_steps: int = TOTAL_ENV_STEPS,
     entropy_coeff: float | Sequence[Sequence[float]] = DEFAULT_ENTROPY_COEFF,
     continuation: bool = False,
@@ -348,18 +351,22 @@ def run_condition(
         raise ValueError("continuation is not defined for this experiment")
     if context.resume_from is None and continuation:
         raise ValueError("continuation runs require --resume-from")
-    condition = f"variant_{variant}"
+    resolved_condition = condition or f"variant_{variant}"
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     outputs.write_json(
         "resolved_recipe.json",
-        resolved_recipe(
-            context,
-            variant,
-            component_parameters=component_parameters,
-            entropy_coeff=entropy_coeff,
-            total_env_steps=total_env_steps,
-            recipe_extra=recipe_extra,
+        (
+            dict(recipe_builder(context))
+            if recipe_builder is not None
+            else resolved_recipe(
+                context,
+                variant,
+                component_parameters=component_parameters,
+                entropy_coeff=entropy_coeff,
+                total_env_steps=total_env_steps,
+                recipe_extra=recipe_extra,
+            )
         ),
     )
     # Warm-start is handled by the on_algorithm_init callback inside
@@ -370,11 +377,15 @@ def run_condition(
         else context
     )
     result_grid = run_tune(
-        build_config(
-            context,
-            variant,
-            component_parameters=component_parameters,
-            entropy_coeff=entropy_coeff,
+        (
+            config_builder(context)
+            if config_builder is not None
+            else build_config(
+                context,
+                variant,
+                component_parameters=component_parameters,
+                entropy_coeff=entropy_coeff,
+            )
         ),
         tune_context,
         stop={
@@ -391,7 +402,7 @@ def run_condition(
     )
     results = list(result_grid)
     if len(results) != 1 or results[0].error is not None:
-        raise RuntimeError(f"{condition} PPO training failed")
+        raise RuntimeError(f"{resolved_condition} PPO training failed")
     write_training_curves(context)
     records: list[Mapping[str, Any]] = [
         {
@@ -429,7 +440,7 @@ def run_condition(
             )
         )
     summary = {
-        "condition": condition,
+        "condition": resolved_condition,
         "seed": context.seed,
         "smoke": context.smoke,
         "algorithm": "PPO",
