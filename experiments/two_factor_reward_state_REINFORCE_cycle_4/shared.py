@@ -61,6 +61,7 @@ from harness.runners import (
     run_tune,
     save_algorithm_checkpoint,
 )
+from harness.storage import is_b2_configured, upload_artifact_directory
 from learners.models.transformer import TransformerModelConfig
 
 
@@ -107,17 +108,17 @@ def _save_step_interval_checkpoint(
     checkpoint_root: str,
     step_interval: int = STEP_CHECKPOINT_INTERVAL,
     **_: Any,
-) -> None:
+) -> Path | None:
     """Save Algorithm checkpoints each time lifetime env steps cross a boundary."""
 
     steps_value = _metric(result, "env_runners/num_env_steps_sampled_lifetime")
     iteration_value = _metric(result, "training_iteration")
     if steps_value is None or iteration_value is None:
-        return
+        return None
     steps = int(steps_value)
     boundary = (steps // step_interval) * step_interval
     if boundary <= 0:
-        return
+        return None
     root = Path(checkpoint_root)
     root.mkdir(parents=True, exist_ok=True)
     index_path = root / "index.json"
@@ -127,7 +128,7 @@ def _save_step_interval_checkpoint(
         else []
     )
     if any(int(record["agent_steps"]) == boundary for record in records):
-        return
+        return None
     destination = root / f"steps_{boundary:09d}"
     saved = Path(algorithm.save_to_path(str(destination)))
     records.append(
@@ -144,6 +145,7 @@ def _save_step_interval_checkpoint(
         json.dumps({"checkpoints": records}, indent=2, sort_keys=True) + "\n"
     )
     temporary.replace(index_path)
+    return saved
 
 
 def _step_checkpoint_records(checkpoint_root: Path) -> list[dict[str, Any]]:
@@ -264,9 +266,32 @@ def _capture_algorithm_on_init(
     _save_initial_checkpoint(algorithm=algorithm, checkpoint_path=checkpoint_path)
 
 
+def _step_checkpoint_interval(context: RunContext) -> int:
+    spec = _load_continuation_spec(context) or {}
+    return int(spec.get("step_checkpoint_interval", STEP_CHECKPOINT_INTERVAL))
+
+
+def _upload_checkpoint_to_b2(context: RunContext, path: Path) -> None:
+    """Push one freshly saved checkpoint to B2; failures never stop training."""
+
+    if not is_b2_configured():
+        return
+    try:
+        summary = upload_artifact_directory(context, path)
+    except Exception as error:  # noqa: BLE001 - keep training; end-of-run upload retries
+        print(f"[checkpoint-upload] FAILED {path.name}: {error}", flush=True)
+        return
+    print(
+        f"[checkpoint-upload] {path.name}: {summary['file_count']} files "
+        f"({summary['total_bytes']} bytes) -> {summary['base_uri']}",
+        flush=True,
+    )
+
+
 def _continuation_result_recorder(context: RunContext) -> Callable[..., None]:
     log_root = str(context.artifacts_dir / "log_spaced_checkpoints")
     step_root = str(context.artifacts_dir / "step_checkpoints")
+    step_interval = _step_checkpoint_interval(context)
 
     def _record(_context: RunContext, result: Mapping[str, Any]) -> None:
         record_result(_context, result)
@@ -278,11 +303,14 @@ def _continuation_result_recorder(context: RunContext) -> Callable[..., None]:
             result=result,
             checkpoint_root=log_root,
         )
-        _save_step_interval_checkpoint(
+        saved = _save_step_interval_checkpoint(
             algorithm=algorithm,
             result=result,
             checkpoint_root=step_root,
+            step_interval=step_interval,
         )
+        if saved is not None:
+            _upload_checkpoint_to_b2(_context, saved)
 
     return _record
 
@@ -312,11 +340,12 @@ def _run_continuation_algorithm(
             iteration += 1
             recorder(context, result)
             if should_stop(result):
-                save_algorithm_checkpoint(
+                final_path = save_algorithm_checkpoint(
                     algorithm,
                     context,
                     label=f"iteration_{iteration:06d}_final",
                 )
+                _upload_checkpoint_to_b2(context, final_path)
                 return result
     finally:
         _active_algorithm[0] = None
@@ -432,9 +461,9 @@ def _resolved_recipe(context: RunContext, condition: str) -> dict[str, Any]:
         "budget_spec": _load_budget_spec(context),
         "checkpoint_schedule": (
             "initial, powers of two iterations, every "
-            f"{STEP_CHECKPOINT_INTERVAL:,} env steps, final"
+            f"{_step_checkpoint_interval(context):,} env steps, final"
         ),
-        "step_checkpoint_interval": STEP_CHECKPOINT_INTERVAL,
+        "step_checkpoint_interval": _step_checkpoint_interval(context),
     }
 
 

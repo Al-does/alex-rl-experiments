@@ -144,6 +144,8 @@ def continue_prior_run(
     seed: int = 42,
     upload_artifacts: bool = True,
     hardware_profile: str = "cuda4090",
+    step_checkpoint_interval: int = STEP_CHECKPOINT_INTERVAL,
+    run_id: str | None = None,
 ) -> None:
     experiment = load_experiment(experiment_module)
     results_dir = experiment.directory / "results" / prior_run_id
@@ -169,6 +171,7 @@ def continue_prior_run(
     context = make_run_context(
         experiment,
         seed=seed,
+        run_id=run_id,
         resume_from=resume_from,
         hardware_profile=hardware_profile,
     )
@@ -180,7 +183,7 @@ def continue_prior_run(
                 "prior_agent_steps": prior_steps,
                 "additional_agent_steps": target_agent_steps - prior_steps,
                 "target_agent_steps": target_agent_steps,
-                "step_checkpoint_interval": STEP_CHECKPOINT_INTERVAL,
+                "step_checkpoint_interval": step_checkpoint_interval,
             },
             indent=2,
             sort_keys=True,
@@ -203,12 +206,16 @@ def continue_prior_run(
             str(seed),
             "--hardware-profile",
             hardware_profile,
+            "--step-checkpoint-interval",
+            str(step_checkpoint_interval),
+            *(["--run-id", run_id] if run_id is not None else []),
         ],
         runtime_overrides={
             "prior_run_id": prior_run_id,
             "resume_from": str(resume_from),
             "prior_agent_steps": prior_steps,
             "target_agent_steps": target_agent_steps,
+            "step_checkpoint_interval": step_checkpoint_interval,
         },
         upload_artifacts=upload_artifacts,
     )
@@ -249,6 +256,20 @@ def main(argv: list[str] | None = None) -> None:
         action=argparse.BooleanOptionalAction,
         default=True,
     )
+    parser.add_argument(
+        "--run-id",
+        default=None,
+        help="Explicit run id for the continuation (default: timestamped id).",
+    )
+    parser.add_argument(
+        "--step-checkpoint-interval",
+        type=int,
+        default=STEP_CHECKPOINT_INTERVAL,
+        help=(
+            "Save (and upload, when B2 is configured) an Algorithm checkpoint "
+            "each time lifetime env steps cross a multiple of this interval."
+        ),
+    )
     args = parser.parse_args(argv)
     continue_prior_run(
         args.experiment_module,
@@ -257,6 +278,8 @@ def main(argv: list[str] | None = None) -> None:
         seed=args.seed,
         upload_artifacts=args.upload_artifacts,
         hardware_profile=args.hardware_profile,
+        step_checkpoint_interval=args.step_checkpoint_interval,
+        run_id=args.run_id,
     )
 
 
