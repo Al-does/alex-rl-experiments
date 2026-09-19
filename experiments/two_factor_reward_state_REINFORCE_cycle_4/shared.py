@@ -130,15 +130,7 @@ def _save_step_interval_checkpoint(
     if any(int(record["agent_steps"]) == boundary for record in records):
         return None
     destination = root / f"steps_{boundary:09d}"
-    if context is not None:
-        saved = save_algorithm_checkpoint(
-            algorithm,
-            context,
-            label=destination.name,
-            root=root,
-        )
-    else:
-        saved = Path(algorithm.save_to_path(str(destination)))
+    saved = Path(algorithm.save_to_path(destination))
     records.append(
         {
             "path": str(saved),

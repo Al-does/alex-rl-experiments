@@ -135,6 +135,43 @@ def test_cycle_4_step_checkpoint_interval_reads_continuation_spec(tmp_path):
     assert _step_checkpoint_interval(context) == 25_000_000
 
 
+def test_cycle_4_step_checkpoint_saves_under_step_root(tmp_path):
+    from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
+        _save_step_interval_checkpoint,
+    )
+
+    class Algorithm:
+        def save_to_path(self, destination):
+            path = Path(destination)
+            path.mkdir(parents=True)
+            (path / "rllib_checkpoint.json").write_text("{}")
+            return path
+
+    checkpoint_root = tmp_path / "step_checkpoints"
+    saved = _save_step_interval_checkpoint(
+        algorithm=Algorithm(),
+        result={
+            "env_runners/num_env_steps_sampled_lifetime": 12_345_678,
+            "training_iteration": 3,
+        },
+        checkpoint_root=str(checkpoint_root),
+        step_interval=2_000_000,
+        context=_context(tmp_path),
+    )
+
+    assert saved == checkpoint_root / "steps_012000000"
+    assert json.loads((checkpoint_root / "index.json").read_text()) == {
+        "checkpoints": [
+            {
+                "agent_steps": 12_000_000,
+                "checkpoint_name": "steps_012000000",
+                "path": str(saved),
+                "training_iteration": 3,
+            }
+        ]
+    }
+
+
 def test_cycle_4_metric_reads_nested_lifetime_steps():
     from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
         _metric,
