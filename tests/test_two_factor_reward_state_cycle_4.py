@@ -112,6 +112,29 @@ def test_cycle_4_resolve_step_target_uses_continuation_spec(tmp_path):
     assert _resolve_step_target(context) == 16_000_000
 
 
+def test_cycle_4_step_checkpoint_interval_reads_continuation_spec(tmp_path):
+    from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
+        CONTINUATION_SPEC_FILENAME,
+        STEP_CHECKPOINT_INTERVAL,
+        _step_checkpoint_interval,
+    )
+
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+    assert _step_checkpoint_interval(context) == STEP_CHECKPOINT_INTERVAL
+    context.artifacts_dir.mkdir(parents=True)
+    (context.artifacts_dir / CONTINUATION_SPEC_FILENAME).write_text(
+        '{"target_agent_steps": 300000000, "step_checkpoint_interval": 25000000}'
+    )
+    assert _step_checkpoint_interval(context) == 25_000_000
+
+
 def test_cycle_4_metric_reads_nested_lifetime_steps():
     from experiments.two_factor_reward_state_REINFORCE_cycle_4.shared import (
         _metric,
