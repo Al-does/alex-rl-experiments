@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import importlib
+import json
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -102,3 +104,92 @@ def test_reinforce_model_supplies_device_native_zero_baseline():
     assert values.device == embeddings.device
     assert values.dtype == embeddings.dtype
     assert torch.count_nonzero(values) == 0
+
+
+class _RecordingAlgorithm:
+    def __init__(self):
+        self.saved = []
+
+    def save_to_path(self, path):
+        self.saved.append(Path(path))
+        Path(path).mkdir(parents=True)
+        return str(path)
+
+
+def _context(tmp_path, **overrides):
+    values = {
+        "experiment_dir": tmp_path,
+        "results_dir": tmp_path / "results",
+        "artifacts_dir": tmp_path / "artifacts",
+        "seed": 42,
+    }
+    values.update(overrides)
+    return RunContext(**values)
+
+
+def _result(steps, iteration):
+    return {
+        "env_runners": {"num_env_steps_sampled_lifetime": steps},
+        "training_iteration": iteration,
+    }
+
+
+def test_step_checkpoint_callback_saves_only_on_threshold_crossing(tmp_path):
+    from functools import partial
+
+    from experiments.mess3_reward_state_action_symmetry_cycle_6.shared import (
+        _save_step_checkpoint_and_upload,
+    )
+
+    context = _context(tmp_path)
+    algorithm = _RecordingAlgorithm()
+    callback = partial(
+        _save_step_checkpoint_and_upload,
+        checkpoint_root=str(tmp_path / "step_checkpoints"),
+        step_interval=25_000_000,
+        context=context,
+        upload=False,
+    )
+
+    callback(algorithm=algorithm, result=_result(8_226_448, 21))
+    assert algorithm.saved == []
+
+    callback(algorithm=algorithm, result=_result(25_100_000, 64))
+    assert [p.name for p in algorithm.saved] == ["steps_025100000"]
+
+    callback(algorithm=algorithm, result=_result(30_000_000, 77))
+    assert len(algorithm.saved) == 1
+
+    callback(algorithm=algorithm, result=_result(51_000_000, 130))
+    assert [p.name for p in algorithm.saved] == [
+        "steps_025100000",
+        "steps_051000000",
+    ]
+
+    index = json.loads((tmp_path / "step_checkpoints/index.json").read_text())
+    assert [c["agent_steps"] for c in index["checkpoints"]] == [
+        25_100_000,
+        51_000_000,
+    ]
+    assert index["next_threshold"] == 75_000_000
+
+    uploads = (
+        tmp_path / "results" / "checkpoint_uploads.jsonl"
+    ).read_text().splitlines()
+    assert len(uploads) == 2
+    assert json.loads(uploads[0])["uploaded"] is False
+
+
+def test_continuation_step_target_defaults_to_300m(tmp_path):
+    from experiments.mess3_reward_state_action_symmetry_cycle_6.shared import (
+        _continuation_step_target,
+    )
+
+    context = _context(tmp_path)
+    assert _continuation_step_target(context) == 300_000_000
+
+    context.artifacts_dir.mkdir(parents=True, exist_ok=True)
+    (context.artifacts_dir / "budget_spec.json").write_text(
+        json.dumps({"target_agent_steps": 150_000_000})
+    )
+    assert _continuation_step_target(context) == 150_000_000
