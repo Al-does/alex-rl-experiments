@@ -398,19 +398,28 @@ def build_config(context: RunContext, condition: str) -> PPOConfig:
                     context.artifacts_dir / "initial_checkpoint"
                 ),
             ),
-            on_train_result=_combine_on_train_result(
-                partial(
-                    _save_log_spaced_checkpoint,
-                    checkpoint_root=str(
-                        context.artifacts_dir / "log_spaced_checkpoints"
-                    ),
-                ),
-                partial(
-                    _save_step_interval_checkpoint,
-                    checkpoint_root=str(
-                        context.artifacts_dir / "step_checkpoints"
-                    ),
-                ),
+            # Resumed runs checkpoint in the continuation recorder, which also
+            # honors the spec's step interval; registering the savers here too
+            # would double-save every iteration at the default interval.
+            **(
+                {}
+                if context.resume_from is not None
+                else {
+                    "on_train_result": _combine_on_train_result(
+                        partial(
+                            _save_log_spaced_checkpoint,
+                            checkpoint_root=str(
+                                context.artifacts_dir / "log_spaced_checkpoints"
+                            ),
+                        ),
+                        partial(
+                            _save_step_interval_checkpoint,
+                            checkpoint_root=str(
+                                context.artifacts_dir / "step_checkpoints"
+                            ),
+                        ),
+                    )
+                }
             ),
         )
         .debugging(seed=context.seed)
