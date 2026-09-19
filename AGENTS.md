@@ -26,6 +26,14 @@ Expected layout after install:
 - **Reusable library code**: edit `/rl-harness`, branch there, and open a PR in
   `Al-does/RL-Harness`.
 
+### Merging pull requests
+
+When the human user asks you to merge a PR, merge it yourself — do not hand the
+GitHub link back for manual merging. Your GitHub credentials are permitted to
+merge. Use `gh pr merge <number> --merge` (a merge commit is this repo's
+convention) and pass `--delete-branch` when asked. Merge only on an explicit
+request; otherwise leave the PR open for review.
+
 ### Run and test
 
 ```bash
