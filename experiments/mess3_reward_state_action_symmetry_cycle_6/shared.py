@@ -39,7 +39,9 @@ from harness.artifacts import RunArtifacts
 from harness.context import RunContext
 from harness.hardware import PROFILES
 from harness.runners import run_algorithm, run_tune
-from harness.storage.b2 import is_b2_configured, upload_artifact_path
+from harness.storage.b2 import is_b2_configured
+
+from experiments.storage.b2_incremental import upload_artifact_path
 from learners.models.transformer import TransformerModel, TransformerModelConfig
 
 
