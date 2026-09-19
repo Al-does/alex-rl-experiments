@@ -61,7 +61,6 @@ from harness.runners import (
     run_tune,
     save_algorithm_checkpoint,
 )
-from harness.storage import is_b2_configured, upload_artifact_directory
 from learners.models.transformer import TransformerModelConfig
 
 
@@ -107,6 +106,7 @@ def _save_step_interval_checkpoint(
     result: Mapping[str, Any],
     checkpoint_root: str,
     step_interval: int = STEP_CHECKPOINT_INTERVAL,
+    context: RunContext | None = None,
     **_: Any,
 ) -> Path | None:
     """Save Algorithm checkpoints each time lifetime env steps cross a boundary."""
@@ -130,7 +130,15 @@ def _save_step_interval_checkpoint(
     if any(int(record["agent_steps"]) == boundary for record in records):
         return None
     destination = root / f"steps_{boundary:09d}"
-    saved = Path(algorithm.save_to_path(str(destination)))
+    if context is not None:
+        saved = save_algorithm_checkpoint(
+            algorithm,
+            context,
+            label=destination.name,
+            root=root,
+        )
+    else:
+        saved = Path(algorithm.save_to_path(str(destination)))
     records.append(
         {
             "path": str(saved),
@@ -271,23 +279,6 @@ def _step_checkpoint_interval(context: RunContext) -> int:
     return int(spec.get("step_checkpoint_interval", STEP_CHECKPOINT_INTERVAL))
 
 
-def _upload_checkpoint_to_b2(context: RunContext, path: Path) -> None:
-    """Push one freshly saved checkpoint to B2; failures never stop training."""
-
-    if not is_b2_configured():
-        return
-    try:
-        summary = upload_artifact_directory(context, path)
-    except Exception as error:  # noqa: BLE001 - keep training; end-of-run upload retries
-        print(f"[checkpoint-upload] FAILED {path.name}: {error}", flush=True)
-        return
-    print(
-        f"[checkpoint-upload] {path.name}: {summary['file_count']} files "
-        f"({summary['total_bytes']} bytes) -> {summary['base_uri']}",
-        flush=True,
-    )
-
-
 def _continuation_result_recorder(context: RunContext) -> Callable[..., None]:
     log_root = str(context.artifacts_dir / "log_spaced_checkpoints")
     step_root = str(context.artifacts_dir / "step_checkpoints")
@@ -303,14 +294,13 @@ def _continuation_result_recorder(context: RunContext) -> Callable[..., None]:
             result=result,
             checkpoint_root=log_root,
         )
-        saved = _save_step_interval_checkpoint(
+        _save_step_interval_checkpoint(
             algorithm=algorithm,
             result=result,
             checkpoint_root=step_root,
             step_interval=step_interval,
+            context=_context,
         )
-        if saved is not None:
-            _upload_checkpoint_to_b2(_context, saved)
 
     return _record
 
@@ -340,12 +330,11 @@ def _run_continuation_algorithm(
             iteration += 1
             recorder(context, result)
             if should_stop(result):
-                final_path = save_algorithm_checkpoint(
+                save_algorithm_checkpoint(
                     algorithm,
                     context,
                     label=f"iteration_{iteration:06d}_final",
                 )
-                _upload_checkpoint_to_b2(context, final_path)
                 return result
     finally:
         _active_algorithm[0] = None
