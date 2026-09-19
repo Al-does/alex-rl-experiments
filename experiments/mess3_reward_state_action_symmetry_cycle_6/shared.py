@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from dataclasses import replace
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,7 @@ from experiments.mess3_belief_geometry_2026_07.shared import (
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_5.shared import (
     _log_spaced_records,
+    _metric,
     checkpoint_records,
 )
 from experiments.mess3_reward_state_action_symmetry_cycle_6.analysis import (
@@ -32,14 +34,21 @@ from experiments.mess3_reward_state_action_symmetry_cycle_6.design import (
     EFFECT_SIZE,
     analytic_design_summary,
 )
+from experiments.storage.training_curves import write_training_curves
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
 from harness.hardware import PROFILES
-from harness.runners import run_tune
+from harness.runners import run_algorithm, run_tune
+from harness.storage.b2 import is_b2_configured
+
+from experiments.storage.b2_incremental import upload_artifact_path
 from learners.models.transformer import TransformerModel, TransformerModelConfig
 
 
 TOTAL_ENV_STEPS = 8_000_000
+CONTINUED_TOTAL_ENV_STEPS = 300_000_000
+CHECKPOINT_EVERY_ENV_STEPS = 25_000_000
+SMOKE_CHECKPOINT_EVERY_ENV_STEPS = 2_048
 BUDGET_SPEC_FILENAME = "budget_spec.json"
 SMOKE_ENV_STEPS = 4_096
 TRAIN_BATCH_SIZE = 32_768
@@ -234,11 +243,197 @@ def _probe_at(
     return result, point
 
 
+def _env_steps_lifetime(metrics: Mapping[str, Any]) -> float | None:
+    return _metric(metrics, "env_runners/num_env_steps_sampled_lifetime")
+
+
+def _save_step_checkpoint_and_upload(
+    *,
+    algorithm: Any,
+    result: Mapping[str, Any],
+    checkpoint_root: str,
+    step_interval: int,
+    context: RunContext,
+    upload: bool,
+    **_: Any,
+) -> None:
+    """Checkpoint whenever lifetime env steps cross the interval grid."""
+
+    steps_value = _env_steps_lifetime(result)
+    if steps_value is None:
+        return
+    steps = int(steps_value)
+    root = Path(checkpoint_root)
+    root.mkdir(parents=True, exist_ok=True)
+    index_path = root / "index.json"
+    if index_path.is_file():
+        index = json.loads(index_path.read_text())
+    else:
+        index = {
+            "step_interval": step_interval,
+            "next_threshold": (steps // step_interval + 1) * step_interval,
+            "checkpoints": [],
+        }
+        index_path.write_text(json.dumps(index, indent=2) + "\n")
+    if steps < int(index["next_threshold"]):
+        return
+    saved = Path(algorithm.save_to_path(str(root / f"steps_{steps:09d}")))
+    index["checkpoints"].append(
+        {
+            "path": str(saved),
+            "checkpoint_name": saved.name,
+            "training_iteration": int(
+                _metric(result, "training_iteration") or 0
+            ),
+            "agent_steps": steps,
+        }
+    )
+    while int(index["next_threshold"]) <= steps:
+        index["next_threshold"] = int(index["next_threshold"]) + step_interval
+    temporary = index_path.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(index, indent=2) + "\n")
+    temporary.replace(index_path)
+    upload_summary = None
+    upload_error = None
+    if upload:
+        try:
+            upload_summary = upload_artifact_path(context, saved)
+            upload_artifact_path(context, index_path)
+        except Exception as error:  # noqa: BLE001 - never kill training
+            upload_error = f"{type(error).__name__}: {error}"
+            print(
+                f"[cycle6] step checkpoint upload failed: {upload_error}",
+                flush=True,
+            )
+    RunArtifacts.from_context(context).append_jsonl(
+        "checkpoint_uploads.jsonl",
+        {
+            "checkpoint_name": saved.name,
+            "agent_steps": steps,
+            "uploaded": upload_summary is not None,
+            "upload_error": upload_error,
+            "file_count": (upload_summary or {}).get("file_count"),
+        },
+    )
+
+
+def _continuation_step_target(context: RunContext) -> int:
+    budget = _load_budget_spec(context)
+    if budget is not None:
+        return int(budget["target_agent_steps"])
+    return CONTINUED_TOTAL_ENV_STEPS
+
+
+def _run_continuation(context: RunContext, variant: int) -> dict[str, Any]:
+    """Continue REINFORCE training from a completed variant checkpoint."""
+
+    condition = f"variant_{variant}"
+    outputs = RunArtifacts.from_context(context)
+    outputs.prepare()
+    target_steps = _continuation_step_target(context)
+    checkpoint_interval = (
+        SMOKE_CHECKPOINT_EVERY_ENV_STEPS
+        if context.smoke
+        else CHECKPOINT_EVERY_ENV_STEPS
+    )
+    upload = is_b2_configured() and (
+        not context.smoke or context.publish_smoke
+    )
+    recipe = {
+        "condition": condition,
+        "mode": "continued_from_checkpoint",
+        "algorithm": "REINFORCE",
+        "rllib_engine": "PPOConfig/PPOTorchLearner",
+        "resume_from": str(context.resume_from),
+        "target_agent_steps": target_steps,
+        "target_semantics": (
+            "stop when env_runners/num_env_steps_sampled_lifetime "
+            "(restored from the source checkpoint) reaches the target"
+        ),
+        "checkpoint_every_env_steps": checkpoint_interval,
+        "checkpoint_upload": (
+            "each step checkpoint uploads to B2 immediately after save"
+            if upload
+            else "disabled (unpublished smoke or B2 not configured)"
+        ),
+        "gamma": 0.99,
+        "learning_rate": LEARNING_RATE,
+        "environment": environment_config(variant),
+        "analytic_design": analytic_design_summary(),
+        "model_config": BASE_MODEL_CONFIG,
+    }
+    outputs.write_json("resolved_recipe.json", recipe)
+
+    state: dict[str, Any] = {"baseline": None}
+
+    def should_stop(result: Mapping[str, Any]) -> bool:
+        steps = _env_steps_lifetime(result)
+        if steps is None:
+            return False
+        if state["baseline"] is None:
+            state["baseline"] = steps
+        limit = (
+            state["baseline"] + SMOKE_ENV_STEPS
+            if context.smoke
+            else target_steps
+        )
+        return steps >= limit
+
+    config = build_config(context, variant).callbacks(
+        on_train_result=partial(
+            _save_step_checkpoint_and_upload,
+            checkpoint_root=str(context.artifacts_dir / "step_checkpoints"),
+            step_interval=checkpoint_interval,
+            context=context,
+            upload=upload,
+        )
+    )
+    final = run_algorithm(
+        config,
+        context,
+        should_stop=should_stop,
+        checkpoint_at_end=True,
+    )
+    if upload:
+        for checkpoint in sorted(
+            (context.artifacts_dir / "checkpoints").glob("iteration_*_final")
+        ):
+            try:
+                upload_artifact_path(context, checkpoint)
+            except Exception as error:  # noqa: BLE001
+                print(
+                    "[cycle6] final checkpoint upload failed: "
+                    f"{type(error).__name__}: {error}",
+                    flush=True,
+                )
+    curves = write_training_curves(context)
+    summary = {
+        "condition": condition,
+        "seed": context.seed,
+        "smoke": context.smoke,
+        "algorithm": "REINFORCE",
+        "resumed_from": str(context.resume_from),
+        "baseline_agent_steps": state["baseline"],
+        "final_agent_steps": _env_steps_lifetime(final),
+        "training_iteration": _metric(final, "training_iteration"),
+        "target_agent_steps": target_steps,
+        "checkpoint_every_env_steps": checkpoint_interval,
+        "episode_return_mean": _metric(
+            final, "env_runners/episode_return_mean"
+        ),
+        "training_curves": str(curves) if curves is not None else None,
+    }
+    outputs.write_json("condition_summary.json", summary)
+    return summary
+
+
 def run_condition(context: RunContext, variant: int) -> dict[str, Any]:
     """Train one REINFORCE variant and probe init plus spaced checkpoints."""
 
     if context.seed is None:
         raise ValueError("action-symmetry cycle requires a resolved seed")
+    if context.resume_from is not None:
+        return _run_continuation(context, variant)
     condition = f"variant_{variant}"
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
