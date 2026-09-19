@@ -1,0 +1,118 @@
+{
+  "algorithm": "REINFORCE",
+  "analytic_design": {
+    "baseline_transition_matrix": [
+      [
+        0.75,
+        0.15,
+        0.1
+      ],
+      [
+        0.15,
+        0.75,
+        0.1
+      ],
+      [
+        0.3,
+        0.3,
+        0.4
+      ]
+    ],
+    "effect_size": 1.5,
+    "emission_alpha": 0.85,
+    "fully_observed": {
+      "variant_1": {
+        "always_positive_stationary_state_2": 0.5700133141432316,
+        "oracle_gap": 0.12960465652297992,
+        "oracle_policy": [
+          1,
+          1,
+          1
+        ],
+        "oracle_stationary_state_2": 0.5700133141432316,
+        "runner_up_stationary_state_2": 0.4404086576202517
+      },
+      "variant_2": {
+        "always_positive_stationary_state_2": 0.2763469326158343,
+        "oracle_gap": 0.08017165223389872,
+        "oracle_policy": [
+          1,
+          1,
+          0
+        ],
+        "oracle_stationary_state_2": 0.35651858484973303,
+        "runner_up_stationary_state_2": 0.2763469326158343
+      },
+      "variant_3": {
+        "always_positive_stationary_state_2": 0.1413425046078073,
+        "oracle_gap": 0.08017165223389872,
+        "oracle_policy": [
+          1,
+          2,
+          0
+        ],
+        "oracle_stationary_state_2": 0.35651858484973303,
+        "runner_up_stationary_state_2": 0.2763469326158343
+      }
+    },
+    "variant_2_nonreward_positive_state_2_probability": 0.33242786174311934,
+    "variant_2_one_step_noop_belief_threshold": 0.4621414003564968,
+    "variant_2_state_2_probabilities": {
+      "negative": 0.12949118140280794,
+      "noop": 0.4,
+      "positive": 0.12949118140280794
+    }
+  },
+  "checkpoint_every_env_steps": 25000000,
+  "checkpoint_upload": "each step checkpoint uploads to B2 immediately after save",
+  "condition": "variant_3",
+  "environment": {
+    "delay": 0,
+    "episode_length": 1024,
+    "model": {
+      "factory": "envs.mess3.model:control_model",
+      "kwargs": {
+        "alpha": 0.85,
+        "transition_matrix": [
+          [
+            0.75,
+            0.15,
+            0.1
+          ],
+          [
+            0.15,
+            0.75,
+            0.1
+          ],
+          [
+            0.3,
+            0.3,
+            0.4
+          ]
+        ]
+      }
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "experiments.mess3_reward_state_action_symmetry_cycle_6.task:ActionSymmetryTask",
+      "kwargs": {
+        "effect_size": 1.5,
+        "variant": 3
+      }
+    }
+  },
+  "gamma": 0.99,
+  "learning_rate": 0.00042,
+  "mode": "continued_from_checkpoint",
+  "model_config": {
+    "context_len": 10,
+    "d_model": 64,
+    "max_seq_len": 32,
+    "n_heads": 1,
+    "n_layers": 4
+  },
+  "resume_from": "/root/work/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_6/variant_3/artifacts/source_bundles/seed_42/checkpoint_000020",
+  "rllib_engine": "PPOConfig/PPOTorchLearner",
+  "target_agent_steps": 300000000,
+  "target_semantics": "stop when env_runners/num_env_steps_sampled_lifetime (restored from the source checkpoint) reaches the target"
+}
