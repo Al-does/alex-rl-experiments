@@ -55,6 +55,9 @@ from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.shot_a.sh
     build_config as build_shot_a_config,
     resolved_recipe as resolved_shot_a_recipe,
 )
+from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.shot_a.variant_3_entropy_ramp import (
+    experiment as entropy_ramp,
+)
 from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.task import (
     DIRECTIONS,
     N_ACTIONS,
@@ -443,6 +446,28 @@ def test_shot_a_profile_uses_pr_127_training_defaults(tmp_path, variant):
         {"name": "mess3_a", "x": 0.15, "alpha": 0.60},
         {"name": "mess3_b", "x": 0.50, "alpha": 0.66},
     ]
+
+
+def test_entropy_ramp_continuation_recipe(tmp_path):
+    context = _context(tmp_path)
+    config = entropy_ramp.build_config(context, tmp_path / "ckpt")
+    assert config.entropy_coeff == entropy_ramp.ENTROPY_COEFF_SCHEDULE
+    assert config.entropy_coeff == [
+        [0, 0.0],
+        [30_000_000, 0.0],
+        [35_000_000, 0.01],
+    ]
+    assert config.lr == SHOT_A_LEARNING_RATE_SCHEDULE
+    assert config.vf_loss_coeff == SHOT_A_VALUE_LOSS_COEFF
+
+    full_context = replace(context, smoke=False)
+    recipe = entropy_ramp.resolved_recipe(full_context)
+    assert recipe["condition"] == "shot_a_variant_3_entropy_ramp"
+    assert recipe["continuation_of"]["run_id"] == "20260914T042419Z-d63e24cc"
+    assert recipe["continuation_of"]["agent_steps"] == 30_247_082
+    assert recipe["entropy_coeff"] == entropy_ramp.ENTROPY_COEFF_SCHEDULE
+    assert recipe["total_env_steps"] == 330_247_082
+    assert recipe["additional_env_steps"] == 300_000_000
 
 
 def test_model_dimensions_and_complete_episode_sequence():
