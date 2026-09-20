@@ -1,0 +1,144 @@
+{
+  "date": "2026-07-20",
+  "hardware": {
+    "provider": "vast.ai",
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "driver": "595.58.03",
+    "gpu_memory_mib": 24564,
+    "effective_cpu_count": 30.71999,
+    "instance_id": 45352725
+  },
+  "software": {
+    "experiment_commit": "1c2ca89e41acd9ad9b88331001ceb4f6e345ffc2",
+    "baseline_library_commit": "af929b0eb6bfa1ddf71a48ee8b620250200b6b83",
+    "optimized_library_commit": "1ba1ee3",
+    "python": "3.14.5",
+    "ray": "2.56.0",
+    "torch": "2.12.1+cu130"
+  },
+  "baseline_profile": {
+    "gpu_utilization_percent": {
+      "mean": 17.1,
+      "median": 0.0,
+      "p95": 75.0
+    },
+    "gpu_memory_mib": {
+      "maximum": 19994
+    },
+    "diagnosis": [
+      "The learner is already compiled.",
+      "The GPU is idle during CPU sampling and recurrent learner-connector work.",
+      "Per-step transition validation was the largest environment CPU hotspot."
+    ]
+  },
+  "promoted_changes": {
+    "repository": "Al-does/RL-Harness",
+    "branch": "cursor/optimize-transition-validation-1446",
+    "commits": [
+      {
+        "commit": "740c761",
+        "change": "Replace per-step np.allclose row-normalization validation with an equivalent explicit tolerance check."
+      },
+      {
+        "commit": "1ba1ee3",
+        "change": "Replace np.linalg.norm dispatch with math.hypot for the fixed two-dimensional action norm."
+      }
+    ],
+    "cpu_profile_100000_environment_steps": {
+      "baseline_seconds": 8.167,
+      "optimized_seconds": 5.510,
+      "reduction_percent": 32.5,
+      "transition_validation_seconds": {
+        "baseline": 3.184,
+        "optimized": 1.075,
+        "reduction_percent": 66.2
+      },
+      "reward_seconds": {
+        "baseline": 0.421,
+        "optimized": 0.121,
+        "reduction_percent": 71.3
+      }
+    },
+    "matched_ppo_benchmark": {
+      "warmup_iterations": 3,
+      "measured_iterations": 10,
+      "baseline": {
+        "median_env_steps_per_second": 12537.050962922063,
+        "median_iteration_wall_seconds": 5.254927441943437,
+        "median_env_step_seconds": 0.001432792184016641
+      },
+      "optimized": {
+        "median_env_steps_per_second": 13048.813538671424,
+        "median_iteration_wall_seconds": 5.048446070461068,
+        "median_env_step_seconds": 0.0010385506320178216
+      },
+      "delta": {
+        "env_steps_per_second_percent": 4.082001239867994,
+        "iteration_wall_time_percent": -3.9292906279597473,
+        "env_step_time_percent": -27.515612968631352
+      },
+      "numerical_check": "Seeded PPO reward, KL, loss, and value metrics were identical through the measured iterations."
+    }
+  },
+  "rejected_variants": [
+    {
+      "variant": "learner compile disabled",
+      "median_env_steps_per_second": 11803.87740089532,
+      "delta_vs_initial_baseline_percent": -6.6
+    },
+    {
+      "variant": "8 GPU inference runners sharing 20% GPU; learner using 80%",
+      "median_env_steps_per_second": 9295.770738045529,
+      "delta_vs_initial_baseline_percent": -26.4
+    },
+    {
+      "variant": "24 runners x 16 environments",
+      "median_env_steps_per_second": 12734.44764623038,
+      "finding": "Less than 1% over the initial baseline and substantially more variable."
+    },
+    {
+      "variant": "8 runners x 48 environments",
+      "median_env_steps_per_second": 10483.380606388646,
+      "delta_vs_initial_baseline_percent": -17.0
+    },
+    {
+      "variant": "compiled rollout workers",
+      "median_env_steps_per_second": 12295.39745811438,
+      "delta_vs_initial_baseline_percent": -2.7
+    },
+    {
+      "variant": "131072 train batch, 8192 minibatch",
+      "finding": "CUDA out of memory after the first iteration; peak allocation exceeded the 24 GiB device."
+    },
+    {
+      "variant": "32768 train batch, 4096 minibatch",
+      "median_env_steps_per_second": 7995.207033659726,
+      "delta_vs_initial_baseline_percent": -36.7
+    },
+    {
+      "variant": "3 PPO epochs",
+      "ten_million_step_median_env_steps_per_second": 15624.974877296825,
+      "speedup_vs_matched_six_epoch_run_percent": 21.4,
+      "final_episode_return_mean": 441.81209307743666,
+      "final_value_explained_variance": 0.04031240940093994,
+      "matched_six_epoch_final_episode_return_mean": 447.77864692170954,
+      "matched_six_epoch_final_value_explained_variance": 0.5529239773750305,
+      "finding": "Rejected because critic fit collapsed despite similar policy return."
+    },
+    {
+      "variant": "complete-update torch compilation",
+      "median_env_steps_per_second": 8558.883444963492,
+      "delta_vs_initial_baseline_percent": -32.3
+    },
+    {
+      "variant": "TF32 override",
+      "median_env_steps_per_second": 12427.684652613842,
+      "finding": "No measurable improvement."
+    },
+    {
+      "variant": "max-autotune compilation",
+      "median_env_steps_per_second": 11957.916883004484,
+      "delta_vs_initial_baseline_percent": -5.4
+    }
+  ]
+}
