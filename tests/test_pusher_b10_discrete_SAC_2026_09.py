@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from dataclasses import replace
 import importlib
+from types import SimpleNamespace
 
 import pytest
-from ray.rllib.algorithms.sac.torch.sac_torch_learner import SACTorchLearner
+import torch
+from ray.rllib.algorithms.sac import SAC
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
 from envs.hmm import HMMEnv
@@ -13,6 +15,7 @@ from experiments.pusher_b10_discrete_SAC_2026_09.model import (
     PusherSharedTrunkSAC,
     PusherSplitSAC,
     SharedTrunkSACTorchLearner,
+    SingleBackwardSACTorchLearner,
     trainable_parameter_count,
 )
 from experiments.pusher_b10_discrete_SAC_2026_09.shared import (
@@ -20,10 +23,13 @@ from experiments.pusher_b10_discrete_SAC_2026_09.shared import (
     ALPHA_LEARNING_RATE,
     CHECKPOINT_INTERVAL_ENV_STEPS,
     CRITIC_LEARNING_RATE,
+    LEARNER_ATTENTION_SCORE_ELEMENTS_PER_HEAD,
+    LEARNER_CONTEXT_TOKEN_ROWS,
     LEARNER_MINIBATCH_COUNT,
     LEARNER_MINIBATCH_SIZE,
     LEARNING_STARTS,
     LOG_CHECKPOINT_END_ENV_STEPS,
+    MemoryBoundedMinibatchSAC,
     MODEL_CONFIG,
     REPLAY_CAPACITY,
     SHARED_ENCODER_LEARNING_RATE,
@@ -105,6 +111,7 @@ def test_smoke_and_full_configs_match_the_preregistered_recipe(
     )
     assert smoke.rl_module_spec.module_class is module_class
     assert smoke.rl_module_spec.model_config == MODEL_CONFIG
+    assert smoke.algo_class is MemoryBoundedMinibatchSAC
     assert smoke.gamma == 0.0
     assert smoke.n_step == 1
     assert smoke.twin_q
@@ -130,12 +137,26 @@ def test_smoke_and_full_configs_match_the_preregistered_recipe(
         full.num_steps_sampled_before_learning_starts == LEARNING_STARTS
     )
     assert full.replay_buffer_config["capacity"] == REPLAY_CAPACITY
+    assert MODEL_CONFIG["d_model"] == 64
+    assert MODEL_CONFIG["d_mlp"] == 256
     recipe = resolved_recipe(full_context, architecture=architecture)
     assert recipe["parameters"] == PRESETS["b10"]
     assert recipe["total_env_steps"] == TOTAL_ENV_STEPS
     assert recipe["train_batch_size_per_learner"] == TRAIN_BATCH_SIZE
     assert recipe["learner_minibatch_count"] == LEARNER_MINIBATCH_COUNT
     assert recipe["learner_minibatch_size"] == LEARNER_MINIBATCH_SIZE
+    assert LEARNER_MINIBATCH_SIZE == 128
+    assert LEARNER_MINIBATCH_COUNT == 64
+    assert recipe["learner_context_token_rows_per_encoder_forward"] == (
+        LEARNER_CONTEXT_TOKEN_ROWS
+    )
+    assert LEARNER_CONTEXT_TOKEN_ROWS == 16_384
+    assert recipe["learner_attention_score_elements_per_head"] == (
+        LEARNER_ATTENTION_SCORE_ELEMENTS_PER_HEAD
+    )
+    assert LEARNER_ATTENTION_SCORE_ELEMENTS_PER_HEAD == 2_097_152
+    assert recipe["learner_backward_passes_per_minibatch"] == 1
+    assert "H100" not in recipe["intended_hardware"]
     assert recipe["checkpoint_schedule"]["phase_boundary_env_steps"] == (
         LOG_CHECKPOINT_END_ENV_STEPS
     )
@@ -161,7 +182,75 @@ def test_smoke_and_full_configs_match_the_preregistered_recipe(
             "shared_encoder_learning_rate": SHARED_ENCODER_LEARNING_RATE
         }
     else:
-        assert full.learner_class is SACTorchLearner
+        assert full.learner_class is SingleBackwardSACTorchLearner
+        assert full.learner_config_dict == {}
+
+
+@pytest.mark.parametrize(
+    ("total_batch_size", "expected_minibatch_size"),
+    [(SMOKE_BATCH_SIZE, SMOKE_BATCH_SIZE), (TRAIN_BATCH_SIZE, 128)],
+)
+def test_algorithm_enforces_the_memory_bounded_learner_minibatch(
+    monkeypatch,
+    total_batch_size,
+    expected_minibatch_size,
+):
+    calls = []
+
+    class LearnerGroup:
+        def update(self, *args, **kwargs):
+            calls.append((args, kwargs))
+            return {"updated": True}
+
+    def parent_training_step(self):
+        self.learner_group.update(episodes=["episode"])
+        return {"complete": True}
+
+    monkeypatch.setattr(SAC, "training_step", parent_training_step)
+    algorithm = object.__new__(MemoryBoundedMinibatchSAC)
+    algorithm.learner_group = LearnerGroup()
+    algorithm.config = SimpleNamespace(
+        total_train_batch_size=total_batch_size
+    )
+    original_update = algorithm.learner_group.update
+
+    assert algorithm.training_step() == {"complete": True}
+    assert calls == [
+        (
+            (),
+            {
+                "episodes": ["episode"],
+                "num_epochs": 1,
+                "minibatch_size": expected_minibatch_size,
+            },
+        )
+    ]
+    assert algorithm.learner_group.update == original_update
+
+
+def test_single_backward_learner_sums_losses_before_backpropagating():
+    parameter = torch.nn.Parameter(torch.tensor(2.0))
+    optimizer = torch.optim.SGD([parameter], lr=0.1)
+    hook_gradients = []
+    parameter.register_hook(lambda gradient: hook_gradients.append(gradient))
+    learner = SimpleNamespace(
+        _optimizer_parameters={optimizer: [parameter]},
+        _grad_scalers=None,
+        _params={"parameter": parameter},
+        _temp_losses={"retained": parameter.square()},
+    )
+
+    gradients = SingleBackwardSACTorchLearner.compute_gradients(
+        learner,
+        {
+            "actor": 3.0 * parameter,
+            "critic": parameter.square(),
+        },
+    )
+
+    torch.testing.assert_close(gradients["parameter"], torch.tensor(7.0))
+    assert len(hook_gradients) == 1
+    assert learner._temp_losses == {}
 
 
 def test_shared_and_split_modules_have_the_requested_parameter_topology(
@@ -259,3 +348,5 @@ def test_smoke_recipe_uses_only_the_smoke_budget(tmp_path):
         architecture="shared_trunk",
     )
     assert recipe["total_env_steps"] == SMOKE_ENV_STEPS
+    assert recipe["learner_minibatch_count"] == 1
+    assert recipe["learner_minibatch_size"] == SMOKE_BATCH_SIZE

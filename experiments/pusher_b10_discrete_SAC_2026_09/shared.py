@@ -11,6 +11,7 @@ from pathlib import Path
 
 from ray import tune
 from ray.rllib.algorithms.algorithm import Algorithm
+from ray.rllib.algorithms.sac import SAC
 from ray.rllib.algorithms.sac import SACConfig
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
@@ -33,11 +34,9 @@ from experiments.pusher_b10_discrete_SAC_2026_09.model import (
     PusherSharedTrunkSAC,
     PusherSplitSAC,
     SharedTrunkSACTorchLearner,
+    SingleBackwardSACTorchLearner,
 )
 from experiments.storage.training_curves import write_training_curves
-from experiments.two_factor_reward_state_SAC_cycle_1.shared import (
-    EightMinibatchSAC,
-)
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
 from harness.hardware import PROFILES, resolve_env_runners
@@ -48,8 +47,8 @@ ARCHITECTURES = ("shared_trunk", "split_transformers")
 TOTAL_ENV_STEPS = 300_000_000
 SMOKE_ENV_STEPS = 128
 TRAIN_BATCH_SIZE = 8_192
-LEARNER_MINIBATCH_COUNT = 8
-LEARNER_MINIBATCH_SIZE = TRAIN_BATCH_SIZE // LEARNER_MINIBATCH_COUNT
+LEARNER_MINIBATCH_SIZE = 128
+LEARNER_MINIBATCH_COUNT = TRAIN_BATCH_SIZE // LEARNER_MINIBATCH_SIZE
 SMOKE_BATCH_SIZE = 64
 LEARNING_STARTS = 50_000
 SMOKE_LEARNING_STARTS = 32
@@ -65,12 +64,16 @@ TARGET_ENTROPY = TARGET_ENTROPY_FRACTION * math.log(TOKEN_COUNT)
 LOG_CHECKPOINT_END_ENV_STEPS = 30_000_000
 CHECKPOINT_INTERVAL_ENV_STEPS = 25_000_000
 NUM_ENVS_PER_ENV_RUNNER = 8
+LEARNER_CONTEXT_TOKEN_ROWS = LEARNER_MINIBATCH_SIZE * CONTEXT_LENGTH
+LEARNER_ATTENTION_SCORE_ELEMENTS_PER_HEAD = (
+    LEARNER_MINIBATCH_SIZE * CONTEXT_LENGTH**2
+)
 MODEL_CONFIG = {
     **FactoredReproductionModelConfig(
-        d_model=128,
+        d_model=64,
         n_layers=4,
         n_heads=4,
-        d_mlp=512,
+        d_mlp=256,
         context_length=CONTEXT_LENGTH,
         max_seq_len=CONTEXT_LENGTH,
         activation="gated_gelu",
@@ -81,6 +84,31 @@ MODEL_CONFIG = {
     ).to_dict(),
     "head_fcnet_hiddens": [],
 }
+
+
+class MemoryBoundedMinibatchSAC(SAC):
+    """Split replay batches into context-aware learner minibatches."""
+
+    def training_step(self) -> dict[str, object]:
+        original_update = self.learner_group.update
+        minibatch_size = min(
+            LEARNER_MINIBATCH_SIZE,
+            self.config.total_train_batch_size,
+        )
+
+        def update_with_minibatches(
+            *args: object,
+            **kwargs: object,
+        ) -> object:
+            kwargs.setdefault("num_epochs", 1)
+            kwargs.setdefault("minibatch_size", minibatch_size)
+            return original_update(*args, **kwargs)
+
+        self.learner_group.update = update_with_minibatches
+        try:
+            return super().training_step()
+        finally:
+            self.learner_group.update = original_update
 
 
 def sac_environment_config() -> dict[str, object]:
@@ -211,7 +239,7 @@ def build_config(
         else PusherSplitSAC
     )
     config = (
-        SACConfig(algo_class=EightMinibatchSAC)
+        SACConfig(algo_class=MemoryBoundedMinibatchSAC)
         .environment(HMMEnv, env_config=sac_environment_config())
         .framework(
             "torch",
@@ -296,16 +324,24 @@ def build_config(
             min_time_s_per_iteration=0 if context.smoke else 1,
         )
     )
-    if architecture == "shared_trunk":
-        config = config.learners(
-            learner_class=SharedTrunkSACTorchLearner,
-            learner_config_dict={
-                "shared_encoder_learning_rate": (
-                    SHARED_ENCODER_LEARNING_RATE
-                )
-            },
-        )
-    return config
+    learner_class = (
+        SharedTrunkSACTorchLearner
+        if architecture == "shared_trunk"
+        else SingleBackwardSACTorchLearner
+    )
+    learner_config_dict = (
+        {
+            "shared_encoder_learning_rate": (
+                SHARED_ENCODER_LEARNING_RATE
+            )
+        }
+        if architecture == "shared_trunk"
+        else {}
+    )
+    return config.learners(
+        learner_class=learner_class,
+        learner_config_dict=learner_config_dict,
+    )
 
 
 def _fixed_checkpoint_targets() -> list[int]:
@@ -326,6 +362,13 @@ def resolved_recipe(
     if architecture not in ARCHITECTURES:
         raise ValueError(f"architecture must be one of {ARCHITECTURES}")
     shared = architecture == "shared_trunk"
+    train_batch_size = (
+        SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
+    )
+    learner_minibatch_size = min(
+        train_batch_size,
+        LEARNER_MINIBATCH_SIZE,
+    )
     return {
         "study": "pusher_b10_discrete_SAC_2026_09",
         "condition": architecture,
@@ -355,15 +398,18 @@ def resolved_recipe(
             TARGET_ENTROPY_FRACTION
         ),
         "target_entropy": TARGET_ENTROPY,
-        "train_batch_size_per_learner": (
-            SMOKE_BATCH_SIZE if context.smoke else TRAIN_BATCH_SIZE
+        "train_batch_size_per_learner": train_batch_size,
+        "learner_minibatch_count": math.ceil(
+            train_batch_size / learner_minibatch_size
         ),
-        "learner_minibatch_count": LEARNER_MINIBATCH_COUNT,
-        "learner_minibatch_size": (
-            SMOKE_BATCH_SIZE
-            if context.smoke
-            else LEARNER_MINIBATCH_SIZE
+        "learner_minibatch_size": learner_minibatch_size,
+        "learner_context_token_rows_per_encoder_forward": (
+            learner_minibatch_size * CONTEXT_LENGTH
         ),
+        "learner_attention_score_elements_per_head": (
+            learner_minibatch_size * CONTEXT_LENGTH**2
+        ),
+        "learner_backward_passes_per_minibatch": 1,
         "learner_num_epochs": 1,
         "training_intensity": TRAINING_INTENSITY,
         "learning_starts": (
@@ -393,7 +439,12 @@ def resolved_recipe(
         },
         "torch_compile_learner": False,
         "intended_hardware": (
-            "CPU smoke; one NVIDIA H100-class GPU for a full run"
+            "CPU smoke; production targets one 24 GiB-class CUDA GPU only "
+            "after a measured GPU memory preflight"
+        ),
+        "hardware_validation": (
+            "No specific GPU is declared sufficient until the corrected "
+            "recipe's peak allocated and reserved CUDA memory are measured."
         ),
     }
 

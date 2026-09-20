@@ -9,17 +9,12 @@ import numpy as np
 import torch
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.algorithms.sac.sac_catalog import SACCatalog
-from ray.rllib.algorithms.sac.sac_learner import (
-    QF_LOSS_KEY,
-    QF_TWIN_LOSS_KEY,
-)
 from ray.rllib.algorithms.sac.torch.sac_torch_learner import SACTorchLearner
 from ray.rllib.core.columns import Columns
-from ray.rllib.core.learner.learner import POLICY_LOSS_KEY
+from ray.rllib.core.learner.torch.torch_learner import TorchLearner
 from ray.rllib.core.models.base import ENCODER_OUT, Encoder
 from ray.rllib.core.models.configs import MLPHeadConfig, ModelConfig
 from ray.rllib.core.models.torch.base import TorchModel
-from ray.rllib.utils.metrics import ALL_MODULES
 from ray.rllib.utils.typing import ModuleID, ParamDict, TensorType
 
 from experiments.factored_representations_reproduction_PPO_2026_08.model import (
@@ -182,7 +177,25 @@ class PusherSharedTrunkSAC(FactoredReproductionSAC):
                 )
 
 
-class SharedTrunkSACTorchLearner(SACTorchLearner):
+class SingleBackwardSACTorchLearner(SACTorchLearner):
+    """Backpropagate the summed discrete-SAC loss once per minibatch."""
+
+    def compute_gradients(
+        self,
+        loss_per_module: dict[ModuleID, TensorType],
+        **kwargs: object,
+    ) -> ParamDict:
+        try:
+            return TorchLearner.compute_gradients(
+                self,
+                loss_per_module,
+                **kwargs,
+            )
+        finally:
+            self._temp_losses.clear()
+
+
+class SharedTrunkSACTorchLearner(SingleBackwardSACTorchLearner):
     """Optimize a shared encoder once using actor and both critic losses."""
 
     def configure_optimizers_for_module(
@@ -237,48 +250,6 @@ class SharedTrunkSACTorchLearner(SACTorchLearner):
             params=[temperature],
             lr_or_lr_schedule=config.alpha_lr,
         )
-
-    def compute_gradients(
-        self,
-        loss_per_module: dict[ModuleID, TensorType],
-        **kwargs: object,
-    ) -> ParamDict:
-        del kwargs
-        gradients = {}
-        for module_id in set(loss_per_module) - {ALL_MODULES}:
-            optimizers = self.get_optimizers_for_module(module_id)
-            ordered = sorted(
-                optimizers,
-                key=lambda item: item[0] == "shared",
-            )
-            for optimizer_name, optimizer in ordered:
-                for _, registered_optimizer in optimizers:
-                    registered_optimizer.zero_grad(set_to_none=True)
-                if optimizer_name == "shared":
-                    loss = (
-                        self._temp_losses[(module_id, POLICY_LOSS_KEY)]
-                        + self._temp_losses[(module_id, QF_LOSS_KEY)]
-                        + self._temp_losses[(module_id, QF_TWIN_LOSS_KEY)]
-                    )
-                else:
-                    loss = self._temp_losses[
-                        (module_id, f"{optimizer_name}_loss")
-                    ]
-                loss.backward(retain_graph=True)
-                gradients.update(
-                    {
-                        parameter_id: parameter.grad
-                        for parameter_id, parameter in (
-                            self.filter_param_dict_for_optimizer(
-                                self._params,
-                                optimizer,
-                            ).items()
-                        )
-                    }
-                )
-        self._temp_losses.clear()
-        return gradients
-
 
 def trainable_parameter_count(module: torch.nn.Module) -> int:
     return sum(
