@@ -14,7 +14,13 @@ from experiments.mess3_reward_state_action_symmetry_cycle_6.shared import (
 from harness.cli import execute_experiment, load_experiment, make_run_context
 
 STUDY = "mess3_reward_state_action_symmetry_cycle_6"
-MODULE = f"experiments.{STUDY}.battery.experiment"
+
+
+def _module(condition: str) -> str:
+    leaf = Path(__file__).resolve().parent / condition / "experiment.py"
+    if not condition.isidentifier() or not leaf.is_file():
+        raise ValueError(f"unknown cycle-6 condition: {condition!r}")
+    return f"experiments.{STUDY}.{condition}.experiment"
 
 
 def _instance_id() -> str | None:
@@ -41,14 +47,18 @@ def _push_results(run_name: str) -> bool:
 
 def _run_one(
     *,
+    condition: str,
     seed: int,
     target_agent_steps: int,
     hardware_profile: str,
     upload_artifacts: bool,
     push_each: bool,
 ) -> int:
-    run_id = f"{STUDY}-battery-seed{seed}-{target_agent_steps // 1_000_000}m"
-    experiment = load_experiment(MODULE)
+    run_id = (
+        f"{STUDY}-{condition}-seed{seed}"
+        f"-{target_agent_steps // 1_000_000}m"
+    )
+    experiment = load_experiment(_module(condition))
     context = make_run_context(
         experiment,
         seed=seed,
@@ -58,7 +68,7 @@ def _run_one(
     )
     write_budget_spec(context, target_agent_steps)
     print(
-        f"[seed_queue] start battery seed={seed} "
+        f"[seed_queue] start condition={condition} seed={seed} "
         f"target_steps={target_agent_steps} run_id={run_id}",
         flush=True,
     )
@@ -71,12 +81,15 @@ def _run_one(
                 "python",
                 "-m",
                 f"experiments.{STUDY}.seed_queue",
+                "--condition",
+                condition,
                 "--seeds",
                 str(seed),
                 "--target-agent-steps",
                 str(target_agent_steps),
             ],
             runtime_overrides={
+                "condition": condition,
                 "seed": seed,
                 "target_agent_steps": target_agent_steps,
                 "hardware_profile": hardware_profile,
@@ -105,6 +118,14 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Sequential cycle-6 REINFORCE battery runner for one or more seeds."
         )
+    )
+    parser.add_argument(
+        "--condition",
+        default="battery",
+        help=(
+            "experiment leaf under the cycle-6 study to run "
+            "(e.g. battery, variant_2_t15_ctx32)"
+        ),
     )
     parser.add_argument(
         "--seeds",
@@ -139,6 +160,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     failures = 0
     for seed in args.seeds:
         failures += _run_one(
+            condition=args.condition,
             seed=seed,
             target_agent_steps=args.target_agent_steps,
             hardware_profile=args.hardware_profile,
