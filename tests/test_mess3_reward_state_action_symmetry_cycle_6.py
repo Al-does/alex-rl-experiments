@@ -110,6 +110,7 @@ def test_t15_ctx32_arms_change_only_temperature_and_context(
     assert spec.module_class is ReinforceTransformerModel
     assert spec.model_config["sampling_temperature"] == 1.5
     assert spec.model_config["context_len"] == 32
+    assert spec.model_config["grad_checkpointing"] is True
     for key in ("d_model", "n_layers", "n_heads", "max_seq_len"):
         assert spec.model_config[key] == BASE_MODEL_CONFIG[key]
     assert config.lr == 4.2e-4
