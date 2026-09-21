@@ -271,6 +271,7 @@ def _metric_projection(score: dict[str, object]) -> dict[str, object]:
             "r_squared",
             "n_evaluated",
         )
+        if key in score
     }
 
 

@@ -14,6 +14,9 @@ from experiments.two_factor_reward_state_REINFORCE_cycle_4.control_analysis impo
     shuffled_histories,
     uniform_random_histories,
 )
+from experiments.two_factor_reward_state_REINFORCE_cycle_4.control_campaign import (
+    _metric_projection,
+)
 
 
 def _history_from_environment(length: int = 40) -> HistoryData:
@@ -129,3 +132,14 @@ def test_shuffled_original_and_recomputed_targets_are_distinct() -> None:
     joint, _ = replay_beliefs(shuffled, condition="reward_both")
 
     assert np.max(np.abs(joint - data.beliefs)) > 1e-3
+
+
+def test_metric_projection_accepts_aggregated_null_scores() -> None:
+    score = {
+        "mse": 0.2,
+        "target_variance": 0.2,
+        "global_mse_ratio": 1.0,
+        "r_squared": 0.0,
+    }
+
+    assert _metric_projection(score) == score
