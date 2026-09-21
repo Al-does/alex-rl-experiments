@@ -1,13 +1,13 @@
-"""Continue the Shot A variant 2 run from its final checkpoint.
+"""Continue the interrupted Shot A variant 2 entropy-ramp run from 45.06M.
 
-The source run stopped at ~15.06M sampled environment steps. This leaf
-restores the final public Algorithm checkpoint into a freshly built Shot A
-variant 2 config (the restored lifetime step count keeps the learning-rate
-schedule on its terminal 1e-5 segment) with one override: the entropy
-coefficient ramps linearly from 0 back to 0.01 across 15M-20M lifetime steps
-and holds 0.01 afterwards. Training then runs for a further 300M environment
-steps, saving a public checkpoint at every 15M-step boundary and probing each
-saved checkpoint with the study's standard battery.
+The first entropy-ramp continuation was stopped at ~140M lifetime steps; this
+leaf restores its 45.06M-step checkpoint into a freshly built Shot A variant 2
+config (the restored lifetime step count keeps the learning-rate schedule on
+its terminal 1e-5 segment) with one override: the entropy coefficient ramps
+linearly from 0.01 to 0.05 across 45.06M-55.06M lifetime steps and holds 0.05
+afterwards. Training runs to the same 315.06M lifetime target, saving a public
+checkpoint at every 15M-step boundary and probing each saved checkpoint with
+the study's standard battery.
 """
 
 from __future__ import annotations
@@ -34,26 +34,26 @@ from harness.storage.b2 import B2StorageConfig
 
 
 VARIANT = 2
-CONDITION = "shot_a_variant_2_entropy_ramp"
-SOURCE_RUN_ID = "20260913T215003Z-287afdb9"
-SOURCE_RESULT_COMMIT = "0280570f21ba7e9a0a935c90f1616f3090f1020e"
+CONDITION = "shot_a_variant_2_entropy_ramp_2"
+SOURCE_RUN_ID = "20260920T073522Z-bed2a40f"
+SOURCE_RESULT_COMMIT = "8297e6d589a932f65fdf4b11b52f2b1e5fdf3e75"
 SOURCE_B2_PREFIX = (
     "experiments/nonergodic_mess3_reward_state_action_symmetry_cycle_5/"
-    f"shot_a/variant_2/{SOURCE_RUN_ID}"
+    f"shot_a/variant_2_entropy_ramp/{SOURCE_RUN_ID}"
 )
 SOURCE_CHECKPOINT_KEY = (
-    f"{SOURCE_B2_PREFIX}/tune/"
-    "PPO_HMMEnv_153f5_00000_0_2026-09-13_21-50-07/checkpoint_000000"
+    f"{SOURCE_B2_PREFIX}/checkpoints/iteration_000171_steps_045055536"
 )
-SOURCE_AGENT_STEPS = 15_057_120
-SOURCE_TRAINING_ITERATION = 57
-ADDITIONAL_ENV_STEPS = 300_000_000
-TOTAL_ENV_STEPS = SOURCE_AGENT_STEPS + ADDITIONAL_ENV_STEPS
+SOURCE_AGENT_STEPS = 45_055_536
+SOURCE_TRAINING_ITERATION = 171
+TOTAL_ENV_STEPS = 315_057_120
 CHECKPOINT_EVERY_STEPS = 15_000_000
 ENTROPY_COEFF_SCHEDULE = [
     [0, 0.0],
     [15_000_000, 0.0],
     [20_000_000, 0.01],
+    [45_055_536, 0.01],
+    [55_055_536, 0.05],
 ]
 SMOKE_TOTAL_ENV_STEPS = 2 * SMOKE_ENV_STEPS
 SMOKE_CHECKPOINT_EVERY_STEPS = SMOKE_ENV_STEPS
@@ -258,7 +258,7 @@ def resolved_recipe(context: RunContext) -> dict[str, object]:
         {
             "condition": CONDITION,
             "continuation_of": {
-                "condition": "shot_a_variant_2",
+                "condition": "shot_a_variant_2_entropy_ramp",
                 "run_id": SOURCE_RUN_ID,
                 "result_commit": SOURCE_RESULT_COMMIT,
                 "checkpoint_key": SOURCE_CHECKPOINT_KEY,
@@ -272,9 +272,9 @@ def resolved_recipe(context: RunContext) -> dict[str, object]:
             ),
             "entropy_coeff": ENTROPY_COEFF_SCHEDULE,
             "entropy_schedule_note": (
-                "restored lifetime step count starts past 15M, so the "
-                "coefficient ramps 0 -> 0.01 across 15M-20M lifetime steps "
-                "and holds 0.01 for the remainder of training"
+                "restored lifetime step count resumes at 45.06M, so the "
+                "coefficient ramps 0.01 -> 0.05 across 45.06M-55.06M "
+                "lifetime steps and holds 0.05 for the remainder of training"
             ),
             "total_env_steps": (
                 SMOKE_TOTAL_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
@@ -282,6 +282,11 @@ def resolved_recipe(context: RunContext) -> dict[str, object]:
             "additional_env_steps": (
                 (SMOKE_TOTAL_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS)
                 - (0 if context.smoke else SOURCE_AGENT_STEPS)
+            ),
+            "note": (
+                "source run 20260920T073522Z-bed2a40f was interrupted at "
+                "~140M lifetime steps; this leaf resumes from its "
+                "45.06M-step boundary checkpoint with a higher entropy cap"
             ),
             "stopping_metric": STEPS_METRIC,
             "checkpoint_schedule": (
