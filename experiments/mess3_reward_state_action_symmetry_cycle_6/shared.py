@@ -179,11 +179,34 @@ def environment_config(variant: int) -> dict[str, Any]:
     }
 
 
+def entropy_coeff_schedule(
+    initial: float,
+    target_agent_steps: int,
+    anneal_tail_steps: int,
+) -> list[list[float]]:
+    """Hold ``initial`` until ``anneal_tail_steps`` before the end, then linear to 0.
+
+    RLlib's entropy Scheduler advances on num_env_steps_sampled_lifetime,
+    the same counter that stops the run, so the final knot lands at zero
+    exactly at the target.
+    """
+
+    anneal_start = target_agent_steps - anneal_tail_steps
+    if anneal_start <= 0:
+        return [[0, initial], [target_agent_steps, 0.0]]
+    return [
+        [0, initial],
+        [anneal_start, initial],
+        [target_agent_steps, 0.0],
+    ]
+
+
 def build_config(
     context: RunContext,
     variant: int,
     *,
     model_config: Mapping[str, Any] | None = None,
+    entropy_coeff: float | list[list[float]] = 0.0,
 ) -> PPOConfig:
     """Build a fresh Monte Carlo REINFORCE configuration."""
 
@@ -206,7 +229,7 @@ def build_config(
             use_gae=False,
             use_kl_loss=False,
             vf_loss_coeff=0.0,
-            entropy_coeff=0.0,
+            entropy_coeff=entropy_coeff,
             train_batch_size_per_learner=batch_size,
             minibatch_size=None,
             num_epochs=1,
@@ -360,6 +383,8 @@ def _run_continuation(
     *,
     model_config: Mapping[str, Any] | None = None,
     recipe_overrides: Mapping[str, Any] | None = None,
+    entropy_coeff: float = 0.0,
+    entropy_anneal_tail_steps: int | None = None,
 ) -> dict[str, Any]:
     """Continue REINFORCE training from a completed variant checkpoint."""
 
@@ -376,6 +401,13 @@ def _run_continuation(
         not context.smoke or context.publish_smoke
     )
     resolved_model_config = dict(model_config or BASE_MODEL_CONFIG)
+    resolved_entropy_coeff = (
+        entropy_coeff_schedule(
+            entropy_coeff, target_steps, entropy_anneal_tail_steps
+        )
+        if entropy_anneal_tail_steps is not None
+        else entropy_coeff
+    )
     recipe = {
         "condition": condition,
         "mode": "continued_from_checkpoint",
@@ -398,6 +430,8 @@ def _run_continuation(
         "environment": environment_config(variant),
         "analytic_design": analytic_design_summary(),
         "model_config": resolved_model_config,
+        "entropy_coeff": resolved_entropy_coeff,
+        "entropy_anneal_tail_steps": entropy_anneal_tail_steps,
     }
     recipe.update(recipe_overrides or {})
     outputs.write_json("resolved_recipe.json", recipe)
@@ -418,7 +452,10 @@ def _run_continuation(
         return steps >= limit
 
     config = build_config(
-        context, variant, model_config=resolved_model_config
+        context,
+        variant,
+        model_config=resolved_model_config,
+        entropy_coeff=resolved_entropy_coeff,
     ).callbacks(
         on_train_result=partial(
             _save_step_checkpoint_and_upload,
@@ -473,6 +510,8 @@ def run_condition(
     *,
     model_config: Mapping[str, Any] | None = None,
     recipe_overrides: Mapping[str, Any] | None = None,
+    entropy_coeff: float = 0.0,
+    entropy_anneal_tail_steps: int | None = None,
 ) -> dict[str, Any]:
     """Train one REINFORCE variant and probe init plus spaced checkpoints."""
 
@@ -484,12 +523,21 @@ def run_condition(
             variant,
             model_config=model_config,
             recipe_overrides=recipe_overrides,
+            entropy_coeff=entropy_coeff,
+            entropy_anneal_tail_steps=entropy_anneal_tail_steps,
         )
     condition = f"variant_{variant}"
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     target_steps = _resolve_step_target(context)
     resolved_model_config = dict(model_config or BASE_MODEL_CONFIG)
+    resolved_entropy_coeff = (
+        entropy_coeff_schedule(
+            entropy_coeff, target_steps, entropy_anneal_tail_steps
+        )
+        if entropy_anneal_tail_steps is not None
+        else entropy_coeff
+    )
     recipe = {
         "condition": condition,
         "algorithm": "REINFORCE",
@@ -508,13 +556,18 @@ def run_condition(
             "every_iteration_unpruned_pending_generic_log_schedule"
         ),
         "model_config": resolved_model_config,
+        "entropy_coeff": resolved_entropy_coeff,
+        "entropy_anneal_tail_steps": entropy_anneal_tail_steps,
         "probe_target": "exact_predictive_bayesian_belief",
         "probe_sampling_distribution": "process_weighted_rollout",
     }
     recipe.update(recipe_overrides or {})
     outputs.write_json("resolved_recipe.json", recipe)
     config = build_config(
-        context, variant, model_config=resolved_model_config
+        context,
+        variant,
+        model_config=resolved_model_config,
+        entropy_coeff=resolved_entropy_coeff,
     )
     initial_checkpoint = _save_initial_checkpoint(
         config,
