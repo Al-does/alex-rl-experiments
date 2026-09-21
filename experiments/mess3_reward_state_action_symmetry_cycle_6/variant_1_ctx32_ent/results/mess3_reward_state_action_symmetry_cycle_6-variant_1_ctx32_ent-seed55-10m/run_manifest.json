@@ -14,11 +14,8 @@
     "file": "/root/work/alex-rl-experiments/uv.lock",
     "sha256": "6edb9655e4e6726f5a50ae057c6d3d66c9d22b87e409728a6e22b36aca248622"
   },
-  "ended_at": "2026-09-21T19:32:56.673601+00:00",
-  "error": {
-    "message": "Traceback (most recent call last):\n  File \"/root/work/alex-rl-experiments/.venv/lib/python3.14/site-packages/ray/air/execution/_internal/event_manager.py\", line 110, in resolve_future\n    result = ray.get(future)\n  File \"/root/work/alex-rl-experiments/.venv/lib/python3.14/site-packages/ray/_private/auto_init_hook.py\", line 22, in auto_init_wrapper\n    return fn(*args, **kwargs)\n  File \"/root/work/alex-rl-experiments/.venv/lib/python3.14/site-packages/ray/_private/client_mode_hook.py\", line 110, in wrapper\n    return func(*args, **kwargs)\n  File \"/root/work/alex-rl-experiments/.venv/lib/python3.14/site-packages/ray/_private/worker.py\", line 2968, in get\n    values, debugger_breakpoint = worker.get_objects(\n                                  ~~~~~~~~~~~~~~~~~~^\n        object_refs, timeout, use_object_store=_use_object_store\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"/root/work/alex-rl-experiments/.venv/lib/python3.14/site-packages/ray/_private/worker.py\", line 1050, in get_objects\n    raise value.as_instanceof_cause()\nray.exceptions.RayTaskError(OSError): \u001b[36mray::PPO.save()\u001b[39m (pid=9189, ip=172.17.0.5, actor_id=a8fa69d9ef5440e57d6dc9a801000000, repr=PPO(env=<class 'envs.hmm.env.HMMEnv'>; env-runners=16; learners=0; multi-agent=False))\n  File \"/root/work/alex-rl-experiments/.venv/lib/python3.14/site-packages/ray/tune/trainable/trainable.py\", line 485, in save\n    checkpoint_dict_or_path = self.save_checkpoint(checkpoint_dir)\n  File \"/root/work/alex-rl-experiments/.venv/lib/python3.14/site-packages/ray/rllib/algorithms/algorithm.py\", line 3107, in save_checkpoint\n    self.save_to_path(\n    ~~~~~~~~~~~~~~~~~^\n        checkpoint_dir,\n        ^^^^^^^^^^^^^^^\n        use_msgpack=self.config._use_msgpack_checkpoints,\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"/root/work/alex-rl-experiments/.venv/lib/python3.14/site-packages/ray/rllib/utils/checkpoints.py\", line 310, in save_to_path\n    comp.save_to_path(\n    ~~~~~~~~~~~~~~~~~^\n        path=comp_path,\n        ^^^^^^^^^^^^^^^\n    ...<2 lines>...\n        use_msgpack=use_msgpack,\n        ^^^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"/root/work/alex-rl-experiments/.venv/lib/python3.14/site-packages/ray/rllib/utils/checkpoints.py\", line 310, in save_to_path\n    comp.save_to_path(\n    ~~~~~~~~~~~~~~~~~^\n        path=comp_path,\n        ^^^^^^^^^^^^^^^\n    ...<2 lines>...\n        use_msgpack=use_msgpack,\n        ^^^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"/root/work/alex-rl-experiments/.venv/lib/python3.14/site-packages/ray/rllib/utils/checkpoints.py\", line 326, in save_to_path\n    pickle.dump(state, f)\n    ~~~~~~~~~~~^^^^^^^^^^\n  File \"/root/work/alex-rl-experiments/.venv/lib/python3.14/site-packages/ray/cloudpickle/cloudpickle.py\", line 1526, in dump\n    Pickler(file, protocol=protocol, buffer_callback=buffer_callback).dump(obj)\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^\n  File \"/root/work/alex-rl-experiments/.venv/lib/python3.14/site-packages/ray/cloudpickle/cloudpickle.py\", line 1313, in dump\n    return super().dump(obj)\n           ~~~~~~~~~~~~^^^^^\n  File \"pyarrow/io.pxi\", line 375, in pyarrow.lib.NativeFile.write\n  File \"pyarrow/error.pxi\", line 92, in pyarrow.lib.check_status\nOSError: [Errno 28] Error writing bytes to file. Detail: [errno 28] No space left on device\nwhen serializing tuple item 0\nwhen serializing numpy.ndarray reconstructor arguments\nwhen serializing numpy.ndarray object\nwhen serializing dict item 'exp_avg'\nwhen serializing dict item 22\nwhen serializing dict item 'state'\nwhen serializing dict item 'state'\nwhen serializing dict item 'default_policy_default_optimizer'\nwhen serializing dict item 'optimizer'\nwhen serializing tuple item 0\nwhen serializing numpy.ndarray reconstructor arguments\nwhen serializing numpy.ndarray object\nwhen serializing dict item 'exp_avg'\nwhen serializing dict item 22\nwhen serializing dict item 'state'\nwhen serializing dict item 'state'\nwhen serializing dict item 'default_policy_default_optimizer'\nwhen serializing dict item 'optimizer'\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/work/alex-rl-experiments/.venv/lib/python3.14/site-packages/ray/tune/execution/tune_controller.py\", line 1244, in _on_error\n    on_error(trial, exception)\n    ~~~~~~~~^^^^^^^^^^^^^^^^^^\n  File \"/root/work/alex-rl-experiments/.venv/lib/python3.14/site-packages/ray/tune/execution/tune_controller.py\", line 1333, in _trial_task_failure\n    self._process_trial_failure(trial, exception=exception)\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/work/alex-rl-experiments/.venv/lib/python3.14/site-packages/ray/tune/execution/tune_controller.py\", line 1349, in _process_trial_failure\n    trial.handle_error(exception)\n    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^\n  File \"/root/work/alex-rl-experiments/.venv/lib/python3.14/site-packages/ray/tune/experiment/trial.py\", line 840, in handle_error\n    with open(self.pickled_error_file, \"wb\") as f:\n         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nOSError: [Errno 28] No space left on device: '/tmp/ray/session_2026-09-21_19-25-01_046574_6692/artifacts/2026-09-21_19-26-43/tune/driver_artifacts/PPO_HMMEnv_60f8c_00000_0_2026-09-21_19-26-44/error.pkl'\n",
-    "type": "TuneError"
-  },
+  "ended_at": "2026-09-21T20:17:39.015909+00:00",
+  "error": null,
   "experiment": {
     "file": "/root/work/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_6/variant_1_ctx32_ent/experiment.py",
     "module": "experiments.mess3_reward_state_action_symmetry_cycle_6.variant_1_ctx32_ent.experiment",
@@ -33,10 +30,10 @@
     "torch": "2.12.1"
   },
   "git": {
-    "commit": "0f42a14a037cc93359ee8a2c9798920c65391b4e",
+    "commit": "bd81f9853b7a54795c774d0b912b5d723539275b",
     "dirty": true,
     "experiment_repository": {
-      "commit": "0f42a14a037cc93359ee8a2c9798920c65391b4e",
+      "commit": "bd81f9853b7a54795c774d0b912b5d723539275b",
       "dirty": true,
       "root": "/root/work/alex-rl-experiments"
     },
@@ -49,13 +46,13 @@
     }
   },
   "hardware": {
-    "cpu_count": 192,
+    "cpu_count": 48,
     "cuda_available": true,
     "cuda_device_count": 1,
-    "cuda_device_name": "NVIDIA GeForce RTX 5090",
+    "cuda_device_name": "NVIDIA GeForce RTX 4090",
     "machine": "x86_64",
     "mps_available": false,
-    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+    "platform": "Linux-5.15.0-52-generic-x86_64-with-glibc2.35",
     "profile": {
       "learner_device": "cuda",
       "name": "cuda4090",
@@ -72,13 +69,13 @@
     "canonical_manifest_file": "durability_manifest.json",
     "canonical_manifest_key": "experiments/mess3_reward_state_action_symmetry_cycle_6/variant_1_ctx32_ent/mess3_reward_state_action_symmetry_cycle_6-variant_1_ctx32_ent-seed55-10m/metadata/durability_manifest.json",
     "endpoint": "https://s3.us-west-004.backblazeb2.com",
-    "file_count": 62,
+    "file_count": 1034,
     "manifest_file": "remote_artifacts.json",
     "prefix": "experiments/mess3_reward_state_action_symmetry_cycle_6/variant_1_ctx32_ent/mess3_reward_state_action_symmetry_cycle_6-variant_1_ctx32_ent-seed55-10m",
-    "started_at": "2026-09-21T19:31:54.224139+00:00",
+    "started_at": "2026-09-21T20:06:55.009120+00:00",
     "status": "completed",
-    "total_bytes": 3772108,
-    "uploaded_at": "2026-09-21T19:32:54.741660+00:00"
+    "total_bytes": 109176675,
+    "uploaded_at": "2026-09-21T20:17:37.255124+00:00"
   },
   "run_id": "mess3_reward_state_action_symmetry_cycle_6-variant_1_ctx32_ent-seed55-10m",
   "runtime": {
@@ -98,6 +95,14 @@
     "upload_artifacts": true
   },
   "schema_version": 2,
-  "started_at": "2026-09-21T19:25:00.759241+00:00",
-  "status": "failed"
+  "started_at": "2026-09-21T19:45:12.970085+00:00",
+  "status": "completed",
+  "trials": [
+    {
+      "checkpoint": "/root/work/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_6/variant_1_ctx32_ent/artifacts/mess3_reward_state_action_symmetry_cycle_6-variant_1_ctx32_ent-seed55-10m/tune/PPO_HMMEnv_264fe_00000_0_2026-09-21_19-46-34/checkpoint_000040",
+      "resolved_seed": 55,
+      "status": "completed",
+      "trial_id": "264fe_00000"
+    }
+  ]
 }
