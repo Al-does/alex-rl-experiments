@@ -8,13 +8,19 @@ import time
 from collections.abc import Sequence
 from pathlib import Path
 
-from experiments.mess3_reward_state_action_symmetry_cycle_6.shared import (
+from experiments.mess3_reward_state_action_symmetry_cycle_7.shared import (
     write_budget_spec,
 )
 from harness.cli import execute_experiment, load_experiment, make_run_context
 
-STUDY = "mess3_reward_state_action_symmetry_cycle_6"
-STUDY_DIR = Path(__file__).resolve().parent
+STUDY = "mess3_reward_state_action_symmetry_cycle_7"
+
+
+def _module(condition: str) -> str:
+    leaf = Path(__file__).resolve().parent / condition / "experiment.py"
+    if not condition.isidentifier() or not leaf.is_file():
+        raise ValueError(f"unknown cycle-6 condition: {condition!r}")
+    return f"experiments.{STUDY}.{condition}.experiment"
 
 
 def _instance_id() -> str | None:
@@ -48,14 +54,11 @@ def _run_one(
     upload_artifacts: bool,
     push_each: bool,
 ) -> int:
-    condition_slug = condition.replace("_", "-")
     run_id = (
-        f"{STUDY}-{condition_slug}-seed{seed}"
+        f"{STUDY}-{condition}-seed{seed}"
         f"-{target_agent_steps // 1_000_000}m"
     )
-    experiment = load_experiment(
-        f"experiments.{STUDY}.{condition}.experiment"
-    )
+    experiment = load_experiment(_module(condition))
     context = make_run_context(
         experiment,
         seed=seed,
@@ -113,16 +116,15 @@ def _run_one(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Sequential cycle-6 REINFORCE leaf runner for one or more seeds."
+            "Sequential cycle-6 REINFORCE battery runner for one or more seeds."
         )
     )
     parser.add_argument(
         "--condition",
         default="battery",
         help=(
-            "Leaf directory under the study to run per seed "
-            "(must contain experiment.py; default: battery, which runs "
-            "all three variants)."
+            "experiment leaf under the cycle-6 study to run "
+            "(e.g. battery, variant_2_t15_ctx32)"
         ),
     )
     parser.add_argument(
@@ -155,12 +157,6 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    condition_dir = STUDY_DIR / args.condition
-    if not (condition_dir / "experiment.py").is_file():
-        raise SystemExit(
-            f"unknown condition {args.condition!r}: "
-            f"{condition_dir} has no experiment.py"
-        )
     failures = 0
     for seed in args.seeds:
         failures += _run_one(

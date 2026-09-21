@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import replace
 from functools import partial
 from pathlib import Path
@@ -27,12 +27,12 @@ from experiments.mess3_reward_state_action_symmetry_cycle_5.shared import (
     _metric,
     checkpoint_records,
 )
-from experiments.mess3_reward_state_action_symmetry_cycle_6.analysis import (
+from experiments.mess3_reward_state_action_symmetry_cycle_7.analysis import (
     ProbeResult,
     plot_probe,
     probe_checkpoint,
 )
-from experiments.mess3_reward_state_action_symmetry_cycle_6.design import (
+from experiments.mess3_reward_state_action_symmetry_cycle_7.design import (
     CYCLE_6_TRANSITION_MATRIX,
     EFFECT_SIZE,
     analytic_design_summary,
@@ -66,19 +66,33 @@ BASE_MODEL_CONFIG = TransformerModelConfig(
 
 
 class ReinforceTransformerModel(TransformerModel):
-    """Transformer policy with an identically-zero REINFORCE baseline."""
+    """Transformer policy with an identically-zero REINFORCE baseline.
+
+    An optional ``sampling_temperature`` model-config entry divides the
+    categorical logits by ``T`` wherever the module emits action
+    distribution inputs, so rollout sampling and train-time
+    log-probability evaluation use the same tempered policy.
+    """
 
     @override(TorchRLModule)
     def setup(self):
         super().setup()
-        self._sampling_temperature = float(
+        self.sampling_temperature = float(
             self.model_config.get("sampling_temperature", 1.0)
         )
         if (
-            not math.isfinite(self._sampling_temperature)
-            or self._sampling_temperature <= 0
+            not math.isfinite(self.sampling_temperature)
+            or self.sampling_temperature <= 0
         ):
             raise ValueError("sampling_temperature must be finite and positive")
+
+    def action_distribution_inputs(
+        self, embeddings: torch.Tensor
+    ) -> torch.Tensor:
+        return (
+            super().action_distribution_inputs(embeddings)
+            / self.sampling_temperature
+        )
 
     def _outputs(
         self,
@@ -88,11 +102,9 @@ class ReinforceTransformerModel(TransformerModel):
         training: bool,
     ) -> dict[str, Any]:
         outputs = super()._outputs(embeddings, state_out, training=training)
-        temperature = self._sampling_temperature
-        if temperature != 1.0:
-            outputs[Columns.ACTION_DIST_INPUTS] = (
-                outputs[Columns.ACTION_DIST_INPUTS] / temperature
-            )
+        outputs[Columns.ACTION_DIST_INPUTS] = self.action_distribution_inputs(
+            embeddings
+        )
         return outputs
 
     def compute_values(
@@ -165,7 +177,7 @@ def environment_config(variant: int) -> dict[str, Any]:
         },
         "task": {
             "class": (
-                "experiments.mess3_reward_state_action_symmetry_cycle_6.task:"
+                "experiments.mess3_reward_state_action_symmetry_cycle_7.task:"
                 "ActionSymmetryTask"
             ),
             "kwargs": {
@@ -354,13 +366,7 @@ def _continuation_step_target(context: RunContext) -> int:
     return CONTINUED_TOTAL_ENV_STEPS
 
 
-def _run_continuation(
-    context: RunContext,
-    variant: int,
-    *,
-    model_config: Mapping[str, Any] | None = None,
-    recipe_overrides: Mapping[str, Any] | None = None,
-) -> dict[str, Any]:
+def _run_continuation(context: RunContext, variant: int) -> dict[str, Any]:
     """Continue REINFORCE training from a completed variant checkpoint."""
 
     condition = f"variant_{variant}"
@@ -375,7 +381,6 @@ def _run_continuation(
     upload = is_b2_configured() and (
         not context.smoke or context.publish_smoke
     )
-    resolved_model_config = dict(model_config or BASE_MODEL_CONFIG)
     recipe = {
         "condition": condition,
         "mode": "continued_from_checkpoint",
@@ -397,9 +402,8 @@ def _run_continuation(
         "learning_rate": LEARNING_RATE,
         "environment": environment_config(variant),
         "analytic_design": analytic_design_summary(),
-        "model_config": resolved_model_config,
+        "model_config": BASE_MODEL_CONFIG,
     }
-    recipe.update(recipe_overrides or {})
     outputs.write_json("resolved_recipe.json", recipe)
 
     state: dict[str, Any] = {"baseline": None}
@@ -417,9 +421,7 @@ def _run_continuation(
         )
         return steps >= limit
 
-    config = build_config(
-        context, variant, model_config=resolved_model_config
-    ).callbacks(
+    config = build_config(context, variant).callbacks(
         on_train_result=partial(
             _save_step_checkpoint_and_upload,
             checkpoint_root=str(context.artifacts_dir / "step_checkpoints"),
@@ -471,7 +473,7 @@ def run_condition(
     context: RunContext,
     variant: int,
     *,
-    model_config: Mapping[str, Any] | None = None,
+    config_builder: Callable[[RunContext, int], PPOConfig] = build_config,
     recipe_overrides: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Train one REINFORCE variant and probe init plus spaced checkpoints."""
@@ -479,17 +481,11 @@ def run_condition(
     if context.seed is None:
         raise ValueError("action-symmetry cycle requires a resolved seed")
     if context.resume_from is not None:
-        return _run_continuation(
-            context,
-            variant,
-            model_config=model_config,
-            recipe_overrides=recipe_overrides,
-        )
+        return _run_continuation(context, variant)
     condition = f"variant_{variant}"
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     target_steps = _resolve_step_target(context)
-    resolved_model_config = dict(model_config or BASE_MODEL_CONFIG)
     recipe = {
         "condition": condition,
         "algorithm": "REINFORCE",
@@ -507,15 +503,13 @@ def run_condition(
         "checkpoint_storage": (
             "every_iteration_unpruned_pending_generic_log_schedule"
         ),
-        "model_config": resolved_model_config,
+        "model_config": BASE_MODEL_CONFIG,
         "probe_target": "exact_predictive_bayesian_belief",
         "probe_sampling_distribution": "process_weighted_rollout",
     }
     recipe.update(recipe_overrides or {})
     outputs.write_json("resolved_recipe.json", recipe)
-    config = build_config(
-        context, variant, model_config=resolved_model_config
-    )
+    config = config_builder(context, variant)
     initial_checkpoint = _save_initial_checkpoint(
         config,
         context.artifacts_dir / "initial_checkpoint",

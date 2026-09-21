@@ -1,4 +1,4 @@
-"""Variant-3 REINFORCE rerun: canonical recipe, context_len=32, entropy anneal.
+"""Variant-1 REINFORCE rerun: canonical recipe, context_len=32, entropy anneal.
 
 Same environment, budget, batch geometry, learning rate, and probe battery as
 the 15-seed campaign. Changes: attention context length 32, canonical
@@ -11,7 +11,7 @@ keep peak memory in check on ~24-48 GB cards; it does not change any math.
 
 from ray.rllib.algorithms.ppo import PPOConfig
 
-from experiments.mess3_reward_state_action_symmetry_cycle_6.shared import (
+from experiments.mess3_reward_state_action_symmetry_cycle_7.shared import (
     BASE_MODEL_CONFIG,
     _resolve_step_target,
     build_config as _build_shared_config,
@@ -19,7 +19,7 @@ from experiments.mess3_reward_state_action_symmetry_cycle_6.shared import (
 )
 from harness.context import RunContext
 
-VARIANT = 3
+VARIANT = 1
 SAMPLING_TEMPERATURE = 1.0
 CONTEXT_LEN = 32
 ENTROPY_COEFF = 0.03
