@@ -96,11 +96,15 @@ def test_cycle_6_budget_and_model_match_requested_recipe():
 
 
 @pytest.mark.parametrize(
-    ("variant", "condition", "temperature"),
-    ((2, "ctx32", 1.0), (3, "t15_ctx32", 1.5)),
+    ("variant", "condition", "temperature", "entropy_coeff"),
+    (
+        (2, "ctx32", 1.0, 0.0),
+        (3, "t15_ctx32", 1.5, 0.0),
+        (2, "ctx32_ent", 1.0, [[0, 0.03], [1, 0.0]]),
+    ),
 )
 def test_ctx32_arms_change_only_temperature_and_context(
-    smoke_context, variant, condition, temperature
+    smoke_context, variant, condition, temperature, entropy_coeff
 ):
     module = importlib.import_module(
         "experiments.mess3_reward_state_action_symmetry_cycle_6."
@@ -121,9 +125,31 @@ def test_ctx32_arms_change_only_temperature_and_context(
     assert config.train_batch_size_per_learner == SMOKE_BATCH_SIZE
     assert config.gamma == 0.99
     assert config.lambda_ == 1.0
-    assert config.entropy_coeff == 0.0
+    assert config.entropy_coeff == entropy_coeff
     assert config.use_critic is False
     config.validate()
+
+
+def test_ctx32_ent_schedule_reaches_zero_1m_before_target(tmp_path):
+    from experiments.mess3_reward_state_action_symmetry_cycle_6.shared import (
+        write_budget_spec,
+    )
+
+    module = importlib.import_module(
+        "experiments.mess3_reward_state_action_symmetry_cycle_6."
+        "variant_2_ctx32_ent.experiment"
+    )
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        smoke=False,
+        hardware=PROFILES["cpu"],
+    )
+    write_budget_spec(context, 10_000_000)
+
+    assert module.entropy_schedule(context) == [[0, 0.03], [9_000_000, 0.0]]
 
 
 def test_t15_ctx32_logits_divided_in_rollout_and_train(tmp_path):
