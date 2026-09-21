@@ -193,3 +193,82 @@ def test_continuation_step_target_defaults_to_300m(tmp_path):
         json.dumps({"target_agent_steps": 150_000_000})
     )
     assert _continuation_step_target(context) == 150_000_000
+
+
+@pytest.mark.parametrize(
+    "leaf,variant",
+    (
+        ("variant_2_sampling_temp", 2),
+        ("variant_3_sampling_temp", 3),
+    ),
+)
+def test_sampling_temp_arms_match_recipe_except_temperature(
+    smoke_context, leaf, variant
+):
+    module = importlib.import_module(
+        "experiments.mess3_reward_state_action_symmetry_cycle_6."
+        f"{leaf}.experiment"
+    )
+
+    config = module.build_config(smoke_context)
+    spec = config.get_rl_module_spec()
+
+    assert module.SAMPLING_TEMPERATURE == 1.5
+    assert spec.module_class is ReinforceTransformerModel
+    assert spec.model_config["sampling_temperature"] == 1.5
+    assert spec.model_config["d_model"] == 64
+    assert spec.model_config["n_layers"] == 4
+    assert spec.model_config["n_heads"] == 1
+    assert spec.model_config["context_len"] == 10
+    assert config.env_config["task"]["kwargs"]["variant"] == variant
+    assert config.gamma == 0.99
+    assert config.lambda_ == 1.0
+    assert config.use_critic is False
+    assert config.use_gae is False
+    assert config.use_kl_loss is False
+    assert config.entropy_coeff == 0.0
+    assert config.num_epochs == 1
+    assert config.minibatch_size is None
+    assert config.batch_mode == "complete_episodes"
+    config.validate()
+
+
+def test_reinforce_model_scales_action_logits_by_sampling_temperature():
+    from gymnasium.spaces import Box, Discrete
+
+    from ray.rllib.core.columns import Columns
+
+    model = ReinforceTransformerModel(
+        observation_space=Box(low=-1.0, high=1.0, shape=(3,)),
+        action_space=Discrete(3),
+        model_config={**BASE_MODEL_CONFIG, "sampling_temperature": 2.0},
+    )
+    model.setup()
+
+    embeddings = torch.randn(2, 7, 64)
+    outputs = model._outputs(embeddings, None, training=True)
+    train_outputs = outputs[Columns.ACTION_DIST_INPUTS]
+    raw_logits = model.heads.action_distribution_inputs(embeddings)
+
+    torch.testing.assert_close(train_outputs, raw_logits / 2.0)
+
+
+def test_reinforce_model_defaults_to_unit_sampling_temperature():
+    from gymnasium.spaces import Box, Discrete
+
+    from ray.rllib.core.columns import Columns
+
+    model = ReinforceTransformerModel(
+        observation_space=Box(low=-1.0, high=1.0, shape=(3,)),
+        action_space=Discrete(3),
+        model_config=dict(BASE_MODEL_CONFIG),
+    )
+    model.setup()
+
+    embeddings = torch.randn(2, 7, 64)
+    outputs = model._outputs(embeddings, None, training=True)
+    raw_logits = model.heads.action_distribution_inputs(embeddings)
+
+    torch.testing.assert_close(
+        outputs[Columns.ACTION_DIST_INPUTS], raw_logits
+    )
