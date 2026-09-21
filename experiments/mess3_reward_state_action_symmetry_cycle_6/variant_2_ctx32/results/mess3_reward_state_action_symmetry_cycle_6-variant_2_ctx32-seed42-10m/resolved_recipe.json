@@ -44,7 +44,7 @@
         "runner_up_stationary_state_2": 0.2763469326158343
       },
       "variant_3": {
-        "always_positive_stationary_state_2": 0.1413425046078073,
+        "always_positive_stationary_state_2": 0.14134250460780728,
         "oracle_gap": 0.08017165223389872,
         "oracle_policy": [
           1,
@@ -65,7 +65,7 @@
   },
   "checkpoint_schedule": "init_then_iterations_1_2_4_8_and_final",
   "checkpoint_storage": "every_iteration_unpruned_pending_generic_log_schedule",
-  "condition": "variant_3",
+  "condition": "variant_2",
   "environment": {
     "delay": 0,
     "episode_length": 1024,
@@ -97,11 +97,11 @@
       "class": "experiments.mess3_reward_state_action_symmetry_cycle_6.task:ActionSymmetryTask",
       "kwargs": {
         "effect_size": 1.5,
-        "variant": 3
+        "variant": 2
       }
     }
   },
-  "experiment_arm": "t15_ctx32",
+  "experiment_arm": "ctx32",
   "gamma": 0.99,
   "learning_rate": 0.00042,
   "model_config": {
@@ -111,14 +111,14 @@
     "max_seq_len": 32,
     "n_heads": 1,
     "n_layers": 4,
-    "sampling_temperature": 1.5
+    "sampling_temperature": 1.0
   },
   "policy_gradient_equivalence": "zero baseline, lambda=1 Monte Carlo returns, normalized advantages, one full-batch epoch, no clipping-active reuse",
   "probe_sampling_distribution": "process_weighted_rollout",
   "probe_target": "exact_predictive_bayesian_belief",
   "rllib_engine": "PPOConfig/PPOTorchLearner",
-  "sampling_temperature": 1.5,
-  "temperature_semantics": "categorical logits divided by 1.5 in rollout sampling and train-time log-probability evaluation",
+  "sampling_temperature": 1.0,
+  "temperature_semantics": "categorical logits divided by 1.0 in rollout sampling and train-time log-probability evaluation (canonical temperature)",
   "total_env_steps": 10000000,
   "transformer_lookback": 128
 }
