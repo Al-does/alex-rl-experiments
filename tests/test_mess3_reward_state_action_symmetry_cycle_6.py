@@ -91,16 +91,20 @@ def test_cycle_6_budget_and_model_match_requested_recipe():
         "n_heads": 1,
         "context_len": 10,
         "max_seq_len": 32,
+        "grad_checkpointing": False,
     }
 
 
-@pytest.mark.parametrize("variant", (2, 3))
-def test_t15_ctx32_arms_change_only_temperature_and_context(
-    smoke_context, variant
+@pytest.mark.parametrize(
+    ("variant", "condition", "temperature"),
+    ((2, "ctx32", 1.0), (3, "t15_ctx32", 1.5)),
+)
+def test_ctx32_arms_change_only_temperature_and_context(
+    smoke_context, variant, condition, temperature
 ):
     module = importlib.import_module(
         "experiments.mess3_reward_state_action_symmetry_cycle_6."
-        f"variant_{variant}_t15_ctx32.experiment"
+        f"variant_{variant}_{condition}.experiment"
     )
 
     config = module.build_config(smoke_context)
@@ -108,7 +112,7 @@ def test_t15_ctx32_arms_change_only_temperature_and_context(
 
     assert config.env_config["task"]["kwargs"]["variant"] == variant
     assert spec.module_class is ReinforceTransformerModel
-    assert spec.model_config["sampling_temperature"] == 1.5
+    assert spec.model_config["sampling_temperature"] == temperature
     assert spec.model_config["context_len"] == 32
     assert spec.model_config["grad_checkpointing"] is True
     for key in ("d_model", "n_layers", "n_heads", "max_seq_len"):
@@ -125,7 +129,7 @@ def test_t15_ctx32_arms_change_only_temperature_and_context(
 def test_t15_ctx32_logits_divided_in_rollout_and_train(tmp_path):
     module = importlib.import_module(
         "experiments.mess3_reward_state_action_symmetry_cycle_6."
-        "variant_2_t15_ctx32.experiment"
+        "variant_3_t15_ctx32.experiment"
     )
     environment = HMMEnv(environment_config(2))
     try:
