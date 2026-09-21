@@ -98,9 +98,9 @@ def test_cycle_6_budget_and_model_match_requested_recipe():
 @pytest.mark.parametrize(
     ("variant", "condition", "temperature", "entropy_coeff"),
     (
-        (2, "ctx32", 1.0, 0.0),
-        (3, "t15_ctx32", 1.5, 0.0),
+        (1, "ctx32_ent", 1.0, [[0, 0.03], [1, 0.0]]),
         (2, "ctx32_ent", 1.0, [[0, 0.03], [1, 0.0]]),
+        (3, "ctx32_ent", 1.0, [[0, 0.03], [1, 0.0]]),
     ),
 )
 def test_ctx32_arms_change_only_temperature_and_context(
@@ -152,10 +152,10 @@ def test_ctx32_ent_schedule_reaches_zero_1m_before_target(tmp_path):
     assert module.entropy_schedule(context) == [[0, 0.03], [9_000_000, 0.0]]
 
 
-def test_t15_ctx32_logits_divided_in_rollout_and_train(tmp_path):
+def test_ctx32_logits_divided_in_rollout_and_train(tmp_path):
     module = importlib.import_module(
         "experiments.mess3_reward_state_action_symmetry_cycle_6."
-        "variant_3_t15_ctx32.experiment"
+        "variant_2_ctx32_ent.experiment"
     )
     environment = HMMEnv(environment_config(2))
     try:
@@ -163,14 +163,14 @@ def test_t15_ctx32_logits_divided_in_rollout_and_train(tmp_path):
         policy = ReinforceTransformerModel(
             observation_space=environment.observation_space,
             action_space=environment.action_space,
-            model_config=dict(module.T15_CTX32_MODEL_CONFIG),
+            model_config=dict(module.CTX32_ENT_MODEL_CONFIG),
         ).eval()
     finally:
         environment.close()
 
     embeddings = torch.randn(2, 3, 64)
     expected = (
-        policy.heads.action_distribution_inputs(embeddings) / 1.5
+        policy.heads.action_distribution_inputs(embeddings) / 1.0
     )
     for training in (False, True):
         outputs = policy._outputs(embeddings, None, training=training)
