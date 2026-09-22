@@ -1,0 +1,85 @@
+{
+  "actor_learning_rate": 3e-05,
+  "algorithm": "discrete SAC",
+  "alpha_learning_rate": 0.0003,
+  "architecture": "one shared transformer trunk with actor, critic, and twin-critic heads",
+  "checkpoint_schedule": {
+    "final_env_steps": 300000000,
+    "fixed_interval_env_steps": 25000000,
+    "fixed_targets_env_steps": [
+      55000000,
+      80000000,
+      105000000,
+      130000000,
+      155000000,
+      180000000,
+      205000000,
+      230000000,
+      255000000,
+      280000000
+    ],
+    "initial_env_steps": 0,
+    "log_spaced": "power-of-two training iterations through 30,000,000 environment steps",
+    "phase_boundary_env_steps": 30000000
+  },
+  "condition": "shared_trunk",
+  "critic_learning_rate": 0.0003,
+  "environment": {
+    "delay": 1,
+    "episode_length": 127,
+    "model": {
+      "factory": "experiments.pusher_b.process:pusher_b_model_b10"
+    },
+    "observation": {
+      "action": null,
+      "token": {
+        "depth": 128
+      }
+    },
+    "randomize_first_episode_length": false,
+    "task": {
+      "class": "experiments.pusher_b.task:NextTokenGuessTask"
+    }
+  },
+  "gamma": 0.0,
+  "hardware_validation": "No specific GPU is declared sufficient until the corrected recipe's peak allocated and reserved CUDA memory are measured.",
+  "intended_hardware": "CPU smoke; production targets one 24 GiB-class CUDA GPU only after a measured GPU memory preflight",
+  "learner_attention_score_elements_per_head": 2097152,
+  "learner_backward_passes_per_minibatch": 1,
+  "learner_context_token_rows_per_encoder_forward": 16384,
+  "learner_minibatch_count": 64,
+  "learner_minibatch_size": 128,
+  "learner_num_epochs": 1,
+  "learning_starts": 50000,
+  "model": {
+    "activation": "gated_gelu",
+    "attention_implementation": "sdpa",
+    "context_length": 128,
+    "d_mlp": 256,
+    "d_model": 64,
+    "head_fcnet_hiddens": [],
+    "max_seq_len": 128,
+    "n_heads": 4,
+    "n_layers": 4,
+    "normalization": "rms_norm",
+    "positional_embedding": "rope",
+    "training_sequence_mode": "sliding_window"
+  },
+  "n_step": 1,
+  "parameters": {
+    "b": 0.1,
+    "d": 0.9
+  },
+  "preset": "b10",
+  "replay_capacity": 2000000,
+  "shared_encoder_learning_rate": 0.0001,
+  "study": "pusher_b10_discrete_SAC_2026_09",
+  "target_entropy": 0.4158883083359672,
+  "target_entropy_fraction_of_categorical_maximum": 0.6,
+  "tau": 0.005,
+  "torch_compile_learner": false,
+  "total_env_steps": 300000000,
+  "train_batch_size_per_learner": 8192,
+  "training_intensity": 1.0,
+  "twin_q": true
+}
