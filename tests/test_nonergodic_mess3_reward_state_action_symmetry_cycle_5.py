@@ -64,6 +64,9 @@ from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.shot_a.va
 from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.shot_a.variant_3_entropy_ramp import (
     experiment as entropy_ramp_v3,
 )
+from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.shot_a.variant_3_entropy_ramp_2 import (
+    experiment as entropy_ramp_v3_2,
+)
 from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.task import (
     DIRECTIONS,
     N_ACTIONS,
@@ -483,6 +486,13 @@ def test_shot_a_profile_uses_pr_127_training_defaults(tmp_path, variant):
             30_247_082,
             [[0, 0.0], [30_000_000, 0.0], [35_000_000, 0.01]],
             300_000_000,
+        ),
+        (
+            entropy_ramp_v3_2,
+            "20260920T072355Z-699d04f0",
+            195_238_370,
+            [[0, 0.0], [30_000_000, 0.0], [35_000_000, 0.01]],
+            330_247_082 - 195_238_370,
         ),
     ],
 )
