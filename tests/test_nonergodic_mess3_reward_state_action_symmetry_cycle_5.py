@@ -55,6 +55,18 @@ from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.shot_a.sh
     build_config as build_shot_a_config,
     resolved_recipe as resolved_shot_a_recipe,
 )
+from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.shot_a.variant_2_entropy_ramp import (
+    experiment as entropy_ramp_v2,
+)
+from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.shot_a.variant_2_entropy_ramp_2 import (
+    experiment as entropy_ramp_v2_2,
+)
+from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.shot_a.variant_3_entropy_ramp import (
+    experiment as entropy_ramp_v3,
+)
+from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.shot_a.variant_3_entropy_ramp_2 import (
+    experiment as entropy_ramp_v3_2,
+)
 from experiments.nonergodic_mess3_reward_state_action_symmetry_cycle_5.task import (
     DIRECTIONS,
     N_ACTIONS,
@@ -443,6 +455,65 @@ def test_shot_a_profile_uses_pr_127_training_defaults(tmp_path, variant):
         {"name": "mess3_a", "x": 0.15, "alpha": 0.60},
         {"name": "mess3_b", "x": 0.50, "alpha": 0.66},
     ]
+
+
+@pytest.mark.parametrize(
+    ("leaf", "run_id", "source_steps", "schedule", "additional"),
+    [
+        (
+            entropy_ramp_v2,
+            "20260913T215003Z-287afdb9",
+            15_057_120,
+            [[0, 0.0], [15_000_000, 0.0], [20_000_000, 0.01]],
+            300_000_000,
+        ),
+        (
+            entropy_ramp_v2_2,
+            "20260920T073522Z-bed2a40f",
+            45_055_536,
+            [
+                [0, 0.0],
+                [15_000_000, 0.0],
+                [20_000_000, 0.01],
+                [45_055_536, 0.01],
+                [55_055_536, 0.05],
+            ],
+            315_057_120 - 45_055_536,
+        ),
+        (
+            entropy_ramp_v3,
+            "20260914T042419Z-d63e24cc",
+            30_247_082,
+            [[0, 0.0], [30_000_000, 0.0], [35_000_000, 0.01]],
+            300_000_000,
+        ),
+        (
+            entropy_ramp_v3_2,
+            "20260920T072355Z-699d04f0",
+            195_238_370,
+            [[0, 0.0], [30_000_000, 0.0], [35_000_000, 0.01]],
+            330_247_082 - 195_238_370,
+        ),
+    ],
+)
+def test_entropy_ramp_continuation_recipe(
+    tmp_path, leaf, run_id, source_steps, schedule, additional
+):
+    context = _context(tmp_path)
+    config = leaf.build_config(context, tmp_path / "ckpt")
+    assert config.entropy_coeff == leaf.ENTROPY_COEFF_SCHEDULE
+    assert config.entropy_coeff == schedule
+    assert config.lr == SHOT_A_LEARNING_RATE_SCHEDULE
+    assert config.vf_loss_coeff == SHOT_A_VALUE_LOSS_COEFF
+
+    full_context = replace(context, smoke=False)
+    recipe = leaf.resolved_recipe(full_context)
+    assert recipe["condition"] == leaf.CONDITION
+    assert recipe["continuation_of"]["run_id"] == run_id
+    assert recipe["continuation_of"]["agent_steps"] == source_steps
+    assert recipe["entropy_coeff"] == leaf.ENTROPY_COEFF_SCHEDULE
+    assert recipe["total_env_steps"] == source_steps + additional
+    assert recipe["additional_env_steps"] == additional
 
 
 def test_model_dimensions_and_complete_episode_sequence():
