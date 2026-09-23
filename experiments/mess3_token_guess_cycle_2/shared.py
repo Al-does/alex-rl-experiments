@@ -39,6 +39,7 @@ from experiments.mess3_token_guess_cycle_2.model import (
 )
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
+from harness.env_runners import FreshEpisodeSingleAgentEnvRunner
 from harness.hardware import PROFILES, resolve_env_runners
 from harness.runners import run_tune
 from learners import (
@@ -249,21 +250,27 @@ def _learner_config(condition: Condition) -> dict[str, Any]:
 
 def _apply_runtime_resources(config: PPOConfig, context: RunContext) -> PPOConfig:
     profile = context.hardware or PROFILES["cpu"]
-    return config.env_runners(
+    batch_mode = (
+        "complete_episodes" if not config.use_gae else "truncate_episodes"
+    )
+    config = config.env_runners(
         num_env_runners=(
             0 if context.smoke else resolve_env_runners(profile, default=16)
         ),
         num_envs_per_env_runner=(
             1 if context.smoke else profile.num_envs_per_env_runner
         ),
-        batch_mode=(
-            "complete_episodes" if not config.use_gae else "truncate_episodes"
-        ),
+        batch_mode=batch_mode,
         # Keep rollout inference on CPU so one-GPU workers reserve the device
         # for the learner's forward/backward hot path.
         num_gpus_per_env_runner=0,
         sample_timeout_s=600.0,
-    ).learners(
+    )
+    if batch_mode == "complete_episodes":
+        config = config.env_runners(
+            env_runner_cls=FreshEpisodeSingleAgentEnvRunner,
+        )
+    return config.learners(
         num_gpus_per_learner=1 if profile.learner_device == "cuda" else 0,
     )
 

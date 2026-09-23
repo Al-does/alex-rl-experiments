@@ -54,6 +54,7 @@ from experiments.mess3_token_guess_cycle_2.shared import (
     supervised_cross_entropy_objective,
 )
 from harness.context import RunContext
+from harness.env_runners import FreshEpisodeSingleAgentEnvRunner
 from harness.hardware import PROFILES
 from learners import IQNPPOTorchLearner
 
@@ -388,6 +389,10 @@ def test_battery_uses_update_matched_a2c_with_fresh_gamma_zero_configs(tmp_path)
     assert supervised.use_gae is False
     assert supervised.vf_loss_coeff == 0.0
     assert supervised.batch_mode == "complete_episodes"
+    assert supervised.env_runner_cls is FreshEpisodeSingleAgentEnvRunner
+    for name, config in configs.items():
+        if name != "supervised_ce":
+            assert config.env_runner_cls is not FreshEpisodeSingleAgentEnvRunner
     assert configs["iqn"].learner_class is IQNPPOTorchLearner
     assert configs["iqn"].rl_module_spec.module_class is IQNModel
     assert configs["iqn"].rl_module_spec.model_config["iqn_value"] == IQN_CONFIG
