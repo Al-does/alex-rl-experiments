@@ -400,11 +400,15 @@ def _probe_at(
     probe_dir = context.results_dir / "checkpoint_probes" / (
         f"steps_{agent_steps:09d}"
     )
+    probe_train_steps = os.environ.get("MESS3_TG_C2_PROBE_TRAIN_STEPS")
+    probe_test_steps = os.environ.get("MESS3_TG_C2_PROBE_TEST_STEPS")
     result = probe_checkpoint(
         replace(context, results_dir=probe_dir, resume_from=checkpoint),
         checkpoint=checkpoint,
         condition=condition,
         agent_steps=agent_steps,
+        train_steps=int(probe_train_steps) if probe_train_steps else None,
+        test_steps=int(probe_test_steps) if probe_test_steps else None,
     )
     point = {
         "agent_steps": agent_steps,
@@ -478,7 +482,13 @@ def run_condition(
         target_steps_override,
         preserve_checkpoint_cadence=preserve_checkpoint_cadence,
     )
+    checkpoint_freq_override = os.environ.get("MESS3_TG_C2_CHECKPOINT_FREQ")
+    if checkpoint_freq_override is not None:
+        checkpoint_frequency = int(checkpoint_freq_override)
     config = build_config(context, condition.name)
+    minibatch_override = os.environ.get("MESS3_TG_C2_MINIBATCH")
+    if minibatch_override is not None:
+        config.minibatch_size = int(minibatch_override)
     recipe = {
         "condition": condition.name,
         "algorithm": condition.algorithm,
