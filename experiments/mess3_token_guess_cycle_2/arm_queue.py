@@ -22,7 +22,7 @@ from experiments.mess3_token_guess_cycle_2.shared import THIRD_CHECKPOINT_ENV_ST
 from harness.cli import execute_experiment, load_experiment, make_run_context
 
 STUDY = "mess3_token_guess_cycle_2"
-ARMS = ("ppo", "predictive_loss", "decoupled_kelly")
+ARMS = ("ppo", "predictive_loss", "decoupled_kelly", "supervised_ce")
 DEFAULT_SEEDS = tuple(range(45, 60))  # 15 seeds: 45..59 (42–44 already used)
 
 

@@ -30,6 +30,7 @@ from experiments.mess3_token_guess_cycle_2.learning import (
 )
 from experiments.mess3_token_guess_cycle_2.model import (
     PaperActorCriticConfig,
+    PaperActorCriticModel,
     PaperResidualEncoder,
 )
 from experiments.mess3_token_guess_cycle_2.shared import (
@@ -42,6 +43,7 @@ from experiments.mess3_token_guess_cycle_2.shared import (
     KellyModel,
     PredictiveLearner,
     PredictiveModel,
+    SupervisedCrossEntropyLearner,
     TOTAL_ENV_STEPS,
     VALIDATION_ENV_STEPS,
     _run_schedule,
@@ -49,8 +51,10 @@ from experiments.mess3_token_guess_cycle_2.shared import (
     checkpoint_records,
     condition_by_name,
     next_emission_targets,
+    supervised_cross_entropy_objective,
 )
 from harness.context import RunContext
+from harness.env_runners import FreshEpisodeSingleAgentEnvRunner
 from harness.hardware import PROFILES
 from learners import IQNPPOTorchLearner
 
@@ -160,6 +164,58 @@ def test_next_emission_target_is_the_token_scored_by_delay_one_task():
         assert next_observation[expected] == 1.0
     finally:
         environment.close()
+
+
+def test_supervised_objective_is_shifted_cross_entropy_only():
+    observations = torch.tensor(
+        [
+            [
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 1.0],
+                [1.0, 0.0, 0.0],
+            ]
+        ]
+    )
+    logits = torch.tensor(
+        [
+            [
+                [0.0, 3.0, 0.0],
+                [0.0, 0.0, 3.0],
+                [3.0, 0.0, 0.0],
+                [9.0, 9.0, 9.0],
+            ]
+        ],
+        requires_grad=True,
+    )
+    batch = {
+        Columns.OBS: observations,
+        Columns.ACTIONS: torch.tensor([[2, 2, 2, 2]]),
+        Columns.LOSS_MASK: torch.tensor([[True, True, True, False]]),
+        Columns.REWARDS: torch.zeros((1, 4)),
+    }
+    loss, accuracy = supervised_cross_entropy_objective(batch, logits)
+    expected = torch.nn.functional.cross_entropy(
+        logits[:, :2, :].reshape(-1, 3),
+        torch.tensor([1, 2]),
+    )
+    torch.testing.assert_close(loss, expected)
+    assert accuracy.item() == 1.0
+
+    changed_batch = {
+        **batch,
+        Columns.ACTIONS: torch.tensor([[0, 1, 0, 1]]),
+        Columns.REWARDS: torch.tensor([[9.0, -3.0, 7.0, 2.0]]),
+    }
+    changed_loss, _ = supervised_cross_entropy_objective(
+        changed_batch,
+        logits,
+    )
+    torch.testing.assert_close(changed_loss, loss)
+
+    loss.backward()
+    assert logits.grad is not None
+    assert torch.count_nonzero(logits.grad[:, 2:, :]) == 0
 
 
 def test_bayesian_optimum_is_exact_finite_context_ceiling():
@@ -294,6 +350,7 @@ def test_battery_uses_update_matched_a2c_with_fresh_gamma_zero_configs(tmp_path)
         "ppo",
         "predictive_loss",
         "decoupled_kelly",
+        "supervised_ce",
         "iqn",
     }
     for config in configs.values():
@@ -325,6 +382,17 @@ def test_battery_uses_update_matched_a2c_with_fresh_gamma_zero_configs(tmp_path)
         ]
         == 1.0
     )
+    supervised = configs["supervised_ce"]
+    assert supervised.learner_class is SupervisedCrossEntropyLearner
+    assert supervised.rl_module_spec.module_class is PaperActorCriticModel
+    assert supervised.use_critic is False
+    assert supervised.use_gae is False
+    assert supervised.vf_loss_coeff == 0.0
+    assert supervised.batch_mode == "complete_episodes"
+    assert supervised.env_runner_cls is FreshEpisodeSingleAgentEnvRunner
+    for name, config in configs.items():
+        if name != "supervised_ce":
+            assert config.env_runner_cls is not FreshEpisodeSingleAgentEnvRunner
     assert configs["iqn"].learner_class is IQNPPOTorchLearner
     assert configs["iqn"].rl_module_spec.module_class is IQNModel
     assert configs["iqn"].rl_module_spec.model_config["iqn_value"] == IQN_CONFIG
