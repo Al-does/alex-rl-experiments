@@ -299,7 +299,7 @@ def build_config(
             torch_compile_worker=False,
         )
         .training(
-            lr=1e-4,
+            lr=1e-3 if is_supervised else 1e-4,
             gamma=0.0,
             lambda_=0.0,
             clip_param=0.2,
