@@ -204,3 +204,22 @@ These archived evaluations exclude 32 warmup steps per episode; keep them
 separate from the newer complete-episode expected-success bars. The controlled
 Bayes line is a full-episode reference, not an exactly matched post-warmup
 ceiling.
+
+### Paper belief geometry vs PPO (2026-09)
+
+`mess3_paper_belief_geometry_ppo_2026_09` is self-contained (its own MESS3,
+paper transformer, SGD trainer, PPO trainer, and probes). `paper_supervised`
+is the arXiv:2405.15943 recipe (CE, SGD lr 0.01, batch 64, 1M updates);
+`ppo_token_guess` is gamma-zero clipped PPO rewarded 1 for a correct next-token
+guess, 2M agent steps (one agent step = one scored position). Both sample fresh
+stationary sequences every update/rollout (no RLlib env runners) and probe six
+retained checkpoints (init plus five) against exact context-conditioned beliefs,
+fitting on 4,000 and testing on 4,000 disjoint positions (400 whole contexts
+each, sampled uniformly from 3^10); the headline layer is `block_3`
+(pre-final-LayerNorm).
+
+```bash
+uv run pytest -q tests/test_mess3_paper_belief_geometry_ppo_2026_09.py
+uv run rl-harness experiments.mess3_paper_belief_geometry_ppo_2026_09.ppo_token_guess.experiment --smoke --hardware cpu --no-upload-artifacts
+uv run rl-harness experiments.mess3_paper_belief_geometry_ppo_2026_09.paper_supervised.experiment --smoke --hardware cpu --no-upload-artifacts
+```
