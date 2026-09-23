@@ -1,4 +1,4 @@
-"""Run all five controlled conditions for pre-sweep validation."""
+"""Run all six controlled conditions for pre-sweep validation."""
 
 from harness.context import RunContext
 
