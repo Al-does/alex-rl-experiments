@@ -51,9 +51,7 @@ def _history() -> HistoryData:
 def test_two_state_coarse_filter_specs_are_exact_quotients(
     variant: int,
 ) -> None:
-    initial, emission, transitions, diagnostics = _build_coarse_filter_spec(
-        variant
-    )
+    initial, emission, transitions, diagnostics = _build_coarse_filter_spec(variant)
 
     np.testing.assert_allclose(
         initial,
@@ -264,13 +262,7 @@ def test_campaign_covers_matched_checkpoints_for_all_conditions(
     assert {item.stage for item in items} == set(STAGES)
     assert {item.variant for item in items} == {1, 2, 3}
     assert all(
-        len(
-            [
-                item
-                for item in items
-                if item.variant == variant and item.seed == seed
-            ]
-        )
+        len([item for item in items if item.variant == variant and item.seed == seed])
         == 7
         for variant in (1, 2, 3)
         for seed in range(42, 57)
@@ -314,13 +306,9 @@ def test_matched_comparison_direction_and_interpretation() -> None:
     comparison = matched_seed_comparison(_comparison_conditions())
     final = comparison["stages"]["final"]["conditions"]
 
-    assert (
-        final["variant_2_ctx32_ent"]["mean_full_minus_coarse"]
-        == pytest.approx(0.15)
-    )
-    assert (
-        final["variant_3_ctx32_ent"]["mean_full_minus_coarse"]
-        == pytest.approx(-0.15)
+    assert final["variant_2_ctx32_ent"]["mean_full_minus_coarse"] == pytest.approx(0.15)
+    assert final["variant_3_ctx32_ent"]["mean_full_minus_coarse"] == pytest.approx(
+        -0.15
     )
     readout = comparison["final_descriptive_readout"]
     assert readout["reward_state_uniquely_favors_coarse_by_mean"] is True
@@ -348,14 +336,8 @@ def test_compact_result_records_matched_protocol_and_filter_semantics() -> None:
         condition: report["coarse_model"]
         for condition, report in result["conditions"].items()
     }
-    assert (
-        models["variant_1_ctx32_ent"]["filter_kind"]
-        == "exact_two_state_quotient"
-    )
-    assert (
-        models["variant_3_ctx32_ent"]["filter_kind"]
-        == "exact_full_three_state"
-    )
+    assert models["variant_1_ctx32_ent"]["filter_kind"] == "exact_two_state_quotient"
+    assert models["variant_3_ctx32_ent"]["filter_kind"] == "exact_full_three_state"
     assert models["variant_3_ctx32_ent"]["non_lumpable_actions"] == [1, 2]
     assert (
         result["matched_seed_comparison"]["metric"]["preference"]

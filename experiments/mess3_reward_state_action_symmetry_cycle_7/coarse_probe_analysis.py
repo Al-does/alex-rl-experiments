@@ -53,8 +53,7 @@ TARGETS = {
     "coarse_b2": {
         "symbol": "c_t[B]",
         "definition": (
-            "P(state 3 | tokens A/B coarsened to not-C, token C, "
-            "and executed actions)"
+            "P(state 3 | tokens A/B coarsened to not-C, token C, and executed actions)"
         ),
         "description": "exact posterior from the coarse-observation history",
     },
@@ -91,9 +90,7 @@ def _build_coarse_filter_spec(
             rtol=0.0,
             atol=1e-12,
         ):
-            raise ValueError(
-                "states 1 and 2 do not have equal coarsened emissions"
-            )
+            raise ValueError("states 1 and 2 do not have equal coarsened emissions")
         expected_emission = np.asarray(
             [[0.925, 0.075], [0.15, 0.85]],
             dtype=np.float64,
@@ -104,9 +101,7 @@ def _build_coarse_filter_spec(
             rtol=0.0,
             atol=1e-12,
         ):
-            raise ValueError(
-                f"unexpected coarse emission matrix: {coarse_emission}"
-            )
+            raise ValueError(f"unexpected coarse emission matrix: {coarse_emission}")
 
         full_transitions: dict[int, np.ndarray] = {}
         lumped_transitions: dict[int, np.ndarray] = {}
@@ -117,13 +112,9 @@ def _build_coarse_filter_spec(
                 dtype=np.float64,
             )
             full_transitions[action] = full
-            destination_lumps = np.column_stack(
-                (full[:, :2].sum(axis=1), full[:, 2])
-            )
+            destination_lumps = np.column_stack((full[:, :2].sum(axis=1), full[:, 2]))
             lumpability_errors[action] = float(
-                np.max(
-                    np.abs(destination_lumps[0] - destination_lumps[1])
-                )
+                np.max(np.abs(destination_lumps[0] - destination_lumps[1]))
             )
             lumped_transitions[action] = np.stack(
                 (destination_lumps[0], destination_lumps[2])
@@ -137,9 +128,7 @@ def _build_coarse_filter_spec(
         environment.close()
 
     non_lumpable_actions = [
-        action
-        for action, error in lumpability_errors.items()
-        if error > 1e-12
+        action for action, error in lumpability_errors.items() if error > 1e-12
     ]
     if variant in (1, 2):
         if non_lumpable_actions:
@@ -151,9 +140,7 @@ def _build_coarse_filter_spec(
             [initial[:2].sum(), initial[2]],
             dtype=np.float64,
         )
-        filter_emission = np.stack(
-            (coarse_emission[0], coarse_emission[2])
-        )
+        filter_emission = np.stack((coarse_emission[0], coarse_emission[2]))
         transitions = lumped_transitions
         filter_states = {
             "A": ["state 1", "state 2"],
@@ -162,9 +149,7 @@ def _build_coarse_filter_spec(
         filter_kind = "exact_two_state_quotient"
     else:
         if not non_lumpable_actions:
-            raise ValueError(
-                "variant 3 unexpectedly admits a two-state quotient"
-            )
+            raise ValueError("variant 3 unexpectedly admits a two-state quotient")
         filter_initial = initial
         filter_emission = coarse_emission
         transitions = full_transitions
@@ -182,9 +167,7 @@ def _build_coarse_filter_spec(
             rtol=0.0,
             atol=1e-12,
         ):
-            raise ValueError(
-                f"action {action} produced a non-stochastic transition"
-            )
+            raise ValueError(f"action {action} produced a non-stochastic transition")
 
     diagnostics = {
         "variant": variant,
@@ -199,8 +182,7 @@ def _build_coarse_filter_spec(
         "strong_lumpability_over_states_1_2": not non_lumpable_actions,
         "non_lumpable_actions": non_lumpable_actions,
         "lumpability_max_abs_row_difference_by_action": {
-            str(action): error
-            for action, error in lumpability_errors.items()
+            str(action): error for action, error in lumpability_errors.items()
         },
     }
     return filter_initial, filter_emission, transitions, diagnostics
@@ -294,8 +276,7 @@ def _coarse_model_record(
         "initial": initial.tolist(),
         "emission_rows_filter_states_columns_not_C_C": emission.tolist(),
         "transition_rows_filter_states_columns_filter_states": {
-            str(action): matrix.tolist()
-            for action, matrix in transitions.items()
+            str(action): matrix.tolist() for action, matrix in transitions.items()
         },
         "implementation_action_names": {
             "0": "noop",
@@ -349,25 +330,12 @@ def analyze_module_coarse_probe(
         warmup=warmup,
     )
     replay_error = max(
-        float(
-            np.max(
-                np.abs(
-                    replay_beliefs(train, variant=variant) - train.beliefs
-                )
-            )
-        ),
-        float(
-            np.max(
-                np.abs(
-                    replay_beliefs(test, variant=variant) - test.beliefs
-                )
-            )
-        ),
+        float(np.max(np.abs(replay_beliefs(train, variant=variant) - train.beliefs))),
+        float(np.max(np.abs(replay_beliefs(test, variant=variant) - test.beliefs))),
     )
     if replay_error > 1e-10:
         raise ValueError(
-            "full belief replay disagrees with environment diagnostics: "
-            f"{replay_error}"
+            f"full belief replay disagrees with environment diagnostics: {replay_error}"
         )
 
     train_coarse = coarse_beliefs(train, variant=variant)[train.mask, -1:]
@@ -408,9 +376,7 @@ def analyze_module_coarse_probe(
             test_coarse[:, 0] - test_full[:, 0],
         )
     )
-    initial, emission, transitions, diagnostics = _build_coarse_filter_spec(
-        variant
-    )
+    initial, emission, transitions, diagnostics = _build_coarse_filter_spec(variant)
     return {
         "schema_version": 2,
         "metadata": {
@@ -430,9 +396,7 @@ def analyze_module_coarse_probe(
                 "scored on an independent rollout stream"
             ),
             "ridge": RIDGE,
-            "seed_streams": {
-                name: list(key) for name, key in _PROBE_STREAMS.items()
-            },
+            "seed_streams": {name: list(key) for name, key in _PROBE_STREAMS.items()},
             "stream_relationship": (
                 "The coarse-observation and full-observation targets share "
                 "each paired fit/test rollout, matching the cycle-7 scalar "
@@ -525,9 +489,7 @@ def main(argv: list[str] | None = None) -> None:
             if path.is_file()
         },
         "experiment_git_commit": _git(repository, "rev-parse", "HEAD"),
-        "experiment_git_dirty": bool(
-            _git(repository, "status", "--porcelain")
-        ),
+        "experiment_git_dirty": bool(_git(repository, "status", "--porcelain")),
         "harness_git_commit": _git(harness, "rev-parse", "HEAD"),
         "python": platform.python_version(),
         "numpy": np.__version__,

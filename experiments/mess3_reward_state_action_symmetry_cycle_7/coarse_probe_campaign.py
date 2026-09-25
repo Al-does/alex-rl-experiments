@@ -57,9 +57,7 @@ def work_items(repository: Path, scratch: Path) -> list[WorkItem]:
             curve_path = run_dir / "checkpoint_probe_curve.json"
             records = _select_records(curve_path)
             if tuple(stage for stage, _ in records) != STAGES:
-                raise ValueError(
-                    f"{condition} seed {seed} has unmatched stages"
-                )
+                raise ValueError(f"{condition} seed {seed} has unmatched stages")
             for stage_index, (stage, record) in enumerate(records):
                 checkpoint_name = record.get("checkpoint_name")
                 items.append(
@@ -73,9 +71,7 @@ def work_items(repository: Path, scratch: Path) -> list[WorkItem]:
                         agent_steps=int(record["agent_steps"]),
                         run_id=run_dir.name,
                         checkpoint_name=(
-                            None
-                            if checkpoint_name is None
-                            else str(checkpoint_name)
+                            None if checkpoint_name is None else str(checkpoint_name)
                         ),
                         curve_path=curve_path,
                         run_manifest_path=run_dir / "run_manifest.json",
@@ -130,10 +126,7 @@ def _run_item(
             raise ValueError(
                 f"{item.output_path} protocol {actual} != requested {expected}"
             )
-        return (
-            f"cached {item.condition} seed={item.seed} "
-            f"checkpoint={item.stage_index}"
-        )
+        return f"cached {item.condition} seed={item.seed} checkpoint={item.stage_index}"
 
     download = _download_module(item)
     item.output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -177,19 +170,12 @@ def _run_item(
         "agent_steps": item.agent_steps,
         "run_id": item.run_id,
         "checkpoint_name": item.checkpoint_name,
-        "checkpoint_probe_curve": item.curve_path.relative_to(
-            repository
-        ).as_posix(),
+        "checkpoint_probe_curve": item.curve_path.relative_to(repository).as_posix(),
         "checkpoint_probe_curve_sha256": _sha256(item.curve_path),
         **download,
     }
-    item.output_path.write_text(
-        json.dumps(report, indent=2, sort_keys=True) + "\n"
-    )
-    return (
-        f"finished {item.condition} seed={item.seed} "
-        f"checkpoint={item.stage_index}"
-    )
+    item.output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+    return f"finished {item.condition} seed={item.seed} checkpoint={item.stage_index}"
 
 
 def _metric_projection(target: dict[str, object]) -> dict[str, object]:
@@ -223,9 +209,7 @@ def _preference_summary(
     per_seed = []
     for seed in SEEDS:
         record = next(
-            record
-            for record in records_by_seed[str(seed)]
-            if record["stage"] == stage
+            record for record in records_by_seed[str(seed)] if record["stage"] == stage
         )
         coarse = _normalized_error(record["targets"]["coarse_b2"])
         full = _normalized_error(record["targets"]["full_rho"])
@@ -249,9 +233,7 @@ def _preference_summary(
         "min_full_minus_coarse": float(np.min(differences)),
         "max_full_minus_coarse": float(np.max(differences)),
         "coarse_favored_seed_count": int(np.sum(differences > tolerance)),
-        "full_rho_favored_seed_count": int(
-            np.sum(differences < -tolerance)
-        ),
+        "full_rho_favored_seed_count": int(np.sum(differences < -tolerance)),
         "tie_seed_count": int(np.sum(np.abs(differences) <= tolerance)),
         "n_seeds": len(per_seed),
     }
@@ -283,10 +265,8 @@ def matched_seed_comparison(
             contrasts.append(
                 {
                     "seed": seed,
-                    "reward_state_minus_trivial_preference": reward
-                    - trivial,
-                    "reward_state_minus_full_state_preference": reward
-                    - full_state,
+                    "reward_state_minus_trivial_preference": reward - trivial,
+                    "reward_state_minus_full_state_preference": reward - full_state,
                 }
             )
         stages[stage] = {
@@ -377,15 +357,11 @@ def compact_report(
 
         component_record = next(
             record
-            for record in component_conditions[item.condition]["seeds"][
-                str(item.seed)
-            ]
+            for record in component_conditions[item.condition]["seeds"][str(item.seed)]
             if record["stage"] == item.stage
         )
         report_full = _normalized_error(report["targets"]["full_rho"])
-        component_full = _normalized_error(
-            component_record["targets"]["rho"]
-        )
+        component_full = _normalized_error(component_record["targets"]["rho"])
         if abs(report_full - component_full) > 1e-12:
             raise ValueError(
                 f"{item.condition} seed {item.seed} stage {item.stage} "
@@ -467,8 +443,7 @@ def compact_report(
                     "merging observation tokens A/B into not-C"
                 ),
                 "full_rho": (
-                    "rho_t=b_3,t from the exact full-observation three-state "
-                    "filter"
+                    "rho_t=b_3,t from the exact full-observation three-state filter"
                 ),
             },
             "filter_construction": (
@@ -544,14 +519,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--overwrite-summary", action="store_true")
     args = parser.parse_args(argv)
     repository = Path(__file__).resolve().parents[2]
-    scratch = (
-        args.scratch
-        if args.scratch.is_absolute()
-        else repository / args.scratch
-    )
-    output = (
-        args.output if args.output.is_absolute() else repository / args.output
-    )
+    scratch = args.scratch if args.scratch.is_absolute() else repository / args.scratch
+    output = args.output if args.output.is_absolute() else repository / args.output
     items = work_items(repository, scratch)
     run_items = items if args.limit is None else items[: args.limit]
     if not args.aggregate_only:
@@ -572,9 +541,7 @@ def main(argv: list[str] | None = None) -> None:
             ]
             for future in concurrent.futures.as_completed(futures):
                 print(future.result(), flush=True)
-    missing = [
-        item.output_path for item in items if not item.output_path.is_file()
-    ]
+    missing = [item.output_path for item in items if not item.output_path.is_file()]
     if missing:
         raise FileNotFoundError(
             f"campaign is incomplete; {len(missing)} reports are missing"
