@@ -721,7 +721,17 @@
       ctx.fillStyle = options.color ?? COLORS.ink;
       ctx.shadowColor = "rgba(255, 255, 255, 0.95)";
       ctx.shadowBlur = 5;
-      ctx.fillText(title, x, y);
+      if (/^[𝒜ℬ]/u.test(title) && !state.exporting) {
+        const [initial, ...rest] = title;
+        const font = ctx.font;
+        ctx.font = font.replace(/[\d.]+px/, (size) => `${parseFloat(size) * 1.2}px`);
+        ctx.fillText(initial, x, y);
+        const advance = ctx.measureText(initial).width;
+        ctx.font = font;
+        ctx.fillText(rest.join(""), x + advance, y);
+      } else {
+        ctx.fillText(title, x, y);
+      }
       if (subtitle) {
         ctx.font = `500 ${10 * state.labelScale}px Inter, system-ui, sans-serif`;
         ctx.fillStyle = options.muted ?? "rgba(65, 69, 73, 0.78)";
@@ -1285,6 +1295,7 @@
         fillRect(x, y, width, height) { append("rect", { x, y, width, height }); },
         fillText(text, x, y) {
           const font = backing.font
+            .replace(/([\d.]+)px/, (_, size) => `${Number(size) / 2}px`)
             .replace(/px .*/, "px Arial, sans-serif")
             .replace(/^\d+/, (weight) => Number(weight) >= 600 ? "700" : "400");
           const node = append("text", {
@@ -1297,6 +1308,7 @@
             span.textContent = { "𝒜": "A", "ℬ": "B", "ₜ": "t" }[part] ?? part;
             if (part === "𝒜" || part === "ℬ") {
               span.setAttribute("style", 'font-family: "Times New Roman", serif; font-style: italic');
+              if (text.startsWith(part)) span.setAttribute("font-size", "120%");
             } else if (part === "ₜ") {
               span.setAttribute("baseline-shift", "sub");
               span.setAttribute("font-size", "70%");
