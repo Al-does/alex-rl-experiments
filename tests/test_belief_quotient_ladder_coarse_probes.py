@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -325,3 +326,39 @@ def test_matched_comparison_direction_and_interpretation() -> None:
     assert readout["reward_state_uniquely_favors_coarse_by_mean"] is True
     assert readout["full_state_favors_full_rho_by_mean"] is True
     assert "not environmental" in readout["scope"]
+
+
+def test_compact_result_records_matched_protocol_and_filter_semantics() -> None:
+    result_path = (
+        Path(__file__).resolve().parents[1]
+        / "experiments"
+        / "mess3_reward_state_action_symmetry_cycle_7"
+        / "results"
+        / "coarse_probe_trajectories.json"
+    )
+    result = json.loads(result_path.read_text())
+
+    assert result["schema_version"] == 2
+    assert result["checkpoint_selection"]["record_count"] == 315
+    assert result["analysis"]["n_fit"] == 60_000
+    assert result["analysis"]["n_test"] == 80_000
+    assert result["analysis"]["warmup_steps_per_episode"] == 64
+    assert result["analysis"]["ridge"] == 1e-6
+    models = {
+        condition: report["coarse_model"]
+        for condition, report in result["conditions"].items()
+    }
+    assert (
+        models["variant_1_ctx32_ent"]["filter_kind"]
+        == "exact_two_state_quotient"
+    )
+    assert (
+        models["variant_3_ctx32_ent"]["filter_kind"]
+        == "exact_full_three_state"
+    )
+    assert models["variant_3_ctx32_ent"]["non_lumpable_actions"] == [1, 2]
+    assert (
+        result["matched_seed_comparison"]["metric"]["preference"]
+        == "full_minus_coarse > 0 favors the coarse-observation target; "
+        "full_minus_coarse < 0 favors full rho."
+    )
