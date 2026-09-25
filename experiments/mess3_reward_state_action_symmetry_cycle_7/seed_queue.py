@@ -124,7 +124,8 @@ def build_parser() -> argparse.ArgumentParser:
         default="battery",
         help=(
             "experiment leaf under the cycle-6 study to run "
-            "(e.g. battery, variant_2_t15_ctx32)"
+            "(e.g. battery, variant_2_t15_ctx32); accepts a "
+            "comma-separated list to run conditions sequentially"
         ),
     )
     parser.add_argument(
@@ -157,16 +158,20 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    conditions = [
+        part.strip() for part in args.condition.split(",") if part.strip()
+    ]
     failures = 0
-    for seed in args.seeds:
-        failures += _run_one(
-            condition=args.condition,
-            seed=seed,
-            target_agent_steps=args.target_agent_steps,
-            hardware_profile=args.hardware_profile,
-            upload_artifacts=args.upload_artifacts,
-            push_each=args.push_each,
-        )
+    for condition in conditions:
+        for seed in args.seeds:
+            failures += _run_one(
+                condition=condition,
+                seed=seed,
+                target_agent_steps=args.target_agent_steps,
+                hardware_profile=args.hardware_profile,
+                upload_artifacts=args.upload_artifacts,
+                push_each=args.push_each,
+            )
     return 1 if failures else 0
 
 

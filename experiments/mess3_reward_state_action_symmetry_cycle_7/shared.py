@@ -45,6 +45,7 @@ from harness.runners import run_algorithm, run_tune
 from harness.storage.b2 import is_b2_configured
 
 from experiments.storage.b2_incremental import upload_artifact_path
+from harness.env_runners import FreshEpisodeSingleAgentEnvRunner
 from learners.models.transformer import TransformerModel, TransformerModelConfig
 
 
@@ -209,7 +210,10 @@ def build_config(
             torch_compile_learner=False,
             torch_compile_worker=False,
         )
-        .env_runners(batch_mode="complete_episodes")
+        .env_runners(
+            batch_mode="complete_episodes",
+            env_runner_cls=FreshEpisodeSingleAgentEnvRunner,
+        )
         .training(
             lr=LEARNING_RATE,
             gamma=0.99,
@@ -502,6 +506,10 @@ def run_condition(
         "checkpoint_schedule": "init_then_iterations_1_2_4_8_and_final",
         "checkpoint_storage": (
             "every_iteration_unpruned_pending_generic_log_schedule"
+        ),
+        "env_runner": (
+            "harness.env_runners.FreshEpisodeSingleAgentEnvRunner "
+            "(complete_episodes; seed each vector env once)"
         ),
         "model_config": BASE_MODEL_CONFIG,
         "probe_target": "exact_predictive_bayesian_belief",
