@@ -27,7 +27,7 @@
       height: 100%;
       margin: 0;
       overflow: hidden;
-      background: #f7f7f5;
+      background: #ffffff;
       font-family:
         Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
         "Segoe UI", sans-serif;
@@ -291,26 +291,29 @@
   <canvas id="scene" aria-label="Interactive three-dimensional MESS3 simplex quotient"></canvas>
 
   <aside class="panel" aria-label="Visualization controls">
-    <div class="eyebrow">Belief geometry</div>
-    <h2>Choose a constant-b₂ fiber</h2>
+    <h2>Choose a constant-b₃ fiber</h2>
     <p>
-      Every point across the highlighted slice has the same reward-state
-      occupancy. The colored attractor uses the cycle-6 transition matrix and
-      the MESS3 α = 0.85 emission channel.
+      The Reward-State Quotient merges states 1 and 2; state 3 is rewarding.
+      The illustrative cloud uses the fixed cycle-6 baseline transition matrix
+      and α = 0.85 emissions, not a trained-policy rollout.
     </p>
 
     <div class="divider"></div>
 
     <div class="slider-row">
-      <label for="fiber">coarse coordinate&nbsp; s = b₂</label>
+      <label for="fiber">reward-state coordinate&nbsp; ρ = b₃</label>
       <output class="value" id="fiberValue">0.34</output>
     </div>
     <input id="fiber" type="range" min="0" max="1" step="0.005" value="0.34">
 
     <div class="equation" id="equation">
-      π(b) = (<strong>b₀ + b₁</strong>, b₂)<br>
+      π(b) = (<strong>b₁ + b₂</strong>, b₃)<br>
       q = (0.66, 0.34)
     </div>
+    <p>
+      Δ¹ color: RGB = ((1 − ρ)/2, (1 − ρ)/2, ρ).
+      Equal red/green is a color convention, not an inferred split of states 1 and 2.
+    </p>
 
     <button
       class="annotation-mode active"
@@ -346,10 +349,12 @@
       <button id="orbit">Auto orbit</button>
       <button id="collapse">Pulse collapse</button>
       <button id="clean">Clean frame</button>
-      <button id="export">Export PNG</button>
+      <button id="export" title="Choose Save as PDF, no margins, 100% scale, and disable headers and footers">Export PDF</button>
+      <button id="exportPng" title="Render a fresh 600-dpi figure on white">Export PNG</button>
       <button id="reset">Reset camera</button>
       <button id="fullscreen">Fullscreen</button>
     </div>
+    <p>White exports: reduced 2.6675 in wide; verbose 5.5 in wide.</p>
   </aside>
 
   <div class="hint">drag to orbit · scroll to zoom · C hides controls · space toggles orbit</div>
@@ -358,7 +363,7 @@
     "use strict";
 
     const canvas = document.getElementById("scene");
-    const ctx = canvas.getContext("2d", { alpha: false });
+    let ctx = canvas.getContext("2d", { alpha: false });
     const fiberSlider = document.getElementById("fiber");
     const fiberValue = document.getElementById("fiberValue");
     const equation = document.getElementById("equation");
@@ -380,7 +385,7 @@
       state1: "#16b51b",
       state2: "#1739e6",
       violet: "#6f2dbd",
-      dark: "#f7f7f5",
+      dark: "#ffffff",
     };
 
     const V0 = [-3.4, -2.25, 0];
@@ -407,7 +412,8 @@
       selectedS: Number(fiberSlider.value),
       pulseStart: -Infinity,
       lastTime: performance.now(),
-      exportScale: 1,
+      exporting: false,
+      labelScale: 1,
       clean: false,
       simplifiedAnnotations: true,
     };
@@ -439,6 +445,10 @@
         Math.round(Math.max(0, Math.min(1, component)) * 255),
       );
       return `rgba(${channels[0]}, ${channels[1]}, ${channels[2]}, ${alpha})`;
+    }
+
+    function quotientColor(rho, alpha = 1) {
+      return beliefColor([(1 - rho) / 2, (1 - rho) / 2, rho], alpha);
     }
 
     function beliefPoint(belief) {
@@ -701,38 +711,27 @@
       if (!projected.visible) {
         return;
       }
-      const x = projected.x + (options.dx ?? 0);
-      const y = projected.y + (options.dy ?? 0);
+      const x = projected.x + (options.dx ?? 0) * state.labelScale;
+      const y = projected.y + (options.dy ?? 0) * state.labelScale;
       const align = options.align ?? "left";
       ctx.save();
       ctx.textAlign = align;
       ctx.textBaseline = "alphabetic";
-      ctx.font = `${options.weight ?? 650} ${options.size ?? 13}px Inter, system-ui, sans-serif`;
+      ctx.font = `${options.weight ?? 650} ${(options.size ?? 13) * state.labelScale}px Inter, system-ui, sans-serif`;
       ctx.fillStyle = options.color ?? COLORS.ink;
       ctx.shadowColor = "rgba(255, 255, 255, 0.95)";
       ctx.shadowBlur = 5;
       ctx.fillText(title, x, y);
       if (subtitle) {
-        ctx.font = "500 10px Inter, system-ui, sans-serif";
+        ctx.font = `500 ${10 * state.labelScale}px Inter, system-ui, sans-serif`;
         ctx.fillStyle = options.muted ?? "rgba(65, 69, 73, 0.78)";
-        ctx.fillText(subtitle, x, y + 15);
+        ctx.fillText(subtitle, x, y + 15 * state.labelScale);
       }
       ctx.restore();
     }
 
-    function drawBackground(time) {
-      const gradient = ctx.createRadialGradient(
-        state.width * 0.46,
-        state.height * 0.42,
-        0,
-        state.width * 0.46,
-        state.height * 0.42,
-        Math.max(state.width, state.height) * 0.78,
-      );
-      gradient.addColorStop(0, "#ffffff");
-      gradient.addColorStop(0.58, "#fafaf8");
-      gradient.addColorStop(1, "#eeeeeb");
-      ctx.fillStyle = gradient;
+    function drawBackground() {
+      ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, state.width, state.height);
     }
 
@@ -796,7 +795,7 @@
         const target = lineAt(s);
         const control = add(lerp(mid, target, 0.52), [0, 0, 1.05]);
         curve(mid, control, target, basis, {
-          color: beliefColor([(1 - s) / 2, (1 - s) / 2, s], 0.32),
+          color: quotientColor(s, 0.32),
           width: 0.7,
           dash: [2, 5],
         });
@@ -819,9 +818,9 @@
       });
       if (!state.simplifiedAnnotations) {
         label(
-          lerp(start, V2, 0.58),
+          lerp(start, V2, 0.72),
           "canonical lift ι(q)",
-          "b₀ = b₁",
+          "b₁ = b₂",
           basis,
           { dx: -17, dy: -11, align: "right", color: COLORS.violet },
         );
@@ -829,26 +828,24 @@
     }
 
     function drawCoarseLine(basis) {
-      const segments = 48;
+      polyline([A, B], basis, { color: "#333333", width: 8.4 });
+      const segments = 96;
       for (let index = 0; index < segments; index += 1) {
         const s0 = index / segments;
         const s1 = (index + 1) / segments;
-        const middle = (s0 + s1) / 2;
         polyline([lineAt(s0), lineAt(s1)], basis, {
-          color: beliefColor(
-            [(1 - middle) / 2, (1 - middle) / 2, middle],
-          ),
-          width: 4.2,
+          color: quotientColor((s0 + s1) / 2),
+          width: 7.2,
         });
       }
 
-      for (let index = 0; index <= 4; index += 1) {
+      for (let index = 1; index < 4; index += 1) {
         const s = index / 4;
         const point = lineAt(s);
         const tickA = add(point, [-0.10, 0, 0]);
         const tickB = add(point, [0.10, 0, 0]);
         polyline([tickA, tickB], basis, {
-          color: beliefColor([(1 - s) / 2, (1 - s) / 2, s]),
+          color: COLORS.ink,
           width: 1.3,
         });
         if (!state.simplifiedAnnotations) {
@@ -857,48 +854,21 @@
             dy: 4,
             size: 10,
             weight: 600,
-            color: beliefColor([(1 - s) / 2, (1 - s) / 2, s]),
           });
         }
       }
 
-      disc(A, 0.105, basis, {
-        fill: beliefColor([0.5, 0.5, 0]),
-      });
-      disc(B, 0.105, basis, {
-        fill: COLORS.state2,
-      });
-      if (state.simplifiedAnnotations) {
-        label(A, "A  {state 0, state 1}", "", basis, {
-          dx: 22,
-          dy: -20,
-          size: 22,
-          weight: 750,
-          color: beliefColor([0.5, 0.5, 0]),
-        });
-        label(B, "B  reward state", "", basis, {
-          dx: 22,
-          dy: -20,
-          size: 22,
-          weight: 750,
-          color: COLORS.state2,
-        });
-      } else {
-        label(A, "A = {state 0, state 1}", "qA = 1 − s", basis, {
-          dx: 22,
-          dy: -20,
-          color: beliefColor([0.5, 0.5, 0]),
-        });
-        label(B, "B = state 2", "qB = s", basis, {
-          dx: 22,
-          dy: -20,
-          color: COLORS.state2,
-        });
+      disc(A, 0.105, basis, { fill: quotientColor(0) });
+      disc(B, 0.105, basis, { fill: quotientColor(1) });
+      const simplified = state.simplifiedAnnotations;
+      const options = { dx: 22, dy: -20, size: simplified ? 22 : 13 };
+      label(A, "𝒜 = {1, 2}", simplified ? "" : "q𝒜 = 1 − ρ", basis, options);
+      label(B, "ℬ = {3}", simplified ? "" : "qℬ = ρ", basis, options);
+      if (!simplified) {
         label(lerp(A, B, 0.52), "Δ¹", "two-state belief", basis, {
-          dx: 64,
-          dy: -23,
+          dx: 41,
+          dy: -4,
           size: 18,
-          color: COLORS.ink,
         });
       }
     }
@@ -925,7 +895,8 @@
       const s = state.selectedS;
       const fiber = fiberAt(s);
       const target = lineAt(s);
-      const color = beliefColor([(1 - s) / 2, (1 - s) / 2, s]);
+      const color = quotientColor(s);
+      const nearEndpoint = s < 0.15 || s > 0.85;
 
       polygon([fiber.left, fiber.right, target], basis, {
         fill: "rgba(17, 17, 17, 0.025)",
@@ -997,6 +968,11 @@
       arrowHead(directionStart, directionEnd, basis, COLORS.violet, 7, 0.9);
       arrowHead(directionEnd, directionStart, basis, COLORS.violet, 7, 0.9);
 
+      if (!state.simplifiedAnnotations) {
+        label(lerp(V0, V2, 0.25), "δ = b₁ − b₂", "discarded at fixed b₃", basis, {
+          dx: -25, dy: 0, align: "right", color: COLORS.violet,
+        });
+      }
       if (state.simplifiedAnnotations) {
         label(
           target,
@@ -1005,7 +981,7 @@
           basis,
           {
             dx: 24,
-            dy: -19,
+            dy: nearEndpoint ? 26 : -19,
             align: "left",
             size: 22,
             weight: 750,
@@ -1019,9 +995,9 @@
           "",
           basis,
           {
-            dx: -19,
-            dy: -19,
-            align: "right",
+            dx: nearEndpoint ? 24 : -19,
+            dy: state.exporting || nearEndpoint ? 26 : -19,
+            align: nearEndpoint ? "left" : "right",
             color: color,
           },
         );
@@ -1033,7 +1009,7 @@
       const vertices = [
         {
           point: V0,
-          title: "e₀  state 0",
+          title: simplified ? "state 1" : "e₁  state 1",
           subtitle: simplified ? "" : "(1, 0, 0)",
           color: COLORS.state0,
           dx: -15,
@@ -1044,7 +1020,7 @@
         },
         {
           point: V1,
-          title: "e₁  state 1",
+          title: simplified ? "state 2" : "e₂  state 2",
           subtitle: simplified ? "" : "(0, 1, 0)",
           color: COLORS.state1,
           dx: 15,
@@ -1055,7 +1031,7 @@
         },
         {
           point: V2,
-          title: "e₂  reward state",
+          title: simplified ? "state 3 (reward)" : "e₃  reward state 3",
           subtitle: simplified ? "" : "(0, 0, 1)",
           color: COLORS.state2,
           dx: 0,
@@ -1072,7 +1048,10 @@
           stroke: "#ffffff",
           width: 1.2,
         });
-        label(vertex.point, vertex.title, vertex.subtitle, basis, vertex);
+        label(vertex.point, vertex.title, vertex.subtitle, basis, {
+          ...vertex,
+          color: state.exporting ? COLORS.ink : vertex.color,
+        });
       }
 
       if (!simplified) {
@@ -1090,17 +1069,15 @@
       if (state.simplifiedAnnotations || state.width < 760) {
         return;
       }
-      const x = 33;
-      const y = state.height - 30;
+      const x = 24;
+      const y = state.height - 52;
       ctx.save();
       ctx.textAlign = "left";
-      ctx.fillStyle = "rgba(65, 69, 73, 0.58)";
-      ctx.font = "500 10px Inter, system-ui, sans-serif";
-      ctx.fillText(
-        "This is the instantaneous geometric projection s = b₂. The separately filtered cₜ is history-dependent.",
-        x,
-        y,
-      );
+      ctx.fillStyle = COLORS.muted;
+      ctx.font = `500 ${10 * state.labelScale}px Inter, system-ui, sans-serif`;
+      ctx.fillText("Geometric projection π(b) = (b₁ + b₂, b₃), not the separately updated filter cₜ.", x, y);
+      ctx.fillText("Δ¹ color: RGB = ((1 − ρ)/2, (1 − ρ)/2, ρ); an equal-split color convention.", x, y + 15 * state.labelScale);
+      ctx.fillText("Illustrative fixed-transition belief cloud; not a trained-policy rollout.", x, y + 30 * state.labelScale);
       ctx.restore();
     }
 
@@ -1111,6 +1088,11 @@
         camera.yaw += delta * 0.00012;
       }
 
+      drawScene(time);
+      requestAnimationFrame(render);
+    }
+
+    function drawScene(time) {
       ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
       ctx.clearRect(0, 0, state.width, state.height);
       drawBackground(time);
@@ -1125,7 +1107,6 @@
       drawSelectedFiber(time, basis);
       drawVertices(basis);
       drawFootnote();
-      requestAnimationFrame(render);
     }
 
     function resize() {
@@ -1144,7 +1125,7 @@
       fiberValue.value = s.toFixed(2);
       fiberSlider.style.setProperty("--fill", `${s * 100}%`);
       equation.innerHTML = [
-        "π(b) = (<strong>b₀ + b₁</strong>, b₂)<br>",
+        "π(b) = (<strong>b₁ + b₂</strong>, b₃)<br>",
         `q = (${(1 - s).toFixed(2)}, ${s.toFixed(2)})`,
       ].join("");
     }
@@ -1240,11 +1221,220 @@
         await document.exitFullscreen();
       }
     });
-    document.getElementById("export").addEventListener("click", () => {
+    const PAPER = { width: 792, height: 504, inches: 5.5, dpi: 600 };
+
+    function paperWidth() {
+      return PAPER.inches * (state.simplifiedAnnotations ? 0.485 : 1);
+    }
+
+    function svgContext() {
+      const ns = "http://www.w3.org/2000/svg";
+      const element = (name, attributes = {}) => {
+        const node = document.createElementNS(ns, name);
+        for (const [key, value] of Object.entries(attributes)) {
+          node.setAttribute(key, value);
+        }
+        return node;
+      };
+      const svg = element("svg", {
+        xmlns: ns,
+        width: `${paperWidth()}in`,
+        height: `${paperWidth() * PAPER.height / PAPER.width}in`,
+        viewBox: `0 0 ${PAPER.width} ${PAPER.height}`,
+      });
+      const description = element("desc");
+      description.textContent = "Reward-State Quotient: π(b) = (b₁ + b₂, b₃). "
+        + "Illustrative fixed-transition filtered belief cloud, not a trained-policy rollout. "
+        + "The geometric projection is distinct from the separately updated coarse filter. "
+        + "Quotient RGB = ((1 − ρ)/2, (1 − ρ)/2, ρ): a symmetric color convention, not an inferred split.";
+      svg.append(description);
+      const backing = document.createElement("canvas").getContext("2d");
+      let path = "";
+      const append = (name, attributes, stroke = false) => {
+        const matrix = backing.getTransform();
+        const node = element(name, {
+          ...attributes,
+          transform: `matrix(${matrix.a} ${matrix.b} ${matrix.c} ${matrix.d} ${matrix.e} ${matrix.f})`,
+          opacity: backing.globalAlpha,
+          fill: stroke ? "none" : backing.fillStyle,
+          ...(stroke ? {
+            stroke: backing.strokeStyle,
+            "stroke-width": backing.lineWidth,
+            "stroke-linecap": backing.lineCap,
+            "stroke-linejoin": backing.lineJoin,
+            "stroke-dasharray": backing.getLineDash().join(" ") || "none",
+          } : {}),
+        });
+        svg.append(node);
+        return node;
+      };
+      const methods = {
+        clearRect() {},
+        beginPath() { path = ""; },
+        moveTo(x, y) { path += `M${x},${y} `; },
+        lineTo(x, y) { path += `L${x},${y} `; },
+        closePath() { path += "Z "; },
+        arc(x, y, radius, start, end) {
+          if (start !== 0 || Math.abs(end - 2 * Math.PI) > 1e-6) {
+            throw new Error("Vector export supports full-circle arcs only.");
+          }
+          path += `M${x - radius},${y} a${radius},${radius} 0 1,0 ${2 * radius},0 a${radius},${radius} 0 1,0 ${-2 * radius},0 Z `;
+        },
+        fill() { append("path", { d: path }); },
+        stroke() { append("path", { d: path }, true); },
+        fillRect(x, y, width, height) { append("rect", { x, y, width, height }); },
+        fillText(text, x, y) {
+          const font = backing.font
+            .replace(/px .*/, "px Arial, sans-serif")
+            .replace(/^\d+/, (weight) => Number(weight) >= 600 ? "700" : "400");
+          const node = append("text", {
+            x, y,
+            style: `font: ${font}; white-space: pre`,
+            "text-anchor": { left: "start", center: "middle", right: "end" }[backing.textAlign] ?? "start",
+          });
+          for (const part of text.split(/([𝒜ℬₜ])/u)) {
+            const span = element("tspan");
+            span.textContent = { "𝒜": "A", "ℬ": "B", "ₜ": "t" }[part] ?? part;
+            if (part === "𝒜" || part === "ℬ") {
+              span.setAttribute("style", 'font-family: "Times New Roman", serif; font-style: italic');
+            } else if (part === "ₜ") {
+              span.setAttribute("baseline-shift", "sub");
+              span.setAttribute("font-size", "70%");
+            }
+            node.append(span);
+          }
+        },
+      };
+      return {
+        svg,
+        context: new Proxy(backing, {
+          get(target, key) {
+            if (key in methods) return methods[key];
+            const value = target[key];
+            return typeof value === "function" ? value.bind(target) : value;
+          },
+          set(target, key, value) { target[key] = value; return true; },
+        }),
+      };
+    }
+
+    function paperFigure() {
+      const savedState = { ...state };
+      const savedContext = ctx;
+      const output = svgContext();
+      try {
+        ctx = output.context;
+        Object.assign(state, {
+          width: PAPER.width, height: PAPER.height, dpr: 1,
+          clean: true, exporting: true, labelScale: 1.4,
+        });
+        drawScene(savedState.lastTime);
+        return output.svg;
+      } finally {
+        ctx = savedContext;
+        Object.assign(state, savedState);
+      }
+    }
+
+    function exportName() {
+      const mode = state.simplifiedAnnotations ? "reduced" : "verbose";
+      return `belief_quotient_projection_rho_${state.selectedS.toFixed(3)}_${mode}`;
+    }
+
+    function download(blob, filename) {
+      const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.download = `mess3-simplex-quotient-s-${state.selectedS.toFixed(2)}.png`;
-      link.href = canvas.toDataURL("image/png");
+      link.download = filename;
+      link.href = url;
+      document.body.append(link);
       link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+
+    async function pngWithDpi(blob, dpi) {
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      const chunk = new Uint8Array(21);
+      const view = new DataView(chunk.buffer);
+      view.setUint32(0, 9);
+      chunk.set([112, 72, 89, 115], 4);
+      view.setUint32(8, Math.round(dpi / 0.0254));
+      view.setUint32(12, Math.round(dpi / 0.0254));
+      chunk[16] = 1;
+      let crc = 0xffffffff;
+      for (const byte of chunk.subarray(4, 17)) {
+        crc ^= byte;
+        for (let bit = 0; bit < 8; bit += 1) {
+          crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+        }
+      }
+      view.setUint32(17, (crc ^ 0xffffffff) >>> 0);
+      const parts = [bytes.subarray(0, 33), chunk];
+      const source = new DataView(bytes.buffer);
+      for (let offset = 33; offset < bytes.length;) {
+        const end = offset + source.getUint32(offset) + 12;
+        if (String.fromCharCode(...bytes.subarray(offset + 4, offset + 8)) !== "pHYs") {
+          parts.push(bytes.subarray(offset, end));
+        }
+        offset = end;
+      }
+      return new Blob(parts, { type: "image/png" });
+    }
+
+    document.getElementById("export").addEventListener("click", () => {
+      const preview = window.open("", "_blank");
+      if (!preview) {
+        window.alert("Allow pop-ups for this file to open the PDF export.");
+        return;
+      }
+      const doc = preview.document;
+      const inches = paperWidth();
+      doc.title = exportName();
+      const style = doc.createElement("style");
+      style.textContent = `
+        @page { size: ${inches}in ${inches * PAPER.height / PAPER.width}in; margin: 0; }
+        html, body { margin: 0; padding: 0; width: ${inches}in; height: ${inches * PAPER.height / PAPER.width}in; background: white; }
+        svg { display: block; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      `;
+      doc.head.append(style);
+      doc.body.append(doc.importNode(paperFigure(), true));
+      doc.fonts.ready.then(() => {
+        preview.focus();
+        preview.print();
+      });
+    });
+
+    document.getElementById("exportPng").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      let url;
+      try {
+        const filename = `${exportName()}.png`;
+        const svg = paperFigure();
+        const width = Math.round(paperWidth() * PAPER.dpi);
+        const height = Math.round(width * PAPER.height / PAPER.width);
+        svg.setAttribute("width", width);
+        svg.setAttribute("height", height);
+        url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: "image/svg+xml" }));
+        const image = new Image();
+        image.src = url;
+        await image.decode();
+        const output = document.createElement("canvas");
+        output.width = width;
+        output.height = height;
+        const outputContext = output.getContext("2d", { alpha: false });
+        outputContext.fillStyle = "#ffffff";
+        outputContext.fillRect(0, 0, width, height);
+        outputContext.drawImage(image, 0, 0);
+        const blob = await new Promise((resolve) => output.toBlob(resolve, "image/png"));
+        if (!blob) throw new Error("The browser could not encode the PNG.");
+        download(await pngWithDpi(blob, PAPER.dpi), filename);
+      } catch (error) {
+        window.alert(`PNG export failed: ${error.message}`);
+      } finally {
+        if (url) URL.revokeObjectURL(url);
+        button.disabled = false;
+      }
     });
 
     window.addEventListener("keydown", (event) => {
