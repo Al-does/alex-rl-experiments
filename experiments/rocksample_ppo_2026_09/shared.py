@@ -24,9 +24,22 @@ VALUE_LOSS_CLIP = 1_000_000.0
 
 
 def build_config(
-    context: RunContext, *, env_config: dict[str, int], d_model: int
+    context: RunContext,
+    *,
+    env_config: dict[str, int],
+    d_model: int,
+    entropy_coeff=0.05,
+    learner_class=None,
+    learner_config_dict: dict | None = None,
 ) -> PPOConfig:
     profile = context.hardware or PROFILES["cpu"]
+    learner_kwargs = {
+        "num_gpus_per_learner": 1 if profile.learner_device == "cuda" else 0
+    }
+    if learner_class is not None:
+        learner_kwargs["learner_class"] = learner_class
+    if learner_config_dict is not None:
+        learner_kwargs["learner_config_dict"] = learner_config_dict
     return (
         PPOConfig()
         .environment(RockSampleEnv, env_config=dict(env_config))
@@ -38,7 +51,7 @@ def build_config(
             clip_param=POLICY_CLIP,
             vf_loss_coeff=0.5,
             vf_clip_param=VALUE_LOSS_CLIP,
-            entropy_coeff=0.05,
+            entropy_coeff=entropy_coeff,
             grad_clip=0.5,
             grad_clip_by="global_norm",
             train_batch_size_per_learner=(
@@ -72,15 +85,31 @@ def build_config(
             ),
             sample_timeout_s=600.0,
         )
-        .learners(num_gpus_per_learner=1 if profile.learner_device == "cuda" else 0)
+        .learners(**learner_kwargs)
     )
 
 
-def run_condition(context: RunContext, *, env_config: dict[str, int], d_model: int):
+def run_condition(
+    context: RunContext,
+    *,
+    env_config: dict[str, int],
+    d_model: int,
+    total_env_steps: int = TOTAL_ENV_STEPS,
+    entropy_coeff=0.05,
+    learner_class=None,
+    learner_config_dict: dict | None = None,
+):
     if context.seed is None:
         raise ValueError("RockSample PPO requires a resolved seed")
 
-    config = build_config(context, env_config=env_config, d_model=d_model)
+    config = build_config(
+        context,
+        env_config=env_config,
+        d_model=d_model,
+        entropy_coeff=entropy_coeff,
+        learner_class=learner_class,
+        learner_config_dict=learner_config_dict,
+    )
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     outputs.write_json(
@@ -95,7 +124,13 @@ def run_condition(context: RunContext, *, env_config: dict[str, int], d_model: i
             "policy_clip": config.clip_param,
             "value_loss_clip": config.vf_clip_param,
             "seed": context.seed,
-            "total_env_steps": SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS,
+            "total_env_steps": (
+                SMOKE_ENV_STEPS if context.smoke else total_env_steps
+            ),
+            "learner_class": (
+                learner_class.__name__ if learner_class is not None else None
+            ),
+            "learner_config_dict": learner_config_dict,
         },
     )
     result_grid = run_tune(
@@ -103,7 +138,7 @@ def run_condition(context: RunContext, *, env_config: dict[str, int], d_model: i
         context,
         stop={
             "env_runners/num_env_steps_sampled_lifetime": (
-                SMOKE_ENV_STEPS if context.smoke else TOTAL_ENV_STEPS
+                SMOKE_ENV_STEPS if context.smoke else total_env_steps
             )
         },
         run_config_kwargs={
