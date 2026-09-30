@@ -36,6 +36,7 @@ def build_config(
     entropy_coeff=0.05,
     learner_class=None,
     learner_config_dict: dict | None = None,
+    env_class=None,
 ) -> PPOConfig:
     profile = context.hardware or PROFILES["cpu"]
     learner_kwargs = {
@@ -47,7 +48,7 @@ def build_config(
         learner_kwargs["learner_config_dict"] = learner_config_dict
     return (
         PPOConfig()
-        .environment(RockSampleEnv, env_config=dict(env_config))
+        .environment(env_class or RockSampleEnv, env_config=dict(env_config))
         .framework("torch", torch_compile_learner=False, torch_compile_worker=False)
         .training(
             lr=3e-4,
@@ -103,6 +104,7 @@ def run_condition(
     entropy_coeff=0.05,
     learner_class=None,
     learner_config_dict: dict | None = None,
+    env_class=None,
 ):
     if context.seed is None:
         raise ValueError("RockSample PPO requires a resolved seed")
@@ -114,6 +116,7 @@ def run_condition(
         entropy_coeff=entropy_coeff,
         learner_class=learner_class,
         learner_config_dict=learner_config_dict,
+        env_class=env_class,
     )
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
