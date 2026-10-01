@@ -1,0 +1,31 @@
+{
+  "algorithm": "PPO",
+  "best_critic_reference": "targeted_ppo_previous_reward_best_critic_5m vf100/coeff0.01",
+  "checkpoint_schedule": "every_50000000_env_steps_after_first_milestone",
+  "condition": "previous_reward_uniform_250m_global_alias_d64_3layer_4head",
+  "entropy_coeff": 0.03,
+  "environment": {
+    "action_scope": "global_aliases",
+    "diagnostics": false,
+    "episode_length": 1000,
+    "initial_state_distribution": "uniform"
+  },
+  "gamma": 0.99,
+  "hypothesis": "Scale the best previous-reward targeted PPO recipe to 250M steps with uniform initial machine states and milestone checkpoints every 50M steps.",
+  "lambda": 0.95,
+  "previous_reward_visible": true,
+  "primary_comparison": "dim-64 versus dim-96 transformers (both 3 layers, 4 heads) under previous-reward visibility, best critic, and uniform episode starts",
+  "resume_from": null,
+  "seed": 42,
+  "total_env_steps": 250000000,
+  "transformer": {
+    "context_len": 256,
+    "d_model": 64,
+    "max_seq_len": 256,
+    "n_heads": 4,
+    "n_layers": 3
+  },
+  "use_kl_loss": false,
+  "vf_clip_param": 100.0,
+  "vf_loss_coeff": 0.01
+}
