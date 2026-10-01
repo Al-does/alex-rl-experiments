@@ -268,3 +268,20 @@ def test_meta_smoke_runs_population_and_advances_es(tmp_path):
         row["inner_runs"] == 3 and row["inner_env_steps"] == 2_048 for row in rows
     )
     assert all(np.isfinite(row["fitness"]).all() for row in rows)
+
+
+def test_ppo_baseline_recipe_matches_rllib_budget(tmp_path):
+    from harness.context import RunContext
+
+    from experiments.rocksample_jax_2026_10.ppo_n5_k7_d64 import experiment
+
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "r",
+        artifacts_dir=tmp_path / "a",
+    )
+    config = experiment.ppo_config(context)
+    assert config.batch_size == 8_192
+    assert config.batch_size // config.num_minibatches == 1_024
+    steps = experiment.UPDATES_PER_CHUNK * experiment.NUM_CHUNKS * config.batch_size
+    assert 5_000_000 <= steps < 5_100_000
