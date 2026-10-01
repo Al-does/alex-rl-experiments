@@ -30,16 +30,20 @@ on one GPU, and the meta-RL study built on them.
   members share inner seeds. Fitness is mean return over the final 20% of
   updates. Writes `meta_progress.jsonl` and `meta_state.json` each
   generation; `--resume-from meta_state.json` continues.
-- `ppo_n5_k7_d64/experiment.py` — plain PPO baseline with the RLlib recipe's
-  hyperparameters: 16 seeds vmapped, 612 updates x 8,192 = 5.0M steps each.
-  Writes `training_curves.jsonl` (per-seed lists per update), `summary.json`
-  (final-20% return per seed) and `artifacts/final_params.npz`.
+- `baseline.py` + `ppo_n5_k7_d64/`, `ppo_n5_k7_d64_b65k/` — plain PPO
+  baselines, 16 seeds vmapped, ~5.0M steps each. `ppo_n5_k7_d64` is the RLlib
+  recipe (batch 8,192, minibatch 1,024, 32 gradient steps per update);
+  `_b65k` uses batch 65,536 with minibatch 4,096 (64 gradient steps per
+  update). Each writes `training_curves.jsonl` (per-seed lists per update),
+  `summary.json` (final-20% return per seed) and `artifacts/final_params.npz`.
 - `benchmark.py` — throughput benchmark, old vs new.
 
 ## PPO baseline run
 
     uv sync --group jax-cuda && python -m harness.cli \
         experiments.rocksample_jax_2026_10.ppo_n5_k7_d64.experiment --seed 42
+
+(same for `ppo_n5_k7_d64_b65k`).
 
 ## Meta-RL run
 

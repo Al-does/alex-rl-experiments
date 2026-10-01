@@ -270,18 +270,32 @@ def test_meta_smoke_runs_population_and_advances_es(tmp_path):
     assert all(np.isfinite(row["fitness"]).all() for row in rows)
 
 
-def test_ppo_baseline_recipe_matches_rllib_budget(tmp_path):
+def test_ppo_baseline_recipes(tmp_path):
     from harness.context import RunContext
 
-    from experiments.rocksample_jax_2026_10.ppo_n5_k7_d64 import experiment
+    from experiments.rocksample_jax_2026_10.ppo_n5_k7_d64 import experiment as small
+    from experiments.rocksample_jax_2026_10.ppo_n5_k7_d64_b65k import (
+        experiment as large,
+    )
 
     context = RunContext(
         experiment_dir=tmp_path,
         results_dir=tmp_path / "r",
         artifacts_dir=tmp_path / "a",
     )
-    config = experiment.ppo_config(context)
-    assert config.batch_size == 8_192
-    assert config.batch_size // config.num_minibatches == 1_024
-    steps = experiment.UPDATES_PER_CHUNK * experiment.NUM_CHUNKS * config.batch_size
-    assert 5_000_000 <= steps < 5_100_000
+    a, b = small.recipe(context), large.recipe(context)
+    assert a.ppo.batch_size == 8_192
+    assert a.ppo.batch_size // a.ppo.num_minibatches == 1_024
+    assert b.ppo.batch_size == 65_536
+    assert b.ppo.batch_size // b.ppo.num_minibatches == 4_096
+    assert b.ppo.num_minibatches > a.ppo.num_minibatches
+    for r in (a, b):
+        assert 5_000_000 <= r.env_steps_per_seed < 5_100_000
+        assert r.num_seeds == 16
+    smoke = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "r",
+        artifacts_dir=tmp_path / "a",
+        smoke=True,
+    )
+    assert large.recipe(smoke).env_steps_per_seed == 2_048
