@@ -30,6 +30,7 @@ CONDITIONS = (
     "ppo",
     "predictive_loss",
     "decoupled_kelly",
+    "supervised_ce",
     "iqn",
 )
 DEFAULT_SEEDS = (42, 43, 44)

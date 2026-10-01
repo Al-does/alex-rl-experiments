@@ -10,10 +10,12 @@ from pathlib import Path
 from typing import Any
 
 import torch
+import torch.nn.functional as F
 from ray import tune
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.algorithms.ppo.torch.ppo_torch_learner import PPOTorchLearner
 from ray.rllib.core.columns import Columns
+from ray.rllib.core.learner.torch.torch_learner import TorchLearner
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
 from envs.hmm import HMMEnv
@@ -37,6 +39,7 @@ from experiments.mess3_token_guess_cycle_2.model import (
 )
 from harness.artifacts import RunArtifacts
 from harness.context import RunContext
+from harness.env_runners import FreshEpisodeSingleAgentEnvRunner
 from harness.hardware import PROFILES, resolve_env_runners
 from harness.runners import run_tune
 from learners import (
@@ -62,6 +65,7 @@ CONDITIONS = (
     Condition("ppo", "PPO", "clipped_correctness"),
     Condition("predictive_loss", "PPO", "correctness_plus_next_token_ce"),
     Condition("decoupled_kelly", "PPO", "correctness_plus_direct_kelly"),
+    Condition("supervised_ce", "Supervised", "next_token_cross_entropy"),
     Condition("iqn", "PPO-IQN", "clipped_correctness_distributional_value"),
 )
 TOTAL_ENV_STEPS = 2_500_000
@@ -149,6 +153,45 @@ def next_emission_targets(
     return logits[:, :-1, :], targets, valid
 
 
+def supervised_cross_entropy_objective(
+    batch: Mapping[str, Any],
+    logits: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Train policy logits to predict the next emitted token."""
+
+    aligned, targets, valid = next_emission_targets(batch, logits)
+    loss = F.cross_entropy(aligned[valid], targets[valid])
+    accuracy = (aligned[valid].argmax(dim=-1) == targets[valid]).float().mean()
+    return loss, accuracy
+
+
+class SupervisedCrossEntropyLearner(TorchLearner):
+    """Pure next-token cross entropy with no reward or policy-gradient loss."""
+
+    def compute_loss_for_module(
+        self,
+        *,
+        module_id,
+        config,
+        batch,
+        fwd_out,
+    ):
+        del config
+        loss, accuracy = supervised_cross_entropy_objective(
+            batch,
+            fwd_out[Columns.ACTION_DIST_INPUTS],
+        )
+        self.metrics.log_dict(
+            {
+                "supervised/cross_entropy": loss,
+                "supervised/accuracy": accuracy,
+            },
+            key=module_id,
+            window=1,
+        )
+        return loss
+
+
 def condition_by_name(name: str) -> Condition:
     try:
         return next(condition for condition in CONDITIONS if condition.name == name)
@@ -173,6 +216,8 @@ def _learner_class(condition: Condition):
         return PredictiveLearner
     if condition.name == "decoupled_kelly":
         return KellyPPOTorchLearner
+    if condition.name == "supervised_ce":
+        return SupervisedCrossEntropyLearner
     if condition.name == "iqn":
         return IQNPPOTorchLearner
     return None
@@ -205,18 +250,27 @@ def _learner_config(condition: Condition) -> dict[str, Any]:
 
 def _apply_runtime_resources(config: PPOConfig, context: RunContext) -> PPOConfig:
     profile = context.hardware or PROFILES["cpu"]
-    return config.env_runners(
+    batch_mode = (
+        "complete_episodes" if not config.use_gae else "truncate_episodes"
+    )
+    config = config.env_runners(
         num_env_runners=(
             0 if context.smoke else resolve_env_runners(profile, default=16)
         ),
         num_envs_per_env_runner=(
             1 if context.smoke else profile.num_envs_per_env_runner
         ),
+        batch_mode=batch_mode,
         # Keep rollout inference on CPU so one-GPU workers reserve the device
         # for the learner's forward/backward hot path.
         num_gpus_per_env_runner=0,
         sample_timeout_s=600.0,
-    ).learners(
+    )
+    if batch_mode == "complete_episodes":
+        config = config.env_runners(
+            env_runner_cls=FreshEpisodeSingleAgentEnvRunner,
+        )
+    return config.learners(
         num_gpus_per_learner=1 if profile.learner_device == "cuda" else 0,
     )
 
@@ -230,6 +284,7 @@ def build_config(
     condition = condition_by_name(condition_name)
     profile = context.hardware or PROFILES["cpu"]
     is_a2c = condition.name == "a2c"
+    is_supervised = condition.name == "supervised_ce"
     if is_a2c:
         # PPO makes about 50 Adam updates per ~33.5k sampled steps. One fresh
         # A2C update per 672 samples matches that optimizer-update cadence while
@@ -256,9 +311,11 @@ def build_config(
             lambda_=0.0,
             clip_param=0.2,
             use_kl_loss=False,
+            use_critic=not is_supervised,
+            use_gae=not is_supervised,
             vf_loss_coeff=(
                 0.0
-                if condition.name == "iqn"
+                if condition.name in {"iqn", "supervised_ce"}
                 else (1.0 if is_a2c else 0.5)
             ),
             entropy_coeff=0.0,
@@ -455,6 +512,11 @@ def run_condition(
             if condition.name == "decoupled_kelly"
             else 0.0
         ),
+        "supervised_cross_entropy_only": (
+            condition.name == "supervised_ce"
+        ),
+        "uses_rewards_for_training": condition.name != "supervised_ce",
+        "uses_policy_gradient": condition.name != "supervised_ce",
         "kelly_head_logits": 3 if condition.name == "decoupled_kelly" else 0,
         "kelly_reward_decoupled_from_ppo": (
             condition.name == "decoupled_kelly"
@@ -583,7 +645,7 @@ def run_condition(
 
 
 def run_battery(context: RunContext) -> dict[str, Any]:
-    """Run each controlled condition once; intended for smoke validation."""
+    """Run each of the six conditions once; intended for smoke validation."""
 
     summaries = {}
     # ``a2c`` is the corrected 672-sample, update-matched recipe.

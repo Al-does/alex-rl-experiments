@@ -1,4 +1,4 @@
-"""Rent three vast.ai boxes — one arm each — for the 15-seed 0.66M campaign.
+"""Rent four vast.ai boxes — one arm each — for the 15-seed 0.66M campaign.
 
 Dry-run first, then live:
 
@@ -15,7 +15,7 @@ import time
 from collections.abc import Sequence
 from pathlib import Path
 
-ARMS = ("decoupled_kelly", "predictive_loss", "ppo")
+ARMS = ("decoupled_kelly", "predictive_loss", "ppo", "supervised_ce")
 DEFAULT_SEEDS = tuple(range(45, 60))  # 15 seeds: 45..59 (42–44 already used)
 STUDY = "mess3_token_guess_cycle_2"
 EXPERIMENT_ROOT = Path(__file__).resolve().parents[2]
@@ -109,7 +109,7 @@ def provision_arm(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Launch three vast boxes for the 15-seed 0.66M campaign."
+        description="Launch four vast boxes for the 15-seed 0.66M campaign."
     )
     parser.add_argument(
         "--conditions", nargs="+", default=list(ARMS), choices=list(ARMS)
