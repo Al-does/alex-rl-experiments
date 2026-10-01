@@ -6,6 +6,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PARENT="$(dirname "$ROOT")"
 LIB_LINK="$PARENT/rl-harness"
 LIB_SPACED="$PARENT/RL Harness"
+LIB_HYPHEN="$PARENT/RL-Harness"
 LIB_CLONE="$PARENT/rl-harness-src"
 LIBRARY_URL="${RL_HARNESS_URL:-https://github.com/Al-does/RL-Harness.git}"
 
@@ -40,6 +41,13 @@ if [ -d "$LIB_LINK/.git" ] || [ -L "$LIB_LINK" ]; then
 elif [ -d "$LIB_SPACED/.git" ]; then
   echo "Linking $LIB_LINK -> RL Harness"
   ln -s "RL Harness" "$LIB_LINK"
+elif [ -d "$LIB_HYPHEN/.git" ]; then
+  if ln -s "RL-Harness" "$LIB_LINK" 2>/dev/null; then
+    echo "Linking $LIB_LINK -> RL-Harness"
+  else
+    echo "Cannot create $LIB_LINK (using ../RL-Harness for uv sync)"
+    USE_RL_HYPHEN_PATH=1
+  fi
 elif [ -d "$LIB_CLONE/.git" ]; then
   echo "Linking $LIB_LINK -> rl-harness-src"
   ln -s "rl-harness-src" "$LIB_LINK"
@@ -51,8 +59,22 @@ fi
 
 ensure_local_ssh
 
+if ! command -v uv >/dev/null 2>&1; then
+  echo "Installing uv (required for dependency sync)..."
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  export PATH="$HOME/.local/bin:${PATH:-}"
+fi
+
 cd "$ROOT"
-uv sync --group dev
+if [ "${USE_RL_HYPHEN_PATH:-}" = 1 ]; then
+  tmp="$(mktemp)"
+  sed 's|"../rl-harness"|"../RL-Harness"|' pyproject.toml > "$tmp"
+  mv "$tmp" pyproject.toml
+  uv sync --group dev
+  git checkout -- pyproject.toml
+else
+  uv sync --group dev
+fi
 echo
 echo "Ready. Example:"
 echo "  uv run rl-harness experiments.mess3_belief_geometry_2026_07.reward_only.experiment --smoke"
