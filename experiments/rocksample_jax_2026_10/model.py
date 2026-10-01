@@ -106,7 +106,9 @@ def _rope(x: jax.Array, positions: jax.Array) -> jax.Array:
 
 
 def _mlp(block, x):
-    hidden = jax.nn.gelu(_dense(block["fc1"], _layer_norm(block["ln2"], x)), approximate=False)
+    hidden = jax.nn.gelu(
+        _dense(block["fc1"], _layer_norm(block["ln2"], x)), approximate=False
+    )
     return x + _dense(block["fc2"], hidden)
 
 
@@ -142,7 +144,9 @@ def encode_window(
     x = _dense(params["input"], obs)
     scale = 1.0 / math.sqrt(spec.head_dim)
     for block in params["blocks"]:
-        q, k, v = jnp.split(_dense(block["qkv"], _layer_norm(block["ln1"], x)), 3, axis=-1)
+        q, k, v = jnp.split(
+            _dense(block["qkv"], _layer_norm(block["ln1"], x)), 3, axis=-1
+        )
         q = _rope(_split_heads(spec, q), index)
         k = _rope(_split_heads(spec, k), index)
         v = _split_heads(spec, v)
@@ -181,11 +185,15 @@ def encode_step(
     x = _dense(params["input"], obs)[None, :]
     new_k, new_v = [], []
     for layer, block in enumerate(params["blocks"]):
-        q, k, v = jnp.split(_dense(block["qkv"], _layer_norm(block["ln1"], x)), 3, axis=-1)
+        q, k, v = jnp.split(
+            _dense(block["qkv"], _layer_norm(block["ln1"], x)), 3, axis=-1
+        )
         q, k, v = _split_heads(spec, q), _split_heads(spec, k), _split_heads(spec, v)
         k_cache = jnp.concatenate([cache.k[layer][:, 1:], k], axis=1)
         v_cache = jnp.concatenate([cache.v[layer][:, 1:], v], axis=1)
-        scores = (_rope(q, query_position) @ _rope(k_cache, key_positions).transpose(0, 2, 1)) * scale
+        scores = (
+            _rope(q, query_position) @ _rope(k_cache, key_positions).transpose(0, 2, 1)
+        ) * scale
         scores = jnp.where(valid[None, None, :], scores, -jnp.inf)
         attention = jax.nn.softmax(scores, axis=-1) @ v_cache
         x = x + _dense(block["proj"], attention.transpose(1, 0, 2).reshape(1, -1))

@@ -278,9 +278,9 @@ def make_update(
         seq_episode = jnp.concatenate([prev.history_episode, traj.episode_id], axis=1)
         old_logits, _ = tm.heads(
             state.params,
-            jax.vmap(partial(tm.encode_window, spec, state.params))(seq_obs, seq_episode)[
-                :, spec.lookback :
-            ],
+            jax.vmap(partial(tm.encode_window, spec, state.params))(
+                seq_obs, seq_episode
+            )[:, spec.lookback :],
         )
         batch = (
             seq_obs,
@@ -296,9 +296,7 @@ def make_update(
             params, opt_state = carry
             order = jax.random.permutation(epoch_key, config.num_envs)
             minibatches = jax.tree.map(
-                lambda x: x[order].reshape(
-                    (config.num_minibatches, -1) + x.shape[1:]
-                ),
+                lambda x: x[order].reshape((config.num_minibatches, -1) + x.shape[1:]),
                 batch,
             )
 

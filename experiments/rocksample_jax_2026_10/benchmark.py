@@ -32,7 +32,11 @@ def env_old(args) -> dict:
         if terminated or truncated:
             env.reset()
     elapsed = time.perf_counter() - start
-    return {"steps": args.steps, "seconds": elapsed, "steps_per_s": args.steps / elapsed}
+    return {
+        "steps": args.steps,
+        "seconds": elapsed,
+        "steps_per_s": args.steps / elapsed,
+    }
 
 
 def env_jax(args) -> dict:
@@ -91,7 +95,9 @@ def train_jax(args) -> dict:
         num_minibatches=args.num_minibatches,
     )
     spec = ppo.make_spec(params, d_model=args.d_model)
-    chunk = ppo.make_train_chunk(config, params, spec, num_updates=args.updates_per_chunk)
+    chunk = ppo.make_train_chunk(
+        config, params, spec, num_updates=args.updates_per_chunk
+    )
     seeds = args.seeds
     keys = jax.random.split(jax.random.key(0), seeds)
     states = jax.jit(jax.vmap(partial(ppo.init, config, params, spec)))(keys)
@@ -127,12 +133,11 @@ def train_jax(args) -> dict:
 
 
 def train_rllib(args) -> dict:
-    from ray.rllib.algorithms.ppo import PPOConfig
-    from ray.rllib.core.rl_module.rl_module import RLModuleSpec
-
     from envs.rocksample import RockSampleEnv
     from harness.hardware import PROFILES, configure_hardware, resolve_env_runners
     from learners.models.transformer import TransformerModel, TransformerModelConfig
+    from ray.rllib.algorithms.ppo import PPOConfig
+    from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
     profile = PROFILES[args.profile]
     configure_hardware(profile)
@@ -225,7 +230,12 @@ def main() -> None:
     p.add_argument("--d-model", type=int, default=64)
     p.add_argument("--iterations", type=int, default=20)
     args = parser.parse_args()
-    fn = {"env-old": env_old, "env-jax": env_jax, "train-jax": train_jax, "train-rllib": train_rllib}
+    fn = {
+        "env-old": env_old,
+        "env-jax": env_jax,
+        "train-jax": train_jax,
+        "train-rllib": train_rllib,
+    }
     print(json.dumps({"mode": args.mode, **fn[args.mode](args)}), flush=True)
 
 

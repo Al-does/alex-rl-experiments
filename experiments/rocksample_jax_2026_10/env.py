@@ -11,7 +11,6 @@ from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
-
 from envs.rocksample.model import (
     BAD_ROCK_REWARD,
     EXIT_REWARD,
@@ -20,7 +19,6 @@ from envs.rocksample.model import (
     Observation,
     instance_definition,
 )
-
 
 NUM_BASE_ACTIONS = len(Action)
 NUM_SYMBOLS = len(Observation)

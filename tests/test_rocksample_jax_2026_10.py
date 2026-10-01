@@ -6,12 +6,11 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
-
 from envs.rocksample import RockSampleEnv
+
 from experiments.rocksample_jax_2026_10 import env as rs
 from experiments.rocksample_jax_2026_10 import model as tm
 from experiments.rocksample_jax_2026_10 import ppo
-
 
 PARAMS = rs.RockSampleParams.from_instance(5, 7)
 
@@ -108,7 +107,9 @@ def test_cached_rollout_matches_windowed_training_path():
 
 
 def test_gae_bootstraps_truncation_and_zeroes_termination():
-    config = ppo.PPOConfig(num_envs=1, num_steps=3, num_minibatches=1, gamma=0.5, gae_lambda=1.0)
+    config = ppo.PPOConfig(
+        num_envs=1, num_steps=3, num_minibatches=1, gamma=0.5, gae_lambda=1.0
+    )
     zeros = jnp.zeros((1, 3))
     traj = ppo.Transition(
         obs=None,
@@ -131,7 +132,9 @@ def test_training_chunk_runs_and_is_vmappable():
     config = ppo.PPOConfig(num_envs=4, num_steps=16, num_minibatches=2)
     spec = ppo.make_spec(PARAMS, d_model=16)
     chunk = jax.jit(jax.vmap(ppo.make_train_chunk(config, PARAMS, spec, num_updates=2)))
-    states = jax.vmap(partial(ppo.init, config, PARAMS, spec))(jax.random.split(jax.random.key(0), 2))
+    states = jax.vmap(partial(ppo.init, config, PARAMS, spec))(
+        jax.random.split(jax.random.key(0), 2)
+    )
     states, metrics = chunk(states)
     assert metrics["env_steps"].shape == (2, 2)
     assert int(metrics["env_steps"][0, -1]) == 2 * config.batch_size
