@@ -7,10 +7,16 @@ observation's value, global-norm gradient clipping and Adam.
 
 ``init`` and ``train_chunk`` are pure functions of a PRNG key / runner state,
 so a population of independent runs is ``jax.vmap`` over keys.
+
+The policy objective is pluggable: an ``Objective`` maps
+``(meta, ratio, advantages)`` to per-sample surrogates and an entropy
+coefficient. ``meta`` lives in ``RunnerState``, so runs with different
+objective parameters can also be vmapped together.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
 from typing import NamedTuple
@@ -67,6 +73,23 @@ class RunnerState(NamedTuple):
     rollout: Rollout
     key: jax.Array
     env_steps: jax.Array
+    meta: jax.Array
+
+
+Objective = Callable[[jax.Array, jax.Array, jax.Array], tuple[jax.Array, jax.Array]]
+
+
+def clipped_objective(config: PPOConfig) -> Objective:
+    """PPO's clipped surrogate with ``config.entropy_coeff``; ignores ``meta``."""
+
+    def objective(meta, ratio, advantages):
+        eps = config.clip_param
+        surrogate = jnp.minimum(
+            ratio * advantages, jnp.clip(ratio, 1.0 - eps, 1.0 + eps) * advantages
+        )
+        return surrogate, jnp.float32(config.entropy_coeff)
+
+    return objective
 
 
 class Transition(NamedTuple):
@@ -106,6 +129,7 @@ def init(
     env_params: rs.RockSampleParams,
     spec: tm.TransformerSpec,
     key: jax.Array,
+    meta: jax.Array | None = None,
 ) -> RunnerState:
     key, param_key, env_key = jax.random.split(key, 3)
     params = tm.init_params(spec, param_key)
@@ -130,6 +154,7 @@ def init(
         rollout=rollout,
         key=key,
         env_steps=jnp.int32(0),
+        meta=jnp.zeros(0) if meta is None else jnp.asarray(meta, jnp.float32),
     )
 
 
@@ -229,7 +254,7 @@ def gae(
     return advantages, advantages + traj.value
 
 
-def _loss(config, spec, params, kl_coeff, batch):
+def _loss(config, spec, objective, params, kl_coeff, meta, batch):
     seq_obs, seq_episode, action, old_log_prob, old_logits, advantages, targets = batch
     lookback = spec.lookback
     embedding = jax.vmap(partial(tm.encode_window, spec, params))(seq_obs, seq_episode)
@@ -237,17 +262,14 @@ def _loss(config, spec, params, kl_coeff, batch):
     log_probs = jax.nn.log_softmax(logits)
     log_prob = jnp.take_along_axis(log_probs, action[..., None], axis=-1)[..., 0]
     ratio = jnp.exp(log_prob - old_log_prob)
-    surrogate = jnp.minimum(
-        ratio * advantages,
-        jnp.clip(ratio, 1.0 - config.clip_param, 1.0 + config.clip_param) * advantages,
-    )
+    surrogate, entropy_coeff = objective(meta, ratio, advantages)
     policy_loss = -surrogate.mean()
     vf_loss = jnp.minimum((values - targets) ** 2, config.vf_clip).mean()
     probs = jnp.exp(log_probs)
     entropy = -(probs * log_probs).sum(-1).mean()
     old_log_probs = jax.nn.log_softmax(old_logits)
     kl = (jnp.exp(old_log_probs) * (old_log_probs - log_probs)).sum(-1).mean()
-    total = policy_loss + config.vf_coeff * vf_loss - config.entropy_coeff * entropy
+    total = policy_loss + config.vf_coeff * vf_loss - entropy_coeff * entropy
     if config.use_kl_loss:
         total = total + kl_coeff * kl
     return total, {
@@ -255,6 +277,7 @@ def _loss(config, spec, params, kl_coeff, batch):
         "vf_loss": vf_loss,
         "entropy": entropy,
         "kl": kl,
+        "entropy_coeff": entropy_coeff,
     }
 
 
@@ -262,9 +285,13 @@ def make_update(
     config: PPOConfig,
     env_params: rs.RockSampleParams,
     spec: tm.TransformerSpec,
+    objective: Objective | None = None,
 ):
     optimizer = _optimizer(config)
-    loss_and_grad = jax.value_and_grad(partial(_loss, config, spec), has_aux=True)
+    objective = objective or clipped_objective(config)
+    loss_and_grad = jax.value_and_grad(
+        partial(_loss, config, spec, objective), has_aux=True
+    )
 
     def update(state: RunnerState, _=None) -> tuple[RunnerState, dict]:
         key, collect_key, shuffle_key = jax.random.split(state.key, 3)
@@ -302,7 +329,7 @@ def make_update(
 
             def minibatch(carry, mb):
                 params, opt_state = carry
-                (_, aux), grads = loss_and_grad(params, state.kl_coeff, mb)
+                (_, aux), grads = loss_and_grad(params, state.kl_coeff, state.meta, mb)
                 updates, opt_state = optimizer.update(grads, opt_state, params)
                 return (optax.apply_updates(params, updates), opt_state), aux
 
@@ -344,7 +371,9 @@ def make_update(
             "kl_coeff": kl_coeff,
         }
         return (
-            RunnerState(params, opt_state, kl_coeff, rollout, key, env_steps),
+            RunnerState(
+                params, opt_state, kl_coeff, rollout, key, env_steps, state.meta
+            ),
             metrics,
         )
 
@@ -356,10 +385,11 @@ def make_train_chunk(
     env_params: rs.RockSampleParams,
     spec: tm.TransformerSpec,
     num_updates: int,
+    objective: Objective | None = None,
 ):
     """Jittable ``state -> (state, metrics[num_updates])``."""
 
-    update = make_update(config, env_params, spec)
+    update = make_update(config, env_params, spec, objective)
 
     def chunk(state: RunnerState):
         return jax.lax.scan(update, state, None, length=num_updates)
