@@ -281,6 +281,22 @@ def _loss(config, spec, objective, params, kl_coeff, meta, batch):
     }
 
 
+def _old_logits(config, spec, params, seq_obs, seq_episode):
+    """Behaviour-policy logits over the whole batch, one minibatch at a time."""
+
+    def chunk(inputs):
+        obs, episode = inputs
+        embedding = jax.vmap(partial(tm.encode_window, spec, params))(obs, episode)
+        return tm.heads(params, embedding[:, spec.lookback :])[0]
+
+    chunks = jax.tree.map(
+        lambda x: x.reshape((config.num_minibatches, -1) + x.shape[1:]),
+        (seq_obs, seq_episode),
+    )
+    logits = jax.lax.map(chunk, chunks)
+    return logits.reshape((config.num_envs,) + logits.shape[2:])
+
+
 def make_update(
     config: PPOConfig,
     env_params: rs.RockSampleParams,
@@ -303,12 +319,7 @@ def make_update(
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
         seq_obs = jnp.concatenate([prev.history_obs, traj.obs], axis=1)
         seq_episode = jnp.concatenate([prev.history_episode, traj.episode_id], axis=1)
-        old_logits, _ = tm.heads(
-            state.params,
-            jax.vmap(partial(tm.encode_window, spec, state.params))(
-                seq_obs, seq_episode
-            )[:, spec.lookback :],
-        )
+        old_logits = _old_logits(config, spec, state.params, seq_obs, seq_episode)
         batch = (
             seq_obs,
             seq_episode,

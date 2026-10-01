@@ -299,3 +299,29 @@ def test_ppo_baseline_recipes(tmp_path):
         smoke=True,
     )
     assert large.recipe(smoke).env_steps_per_seed == 2_048
+
+
+def test_bmax_sweep_recipe_and_smoke(tmp_path):
+    from harness.context import RunContext
+
+    from experiments.rocksample_jax_2026_10 import sweep
+    from experiments.rocksample_jax_2026_10.ppo_bmax_r1 import experiment as r1
+
+    full = r1.recipe(RunContext(experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a"))
+    assert len(full.arms) <= 14
+    for arm in full.arms:
+        assert arm.ppo.batch_size >= 4 * 65_536
+        assert 10_000_000 <= arm.num_updates(full.env_steps_per_seed) * arm.ppo.batch_size <= 10_500_000
+        assert arm.d_model % 8 == 0
+    smoke = RunContext(
+        experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a", smoke=True
+    )
+    summary = sweep.run(smoke, r1.recipe(smoke))
+    assert set(summary["arms"]) == {"smoke_d16", "smoke_d32_lr1e-3"}
+    for arm in summary["arms"].values():
+        assert arm["error"] is None
+        assert arm["num_updates"] == 2
+        assert len(arm["tail_return_per_seed"]) == 1
+    assert (tmp_path / "r" / "summary.json").exists()
+    rows = (tmp_path / "r" / "training_curves.jsonl").read_text().splitlines()
+    assert len(rows) == 4
