@@ -541,10 +541,80 @@ def test_requested_target_runs_at_init_and_every_manifest_checkpoint(
     ) == summary
 
 
+def test_full_belief_trajectory_skips_imported_training_checkpoints(
+    tmp_path, monkeypatch
+):
+    bundle = tmp_path / "bundle"
+    schedule = [
+        {
+            "label": "initial",
+            "training_iteration": 0,
+            "path": "initial_checkpoint",
+        },
+        {
+            "label": "checkpoint_000000",
+            "training_iteration": 1,
+            "path": "checkpoints/checkpoint_000000",
+        },
+        {
+            "label": "checkpoint_000001",
+            "training_iteration": 2,
+            "path": "checkpoints/checkpoint_000001",
+        },
+    ]
+    for request in schedule:
+        checkpoint = bundle / request["path"]
+        checkpoint.mkdir(parents=True)
+        (checkpoint / "rllib_checkpoint.json").write_text("{}")
+    (bundle / "checkpoint_manifest.json").write_text(
+        json.dumps({"checkpoints": schedule})
+    )
+    (bundle / "source_provenance.json").write_text(
+        json.dumps({"requested_target": "full_belief"})
+    )
+    calls = []
+
+    def fake_probe(context, checkpoint, *, cycle, variant, label, target_names):
+        calls.append(label)
+        return {
+            "checkpoint": label,
+            "targets": {"full_belief": {"mse": 0.002}},
+        }
+
+    module = importlib.import_module(
+        "experiments.mess3_reward_state_action_symmetry_cycle_4."
+        "belief_symmetry_probes.analysis"
+    )
+    monkeypatch.setattr(module, "probe_checkpoint", fake_probe)
+    monkeypatch.setattr(
+        module,
+        "_training_full_belief_mse_by_label",
+        lambda **kwargs: {"initial": 0.01, "checkpoint_000000": 0.005},
+    )
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        run_id="trajectory-test",
+        resume_from=bundle,
+    )
+
+    summary = run_probe_condition(context, cycle=5, variant=2)
+
+    assert calls == ["checkpoint_000001"]
+    assert summary["checkpoints"]["initial"]["imported_from"] == (
+        "training_checkpoint_probe_curve"
+    )
+    assert summary["checkpoints"]["initial"]["targets"]["full_belief"]["mse"] == 0.01
+    assert summary["checkpoints"]["checkpoint_000001"]["targets"]["full_belief"]["mse"] == 0.002
+
+
 def test_target_campaign_assigns_requested_variants_and_all_seeds():
     assert TARGET_VARIANTS["symmetric_b2"] == (1, 2, 3)
     assert TARGET_VARIANTS["antisymmetric_b0_minus_b1"] == (1, 2, 3)
     assert TARGET_VARIANTS["coarse_b2"] == (2,)
+    assert TARGET_VARIANTS["full_belief"] == (1, 2, 3)
     assert SEEDS == (42, 43, 44, 45, 46)
 
 
