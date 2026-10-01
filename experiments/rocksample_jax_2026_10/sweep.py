@@ -5,16 +5,21 @@ plus a transformer width; every arm gets the same env-step budget, so the
 number of updates is ``ceil(budget / batch_size)``. Seeds run sequentially
 inside one process (one compile per arm) because a single seed already fills
 the GPU at these batch sizes. Outputs: ``training_curves.jsonl`` (one row per
-arm, seed and update), ``summary.json`` (tail/final return per arm and seed).
-An arm that fails (typically out of memory) is recorded and skipped.
+arm, seed and update), ``summary.json`` (tail/final return per arm and seed),
+and the final trainer state of every seed in ignored
+``artifacts/<arm>/seed<i>.pkl`` so a later leaf can continue the run
+(``Arm.resume_from``) instead of retraining. An arm that fails (typically out
+of memory) is recorded and skipped.
 """
 
 from __future__ import annotations
 
 import math
+import pickle
 import time
 from dataclasses import asdict, dataclass
 from functools import partial
+from pathlib import Path
 
 import jax
 import numpy as np
@@ -22,7 +27,12 @@ from harness.artifacts import RunArtifacts
 
 from experiments.rocksample_jax_2026_10 import env as rs
 from experiments.rocksample_jax_2026_10 import ppo
-from experiments.rocksample_jax_2026_10.baseline import CURVE_METRICS, N, K, TAIL_FRACTION
+from experiments.rocksample_jax_2026_10.baseline import (
+    CURVE_METRICS,
+    TAIL_FRACTION,
+    K,
+    N,
+)
 from experiments.rocksample_jax_2026_10.meta import fitness_from_history
 
 
@@ -32,6 +42,8 @@ class Arm:
     ppo: ppo.PPOConfig
     d_model: int = 64
     note: str = ""
+    resume_from: str | None = None
+    """Directory holding ``seed<i>.pkl`` trainer states to continue from."""
 
     @property
     def minibatch_size(self) -> int:
@@ -52,6 +64,7 @@ class Arm:
             "num_updates": updates,
             "gradient_steps_per_update": self.ppo.num_epochs * self.ppo.num_minibatches,
             "env_steps_per_seed": updates * self.ppo.batch_size,
+            "resume_from": self.resume_from,
         }
 
 
@@ -96,6 +109,19 @@ def _arm_summary(arm: Arm, env_steps: int, seeds: list[dict], error: str | None)
     }
 
 
+def save_state(path: Path, state: ppo.RunnerState) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    host = jax.tree.map(np.asarray, state._replace(key=jax.random.key_data(state.key)))
+    with path.open("wb") as f:
+        pickle.dump(host, f)
+
+
+def load_state(path: Path) -> ppo.RunnerState:
+    with path.open("rb") as f:
+        state = jax.tree.map(jax.numpy.asarray, pickle.load(f))
+    return state._replace(key=jax.random.wrap_key_data(state.key))
+
+
 def run(context, recipe: SweepRecipe):
     if context.seed is None:
         raise ValueError("RockSample JAX PPO requires a resolved seed")
@@ -135,8 +161,13 @@ def run(context, recipe: SweepRecipe):
             returns: list[float] = []
             start = time.perf_counter()
             try:
-                state = init(keys[seed_index])
-                for update in range(updates):
+                if arm.resume_from is None:
+                    state = init(keys[seed_index])
+                    first_update = 0
+                else:
+                    state = load_state(Path(arm.resume_from) / f"seed{seed_index}.pkl")
+                    first_update = int(state.env_steps) // arm.ppo.batch_size
+                for update in range(first_update, updates):
                     state, metrics = step(state)
                     metrics = {k: float(np.asarray(v)[0]) for k, v in metrics.items()}
                     row = {
@@ -157,6 +188,7 @@ def run(context, recipe: SweepRecipe):
                         flush=True,
                     )
                 jax.block_until_ready(state)
+                save_state(outputs.artifacts_dir / arm.name / f"seed{seed_index}.pkl", state)
                 del state
             except jax.errors.JaxRuntimeError as exc:
                 error = str(exc).splitlines()[0][:300]

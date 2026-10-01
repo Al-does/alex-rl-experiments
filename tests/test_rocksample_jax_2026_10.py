@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from functools import partial
 
 import jax
@@ -307,15 +308,21 @@ def test_bmax_sweep_recipe_and_smoke(tmp_path):
     from experiments.rocksample_jax_2026_10 import sweep
     from experiments.rocksample_jax_2026_10.ppo_bmax_r1 import experiment as r1
     from experiments.rocksample_jax_2026_10.ppo_bmax_r2 import experiment as r2
+    from experiments.rocksample_jax_2026_10.ppo_bmax_r3 import experiment as r3
 
     ctx = RunContext(experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a")
     rounds = [r1.recipe(ctx), r2.recipe(ctx)]
     assert sum(len(full.arms) for full in rounds) <= 14
-    for full in rounds:
+    for full in rounds + [r3.recipe(ctx)]:
+        budget = full.env_steps_per_seed
         for arm in full.arms:
             assert arm.ppo.batch_size >= 4 * 65_536
-            assert 10_000_000 <= arm.num_updates(full.env_steps_per_seed) * arm.ppo.batch_size <= 10_500_000
+            assert budget <= arm.num_updates(budget) * arm.ppo.batch_size <= budget + arm.ppo.batch_size
             assert arm.d_model % 8 == 0
+    r3_arms = {arm.name: arm for arm in r3.recipe(ctx).arms}
+    for name, arm in r3_arms.items():
+        (r2_arm,) = [a for a in r2.recipe(ctx).arms if a.name == name]
+        assert (arm.ppo, arm.d_model) == (r2_arm.ppo, r2_arm.d_model)
     smoke = RunContext(
         experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a", smoke=True
     )
@@ -328,3 +335,23 @@ def test_bmax_sweep_recipe_and_smoke(tmp_path):
     assert (tmp_path / "r" / "summary.json").exists()
     rows = (tmp_path / "r" / "training_curves.jsonl").read_text().splitlines()
     assert len(rows) == 4
+    saved = tmp_path / "a" / "smoke_d16" / "seed0.pkl"
+    assert saved.exists()
+
+    smoke_recipe = sweep.smoke_recipe()
+    first = smoke_recipe.arms[0]
+    resumed = sweep.SweepRecipe(
+        arms=(sweep.Arm(first.name, first.ppo, d_model=first.d_model, resume_from=str(saved.parent)),),
+        env_steps_per_seed=2 * smoke_recipe.env_steps_per_seed,
+        num_seeds=1,
+    )
+    cont = RunContext(
+        experiment_dir=tmp_path, results_dir=tmp_path / "r2", artifacts_dir=tmp_path / "a2", smoke=True
+    )
+    summary = sweep.run(cont, resumed)
+    arm = summary["arms"][first.name]
+    assert arm["error"] is None and arm["num_updates"] == 4
+    assert len(arm["seeds"][0]["returns"]) == 2
+    rows = [json.loads(r) for r in (tmp_path / "r2" / "training_curves.jsonl").read_text().splitlines()]
+    assert [r["update"] for r in rows] == [2, 3]
+    assert rows[0]["env_steps"] == 3 * first.ppo.batch_size
