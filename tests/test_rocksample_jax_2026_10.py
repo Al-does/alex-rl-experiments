@@ -306,13 +306,16 @@ def test_bmax_sweep_recipe_and_smoke(tmp_path):
 
     from experiments.rocksample_jax_2026_10 import sweep
     from experiments.rocksample_jax_2026_10.ppo_bmax_r1 import experiment as r1
+    from experiments.rocksample_jax_2026_10.ppo_bmax_r2 import experiment as r2
 
-    full = r1.recipe(RunContext(experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a"))
-    assert len(full.arms) <= 14
-    for arm in full.arms:
-        assert arm.ppo.batch_size >= 4 * 65_536
-        assert 10_000_000 <= arm.num_updates(full.env_steps_per_seed) * arm.ppo.batch_size <= 10_500_000
-        assert arm.d_model % 8 == 0
+    ctx = RunContext(experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a")
+    rounds = [r1.recipe(ctx), r2.recipe(ctx)]
+    assert sum(len(full.arms) for full in rounds) <= 14
+    for full in rounds:
+        for arm in full.arms:
+            assert arm.ppo.batch_size >= 4 * 65_536
+            assert 10_000_000 <= arm.num_updates(full.env_steps_per_seed) * arm.ppo.batch_size <= 10_500_000
+            assert arm.d_model % 8 == 0
     smoke = RunContext(
         experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a", smoke=True
     )
