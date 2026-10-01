@@ -272,3 +272,57 @@ def test_reinforce_model_defaults_to_unit_sampling_temperature():
     torch.testing.assert_close(
         outputs[Columns.ACTION_DIST_INPUTS], raw_logits
     )
+
+
+@pytest.mark.parametrize(
+    "leaf,variant",
+    (
+        ("variant_2_entropy_anneal", 2),
+        ("variant_3_entropy_anneal", 3),
+    ),
+)
+def test_entropy_anneal_arms_match_recipe_except_entropy_schedule(
+    smoke_context, leaf, variant
+):
+    module = importlib.import_module(
+        "experiments.mess3_reward_state_action_symmetry_cycle_6."
+        f"{leaf}.experiment"
+    )
+
+    config = module.build_config(smoke_context)
+    spec = config.get_rl_module_spec()
+
+    assert module.ENTROPY_COEFF == 0.03
+    assert module.ENTROPY_ANNEAL_TAIL_STEPS == 1_000_000
+    assert spec.module_class is ReinforceTransformerModel
+    assert "sampling_temperature" not in spec.model_config
+    assert spec.model_config["d_model"] == 64
+    assert config.env_config["task"]["kwargs"]["variant"] == variant
+    assert config.gamma == 0.99
+    assert config.lambda_ == 1.0
+    assert config.use_critic is False
+    assert config.use_gae is False
+    assert config.use_kl_loss is False
+    assert config.vf_loss_coeff == 0.0
+    assert config.num_epochs == 1
+    assert config.minibatch_size is None
+    assert config.batch_mode == "complete_episodes"
+    # Smoke target is SMOKE_ENV_STEPS, so the anneal covers the whole run.
+    assert config.entropy_coeff == [[0, 0.03], [4096, 0.0]]
+    config.validate()
+
+
+def test_entropy_coeff_schedule_shape():
+    from experiments.mess3_reward_state_action_symmetry_cycle_6.shared import (
+        entropy_coeff_schedule,
+    )
+
+    assert entropy_coeff_schedule(0.03, 10_000_000, 1_000_000) == [
+        [0, 0.03],
+        [9_000_000, 0.03],
+        [10_000_000, 0.0],
+    ]
+    assert entropy_coeff_schedule(0.03, 500_000, 1_000_000) == [
+        [0, 0.03],
+        [500_000, 0.0],
+    ]
