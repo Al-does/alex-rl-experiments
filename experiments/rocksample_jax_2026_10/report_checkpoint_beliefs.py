@@ -12,6 +12,7 @@ import numpy as np
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 
 from experiments.rocksample_jax_2026_10.belief_probe import ROOT, sha256
 from experiments.rocksample_jax_2026_10.report_beliefs import joint_metrics, scalar
@@ -76,7 +77,7 @@ def render(directory: Path) -> None:
     runs = sorted({t[0]["run_id"] for t in trajectories})
 
     def label(report):
-        return f"rep {runs.index(report['run_id']) + 1} · seed {report['seed']}"
+        return f"run {runs.index(report['run_id']) + 1} · seed {report['seed']}"
 
     def style(report):
         return {
@@ -90,144 +91,160 @@ def render(directory: Path) -> None:
         plt.close(fig)
         files.append(path)
 
-    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
-    for row, distribution in enumerate(("common_checks", "on_policy")):
-        for col, target in enumerate(("M", "J")):
-            ax = axes[row, col]
-            for trajectory in trajectories:
-                scores = [
-                    r[distribution]["marginals"]["final"]["metrics"]
-                    if target == "M"
-                    else joint_metrics(r[distribution], "final")
-                    for r in trajectory
-                ]
-                steps = np.array([r["env_steps"] for r in trajectory]) / 1e6
-                ax.plot(
-                    steps,
-                    [s["normalized_mse"] for s in scores],
-                    marker=".",
-                    label=label(trajectory[-1]),
-                    **style(trajectory[-1]),
-                )
-                if target == "M":
-                    ci = np.array([s["normalized_mse_ci"] for s in scores])
-                    ax.fill_between(
-                        steps,
-                        ci[:, 0],
-                        ci[:, 1],
-                        color=colors(trajectory[-1]["seed"]),
-                        alpha=0.07,
-                    )
-            ax.set(
-                xlabel="Training environment steps (millions)",
-                ylabel=r"$1-R^2$",
-                title=f"{target} · {'fixed forced-check histories' if row == 0 else 'each checkpoint’s own policy histories'}",
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
+    for ax, target in zip(axes, ("M", "J"), strict=True):
+        for trajectory in trajectories:
+            scores = [
+                r["on_policy"]["marginals"]["final"]["metrics"]
+                if target == "M"
+                else joint_metrics(r["on_policy"], "final")
+                for r in trajectory
+            ]
+            steps = np.array([r["env_steps"] for r in trajectory]) / 1e6
+            ax.plot(
+                steps,
+                [s["normalized_mse"] for s in scores],
+                marker=".",
+                label=label(trajectory[-1]),
+                **style(trajectory[-1]),
             )
-            ax.grid(alpha=0.2)
-    axes[0, 0].legend(fontsize=8, ncol=2)
-    fig.suptitle(
-        "Reconstructed initialization and ten archived checkpoints · M bands: fixed-probe episode bootstrap"
-    )
+            if target == "M":
+                ci = np.array([s["normalized_mse_ci"] for s in scores])
+                ax.fill_between(
+                    steps,
+                    ci[:, 0],
+                    ci[:, 1],
+                    color=colors(trajectory[-1]["seed"]),
+                    alpha=0.07,
+                )
+        ax.set(
+            xlabel="Training environment steps (millions)",
+            ylabel=rf"{target} $1-R^2$",
+            title=f"{'Marginal' if target == 'M' else 'Joint'} posterior",
+        )
+        ax.grid(alpha=0.2)
+    axes[0].legend(fontsize=8, ncol=2)
+    fig.suptitle("All held-out policy timesteps")
     fig.tight_layout()
     save(fig, "probe_vs_steps.png")
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5.5))
     for col, target in enumerate(("M", "J")):
         ax = axes[col]
+        return_ax = ax.twinx()
         for trajectory in trajectories:
-            x = [
+            steps = np.array([r["env_steps"] for r in trajectory]) / 1e6
+            error = [
                 r["on_policy"]["marginals"]["final"]["metrics"]["normalized_mse"]
                 if target == "M"
                 else joint_metrics(r["on_policy"], "final")["normalized_mse"]
                 for r in trajectory
             ]
-            y = [r["on_policy"]["behavior"]["return_mean"] for r in trajectory]
+            returns = [r["on_policy"]["behavior"]["return_mean"] for r in trajectory]
             ax.plot(
-                x,
-                y,
-                marker=".",
-                alpha=0.7,
+                steps,
+                error,
+                marker="o",
+                markersize=3,
                 label=label(trajectory[-1]),
                 **style(trajectory[-1]),
             )
-            ax.errorbar(
-                x[-1],
-                y[-1],
+            return_ax.plot(
+                steps,
+                returns,
+                marker="^",
+                markersize=3,
+                alpha=0.55,
+                **style(trajectory[-1]),
+            )
+            return_ax.errorbar(
+                steps[-1],
+                returns[-1],
                 yerr=1.96 * trajectory[-1]["on_policy"]["behavior"]["return_sem"],
-                fmt="o",
+                fmt="^",
                 color=colors(trajectory[-1]["seed"]),
+                alpha=0.55,
             )
         ax.set(
-            xlabel=f"{target} on-policy 1−R²",
-            ylabel="Fresh stochastic-policy episode return",
+            xlabel="Training environment steps (millions)",
+            ylabel=rf"{target} $1-R^2$",
+            title=f"{'Marginal' if target == 'M' else 'Joint'} posterior",
         )
+        return_ax.set_ylabel("Held-out sampled-policy episode return")
         ax.grid(alpha=0.2)
-    axes[1].legend(fontsize=8, ncol=2)
-    fig.suptitle("Checkpoint trajectories · final vertical bars: 1.96 × return SEM")
-    fig.tight_layout()
+    agent_handles, agent_labels = axes[0].get_legend_handles_labels()
+    fig.legend(
+        agent_handles,
+        agent_labels,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.01),
+        fontsize=8,
+        ncols=4,
+        frameon=False,
+    )
+    fig.legend(
+        handles=[
+            Line2D([], [], color="black", marker="o", label=r"Probe $1-R^2$"),
+            Line2D(
+                [],
+                [],
+                color="black",
+                marker="^",
+                alpha=0.55,
+                label="Sampled-policy return",
+            ),
+        ],
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.94),
+        ncols=2,
+        frameon=False,
+    )
+    fig.suptitle("Checkpoint trajectories", y=0.99)
+    fig.tight_layout(rect=(0, 0.13, 1, 0.89))
     save(fig, "reward_vs_probe.png")
 
-    for distribution, mask in (
-        ("on_policy", "all"),
-        ("common_checks", "informed_relevant"),
-    ):
-        fig, axes = plt.subplots(2, 4, figsize=(16, 6.5), layout="constrained")
-        for ax, trajectory in zip(axes.flat, trajectories, strict=True):
-            values = np.array(
-                [rock_values(r, distribution, mask) for r in trajectory]
-            ).T
-            im = ax.imshow(values, vmin=-0.2, vmax=1, cmap="viridis", aspect="auto")
-            ax.set_xticks(range(len(trajectory)), [r["update"] for r in trajectory])
-            ax.set_yticks(range(7), [f"rock {i}" for i in range(7)])
-            ax.set(
-                xlabel="PPO update (0 = initialization)", title=label(trajectory[-1])
-            )
-        fig.colorbar(im, ax=axes, label="Per-rock R²", shrink=0.7)
-        fig.suptitle(
-            f"{distribution} · {mask} · NaN/constant coordinates blank; color clipped at −0.2"
-        )
-        save(fig, f"per_rock_trajectory_{distribution}.png")
+    fig, axes = plt.subplots(2, 4, figsize=(16, 6.5), layout="constrained")
+    for ax, trajectory in zip(axes.flat, trajectories, strict=True):
+        values = np.array([rock_values(r, "on_policy", "all") for r in trajectory]).T
+        im = ax.imshow(values, vmin=-0.2, vmax=1, cmap="viridis", aspect="auto")
+        ax.set_xticks(range(len(trajectory)), [r["update"] for r in trajectory])
+        ax.set_yticks(range(7), [f"rock {i}" for i in range(7)])
+        ax.set(xlabel="PPO update (0 = initialization)", title=label(trajectory[-1]))
+    fig.colorbar(im, ax=axes, label="Per-rock R²", shrink=0.7)
+    fig.suptitle("All held-out policy timesteps · color clipped at −0.2")
+    save(fig, "per_rock_trajectory_on_policy.png")
 
     finals = [t[-1] for t in trajectories]
-    fig, axes = plt.subplots(1, 3, figsize=(16, 5), layout="constrained")
-    for ax, (distribution, mask) in zip(
-        axes,
-        [
-            ("on_policy", "all"),
-            ("on_policy", "informed_relevant"),
-            ("common_checks", "informed_relevant"),
-        ],
-        strict=True,
-    ):
-        values = np.array([rock_values(r, distribution, mask) for r in finals])
-        im = ax.imshow(values, vmin=-0.2, vmax=1, cmap="viridis", aspect="auto")
-        for row, col in np.ndindex(values.shape):
-            value = values[row, col]
-            ax.text(
-                col,
-                row,
-                "n/a" if np.isnan(value) else f"{value:.2f}",
-                ha="center",
-                va="center",
-                fontsize=8,
-                color="black" if value > 0.65 else "white",
-            )
-        ax.set_xticks(
-            range(7),
-            [f"{i}\n{tuple(p)}" for i, p in enumerate(finals[0]["env"]["rocks"])],
+    fig, ax = plt.subplots(figsize=(7, 5), layout="constrained")
+    values = np.array([rock_values(r, "on_policy", "all") for r in finals])
+    im = ax.imshow(values, vmin=-0.2, vmax=1, cmap="viridis", aspect="auto")
+    for row, col in np.ndindex(values.shape):
+        value = values[row, col]
+        ax.text(
+            col,
+            row,
+            "n/a" if np.isnan(value) else f"{value:.2f}",
+            ha="center",
+            va="center",
+            fontsize=8,
+            color="black" if value > 0.65 else "white",
         )
-        ax.set_yticks(range(8), [label(r) for r in finals])
-        ax.set_title(f"{distribution}\n{mask}")
-    fig.colorbar(im, ax=axes, label="Final per-rock R²", shrink=0.8)
+    ax.set_xticks(
+        range(7),
+        [f"{i}\n{tuple(p)}" for i, p in enumerate(finals[0]["env"]["rocks"])],
+    )
+    ax.set_yticks(range(8), [label(r) for r in finals])
+    ax.set_title("All held-out policy timesteps")
+    fig.colorbar(im, ax=ax, label="Final per-rock R²", shrink=0.8)
     save(fig, "per_rock_r_squared.png")
 
     fig, axes = plt.subplots(1, 3, figsize=(16, 5), layout="constrained")
-    for ax, metric in zip(
+    for ax, (metric, title) in zip(
         axes,
         (
-            "sample_given_initial_good",
-            "check_episode_fraction",
-            "prior_at_end_fraction",
+            ("sample_given_initial_good", "Sampled, given initially Good"),
+            ("check_episode_fraction", "Checked at least once"),
+            ("prior_at_end_fraction", "Posterior remains at prior at episode end"),
         ),
         strict=True,
     ):
@@ -246,7 +263,7 @@ def render(directory: Path) -> None:
             )
         ax.set_xticks(range(7), [f"rock {i}" for i in range(7)])
         ax.set_yticks(range(8), [label(r) for r in finals])
-        ax.set_title(metric.replace("_", " "))
+        ax.set_title(title)
     fig.colorbar(
         im,
         ax=axes,
@@ -255,98 +272,101 @@ def render(directory: Path) -> None:
     )
     save(fig, "rollout_rocks.png")
 
-    for distribution in ("on_policy", "common_checks"):
-        fig, axes = plt.subplots(8, 7, figsize=(18, 17), squeeze=False)
-        predictions = [
-            np.array(report[distribution]["example"]["predictions"])
-            for report in finals
-        ]
-        lower = min(-0.1, min(values.min() for values in predictions)) - 0.05
-        upper = max(1.1, max(values.max() for values in predictions)) + 0.05
-        for row, report in enumerate(finals):
-            example = report[distribution]["example"]
-            for rock in range(7):
-                ax = axes[row, rock]
-                ax.plot(
-                    example["times"],
-                    np.array(example["targets"])[:, rock],
-                    color="black",
-                    linewidth=1,
-                )
-                ax.plot(
-                    example["times"],
-                    np.array(example["predictions"])[:, rock],
-                    color=colors(report["seed"]),
-                    linewidth=1,
-                )
-                ax.set_title(f"{label(report)} · rock {rock}", fontsize=8)
-                ax.set_ylim(lower, upper)
-                ax.grid(alpha=0.2)
-        fig.suptitle(
-            f"{distribution}: first held-out episode (no selection) · black: Bayesian target · colored: affine decode"
-        )
-        fig.supxlabel("Episode timestep (before action)")
-        fig.supylabel("P(rock is Good) · raw affine predictions")
-        fig.tight_layout(rect=(0.015, 0.02, 1, 0.97))
-        save(fig, f"coordinates_{distribution}.png")
+    fig, axes = plt.subplots(8, 7, figsize=(18, 17), squeeze=False)
+    predictions = [
+        np.array(report["on_policy"]["example"]["predictions"])
+        for report in finals
+    ]
+    lower = min(-0.1, min(values.min() for values in predictions)) - 0.05
+    upper = max(1.1, max(values.max() for values in predictions)) + 0.05
+    for row, report in enumerate(finals):
+        example = report["on_policy"]["example"]
+        for rock in range(7):
+            ax = axes[row, rock]
+            ax.plot(
+                example["times"],
+                np.array(example["targets"])[:, rock],
+                color="black",
+                linewidth=1,
+            )
+            ax.plot(
+                example["times"],
+                np.array(example["predictions"])[:, rock],
+                color=colors(report["seed"]),
+                linewidth=1,
+            )
+            ax.set_title(f"{label(report)} · rock {rock}", fontsize=8)
+            ax.set_ylim(lower, upper)
+            ax.grid(alpha=0.2)
+    fig.suptitle("Sampled or representative episode", y=0.995)
+    fig.legend(
+        handles=[
+            Line2D([], [], color="black", label="Black: Bayesian target"),
+            Line2D([], [], color=colors(0), label="Colored: affine decoded belief"),
+        ],
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.97),
+        ncols=2,
+        frameon=False,
+    )
+    fig.supxlabel("Episode time steps")
+    fig.supylabel("P(Rock is Good)")
+    fig.tight_layout(rect=(0.015, 0.02, 1, 0.93))
+    save(fig, "coordinates_on_policy.png")
 
     rows = []
     rock_rows = []
     for trajectory in trajectories:
         for r in trajectory:
-            for distribution in ("on_policy", "common_checks"):
-                data = r[distribution]
-                m = data["marginals"]["final"]["metrics"]
-                j = joint_metrics(data, "final")
-                rows.append(
+            data = r["on_policy"]
+            m = data["marginals"]["final"]["metrics"]
+            j = joint_metrics(data, "final")
+            rows.append(
+                {
+                    "run_id": r["run_id"],
+                    "seed": r["seed"],
+                    "update": r["update"],
+                    "env_steps": r["env_steps"],
+                    "return_mean": data["behavior"]["return_mean"],
+                    "return_sem": data["behavior"]["return_sem"],
+                    "M_1-R2": m["normalized_mse"],
+                    "M_ci_low": m["normalized_mse_ci"][0],
+                    "M_ci_high": m["normalized_mse_ci"][1],
+                    "J_1-R2": j["normalized_mse"],
+                }
+            )
+            for rock, scores in enumerate(data["marginals"]["final"]["per_rock"]):
+                change = data["check_updates"][rock]
+                rock_rows.append(
                     {
                         "run_id": r["run_id"],
                         "seed": r["seed"],
                         "update": r["update"],
                         "env_steps": r["env_steps"],
-                        "distribution": distribution,
-                        "return_mean": data["behavior"]["return_mean"],
-                        "return_sem": data["behavior"]["return_sem"],
-                        "M_1-R2": m["normalized_mse"],
-                        "M_ci_low": m["normalized_mse_ci"][0],
-                        "M_ci_high": m["normalized_mse_ci"][1],
-                        "J_1-R2": j["normalized_mse"],
+                        "rock": rock,
+                        "R2": None
+                        if scores["all"] is None
+                        else scores["all"]["r_squared"],
+                        "sample_fraction": data["behavior"][
+                            "sample_episode_fraction"
+                        ][rock],
+                        "prior_at_end": data["behavior"]["prior_at_end_fraction"][
+                            rock
+                        ],
+                        "n_informative_checks": change["n_informative"],
+                        "update_R2": None
+                        if change["metrics"] is None
+                        else change["metrics"]["r_squared"],
+                        "target_change": change["mean_absolute_target_change"],
+                        "decoded_change": change["mean_absolute_decoded_change"],
                     }
                 )
-                for rock, scores in enumerate(data["marginals"]["final"]["per_rock"]):
-                    change = data["check_updates"][rock]
-                    rock_rows.append(
-                        {
-                            "run_id": r["run_id"],
-                            "seed": r["seed"],
-                            "update": r["update"],
-                            "env_steps": r["env_steps"],
-                            "distribution": distribution,
-                            "rock": rock,
-                            "R2_all": None
-                            if scores["all"] is None
-                            else scores["all"]["r_squared"],
-                            "R2_informed": None
-                            if scores["informed_relevant"] is None
-                            else scores["informed_relevant"]["r_squared"],
-                            "sample_fraction": data["behavior"][
-                                "sample_episode_fraction"
-                            ][rock],
-                            "prior_at_end": data["behavior"]["prior_at_end_fraction"][
-                                rock
-                            ],
-                            "n_informative_checks": change["n_informative"],
-                            "update_R2": None
-                            if change["metrics"] is None
-                            else change["metrics"]["r_squared"],
-                            "target_change": change["mean_absolute_target_change"],
-                            "decoded_change": change["mean_absolute_decoded_change"],
-                        }
-                    )
     for name, entries in (("summary.csv", rows), ("per_rock.csv", rock_rows)):
         path = destination / name
         with path.open("w", newline="") as stream:
-            writer = csv.DictWriter(stream, fieldnames=list(entries[0]))
+            writer = csv.DictWriter(
+                stream, fieldnames=list(entries[0]), lineterminator="\n"
+            )
             writer.writeheader()
             writer.writerows(entries)
         files.append(path)
@@ -369,15 +389,15 @@ def render(directory: Path) -> None:
         "",
         "## Measurement contract",
         "",
-        finals[0]["protocol"],
+        "512 complete held-out episodes sampled from each saved policy; 256 fit/256 test, split seed 831; CV seed 551 uses fit episodes only; raw affine predictions; 200 fixed-probe episode bootstrap resamples. Full joint null battery at final only. Policy histories vary with each checkpoint. Reset rows included; exit ends histories.",
         "",
-        "Representation: post-final LayerNorm; exact action/observation-only targets M and J; previous action in observations. Histories start at reset, and terminal/post-exit rows are excluded. Predictions are not clipped. Read BELIEF_PROBES.md for commands and distribution caveats.",
+        "Representation: post-final LayerNorm; exact action/observation-only targets M and J; previous action in observations. All held-out policy timesteps are scored. Histories start at reset, and terminal/post-exit rows are excluded. Predictions are not clipped. Read BELIEF_PROBES.md for reproduction commands.",
         "",
-        "All fixed-route history hashes agree across all 88 encoders. Each nominal seed has identical reconstructed initialization hashes across the two repetitions. Own-policy histories vary with checkpoint; their 1−R² curves change with visitation as well as representations. Joint scores use 128 configurations; marginal scores use seven coordinates. Bootstrap bands measure held-out episode uncertainty conditional on each fitted decoder, not training variability.",
+        "Each nominal seed has identical reconstructed initialization hashes across the two runs. Policy histories vary with checkpoint; their 1−R² curves change with visitation as well as representations. Joint scores use 128 configurations; marginal scores use seven coordinates. Bootstrap bands measure held-out episode uncertainty conditional on each fitted decoder, not training variability.",
         "",
-        "The <5% sampling rule is a descriptive behavioral flag, not a threshold for absence of a representation. Coordinate-level target variances and undefined scores are preserved in JSON. Forced-history probes are separately refitted and do not establish transfer or causal use.",
+        "The <5% sampling rule is a descriptive behavioral flag, not a threshold for absence of a representation. Coordinate-level target variances and undefined scores are preserved in JSON.",
         "",
-        "## Repetition comparison",
+        "## Run comparison",
         "",
     ]
     for seed in range(4):

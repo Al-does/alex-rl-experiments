@@ -31,14 +31,15 @@ Exit/cap ends each trajectory; no post-exit activation/target row is scored.
 The final and reconstructed initialization encoders replay the same complete
 histories. The exact initialization follows the recorded sweep and PPO key
 splits; a test compares its parameters with `ppo.init` for all four seeds.
-Final-policy histories are the primary paired-init distribution. Own-init
-histories and identical forced-check histories are additional controls.
-The three distributions are kept separate in each seed report.
+Final-policy histories are the primary paired-init distribution. The compact
+checkpoint files retain historical forced-check controls, but the report excludes
+them because their scripted actions can place activations off the policy's
+intended action distribution.
 
 Half the episodes fit probes; half evaluate them. SVD cutoff selection uses
 training-episode cross-validation only. The affine predictions are never
 clipped or normalized before scoring. Reports include MSE, target variance,
-1−R², per-rock unrestricted/relevant/informed scores, episode-bootstrap
+1−R², per-rock scores over all held-out policy timesteps, episode-bootstrap
 uncertainty, nuisance/predictive baselines and joint-posterior null controls.
 Constant coordinates have undefined R², never an invented zero error score.
 
@@ -59,7 +60,7 @@ a unique internal Bayesian model or causal use of any rock coordinate.
 
 ## Repeated runs with frequent checkpoints
 
-The two r7 repetitions have real checkpoints at updates 1, 2, 3, 4, 5, 6,
+The two r7 runs have real checkpoints at updates 1, 2, 3, 4, 5, 6,
 9, 14, 20 and 29. Their training metadata is in
 [PR 175](https://github.com/Al-does/alex-rl-experiments/pull/175). Until that
 PR lands, retrieve its compact metadata with `git archive` from its head:
@@ -84,15 +85,14 @@ null controls as the original study; intermediate joint scores use grouped
 affine fits without the expensive null battery. Final policies also receive
 4,096 independent behavior-confirmation episodes with a separate random stream.
 
-Use **common_checks** curves to compare encoders on exactly the same histories;
-history hashes verify that invariant across checkpoints, repetitions and seeds.
-**On_policy** curves describe each checkpoint's own visitation distribution,
-so their target variance and history support change. Paired initialization
+The report uses each checkpoint's own sampled-policy histories and scores all
+held-out timesteps. Their target variance and history support therefore change
+with the policy. Paired initialization
 scores remain available on every checkpoint's on-policy histories. Step-zero
 on-policy points use the actual initialization policy; they are not final-policy
 paired-init scores. Probe bootstraps resample test episodes with fixed decoders;
-they do not measure optimizer/path variation. Keep forced-history decoding,
-on-policy decoding and independent behavior-confirmation metrics separate.
+they do not measure optimizer/path variation. Independent behavior-confirmation
+metrics remain separate from decoder fitting and scoring.
 
 Render all eight trajectories together (refuses an existing report directory):
 
