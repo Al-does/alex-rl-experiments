@@ -257,6 +257,12 @@ def render(directory: Path) -> None:
 
     for distribution in ("on_policy", "common_checks"):
         fig, axes = plt.subplots(8, 7, figsize=(18, 17), squeeze=False)
+        predictions = [
+            np.array(report[distribution]["example"]["predictions"])
+            for report in finals
+        ]
+        lower = min(-0.1, min(values.min() for values in predictions)) - 0.05
+        upper = max(1.1, max(values.max() for values in predictions)) + 0.05
         for row, report in enumerate(finals):
             example = report[distribution]["example"]
             for rock in range(7):
@@ -274,12 +280,14 @@ def render(directory: Path) -> None:
                     linewidth=1,
                 )
                 ax.set_title(f"{label(report)} · rock {rock}", fontsize=8)
-                ax.set_ylim(-0.3, 1.3)
+                ax.set_ylim(lower, upper)
                 ax.grid(alpha=0.2)
         fig.suptitle(
             f"{distribution}: first held-out episode (no selection) · black: Bayesian target · colored: affine decode"
         )
-        fig.tight_layout()
+        fig.supxlabel("Episode timestep (before action)")
+        fig.supylabel("P(rock is Good) · raw affine predictions")
+        fig.tight_layout(rect=(0.015, 0.02, 1, 0.97))
         save(fig, f"coordinates_{distribution}.png")
 
     rows = []

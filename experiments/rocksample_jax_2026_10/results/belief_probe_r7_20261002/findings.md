@@ -159,6 +159,11 @@ isolate a GPU, implementation, RNG, or scheduling cause.
   and high random-feature accessibility qualifies geometric claims.
 - M and J are different targets: a high seven-coordinate fit does not imply
   equally good affine access to every joint posterior configuration.
+- The exact next-sensor-probability control scores J R² 0.393–0.454. The three
+  higher-return decoders exceed it by 0.175–0.223 R²; four of five lower-return
+  decoders do not exceed it (rep-1 seed 3 exceeds it by just 0.022). Current
+  observable controls score 0.092–0.184. These descriptive comparisons qualify
+  any claim of geometry beyond immediately predictive information.
 - Bootstrap bands are conditional on fixed fitted probes and resample complete
   held-out episodes. They do not estimate retraining/path variability. The full
   J null/nuisance/predictive battery is run only at final on-policy checkpoints;
