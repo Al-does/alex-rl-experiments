@@ -313,6 +313,7 @@ def test_bmax_sweep_recipe_and_smoke(tmp_path):
     from experiments.rocksample_jax_2026_10.ppo_bmax_r4 import experiment as r4
     from experiments.rocksample_jax_2026_10.ppo_bmax_r5 import experiment as r5
     from experiments.rocksample_jax_2026_10.ppo_bmax_r6 import experiment as r6
+    from experiments.rocksample_jax_2026_10.ppo_bmax_r6b import experiment as r6b
 
     ctx = RunContext(experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a")
     rounds = [r1.recipe(ctx), r2.recipe(ctx)]
@@ -350,6 +351,9 @@ def test_bmax_sweep_recipe_and_smoke(tmp_path):
     assert combo.ppo == replace(control.ppo, kl_target=0.1, num_minibatches=128)
     with pytest.raises(ValueError):
         sweep.SweepRecipe(arms=r6_recipe.arms, env_steps_per_seed=1, num_seeds=3, num_keys=4, first_seed=2)
+    r6b_recipe = r6b.recipe(ctx)
+    assert r6b_recipe.arms == (combo,) and r6b_recipe.env_steps_per_seed == r6_recipe.env_steps_per_seed
+    assert (r6b_recipe.first_seed, r6b_recipe.num_seeds, r6b_recipe.num_keys) == (2, 2, 4)
     smoke = RunContext(
         experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a", smoke=True
     )
