@@ -126,7 +126,7 @@ def render(directory: Path) -> None:
             ax.grid(alpha=0.2)
     axes[0, 0].legend(fontsize=8, ncol=2)
     fig.suptitle(
-        "Actual initialization and ten archived checkpoints · M bands: fixed-probe episode bootstrap"
+        "Reconstructed initialization and ten archived checkpoints · M bands: fixed-probe episode bootstrap"
     )
     fig.tight_layout()
     save(fig, "probe_vs_steps.png")
@@ -157,11 +157,6 @@ def render(directory: Path) -> None:
                 fmt="o",
                 color=colors(trajectory[-1]["seed"]),
             )
-            ax.annotate(
-                f"r{runs.index(trajectory[-1]['run_id']) + 1}s{trajectory[-1]['seed']}",
-                (x[-1], y[-1]),
-                fontsize=8,
-            )
         ax.set(
             xlabel=f"{target} on-policy 1−R²",
             ylabel="Fresh stochastic-policy episode return",
@@ -176,7 +171,7 @@ def render(directory: Path) -> None:
         ("on_policy", "all"),
         ("common_checks", "informed_relevant"),
     ):
-        fig, axes = plt.subplots(2, 4, figsize=(16, 6.5))
+        fig, axes = plt.subplots(2, 4, figsize=(16, 6.5), layout="constrained")
         for ax, trajectory in zip(axes.flat, trajectories, strict=True):
             values = np.array(
                 [rock_values(r, distribution, mask) for r in trajectory]
@@ -194,7 +189,7 @@ def render(directory: Path) -> None:
         save(fig, f"per_rock_trajectory_{distribution}.png")
 
     finals = [t[-1] for t in trajectories]
-    fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+    fig, axes = plt.subplots(1, 3, figsize=(16, 5), layout="constrained")
     for ax, (distribution, mask) in zip(
         axes,
         [
@@ -226,7 +221,7 @@ def render(directory: Path) -> None:
     fig.colorbar(im, ax=axes, label="Final per-rock R²", shrink=0.8)
     save(fig, "per_rock_r_squared.png")
 
-    fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+    fig, axes = plt.subplots(1, 3, figsize=(16, 5), layout="constrained")
     for ax, metric in zip(
         axes,
         (
@@ -394,6 +389,8 @@ def render(directory: Path) -> None:
     path.write_text("\n".join(lines) + "\n")
     files.append(path)
     inputs = list(directory.glob("rep*_seed*/update*.json"))
+    if (directory / "findings.md").exists():
+        inputs.append(directory / "findings.md")
     sources = [
         Path(__file__),
         ROOT / "belief_probe.py",

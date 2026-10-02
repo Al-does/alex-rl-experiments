@@ -93,3 +93,16 @@ on-policy points use the actual initialization policy; they are not final-policy
 paired-init scores. Probe bootstraps resample test episodes with fixed decoders;
 they do not measure optimizer/path variation. Keep forced-history decoding,
 on-policy decoding and independent behavior-confirmation metrics separate.
+
+Render all eight trajectories together (refuses an existing report directory):
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --group jax python \
+  -m experiments.rocksample_jax_2026_10.report_checkpoint_beliefs \
+  experiments/rocksample_jax_2026_10/results/belief_probe_r7_20261002
+```
+
+Completed r7 findings live in
+`results/belief_probe_r7_20261002/findings.md`; the generated `report/` includes
+M/J checkpoint curves, per-rock trajectories and final scores, independent
+rollout diagnostics, first-held-out-episode coordinate traces, CSVs and hashes.
