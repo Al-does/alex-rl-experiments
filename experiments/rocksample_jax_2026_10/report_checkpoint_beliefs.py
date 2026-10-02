@@ -298,7 +298,7 @@ def render(directory: Path) -> None:
             ax.set_title(f"{label(report)} · rock {rock}", fontsize=8)
             ax.set_ylim(lower, upper)
             ax.grid(alpha=0.2)
-    fig.suptitle("Sampled or representative episode", y=0.995)
+    fig.suptitle("Representative Episode.", y=0.995)
     fig.legend(
         handles=[
             Line2D([], [], color="black", label="Black: Bayesian target"),
