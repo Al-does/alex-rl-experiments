@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from functools import partial
 
 import jax
@@ -310,11 +311,12 @@ def test_bmax_sweep_recipe_and_smoke(tmp_path):
     from experiments.rocksample_jax_2026_10.ppo_bmax_r2 import experiment as r2
     from experiments.rocksample_jax_2026_10.ppo_bmax_r3 import experiment as r3
     from experiments.rocksample_jax_2026_10.ppo_bmax_r4 import experiment as r4
+    from experiments.rocksample_jax_2026_10.ppo_bmax_r5 import experiment as r5
 
     ctx = RunContext(experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a")
     rounds = [r1.recipe(ctx), r2.recipe(ctx)]
     assert sum(len(full.arms) for full in rounds) <= 14
-    for full in rounds + [r3.recipe(ctx), r4.recipe(ctx)]:
+    for full in rounds + [r3.recipe(ctx), r4.recipe(ctx), r5.recipe(ctx)]:
         budget = full.env_steps_per_seed
         for arm in full.arms:
             assert arm.ppo.batch_size >= 4 * 65_536
@@ -329,6 +331,14 @@ def test_bmax_sweep_recipe_and_smoke(tmp_path):
     assert (r4.recipe(ctx).num_seeds, r4.recipe(ctx).num_keys) == (1, r3.recipe(ctx).num_seeds)
     with pytest.raises(ValueError):
         sweep.SweepRecipe(arms=r4.recipe(ctx).arms, env_steps_per_seed=1, num_seeds=2, num_keys=1)
+    control = r3_arms["b1m_d128_loose_ep16"]
+    assert len(r5.recipe(ctx).arms) <= 10 and (r5.recipe(ctx).num_seeds, r5.recipe(ctx).num_keys) == (1, 4)
+    for arm in r5.recipe(ctx).arms:
+        changed = [
+            f for f in ("d_model", "n_layers", "n_heads", "context_len")
+            if getattr(arm, f) != getattr(control, f)
+        ] + [k for k, v in asdict(arm.ppo).items() if v != asdict(control.ppo)[k]]
+        assert len(changed) == 1, (arm.name, changed)
     smoke = RunContext(
         experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a", smoke=True
     )

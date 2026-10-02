@@ -41,6 +41,9 @@ class Arm:
     name: str
     ppo: ppo.PPOConfig
     d_model: int = 64
+    n_layers: int = 3
+    n_heads: int = 4
+    context_len: int = 32
     note: str = ""
     resume_from: str | None = None
     """Directory holding ``seed<i>.pkl`` trainer states to continue from."""
@@ -59,6 +62,9 @@ class Arm:
             "note": self.note,
             "ppo": asdict(self.ppo),
             "d_model": self.d_model,
+            "n_layers": self.n_layers,
+            "n_heads": self.n_heads,
+            "context_len": self.context_len,
             "batch_size": self.ppo.batch_size,
             "minibatch_size": self.minibatch_size,
             "num_updates": updates,
@@ -152,7 +158,13 @@ def run(context, recipe: SweepRecipe):
     summary: dict = {"env_steps_per_seed": budget, "arms": {}}
     for arm in recipe.arms:
         updates = arm.num_updates(budget)
-        spec = ppo.make_spec(env_params, d_model=arm.d_model)
+        spec = ppo.make_spec(
+            env_params,
+            d_model=arm.d_model,
+            n_layers=arm.n_layers,
+            n_heads=arm.n_heads,
+            context_len=arm.context_len,
+        )
         init = jax.jit(partial(ppo.init, arm.ppo, env_params, spec))
         step = jax.jit(ppo.make_train_chunk(arm.ppo, env_params, spec, 1))
         seeds: list[dict] = []

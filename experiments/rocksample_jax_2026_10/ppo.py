@@ -106,14 +106,20 @@ class Transition(NamedTuple):
     illegal: jax.Array
 
 
-def make_spec(params: rs.RockSampleParams, d_model: int = 64) -> tm.TransformerSpec:
+def make_spec(
+    params: rs.RockSampleParams,
+    d_model: int = 64,
+    n_layers: int = 3,
+    n_heads: int = 4,
+    context_len: int = 32,
+) -> tm.TransformerSpec:
     return tm.TransformerSpec(
         obs_dim=params.obs_dim,
         num_actions=params.num_actions,
         d_model=d_model,
-        n_layers=3,
-        n_heads=4,
-        context_len=32,
+        n_layers=n_layers,
+        n_heads=n_heads,
+        context_len=context_len,
     )
 
 
