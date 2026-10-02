@@ -309,11 +309,12 @@ def test_bmax_sweep_recipe_and_smoke(tmp_path):
     from experiments.rocksample_jax_2026_10.ppo_bmax_r1 import experiment as r1
     from experiments.rocksample_jax_2026_10.ppo_bmax_r2 import experiment as r2
     from experiments.rocksample_jax_2026_10.ppo_bmax_r3 import experiment as r3
+    from experiments.rocksample_jax_2026_10.ppo_bmax_r4 import experiment as r4
 
     ctx = RunContext(experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a")
     rounds = [r1.recipe(ctx), r2.recipe(ctx)]
     assert sum(len(full.arms) for full in rounds) <= 14
-    for full in rounds + [r3.recipe(ctx)]:
+    for full in rounds + [r3.recipe(ctx), r4.recipe(ctx)]:
         budget = full.env_steps_per_seed
         for arm in full.arms:
             assert arm.ppo.batch_size >= 4 * 65_536
@@ -323,6 +324,11 @@ def test_bmax_sweep_recipe_and_smoke(tmp_path):
     for name, arm in r3_arms.items():
         (r2_arm,) = [a for a in r2.recipe(ctx).arms if a.name == name]
         assert (arm.ppo, arm.d_model) == (r2_arm.ppo, r2_arm.d_model)
+    (r4_arm,) = r4.recipe(ctx).arms
+    assert (r4_arm.ppo, r4_arm.d_model) == (r3_arms["b1m_d128_loose_ep16"].ppo, 256)
+    assert (r4.recipe(ctx).num_seeds, r4.recipe(ctx).num_keys) == (1, r3.recipe(ctx).num_seeds)
+    with pytest.raises(ValueError):
+        sweep.SweepRecipe(arms=r4.recipe(ctx).arms, env_steps_per_seed=1, num_seeds=2, num_keys=1)
     smoke = RunContext(
         experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a", smoke=True
     )

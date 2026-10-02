@@ -73,8 +73,13 @@ class SweepRecipe:
     arms: tuple[Arm, ...]
     env_steps_per_seed: int
     num_seeds: int
+    num_keys: int | None = None
+    """Split the root key this many ways (default ``num_seeds``) so a recipe
+    running fewer seeds reuses the same per-seed keys as a wider one."""
 
     def __post_init__(self) -> None:
+        if self.num_keys is not None and self.num_keys < self.num_seeds:
+            raise ValueError("num_keys must be >= num_seeds")
         names = [arm.name for arm in self.arms]
         if len(set(names)) != len(names):
             raise ValueError(f"duplicate arm names: {names}")
@@ -142,7 +147,7 @@ def run(context, recipe: SweepRecipe):
         },
     )
     # Same seed keys for every arm (common random numbers across arms).
-    keys = jax.random.split(jax.random.key(context.seed), recipe.num_seeds)
+    keys = jax.random.split(jax.random.key(context.seed), recipe.num_keys or recipe.num_seeds)
 
     summary: dict = {"env_steps_per_seed": budget, "arms": {}}
     for arm in recipe.arms:
