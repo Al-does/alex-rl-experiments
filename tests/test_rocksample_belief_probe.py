@@ -1,4 +1,5 @@
 from dataclasses import replace
+import json
 
 import jax
 import jax.numpy as jnp
@@ -10,6 +11,27 @@ from experiments.rocksample_jax_2026_10 import belief_probe as bp
 from experiments.rocksample_jax_2026_10 import env as rs
 from experiments.rocksample_jax_2026_10 import model as tm
 from experiments.rocksample_jax_2026_10 import ppo
+
+
+def test_checkpoint_order_seed_identity_and_invalid_metadata(tmp_path):
+    records = [
+        {"update": 29, "env_steps": 29_360_128, "path": "d128_kl0.1/seed2.pkl"},
+        {"update": 1, "env_steps": 1_048_576, "path": "d128_kl0.1/seed2/update001.pkl"},
+    ]
+    seed = {"seed_index": 2, "checkpoints": records}
+    summary = {"arms": {"d128_kl0.1": {"seeds": [seed]}}}
+    path = tmp_path / "summary.json"
+    path.write_text(json.dumps(summary))
+    assert [r["update"] for r in bp.checkpoint_records(tmp_path, 2)] == [1, 29]
+    records[0]["path"] = "d128_kl0.1/seed1.pkl"
+    path.write_text(json.dumps(summary))
+    with pytest.raises(ValueError, match="path disagrees"):
+        bp.checkpoint_records(tmp_path, 2)
+    records[0]["path"] = "d128_kl0.1/seed2.pkl"
+    records[0]["env_steps"] = 1_048_576
+    path.write_text(json.dumps(summary))
+    with pytest.raises(ValueError, match="increase strictly"):
+        bp.checkpoint_records(tmp_path, 2)
 
 
 @pytest.fixture(scope="module")

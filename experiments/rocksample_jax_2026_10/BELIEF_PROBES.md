@@ -56,3 +56,40 @@ steps. Initialization-to-final connecting lines are guides; the separate
 Outputs include source/checkpoint hashes, compact seed JSONs, figures, a CSV,
 and a generated methods/metrics report. Linear accessibility does not establish
 a unique internal Bayesian model or causal use of any rock coordinate.
+
+## Repeated runs with frequent checkpoints
+
+The two r7 repetitions have real checkpoints at updates 1, 2, 3, 4, 5, 6,
+9, 14, 20 and 29. Their training metadata is in
+[PR 175](https://github.com/Al-does/alex-rl-experiments/pull/175). Until that
+PR lands, retrieve its compact metadata with `git archive` from its head:
+
+```bash
+git fetch origin devin/1790964775-rocksample-ckpt
+git archive FETCH_HEAD experiments/rocksample_jax_2026_10/ppo_bmax_r7/results | tar -x
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --group jax python \
+  -m experiments.rocksample_jax_2026_10.checkpoint_beliefs \
+  experiments/rocksample_jax_2026_10/ppo_bmax_r7/results/20261002T182024Z-ad0c3a34 \
+  --seed 0 --download --output experiments/rocksample_jax_2026_10/results/NEW_R7/rep1_seed0
+```
+
+Repeat for seeds 0–3 and run `20261002T191712Z-7f1dc1ef`. Metadata selects
+the checkpoint path/update/step; byte count and SHA-256 verification precede
+loading both rollout-free intermediate states and full final states.
+`--smoke --updates 1` runs a short real-checkpoint smoke in an ignored output
+directory. Initialization is reconstructed with the recorded runtime seed and
+four-key split, then every archived checkpoint is evaluated on 512 complete
+episodes per distribution. The final on-policy joint battery adds the same
+null controls as the original study; intermediate joint scores use grouped
+affine fits without the expensive null battery. Final policies also receive
+4,096 independent behavior-confirmation episodes with a separate random stream.
+
+Use **common_checks** curves to compare encoders on exactly the same histories;
+history hashes verify that invariant across checkpoints, repetitions and seeds.
+**On_policy** curves describe each checkpoint's own visitation distribution,
+so their target variance and history support change. Paired initialization
+scores remain available on every checkpoint's on-policy histories. Step-zero
+on-policy points use the actual initialization policy; they are not final-policy
+paired-init scores. Probe bootstraps resample test episodes with fixed decoders;
+they do not measure optimizer/path variation. Keep forced-history decoding,
+on-policy decoding and independent behavior-confirmation metrics separate.
