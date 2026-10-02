@@ -1,0 +1,97 @@
+{
+  "arms": [
+    {
+      "batch_size": 1048576,
+      "d_model": 128,
+      "env_steps_per_seed": 30408704,
+      "gradient_steps_per_update": 1024,
+      "minibatch_size": 16384,
+      "name": "b1m_d128_loose_ep16",
+      "note": "r2 b1m_d128_loose_ep16 (29.2 at 10M) to 30M",
+      "num_updates": 29,
+      "ppo": {
+        "clip_param": 0.3,
+        "entropy_coeff": 0.05,
+        "gae_lambda": 0.95,
+        "gamma": 0.99,
+        "kl_coeff": 0.2,
+        "kl_target": 0.05,
+        "lr": 0.001,
+        "max_grad_norm": 0.5,
+        "num_envs": 8192,
+        "num_epochs": 16,
+        "num_minibatches": 64,
+        "num_steps": 128,
+        "use_kl_loss": true,
+        "vf_clip": 1000000.0,
+        "vf_coeff": 0.5
+      },
+      "resume_from": null
+    },
+    {
+      "batch_size": 1048576,
+      "d_model": 128,
+      "env_steps_per_seed": 30408704,
+      "gradient_steps_per_update": 1024,
+      "minibatch_size": 16384,
+      "name": "b1m_d128_push",
+      "note": "r2 b1m_d128_push (29.9 at 10M) to 30M",
+      "num_updates": 29,
+      "ppo": {
+        "clip_param": 0.5,
+        "entropy_coeff": 0.01,
+        "gae_lambda": 0.95,
+        "gamma": 0.99,
+        "kl_coeff": 0.2,
+        "kl_target": 0.1,
+        "lr": 0.001,
+        "max_grad_norm": 0.5,
+        "num_envs": 8192,
+        "num_epochs": 16,
+        "num_minibatches": 64,
+        "num_steps": 128,
+        "use_kl_loss": true,
+        "vf_clip": 1000000.0,
+        "vf_coeff": 0.5
+      },
+      "resume_from": null
+    },
+    {
+      "batch_size": 1048576,
+      "d_model": 256,
+      "env_steps_per_seed": 30408704,
+      "gradient_steps_per_update": 512,
+      "minibatch_size": 16384,
+      "name": "b1m_d256_loose",
+      "note": "r2 b1m_d256_loose (28.2 at 10M) to 30M",
+      "num_updates": 29,
+      "ppo": {
+        "clip_param": 0.3,
+        "entropy_coeff": 0.05,
+        "gae_lambda": 0.95,
+        "gamma": 0.99,
+        "kl_coeff": 0.2,
+        "kl_target": 0.05,
+        "lr": 0.001,
+        "max_grad_norm": 0.5,
+        "num_envs": 8192,
+        "num_epochs": 8,
+        "num_minibatches": 64,
+        "num_steps": 128,
+        "use_kl_loss": true,
+        "vf_clip": 1000000.0,
+        "vf_coeff": 0.5
+      },
+      "resume_from": null
+    }
+  ],
+  "env_steps_per_seed": 30000000,
+  "instance": [
+    5,
+    7
+  ],
+  "jax_device": "cuda:0",
+  "num_seeds": 4,
+  "seed": 42,
+  "tail_fraction": 0.2
+}
