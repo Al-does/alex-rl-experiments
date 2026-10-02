@@ -31,14 +31,15 @@ Exit/cap ends each trajectory; no post-exit activation/target row is scored.
 The final and reconstructed initialization encoders replay the same complete
 histories. The exact initialization follows the recorded sweep and PPO key
 splits; a test compares its parameters with `ppo.init` for all four seeds.
-Final-policy histories are the primary paired-init distribution. Own-init
-histories and identical forced-check histories are additional controls.
-The three distributions are kept separate in each seed report.
+Final-policy histories are the primary paired-init distribution. The compact
+checkpoint files retain historical forced-check controls, but the report excludes
+them because their scripted actions can place activations off the policy's
+intended action distribution.
 
 Half the episodes fit probes; half evaluate them. SVD cutoff selection uses
 training-episode cross-validation only. The affine predictions are never
 clipped or normalized before scoring. Reports include MSE, target variance,
-1−R², per-rock unrestricted/relevant/informed scores, episode-bootstrap
+1−R², per-rock scores over all held-out policy timesteps, episode-bootstrap
 uncertainty, nuisance/predictive baselines and joint-posterior null controls.
 Constant coordinates have undefined R², never an invented zero error score.
 
@@ -56,3 +57,52 @@ steps. Initialization-to-final connecting lines are guides; the separate
 Outputs include source/checkpoint hashes, compact seed JSONs, figures, a CSV,
 and a generated methods/metrics report. Linear accessibility does not establish
 a unique internal Bayesian model or causal use of any rock coordinate.
+
+## Repeated runs with frequent checkpoints
+
+The two r7 runs have real checkpoints at updates 1, 2, 3, 4, 5, 6,
+9, 14, 20 and 29. Their training metadata is in
+[PR 175](https://github.com/Al-does/alex-rl-experiments/pull/175). Until that
+PR lands, retrieve its compact metadata with `git archive` from its head:
+
+```bash
+git fetch origin devin/1790964775-rocksample-ckpt
+git archive FETCH_HEAD experiments/rocksample_jax_2026_10/ppo_bmax_r7/results | tar -x
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --group jax python \
+  -m experiments.rocksample_jax_2026_10.checkpoint_beliefs \
+  experiments/rocksample_jax_2026_10/ppo_bmax_r7/results/20261002T182024Z-ad0c3a34 \
+  --seed 0 --download --output experiments/rocksample_jax_2026_10/results/NEW_R7/rep1_seed0
+```
+
+Repeat for seeds 0–3 and run `20261002T191712Z-7f1dc1ef`. Metadata selects
+the checkpoint path/update/step; byte count and SHA-256 verification precede
+loading both rollout-free intermediate states and full final states.
+`--smoke --updates 1` runs a short real-checkpoint smoke in an ignored output
+directory. Initialization is reconstructed with the recorded runtime seed and
+four-key split, then every archived checkpoint is evaluated on 512 complete
+episodes per distribution. The final on-policy joint battery adds the same
+null controls as the original study; intermediate joint scores use grouped
+affine fits without the expensive null battery. Final policies also receive
+4,096 independent behavior-confirmation episodes with a separate random stream.
+
+The report uses each checkpoint's own sampled-policy histories and scores all
+held-out timesteps. Their target variance and history support therefore change
+with the policy. Paired initialization
+scores remain available on every checkpoint's on-policy histories. Step-zero
+on-policy points use the actual initialization policy; they are not final-policy
+paired-init scores. Probe bootstraps resample test episodes with fixed decoders;
+they do not measure optimizer/path variation. Independent behavior-confirmation
+metrics remain separate from decoder fitting and scoring.
+
+Render all eight trajectories together (refuses an existing report directory):
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --group jax python \
+  -m experiments.rocksample_jax_2026_10.report_checkpoint_beliefs \
+  experiments/rocksample_jax_2026_10/results/belief_probe_r7_20261002
+```
+
+Completed r7 findings live in
+`results/belief_probe_r7_20261002/findings.md`; the generated `report/` includes
+M/J checkpoint curves, per-rock trajectories and final scores, independent
+rollout diagnostics, first-held-out-episode coordinate traces, CSVs and hashes.
