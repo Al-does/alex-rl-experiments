@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from dataclasses import asdict, replace
 from functools import partial
 
 import jax
@@ -307,15 +309,51 @@ def test_bmax_sweep_recipe_and_smoke(tmp_path):
     from experiments.rocksample_jax_2026_10 import sweep
     from experiments.rocksample_jax_2026_10.ppo_bmax_r1 import experiment as r1
     from experiments.rocksample_jax_2026_10.ppo_bmax_r2 import experiment as r2
+    from experiments.rocksample_jax_2026_10.ppo_bmax_r3 import experiment as r3
+    from experiments.rocksample_jax_2026_10.ppo_bmax_r4 import experiment as r4
+    from experiments.rocksample_jax_2026_10.ppo_bmax_r5 import experiment as r5
+    from experiments.rocksample_jax_2026_10.ppo_bmax_r6 import experiment as r6
+    from experiments.rocksample_jax_2026_10.ppo_bmax_r6b import experiment as r6b
 
     ctx = RunContext(experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a")
     rounds = [r1.recipe(ctx), r2.recipe(ctx)]
     assert sum(len(full.arms) for full in rounds) <= 14
-    for full in rounds:
+    for full in rounds + [r3.recipe(ctx), r4.recipe(ctx), r5.recipe(ctx), r6.recipe(ctx)]:
+        budget = full.env_steps_per_seed
         for arm in full.arms:
             assert arm.ppo.batch_size >= 4 * 65_536
-            assert 10_000_000 <= arm.num_updates(full.env_steps_per_seed) * arm.ppo.batch_size <= 10_500_000
+            assert budget <= arm.num_updates(budget) * arm.ppo.batch_size <= budget + arm.ppo.batch_size
             assert arm.d_model % 8 == 0
+    r3_arms = {arm.name: arm for arm in r3.recipe(ctx).arms}
+    for name, arm in r3_arms.items():
+        (r2_arm,) = [a for a in r2.recipe(ctx).arms if a.name == name]
+        assert (arm.ppo, arm.d_model) == (r2_arm.ppo, r2_arm.d_model)
+    (r4_arm,) = r4.recipe(ctx).arms
+    assert (r4_arm.ppo, r4_arm.d_model) == (r3_arms["b1m_d128_loose_ep16"].ppo, 256)
+    assert (r4.recipe(ctx).num_seeds, r4.recipe(ctx).num_keys) == (1, r3.recipe(ctx).num_seeds)
+    with pytest.raises(ValueError):
+        sweep.SweepRecipe(arms=r4.recipe(ctx).arms, env_steps_per_seed=1, num_seeds=2, num_keys=1)
+    control = r3_arms["b1m_d128_loose_ep16"]
+    assert len(r5.recipe(ctx).arms) <= 10 and (r5.recipe(ctx).num_seeds, r5.recipe(ctx).num_keys) == (1, 4)
+    for arm in r5.recipe(ctx).arms:
+        changed = [
+            f for f in ("d_model", "n_layers", "n_heads", "context_len")
+            if getattr(arm, f) != getattr(control, f)
+        ] + [k for k, v in asdict(arm.ppo).items() if v != asdict(control.ppo)[k]]
+        assert len(changed) == 1, (arm.name, changed)
+    r5_arms = {arm.name: arm for arm in r5.recipe(ctx).arms}
+    r6_recipe = r6.recipe(ctx)
+    assert (r6_recipe.first_seed, r6_recipe.num_seeds, r6_recipe.num_keys) == (1, 3, 4)
+    for name in ("d128_kl0.1", "d128_mb8k"):
+        (r6_arm,) = [a for a in r6_recipe.arms if a.name == name]
+        assert (r6_arm.ppo, r6_arm.d_model) == (r5_arms[name].ppo, r5_arms[name].d_model)
+    (combo,) = [a for a in r6_recipe.arms if a.name == "d128_kl0.1_mb8k"]
+    assert combo.ppo == replace(control.ppo, kl_target=0.1, num_minibatches=128)
+    with pytest.raises(ValueError):
+        sweep.SweepRecipe(arms=r6_recipe.arms, env_steps_per_seed=1, num_seeds=3, num_keys=4, first_seed=2)
+    r6b_recipe = r6b.recipe(ctx)
+    assert r6b_recipe.arms == (combo,) and r6b_recipe.env_steps_per_seed == r6_recipe.env_steps_per_seed
+    assert (r6b_recipe.first_seed, r6b_recipe.num_seeds, r6b_recipe.num_keys) == (2, 2, 4)
     smoke = RunContext(
         experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a", smoke=True
     )
@@ -328,3 +366,23 @@ def test_bmax_sweep_recipe_and_smoke(tmp_path):
     assert (tmp_path / "r" / "summary.json").exists()
     rows = (tmp_path / "r" / "training_curves.jsonl").read_text().splitlines()
     assert len(rows) == 4
+    saved = tmp_path / "a" / "smoke_d16" / "seed0.pkl"
+    assert saved.exists()
+
+    smoke_recipe = sweep.smoke_recipe()
+    first = smoke_recipe.arms[0]
+    resumed = sweep.SweepRecipe(
+        arms=(sweep.Arm(first.name, first.ppo, d_model=first.d_model, resume_from=str(saved.parent)),),
+        env_steps_per_seed=2 * smoke_recipe.env_steps_per_seed,
+        num_seeds=1,
+    )
+    cont = RunContext(
+        experiment_dir=tmp_path, results_dir=tmp_path / "r2", artifacts_dir=tmp_path / "a2", smoke=True
+    )
+    summary = sweep.run(cont, resumed)
+    arm = summary["arms"][first.name]
+    assert arm["error"] is None and arm["num_updates"] == 4
+    assert len(arm["seeds"][0]["returns"]) == 2
+    rows = [json.loads(r) for r in (tmp_path / "r2" / "training_curves.jsonl").read_text().splitlines()]
+    assert [r["update"] for r in rows] == [2, 3]
+    assert rows[0]["env_steps"] == 3 * first.ppo.batch_size

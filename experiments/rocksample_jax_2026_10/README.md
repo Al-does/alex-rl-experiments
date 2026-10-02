@@ -79,3 +79,15 @@ same range as the RLlib PPO runs, which plateau near 25.
 Run: `uv sync --group jax-cuda` on a GPU box, then
 `python -m experiments.rocksample_jax_2026_10.benchmark <mode>` (use
 `.venv/bin/python` for `train-rllib`; Ray workers break under `uv run`).
+
+## Large-batch PPO campaign (`sweep.py`, `ppo_bmax_r1`–`ppo_bmax_r6b`)
+
+`sweep.py` runs a tuple of `Arm`s (PPO config + transformer size) for
+`num_seeds` seeds sequentially, writing one compact `summary.json` /
+`training_curves.jsonl` per round and the final trainer state per seed to
+ignored `artifacts/` (resumable via `Arm.resume_from`; `SweepRecipe.num_keys` /
+`first_seed` keep seeds key-matched across rounds). Every agent trained in the
+campaign, ordered by final return, with what changed, is in
+`ppo_bmax_findings.md`. Best recipe: `ppo_bmax_r3/b1m_d128_loose_ep16`
+(batch 1M, 16 epochs, lr 1e-3, clip 0.3, KL target 0.05, d128) — 41.3 mean
+over 4 seeds at 30M steps vs the RLlib plateau of ~25.
