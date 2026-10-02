@@ -82,10 +82,14 @@ class SweepRecipe:
     num_keys: int | None = None
     """Split the root key this many ways (default ``num_seeds``) so a recipe
     running fewer seeds reuses the same per-seed keys as a wider one."""
+    first_seed: int = 0
+    """Seed index to start at, so a follow-up can run the remaining seeds."""
 
     def __post_init__(self) -> None:
-        if self.num_keys is not None and self.num_keys < self.num_seeds:
-            raise ValueError("num_keys must be >= num_seeds")
+        if self.first_seed < 0:
+            raise ValueError("first_seed must be >= 0")
+        if (self.num_keys or self.num_seeds) < self.first_seed + self.num_seeds:
+            raise ValueError("num_keys must be >= first_seed + num_seeds")
         names = [arm.name for arm in self.arms]
         if len(set(names)) != len(names):
             raise ValueError(f"duplicate arm names: {names}")
@@ -147,6 +151,7 @@ def run(context, recipe: SweepRecipe):
             "instance": [N, K],
             "env_steps_per_seed": budget,
             "num_seeds": recipe.num_seeds,
+            "first_seed": recipe.first_seed,
             "tail_fraction": TAIL_FRACTION,
             "seed": context.seed,
             "jax_device": str(jax.devices()[0]),
@@ -174,7 +179,7 @@ def run(context, recipe: SweepRecipe):
             f"d={arm.d_model} updates={updates}",
             flush=True,
         )
-        for seed_index in range(recipe.num_seeds):
+        for seed_index in range(recipe.first_seed, recipe.first_seed + recipe.num_seeds):
             returns: list[float] = []
             start = time.perf_counter()
             try:

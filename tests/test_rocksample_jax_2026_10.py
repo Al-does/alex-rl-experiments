@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from functools import partial
 
 import jax
@@ -312,11 +312,12 @@ def test_bmax_sweep_recipe_and_smoke(tmp_path):
     from experiments.rocksample_jax_2026_10.ppo_bmax_r3 import experiment as r3
     from experiments.rocksample_jax_2026_10.ppo_bmax_r4 import experiment as r4
     from experiments.rocksample_jax_2026_10.ppo_bmax_r5 import experiment as r5
+    from experiments.rocksample_jax_2026_10.ppo_bmax_r6 import experiment as r6
 
     ctx = RunContext(experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a")
     rounds = [r1.recipe(ctx), r2.recipe(ctx)]
     assert sum(len(full.arms) for full in rounds) <= 14
-    for full in rounds + [r3.recipe(ctx), r4.recipe(ctx), r5.recipe(ctx)]:
+    for full in rounds + [r3.recipe(ctx), r4.recipe(ctx), r5.recipe(ctx), r6.recipe(ctx)]:
         budget = full.env_steps_per_seed
         for arm in full.arms:
             assert arm.ppo.batch_size >= 4 * 65_536
@@ -339,6 +340,16 @@ def test_bmax_sweep_recipe_and_smoke(tmp_path):
             if getattr(arm, f) != getattr(control, f)
         ] + [k for k, v in asdict(arm.ppo).items() if v != asdict(control.ppo)[k]]
         assert len(changed) == 1, (arm.name, changed)
+    r5_arms = {arm.name: arm for arm in r5.recipe(ctx).arms}
+    r6_recipe = r6.recipe(ctx)
+    assert (r6_recipe.first_seed, r6_recipe.num_seeds, r6_recipe.num_keys) == (1, 3, 4)
+    for name in ("d128_kl0.1", "d128_mb8k"):
+        (r6_arm,) = [a for a in r6_recipe.arms if a.name == name]
+        assert (r6_arm.ppo, r6_arm.d_model) == (r5_arms[name].ppo, r5_arms[name].d_model)
+    (combo,) = [a for a in r6_recipe.arms if a.name == "d128_kl0.1_mb8k"]
+    assert combo.ppo == replace(control.ppo, kl_target=0.1, num_minibatches=128)
+    with pytest.raises(ValueError):
+        sweep.SweepRecipe(arms=r6_recipe.arms, env_steps_per_seed=1, num_seeds=3, num_keys=4, first_seed=2)
     smoke = RunContext(
         experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a", smoke=True
     )
