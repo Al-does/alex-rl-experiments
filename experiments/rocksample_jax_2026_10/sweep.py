@@ -8,8 +8,10 @@ the GPU at these batch sizes. Outputs: ``training_curves.jsonl`` (one row per
 arm, seed and update), ``summary.json`` (tail/final return per arm and seed),
 and the final trainer state of every seed in ignored
 ``artifacts/<arm>/seed<i>.pkl`` so a later leaf can continue the run
-(``Arm.resume_from``) instead of retraining. An arm that fails (typically out
-of memory) is recorded and skipped.
+(``Arm.resume_from``) instead of retraining. ``SweepRecipe.num_checkpoints``
+adds log-spaced intermediate checkpoints (params, optimizer, KL coeff, key;
+no rollout, so a few MB each) under ``artifacts/<arm>/seed<i>/update<u>.pkl``.
+An arm that fails (typically out of memory) is recorded and skipped.
 """
 
 from __future__ import annotations
@@ -84,15 +86,33 @@ class SweepRecipe:
     running fewer seeds reuses the same per-seed keys as a wider one."""
     first_seed: int = 0
     """Seed index to start at, so a follow-up can run the remaining seeds."""
+    num_checkpoints: int = 1
+    """Trainer states saved per seed at log-spaced updates (final always
+    included); 1 keeps only the final state."""
 
     def __post_init__(self) -> None:
         if self.first_seed < 0:
             raise ValueError("first_seed must be >= 0")
+        if self.num_checkpoints < 1:
+            raise ValueError("num_checkpoints must be >= 1")
         if (self.num_keys or self.num_seeds) < self.first_seed + self.num_seeds:
             raise ValueError("num_keys must be >= first_seed + num_seeds")
         names = [arm.name for arm in self.arms]
         if len(set(names)) != len(names):
             raise ValueError(f"duplicate arm names: {names}")
+
+
+def checkpoint_updates(num_updates: int, num_checkpoints: int) -> tuple[int, ...]:
+    """1-indexed update counts at which to checkpoint: ``min(num_checkpoints,
+    num_updates)`` distinct values, geometrically spaced from 1 to
+    ``num_updates`` (ties bumped to the next free update), last = final."""
+    n = min(num_checkpoints, num_updates)
+    chosen: list[int] = []
+    for i in range(n):
+        target = round(num_updates ** (i / max(n - 1, 1))) if n > 1 else num_updates
+        chosen.append(max(target, chosen[-1] + 1 if chosen else 1))
+    chosen[-1] = num_updates
+    return tuple(chosen)
 
 
 def smoke_recipe() -> SweepRecipe:
@@ -124,9 +144,15 @@ def _arm_summary(arm: Arm, env_steps: int, seeds: list[dict], error: str | None)
     }
 
 
-def save_state(path: Path, state: ppo.RunnerState) -> None:
+def save_state(path: Path, state: ppo.RunnerState, *, with_rollout: bool = True) -> None:
+    """Pickle ``state`` on the host. ``with_rollout=False`` drops the env
+    state / KV cache / history (the bulk of the ~0.9 GB at batch 1M), leaving
+    a few-MB checkpoint that can be evaluated or probed but not resumed."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    host = jax.tree.map(np.asarray, state._replace(key=jax.random.key_data(state.key)))
+    state = state._replace(key=jax.random.key_data(state.key))
+    if not with_rollout:
+        state = state._replace(rollout=None)
+    host = jax.tree.map(np.asarray, state)
     with path.open("wb") as f:
         pickle.dump(host, f)
 
@@ -134,6 +160,8 @@ def save_state(path: Path, state: ppo.RunnerState) -> None:
 def load_state(path: Path) -> ppo.RunnerState:
     with path.open("rb") as f:
         state = jax.tree.map(jax.numpy.asarray, pickle.load(f))
+    if state.rollout is None:
+        raise ValueError(f"{path} is a rollout-free checkpoint and cannot be resumed")
     return state._replace(key=jax.random.wrap_key_data(state.key))
 
 
@@ -152,6 +180,11 @@ def run(context, recipe: SweepRecipe):
             "env_steps_per_seed": budget,
             "num_seeds": recipe.num_seeds,
             "first_seed": recipe.first_seed,
+            "num_checkpoints": recipe.num_checkpoints,
+            "checkpoint_updates": {
+                arm.name: checkpoint_updates(arm.num_updates(budget), recipe.num_checkpoints)
+                for arm in recipe.arms
+            },
             "tail_fraction": TAIL_FRACTION,
             "seed": context.seed,
             "jax_device": str(jax.devices()[0]),
@@ -163,6 +196,7 @@ def run(context, recipe: SweepRecipe):
     summary: dict = {"env_steps_per_seed": budget, "arms": {}}
     for arm in recipe.arms:
         updates = arm.num_updates(budget)
+        ckpt_updates = set(checkpoint_updates(updates, recipe.num_checkpoints))
         spec = ppo.make_spec(
             env_params,
             d_model=arm.d_model,
@@ -181,6 +215,7 @@ def run(context, recipe: SweepRecipe):
         )
         for seed_index in range(recipe.first_seed, recipe.first_seed + recipe.num_seeds):
             returns: list[float] = []
+            checkpoints: list[dict] = []
             start = time.perf_counter()
             try:
                 if arm.resume_from is None:
@@ -209,8 +244,22 @@ def run(context, recipe: SweepRecipe):
                         f"t={row['seconds']:.0f}s",
                         flush=True,
                     )
+                    if update + 1 in ckpt_updates and update + 1 < updates:
+                        path = outputs.artifacts_dir / arm.name / f"seed{seed_index}" / f"update{update + 1:03d}.pkl"
+                        save_state(path, state, with_rollout=False)
+                        checkpoints.append({
+                            "update": update + 1,
+                            "env_steps": row["env_steps"],
+                            "path": str(path.relative_to(outputs.artifacts_dir)),
+                        })
                 jax.block_until_ready(state)
-                save_state(outputs.artifacts_dir / arm.name / f"seed{seed_index}.pkl", state)
+                path = outputs.artifacts_dir / arm.name / f"seed{seed_index}.pkl"
+                save_state(path, state)
+                checkpoints.append({
+                    "update": updates,
+                    "env_steps": int(state.env_steps),
+                    "path": str(path.relative_to(outputs.artifacts_dir)),
+                })
                 del state
             except jax.errors.JaxRuntimeError as exc:
                 error = str(exc).splitlines()[0][:300]
@@ -222,6 +271,7 @@ def run(context, recipe: SweepRecipe):
                     "tail_return": fitness_from_history(returns, TAIL_FRACTION),
                     "final_return": returns[-1],
                     "returns": returns,
+                    "checkpoints": checkpoints,
                     "seconds_including_compile": time.perf_counter() - start,
                 }
             )
