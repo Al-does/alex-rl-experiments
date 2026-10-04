@@ -26,7 +26,9 @@ def main() -> None:
     parser.add_argument("--minibatch-episodes", type=int, default=64)
     parser.add_argument("--epochs", type=int, default=6)
     parser.add_argument("--lr", type=float, default=None, help="constant lr override")
+    parser.add_argument("--lr-scale", type=float, default=1.0, help="multiplies the lr schedule")
     parser.add_argument("--rollout-chunks", type=int, default=1)
+    parser.add_argument("--compute-dtype", choices=["float32", "bfloat16"], default="float32")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
@@ -47,7 +49,15 @@ def main() -> None:
                 eval_steps=tuple(s for s in supervised.CHECKPOINT_STEPS if s < args.steps)
                 + (args.steps,),
             )
-            result = supervised.train(args.preset, seed=args.seed, config=config, log=log)
+            from experiments.pusher_b_jax_2026_10.model import ModelSpec
+
+            result = supervised.train(
+                args.preset,
+                seed=args.seed,
+                config=config,
+                spec=ModelSpec(compute_dtype=args.compute_dtype),
+                log=log,
+            )
             result.pop("params")
             result.pop("history")
         else:
@@ -56,6 +66,10 @@ def main() -> None:
             overrides = {}
             if args.lr is not None:
                 overrides["lr_schedule"] = ((0, args.lr),)
+            elif args.lr_scale != 1.0:
+                overrides["lr_schedule"] = tuple(
+                    (step, lr * args.lr_scale) for step, lr in ppo.PPOConfig().lr_schedule
+                )
             config = ppo.PPOConfig(
                 total_env_steps=args.env_steps,
                 num_envs=args.num_envs,

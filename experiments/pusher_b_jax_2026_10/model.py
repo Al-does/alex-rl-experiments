@@ -38,6 +38,7 @@ class ModelSpec:
     n_layers: int = 4
     n_heads: int = 4
     d_mlp: int = 512
+    compute_dtype: str = "float32"  # "bfloat16": mixed precision in encode()
     init_std: float = 0.02
     norm_eps: float = 1e-5
     rope_base: float = 10_000.0
@@ -109,7 +110,9 @@ def _dense(p, x):
 
 
 def _rms_norm(scale, x, eps):
-    return x * jax.lax.rsqrt((x * x).mean(-1, keepdims=True) + eps) * scale
+    x32 = x.astype(jnp.float32)
+    normed = x32 * jax.lax.rsqrt((x32 * x32).mean(-1, keepdims=True) + eps)
+    return (normed * scale.astype(jnp.float32)).astype(x.dtype)
 
 
 def _rope(spec: ModelSpec, x, positions):
@@ -118,7 +121,8 @@ def _rope(spec: ModelSpec, x, positions):
     half = spec.head_dim // 2
     inv_freq = 1.0 / (spec.rope_base ** (jnp.arange(half, dtype=jnp.float32) / half))
     angles = positions.astype(jnp.float32)[:, None] * inv_freq[None, :]
-    cos, sin = jnp.cos(angles)[:, None, :], jnp.sin(angles)[:, None, :]
+    cos = jnp.cos(angles)[:, None, :].astype(x.dtype)
+    sin = jnp.sin(angles)[:, None, :].astype(x.dtype)
     even, odd = x[..., 0::2], x[..., 1::2]
     return jnp.stack([even * cos - odd * sin, even * sin + odd * cos], -1).reshape(x.shape)
 
@@ -141,6 +145,13 @@ def encode(spec: ModelSpec, params: dict, tokens: jax.Array) -> jax.Array:
 
     batch, length = tokens.shape
     positions = jnp.arange(length)
+    dtype = jnp.dtype(spec.compute_dtype)
+    if dtype != jnp.float32:
+        params = {
+            **params,
+            "embed": params["embed"].astype(dtype),
+            "blocks": jax.tree.map(lambda w: w.astype(dtype), params["blocks"]),
+        }
     x = params["embed"][tokens]
     for block in params["blocks"]:
         q, k, v = _qkv(spec, block, x)
@@ -148,7 +159,7 @@ def encode(spec: ModelSpec, params: dict, tokens: jax.Array) -> jax.Array:
         attended = jax.nn.dot_product_attention(q, k, v, is_causal=True)
         x = x + _dense(block["out"], attended.reshape(batch, length, -1))
         x = _mlp(spec, block, x)
-    return _rms_norm(params["final_norm"], x, spec.norm_eps)
+    return _rms_norm(params["final_norm"], x.astype(jnp.float32), spec.norm_eps)
 
 
 def lm_logits(params, embedding):

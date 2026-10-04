@@ -104,3 +104,12 @@ def test_chunked_rollout_and_constant_lr_run():
         log=lambda _: None,
     )
     assert curves[-1]["lr"] == pytest.approx(1e-4)
+
+
+def test_bfloat16_encode_close_to_float32():
+    params = tm.init_params(SMALL, jax.random.key(0), lm_head=True)
+    tokens = jax.random.randint(jax.random.key(1), (2, 12), 0, 3)
+    full = tm.encode(SMALL, params, tokens)
+    half = tm.encode(tm.ModelSpec(**{**SMALL.__dict__, "compute_dtype": "bfloat16"}), params, tokens)
+    assert half.dtype == jnp.float32
+    np.testing.assert_allclose(half, full, atol=0.1)
