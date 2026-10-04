@@ -52,10 +52,13 @@ class PPOConfig:
     vf_clip: float = 10.0
     next_token_aux: bool = False
     aux_coeff: float = 1.0
+    rollout_chunks: int = 1  # split the KV-cached rollout to bound memory
 
     def __post_init__(self) -> None:
         if self.num_envs % self.minibatch_episodes:
             raise ValueError("num_envs must be divisible by minibatch_episodes")
+        if self.num_envs % self.rollout_chunks:
+            raise ValueError("num_envs must be divisible by rollout_chunks")
 
     @classmethod
     def smoke(cls, **overrides) -> PPOConfig:
@@ -200,7 +203,12 @@ def make_update(config: PPOConfig, env: JaxHMMEnv, spec: tm.ModelSpec):
 
     def update(state: RunnerState) -> tuple[RunnerState, dict]:
         key, collect_key, shuffle_key = jax.random.split(state.key, 3)
-        traj = collect(env, spec, config.num_envs, state.params, collect_key)
+        chunk = config.num_envs // config.rollout_chunks
+        traj = jax.lax.map(
+            lambda k: collect(env, spec, chunk, state.params, k),
+            jax.random.split(collect_key, config.rollout_chunks),
+        )
+        traj = jax.tree.map(lambda x: x.reshape((-1,) + x.shape[2:]), traj)
         env_steps = state.env_steps + batch_size
         lr = schedule_value(config.lr_schedule, env_steps)
         entropy_coeff = schedule_value(config.entropy_schedule, env_steps)

@@ -91,3 +91,16 @@ def test_supervised_smoke_runs():
     )
     assert result["completed_step"] == 4
     assert result["bayesian_floor_nats"] > 0.0
+
+
+def test_chunked_rollout_and_constant_lr_run():
+    config = ppo.PPOConfig.smoke(rollout_chunks=2, lr_schedule=((0, 1e-4),))
+    assert float(ppo.schedule_value(config.lr_schedule, jnp.int32(10**7))) == pytest.approx(1e-4)
+    _, curves, _ = ppo.train(
+        "b10",
+        seed=0,
+        config=config,
+        spec=tm.ModelSpec(d_model=32, n_layers=1, n_heads=2, d_mlp=64),
+        log=lambda _: None,
+    )
+    assert curves[-1]["lr"] == pytest.approx(1e-4)

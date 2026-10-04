@@ -22,6 +22,11 @@ def main() -> None:
     parser.add_argument("--steps", type=int, default=3_000)
     parser.add_argument("--env-steps", type=int, default=3_000_000)
     parser.add_argument("--precision", choices=["default", "high", "highest"], default="default")
+    parser.add_argument("--num-envs", type=int, default=2_048)
+    parser.add_argument("--minibatch-episodes", type=int, default=64)
+    parser.add_argument("--epochs", type=int, default=6)
+    parser.add_argument("--lr", type=float, default=None, help="constant lr override")
+    parser.add_argument("--rollout-chunks", type=int, default=1)
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
@@ -48,9 +53,19 @@ def main() -> None:
         else:
             from experiments.pusher_b_jax_2026_10 import ppo
 
-            config = ppo.PPOConfig(total_env_steps=args.env_steps)
+            overrides = {}
+            if args.lr is not None:
+                overrides["lr_schedule"] = ((0, args.lr),)
+            config = ppo.PPOConfig(
+                total_env_steps=args.env_steps,
+                num_envs=args.num_envs,
+                minibatch_episodes=args.minibatch_episodes,
+                num_epochs=args.epochs,
+                rollout_chunks=args.rollout_chunks,
+                **overrides,
+            )
             _, _, result = ppo.train(args.preset, seed=args.seed, config=config, log=log)
-        summary = {"kind": "summary", "mode": args.mode, "precision": args.precision, **result}
+        summary = {"kind": "summary", **vars(args), **result}
         handle.write(json.dumps(summary) + "\n")
         print(json.dumps(summary))
 
