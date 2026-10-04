@@ -1,0 +1,400 @@
+{
+  "action_control": "three actions exponentially tilt reward-state destination odds while preserving transition support, non-reward destination ratios, and P(token | source, destination)",
+  "algorithm": "clipped PPO",
+  "checkpoint_schedule": "initial, powers of two iterations, final",
+  "clip_param": 0.2,
+  "compact_outputs": [
+    "resolved_recipe.json",
+    "training_curves.jsonl",
+    "summary.json",
+    "run_manifest.json",
+    "tune_summary.json"
+  ],
+  "condition": "variant_2",
+  "context_semantics": "one learned BOS position plus 127 delayed token/action decisions forms one 128-position complete learner sequence",
+  "design_diagnostics": {
+    "baseline_stationary_reward_occupancy": 0.3333333333333333,
+    "destination_emission_matrix": [
+      [
+        0.5,
+        0.5
+      ],
+      [
+        0.75,
+        0.25
+      ],
+      [
+        0.25,
+        0.75
+      ]
+    ],
+    "edge_transition_matrices": [
+      [
+        [
+          [
+            0.45,
+            0.045,
+            0.01
+          ],
+          [
+            0.02,
+            0.675,
+            0.015
+          ],
+          [
+            0.03,
+            0.03,
+            0.225
+          ]
+        ],
+        [
+          [
+            0.45,
+            0.015,
+            0.03
+          ],
+          [
+            0.02,
+            0.225,
+            0.045
+          ],
+          [
+            0.03,
+            0.01,
+            0.675
+          ]
+        ]
+      ],
+      [
+        [
+          [
+            0.21243957431774269,
+            0.2588043831140316,
+            0.05751208513645147
+          ],
+          [
+            0.16834790291037496,
+            0.46638576153228534,
+            0.010364128034050783
+          ],
+          [
+            0.21872282119574055,
+            0.017953862476867626,
+            0.1346539685765072
+          ]
+        ],
+        [
+          [
+            0.21243957431774269,
+            0.0862681277046772,
+            0.1725362554093544
+          ],
+          [
+            0.16834790291037496,
+            0.15546192051076177,
+            0.03109238410215235
+          ],
+          [
+            0.21872282119574055,
+            0.005984620825622542,
+            0.4039619057295216
+          ]
+        ]
+      ],
+      [
+        [
+          [
+            0.21243957431774269,
+            0.2588043831140316,
+            0.05751208513645147
+          ],
+          [
+            0.0017042751619842991,
+            0.7007283630534598,
+            0.015571741401187993
+          ],
+          [
+            0.002606079528347948,
+            0.03174854811521183,
+            0.23811411086408873
+          ]
+        ],
+        [
+          [
+            0.21243957431774269,
+            0.0862681277046772,
+            0.1725362554093544
+          ],
+          [
+            0.0017042751619842991,
+            0.2335761210178199,
+            0.04671522420356398
+          ],
+          [
+            0.002606079528347948,
+            0.010582849371737278,
+            0.7143423325922663
+          ]
+        ]
+      ]
+    ],
+    "effect_size": 2.5,
+    "expected_oracle_policy": [
+      0,
+      1,
+      1
+    ],
+    "maximum_controlled_transition_probability": 0.952456443456355,
+    "minimum_controlled_transition_probability": 0.0034085503239685983,
+    "oracle_gap": 0.20034155129918663,
+    "oracle_policy": [
+      0,
+      1,
+      1
+    ],
+    "oracle_stationary_reward_occupancy": 0.7895008047802166,
+    "reference_transition_matrix": [
+      [
+        0.9,
+        0.06,
+        0.04
+      ],
+      [
+        0.04,
+        0.9,
+        0.06
+      ],
+      [
+        0.06,
+        0.04,
+        0.9
+      ]
+    ],
+    "reward_state": "A",
+    "reward_state_index": 0,
+    "runner_up_stationary_reward_occupancy": 0.5891592534810299,
+    "transition_matrices": [
+      [
+        [
+          0.9,
+          0.06,
+          0.04
+        ],
+        [
+          0.04,
+          0.9,
+          0.06
+        ],
+        [
+          0.06,
+          0.04,
+          0.9
+        ]
+      ],
+      [
+        [
+          0.42487914863548537,
+          0.3450725108187088,
+          0.2300483405458059
+        ],
+        [
+          0.3366958058207499,
+          0.6218476820430471,
+          0.04145651213620313
+        ],
+        [
+          0.4374456423914811,
+          0.02393848330249017,
+          0.5386158743060288
+        ]
+      ],
+      [
+        [
+          0.42487914863548537,
+          0.3450725108187088,
+          0.2300483405458059
+        ],
+        [
+          0.0034085503239685983,
+          0.9343044840712795,
+          0.062286965604751963
+        ],
+        [
+          0.005212159056695896,
+          0.04233139748694911,
+          0.952456443456355
+        ]
+      ]
+    ],
+    "variant": 2
+  },
+  "effect_size": 2.5,
+  "entropy_coeff": 0.01,
+  "environment": {
+    "delay": 1,
+    "episode_length": 127,
+    "model": {
+      "factory": "experiments.pusher_b_reward_state_action_symmetry_cycle_2.process:sticky_cycle_model"
+    },
+    "observation": {
+      "action": {
+        "depth": 1
+      },
+      "token": {
+        "depth": 1
+      }
+    },
+    "randomize_first_episode_length": false,
+    "task": {
+      "class": "experiments.pusher_b_reward_state_action_symmetry_cycle_1.task:ActionSymmetryTask",
+      "kwargs": {
+        "effect_size": 2.5,
+        "reward_state": "A",
+        "variant": 2
+      }
+    }
+  },
+  "episode_length": 127,
+  "gamma": 0.99,
+  "hmm": {
+    "destination_emission_matrix": [
+      [
+        0.5,
+        0.5
+      ],
+      [
+        0.75,
+        0.25
+      ],
+      [
+        0.25,
+        0.75
+      ]
+    ],
+    "edge_transition_matrices": [
+      [
+        [
+          0.45,
+          0.045,
+          0.01
+        ],
+        [
+          0.02,
+          0.675,
+          0.015
+        ],
+        [
+          0.03,
+          0.03,
+          0.225
+        ]
+      ],
+      [
+        [
+          0.45,
+          0.015,
+          0.03
+        ],
+        [
+          0.02,
+          0.225,
+          0.045
+        ],
+        [
+          0.03,
+          0.01,
+          0.675
+        ]
+      ]
+    ],
+    "initial_distribution": [
+      0.3333333333333333,
+      0.33333333333333354,
+      0.33333333333333315
+    ],
+    "source_marginal_emission_matrix": [
+      [
+        0.505,
+        0.495
+      ],
+      [
+        0.7100000000000001,
+        0.29
+      ],
+      [
+        0.28500000000000003,
+        0.7150000000000001
+      ]
+    ],
+    "states": [
+      "A",
+      "B",
+      "C"
+    ],
+    "tokens": [
+      "0",
+      "1"
+    ],
+    "transition_matrix": [
+      [
+        0.9,
+        0.06,
+        0.04
+      ],
+      [
+        0.04,
+        0.9,
+        0.06
+      ],
+      [
+        0.06,
+        0.04,
+        0.9
+      ]
+    ]
+  },
+  "hypothesis": "Sticky latent states and noisy emissions require accumulating token/action history, separating Bayes filtering from constant and one- or two-token shortcuts.",
+  "intended_hardware": "CPU smoke; one NVIDIA RTX 4090-equivalent GPU per full run",
+  "lambda": 0.95,
+  "learning_rate": 0.00042,
+  "minibatch_size": 8192,
+  "model": {
+    "activation": "gated_gelu",
+    "attention_implementation": "sdpa",
+    "context_length": 128,
+    "d_mlp": 512,
+    "d_model": 128,
+    "max_seq_len": 128,
+    "n_heads": 4,
+    "n_layers": 4,
+    "normalization": "rms_norm",
+    "positional_embedding": "rope",
+    "training_sequence_mode": "complete_episode"
+  },
+  "num_epochs": 6,
+  "observation": "one-step-delayed token one-hot plus executed-action one-hot; no reward, belief, or hidden state",
+  "previous_action_in_observation": true,
+  "previous_reward_in_observation": false,
+  "primary_comparison": "variant 2 requires two state-conditioned optimal actions; variant 3 requires three",
+  "remote_artifact_policy": "upload ignored checkpoints and Tune artifacts to B2 before self-destruct; push compact results to the launch branch",
+  "reward": "one when the pre-transition hidden state is A, else zero",
+  "reward_state": "A",
+  "sampling_layout": {
+    "batch_mode": "complete_episodes",
+    "env_runner": "harness.env_runners:FreshEpisodeSingleAgentEnvRunner",
+    "episodes_per_sampling_round": 2072,
+    "num_env_runners": 14,
+    "num_envs_per_env_runner": 148
+  },
+  "seed": 42,
+  "seed_policy": "one fixed runtime seed per experiment; default 42",
+  "smoke": false,
+  "stopping_metric": "env_runners/num_env_steps_sampled_lifetime",
+  "study": "pusher_b_reward_state_action_symmetry_cycle_2",
+  "success_metrics": "episode return and reward-state occupancy learning curves",
+  "total_env_steps": 50000000,
+  "train_batch_size_per_learner": 262144,
+  "use_kl_loss": false,
+  "value_loss_coeff": 0.5,
+  "variant": 2
+}
