@@ -1,0 +1,388 @@
+{
+  "action_control": "three actions exponentially tilt the odds of the designated reward-state destination while preserving transition support, the ratio between non-reward destinations, and P(token | source, destination)",
+  "action_semantics": {
+    "0": "noop baseline transition",
+    "1": "positive cyclic-control action",
+    "2": "negative cyclic-control action"
+  },
+  "algorithm": "clipped PPO",
+  "checkpoint_schedule": "initial, powers of two iterations, final",
+  "clip_param": 0.2,
+  "compact_outputs": [
+    "resolved_recipe.json",
+    "training_curves.jsonl",
+    "summary.json",
+    "run_manifest.json",
+    "tune_summary.json"
+  ],
+  "condition": "b90_reward_b_variant_3",
+  "context_semantics": "one learned BOS position plus 127 delayed token/action decisions forms one 128-position complete learner sequence",
+  "design_diagnostics": {
+    "baseline_stationary_reward_occupancy": 0.4377880184331798,
+    "edge_transition_matrices": [
+      [
+        [
+          [
+            0.024999999999999994,
+            0.45,
+            0.024999999999999994
+          ],
+          [
+            0.04499999999999999,
+            0.04499999999999999,
+            0.81
+          ],
+          [
+            0.08999999999999998,
+            0.0049999999999999975,
+            0.0049999999999999975
+          ]
+        ],
+        [
+          [
+            0.024999999999999994,
+            0.024999999999999994,
+            0.45
+          ],
+          [
+            0.08999999999999998,
+            0.0049999999999999975,
+            0.0049999999999999975
+          ],
+          [
+            0.04499999999999999,
+            0.81,
+            0.04499999999999999
+          ]
+        ]
+      ],
+      [
+        [
+          [
+            0.039620478537861874,
+            0.1591294269835899,
+            0.039620478537861874
+          ],
+          [
+            0.046818597829909846,
+            0.010446641231712713,
+            0.8427347609383775
+          ],
+          [
+            0.023452300647232478,
+            0.005839217749165776,
+            0.001302905591512915
+          ]
+        ],
+        [
+          [
+            0.039620478537861874,
+            0.008840523721310547,
+            0.7131686136815139
+          ],
+          [
+            0.09363719565981969,
+            0.0011607379146347453,
+            0.005202066425545537
+          ],
+          [
+            0.011726150323616239,
+            0.9459532753648563,
+            0.011726150323616239
+          ]
+        ]
+      ],
+      [
+        [
+          [
+            0.009420445494665737,
+            0.7599511370008607,
+            0.009420445494665737
+          ],
+          [
+            0.046818597829909846,
+            0.010446641231712713,
+            0.8427347609383775
+          ],
+          [
+            0.24533115691574287,
+            0.0030411544628894034,
+            0.013629508717541265
+          ]
+        ],
+        [
+          [
+            0.009420445494665737,
+            0.04221950761115891,
+            0.1695680189039833
+          ],
+          [
+            0.09363719565981969,
+            0.0011607379146347453,
+            0.005202066425545537
+          ],
+          [
+            0.12266557845787143,
+            0.4926670229880836,
+            0.12266557845787143
+          ]
+        ]
+      ]
+    ],
+    "effect_size": 1.5,
+    "expected_oracle_policy": [
+      2,
+      0,
+      1
+    ],
+    "maximum_controlled_transition_probability": 0.9517924931140221,
+    "minimum_controlled_transition_probability": 0.011607379146347458,
+    "oracle_gap": 0.009899372068624956,
+    "oracle_policy": [
+      2,
+      0,
+      1
+    ],
+    "oracle_stationary_reward_occupancy": 0.4939314475307489,
+    "preset": "b90",
+    "reward_state": "B",
+    "reward_state_index": 1,
+    "runner_up_stationary_reward_occupancy": 0.48403207546212396,
+    "transition_matrices": [
+      [
+        [
+          0.04999999999999999,
+          0.475,
+          0.475
+        ],
+        [
+          0.13499999999999998,
+          0.04999999999999999,
+          0.8150000000000001
+        ],
+        [
+          0.13499999999999998,
+          0.8150000000000001,
+          0.04999999999999999
+        ]
+      ],
+      [
+        [
+          0.07924095707572375,
+          0.16796995070490042,
+          0.7527890922193757
+        ],
+        [
+          0.14045579348972956,
+          0.011607379146347458,
+          0.8479368273639231
+        ],
+        [
+          0.035178450970848714,
+          0.9517924931140221,
+          0.013029055915129152
+        ]
+      ],
+      [
+        [
+          0.018840890989331473,
+          0.8021706446120195,
+          0.17898846439864902
+        ],
+        [
+          0.14045579348972956,
+          0.011607379146347458,
+          0.8479368273639231
+        ],
+        [
+          0.3679967353736143,
+          0.495708177450973,
+          0.1362950871754127
+        ]
+      ]
+    ],
+    "variant": 3
+  },
+  "effect_size": 1.5,
+  "effect_size_selection": "odds tilt 1.5 matches the established cycle-5 symmetry recipe; all 12 full-state oracle policies have the requested action structure while every controlled destination probability stays below 0.96",
+  "entropy_coeff": 0.01,
+  "environment": {
+    "delay": 1,
+    "episode_length": 127,
+    "model": {
+      "factory": "experiments.pusher_b.process:pusher_b_model",
+      "kwargs": {
+        "preset": "b90"
+      }
+    },
+    "observation": {
+      "action": {
+        "depth": 1
+      },
+      "token": {
+        "depth": 1
+      }
+    },
+    "randomize_first_episode_length": false,
+    "task": {
+      "class": "experiments.pusher_b_reward_state_action_symmetry_cycle_1.task:ActionSymmetryTask",
+      "kwargs": {
+        "effect_size": 1.5,
+        "reward_state": "B",
+        "variant": 3
+      }
+    }
+  },
+  "episode_length": 127,
+  "gamma": 0.99,
+  "hmm": {
+    "edge_transition_matrices": [
+      [
+        [
+          0.024999999999999994,
+          0.45,
+          0.024999999999999994
+        ],
+        [
+          0.04499999999999999,
+          0.04499999999999999,
+          0.81
+        ],
+        [
+          0.08999999999999998,
+          0.0049999999999999975,
+          0.0049999999999999975
+        ]
+      ],
+      [
+        [
+          0.024999999999999994,
+          0.024999999999999994,
+          0.45
+        ],
+        [
+          0.08999999999999998,
+          0.0049999999999999975,
+          0.0049999999999999975
+        ],
+        [
+          0.04499999999999999,
+          0.81,
+          0.04499999999999999
+        ]
+      ]
+    ],
+    "emission_matrix": [
+      [
+        0.5,
+        0.5
+      ],
+      [
+        0.9,
+        0.09999999999999998
+      ],
+      [
+        0.09999999999999998,
+        0.9000000000000001
+      ]
+    ],
+    "initial_distribution": [
+      0.12442396313364047,
+      0.4377880184331798,
+      0.4377880184331797
+    ],
+    "states": [
+      "A",
+      "B",
+      "C"
+    ],
+    "tokens": [
+      "0",
+      "1"
+    ],
+    "transition_matrix": [
+      [
+        0.04999999999999999,
+        0.475,
+        0.475
+      ],
+      [
+        0.13499999999999998,
+        0.04999999999999999,
+        0.8150000000000001
+      ],
+      [
+        0.13499999999999998,
+        0.8150000000000001,
+        0.04999999999999999
+      ]
+    ]
+  },
+  "hypothesis": "Delayed Pusher-B token and action history can support policies whose required hidden-state action symmetry ranges from one constant action to three distinct actions.",
+  "intended_hardware": "CPU smoke; one NVIDIA RTX 4090-equivalent GPU per full run",
+  "lambda": 0.95,
+  "learning_rate": 0.00042,
+  "minibatch_size": 8192,
+  "model": {
+    "activation": "gated_gelu",
+    "attention_implementation": "sdpa",
+    "context_length": 128,
+    "d_mlp": 512,
+    "d_model": 128,
+    "max_seq_len": 128,
+    "n_heads": 4,
+    "n_layers": 4,
+    "normalization": "rms_norm",
+    "positional_embedding": "rope",
+    "training_sequence_mode": "complete_episode"
+  },
+  "num_epochs": 6,
+  "observation": "one-step-delayed token one-hot plus executed-action one-hot; no reward, belief, or hidden state",
+  "parameters": {
+    "b": 0.9,
+    "d": 0.9
+  },
+  "preset": "b90",
+  "previous_action_in_observation": true,
+  "previous_reward_in_observation": false,
+  "primary_comparison": "within each Pusher-B preset and reward-state choice, compare variants requiring one, two, or three state-conditioned optimal actions",
+  "remote_artifact_policy": "upload ignored checkpoints and Tune artifacts to B2 before self-destruct; push compact results to the launch branch",
+  "reward": "one when the pre-transition hidden state is B, else zero",
+  "reward_state": "B",
+  "reward_state_index": 1,
+  "sampling_layout": {
+    "batch_mode": "complete_episodes",
+    "env_runner": "harness.env_runners:FreshEpisodeSingleAgentEnvRunner",
+    "episodes_per_sampling_round": 2068,
+    "num_env_runners": 11,
+    "num_envs_per_env_runner": 188
+  },
+  "seed": 42,
+  "seed_policy": "one fixed runtime seed per experiment; default 42",
+  "smoke": false,
+  "stopping_metric": "env_runners/num_env_steps_sampled_lifetime",
+  "study": "pusher_b_reward_state_action_symmetry_cycle_1",
+  "success_metrics": "episode return and reward-state occupancy learning curves, with the exact full-state oracle occupancy recorded as a design diagnostic rather than a POMDP-optimality claim",
+  "total_env_steps": 50000000,
+  "train_batch_size_per_learner": 262144,
+  "use_kl_loss": false,
+  "value_loss_coeff": 0.5,
+  "variant": 3,
+  "variant_directions": [
+    [
+      0.0,
+      -1.0,
+      1.0
+    ],
+    [
+      0.0,
+      -1.0,
+      -1.0
+    ],
+    [
+      0.0,
+      1.0,
+      -1.0
+    ]
+  ]
+}
