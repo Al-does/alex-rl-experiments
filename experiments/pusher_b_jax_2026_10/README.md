@@ -32,11 +32,11 @@ counterparts for comparisons are in `legacy_short/`.
 - Leaves: `supervised_b10`, `supervised_b90`, `ppo_b10`, `ppo_b90`,
   `ppo_b10_aux_ce`, `supervised_b10_300m` (300M env steps of plain CE),
   `supervised_b10_kelly_300m` (same + decoupled Kelly head).
-- `heldout.py` + `heldout_ladder/h{20,35,50,65,80}_{ce,kelly}`: finite-data
+- `heldout.py` + `heldout_ladder/h{20,60,80,90}_{ce,kelly}`: finite-data
   redo of the 300M CE vs CE+Kelly comparison. Each seed draws one fixed pool
   of 131,072 b10 sequences; the first `(1 - h)` fraction is the only data
   trained on (uniform draws with replacement), the rest is held out. Rungs
-  hold out h = 20/35/50/65/80% (104,858 / 85,197 / 65,536 / 45,875 / 26,214 train
+  hold out h = 20/60/80/90%, i.e. train on 80/40/20/10% (104,858 / 52,429 / 26,214 / 13,107 train
   sequences); smaller train sets are prefixes of larger ones. 400M env steps
   (6,152 updates of 512 sequences). 36 checkpoints (init, 1, 5, 20,
   50, then every 200 updates, final) record CE / excess over the Bayes floor

@@ -181,6 +181,7 @@ def test_heldout_ladder_checkpoint_schedule_and_splits():
         replace(config, heldout_fraction=fraction).validate()
     assert replace(config, heldout_fraction=0.80).train_sequences == 26_214
     assert replace(config, heldout_fraction=0.20).train_sequences == 104_858
+    assert replace(config, heldout_fraction=0.90).train_sequences == 13_107
 
 
 def test_filtering_beliefs_match_jax_predictive():

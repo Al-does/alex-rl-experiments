@@ -55,7 +55,7 @@ from experiments.pusher_b_jax_2026_10.supervised import (
     with_bos,
 )
 
-HELDOUT_LADDER = (0.20, 0.35, 0.50, 0.65, 0.80)
+HELDOUT_LADDER = (0.20, 0.60, 0.80, 0.90)
 EARLY_EVAL_STEPS = (1, 5, 20, 50)
 
 
@@ -76,7 +76,7 @@ class HeldoutConfig:
     eval_every: int = 200
     # Fixed scoring rows. Train rows are the first ``eval_sequences`` of the
     # pool and held-out rows the last, so both are in their split on every
-    # rung (both splits hold >= 20% of the pool).
+    # rung (train >= 10% of the pool, held-out >= 20%).
     eval_sequences: int = 4_096
     eval_minibatch: int = 512
     # Probe rows per split (next block in from each end); half fit, half score.
