@@ -32,11 +32,11 @@ counterparts for comparisons are in `legacy_short/`.
 - Leaves: `supervised_b10`, `supervised_b90`, `ppo_b10`, `ppo_b90`,
   `ppo_b10_aux_ce`, `supervised_b10_300m` (300M env steps of plain CE),
   `supervised_b10_kelly_300m` (same + decoupled Kelly head).
-- `heldout.py` + `heldout_ladder/h{50,65,80,95}_{ce,kelly}`: finite-data
+- `heldout.py` + `heldout_ladder/h{20,35,50,65,80}_{ce,kelly}`: finite-data
   redo of the 300M CE vs CE+Kelly comparison. Each seed draws one fixed pool
   of 131,072 b10 sequences; the first `(1 - h)` fraction is the only data
   trained on (uniform draws with replacement), the rest is held out. Rungs
-  hold out h = 50/65/80/95% (65,536 / 45,875 / 26,214 / 6,554 train
+  hold out h = 20/35/50/65/80% (104,858 / 85,197 / 65,536 / 45,875 / 26,214 train
   sequences); smaller train sets are prefixes of larger ones. 400M env steps
   (6,152 updates of 512 sequences). 36 checkpoints (init, 1, 5, 20,
   50, then every 200 updates, final) record CE / excess over the Bayes floor
@@ -47,7 +47,8 @@ counterparts for comparisons are in `legacy_short/`.
   background thread.
   Each run writes `curve.json` and `curve.png` (probe `1 - R^2` on the left
   axis, eval CE above the Bayes floor on the right, vs training steps) to its
-  results dir; `plot_ladder.py` overlays CE and CE+Kelly per rung.
+  results dir (held-out rows; probe solid, CE dashed); `plot_ladder.py` overlays
+  CE and CE+Kelly per rung in two colors.
 - `benchmark.py`: short JAX runs that write JSON lines.
 - `results/batch_sweep/`: JAX PPO batch/minibatch/lr sweep (b10, b90, 2
   seeds, 10M steps). The default (2,048 episodes, minibatch 64, base lr)

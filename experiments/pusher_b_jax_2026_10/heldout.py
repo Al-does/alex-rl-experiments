@@ -55,7 +55,7 @@ from experiments.pusher_b_jax_2026_10.supervised import (
     with_bos,
 )
 
-HELDOUT_LADDER = (0.50, 0.65, 0.80, 0.95)
+HELDOUT_LADDER = (0.20, 0.35, 0.50, 0.65, 0.80)
 EARLY_EVAL_STEPS = (1, 5, 20, 50)
 
 
@@ -76,7 +76,7 @@ class HeldoutConfig:
     eval_every: int = 200
     # Fixed scoring rows. Train rows are the first ``eval_sequences`` of the
     # pool and held-out rows the last, so both are in their split on every
-    # rung (train size >= 5% of the pool, held-out size >= 50%).
+    # rung (both splits hold >= 20% of the pool).
     eval_sequences: int = 4_096
     eval_minibatch: int = 512
     # Probe rows per split (next block in from each end); half fit, half score.
@@ -391,45 +391,31 @@ def train(
 
 
 def plot_curves(series: dict[str, list[dict[str, Any]]], path: Path, *, title: str) -> Path:
-    """Probe 1 - R^2 (left axis) and eval excess CE (right axis) vs env steps.
-
-    Solid = held-out rows, dotted = train rows; one marker style per series.
-    """
+    """Held-out probe 1 - R^2 (left axis, solid) and held-out excess CE
+    (right axis, dashed) vs env steps; one color per arm (CE / CE+Kelly)."""
 
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    colors = {"CE": "tab:blue", "CE+Kelly": "tab:orange"}
     fig, ax_probe = plt.subplots(figsize=(7, 4.2))
     ax_loss = ax_probe.twinx()
-    markers = "os^vD"
-    for (label, curve), marker in zip(series.items(), markers, strict=False):
+    for label, curve in series.items():
+        color = colors["CE+Kelly" if "Kelly" in label else "CE"]
         steps = [r["env_steps"] for r in curve]
-        for split, style in (("heldout", "-"), ("train", ":")):
-            ax_probe.plot(
-                steps,
-                [r[f"{split}_probe_1_minus_r2"] for r in curve],
-                style,
-                marker=marker,
-                markersize=3,
-                color="tab:blue",
-                label=f"{label} {split} 1-R²",
-            )
-            ax_loss.plot(
-                steps,
-                [r[f"{split}_excess_loss_nats"] for r in curve],
-                style,
-                marker=marker,
-                markersize=3,
-                color="tab:red",
-                label=f"{label} {split} excess CE",
-            )
+        ax_probe.plot(
+            steps, [r["heldout_probe_1_minus_r2"] for r in curve], "-",
+            color=color, alpha=0.9, label=f"{label} probe 1-R²",
+        )
+        ax_loss.plot(
+            steps, [r["heldout_excess_loss_nats"] for r in curve], "--",
+            color=color, alpha=0.9, label=f"{label} excess CE",
+        )
     ax_probe.set_xlabel("training steps (tokens)")
-    ax_probe.set_ylabel("belief probe 1 - R²", color="tab:blue")
-    ax_loss.set_ylabel("eval CE above Bayes floor (nats)", color="tab:red")
-    ax_probe.tick_params(axis="y", labelcolor="tab:blue")
-    ax_loss.tick_params(axis="y", labelcolor="tab:red")
+    ax_probe.set_ylabel("held-out belief probe 1 - R² (solid)")
+    ax_loss.set_ylabel("held-out CE above Bayes floor, nats (dashed)")
     ax_probe.set_ylim(bottom=0)
     ax_loss.set_ylim(bottom=0)
     handles = [h for ax in (ax_probe, ax_loss) for h in ax.get_legend_handles_labels()[0]]

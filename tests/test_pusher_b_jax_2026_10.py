@@ -179,7 +179,8 @@ def test_heldout_ladder_checkpoint_schedule_and_splits():
     assert steps[0] == 0 and steps[-1] == 6_152 and len(steps) == 36
     for fraction in heldout.HELDOUT_LADDER:
         replace(config, heldout_fraction=fraction).validate()
-    assert replace(config, heldout_fraction=0.95).train_sequences == 6_554
+    assert replace(config, heldout_fraction=0.80).train_sequences == 26_214
+    assert replace(config, heldout_fraction=0.20).train_sequences == 104_858
 
 
 def test_filtering_beliefs_match_jax_predictive():
@@ -205,7 +206,7 @@ def test_filtering_beliefs_match_jax_predictive():
 def test_heldout_smoke_runs_and_checkpoints(kelly):
     from experiments.pusher_b_jax_2026_10 import heldout
 
-    config = heldout.HeldoutConfig.smoke(heldout_fraction=0.95, kelly_weight=kelly)
+    config = heldout.HeldoutConfig.smoke(heldout_fraction=0.80, kelly_weight=kelly)
     saved = []
     result = heldout.train(
         "b10",
@@ -216,7 +217,7 @@ def test_heldout_smoke_runs_and_checkpoints(kelly):
         on_checkpoint=lambda step, params: saved.append(step),
     )
     assert saved == list(config.eval_steps)
-    assert result["train_sequences"] == 51
+    assert result["train_sequences"] == 205
     for split in ("train", "heldout"):
         assert np.isfinite(result[f"{split}_probe_1_minus_r2"])
         assert result[f"{split}_bayesian_floor_nats"] > 0.0
