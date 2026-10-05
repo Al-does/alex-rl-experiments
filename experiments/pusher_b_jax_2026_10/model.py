@@ -72,6 +72,7 @@ def init_params(
     lm_head: bool = False,
     actor_critic: bool = False,
     aux_head: bool = False,
+    kelly_head: bool = False,
 ) -> dict:
     d, std = spec.d_model, spec.init_std
     keys = iter(jax.random.split(key, 8 + 5 * spec.n_layers))
@@ -98,6 +99,8 @@ def init_params(
         params["value"] = _torch_default_linear(next(keys), d, 1)
     if aux_head:
         params["aux"] = _torch_default_linear(next(keys), d, TOKEN_COUNT)
+    if kelly_head:
+        params["kelly"] = _torch_default_linear(next(keys), d, TOKEN_COUNT)
     return params
 
 
@@ -164,6 +167,12 @@ def encode(spec: ModelSpec, params: dict, tokens: jax.Array) -> jax.Array:
 
 def lm_logits(params, embedding):
     return embedding @ params["lm"]
+
+
+def kelly_logits(params, embedding):
+    """Per-class wager logits of the decoupled Kelly head."""
+
+    return _dense(params["kelly"], embedding)
 
 
 def policy_value(params, embedding):
