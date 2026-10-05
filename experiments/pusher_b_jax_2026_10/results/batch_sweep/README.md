@@ -93,3 +93,20 @@ update count) but is ~16× slower — `jax.nn.dot_product_attention` on
 bf16 hits a much slower kernel path than fp32 on this GPU/SHAPE
 (B=512, T=127, 4 heads). Not worth it for CE; not tried for PPO
 (rollout uses the separate `encode_step` path, still fp32).
+
+## Review notes
+
+- Batch size was varied at a fixed 10M-step budget, so bigger batches
+  also get fewer PPO iterations (B2k ~38, B8k ~10, B32k 3). PPO's clip
+  bounds how far the policy moves per iteration, so this sweep cannot
+  separate "staleness" from "fewer trust-region steps". Both point the
+  same way: on this task, more, smaller iterations help. Batches below
+  2,048 episodes and fewer epochs were not tested and are the obvious next
+  arms.
+- Per-iteration return is a mean over the batch's episodes; seed-to-seed
+  wiggle in the baseline gap is about ±0.2. Baseline gaps below ~0.3
+  (e.g. b10 0.00 vs 0.09) are within noise.
+- bf16 CE: the lower excess loss is a single seed and within the fp32
+  seed/precision spread (3.7–3.8e-4 vs 1.4e-4 is not resolved by one run).
+  The 16x slowdown was not profiled; the attention-kernel explanation is
+  a guess. Keep float32.

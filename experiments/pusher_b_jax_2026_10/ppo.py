@@ -37,6 +37,9 @@ from experiments.pusher_b_jax_2026_10.process import PRESETS, make_env, pusher_b
 Schedule = tuple[tuple[float, float], ...]
 
 
+# Batch/minibatch/lr defaults were kept after results/batch_sweep: 8k and
+# 32k-episode batches (with mb 64-1024, lr x1-x4) learned worse per env step
+# and per second, and gave no throughput gain on an RTX 4090.
 @dataclass(frozen=True)
 class PPOConfig:
     total_env_steps: int = 15_000_000

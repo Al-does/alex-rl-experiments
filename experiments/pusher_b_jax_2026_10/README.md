@@ -25,6 +25,12 @@ counterparts for comparisons are in `legacy_short/`.
 - Leaves: `supervised_b10`, `supervised_b90`, `ppo_b10`, `ppo_b90`,
   `ppo_b10_aux_ce`.
 - `benchmark.py`: short JAX runs that write JSON lines.
+- `results/batch_sweep/`: JAX PPO batch/minibatch/lr sweep (b10, b90, 2
+  seeds, 10M steps). The default (2,048 episodes, minibatch 64, base lr)
+  was best; larger batches were no faster and learned worse. Smaller
+  batches were not tested.
+- `ModelSpec(compute_dtype="bfloat16")` exists but was ~16x slower for CE
+  on an RTX 4090; keep float32.
 
 Run (GPU):
 
