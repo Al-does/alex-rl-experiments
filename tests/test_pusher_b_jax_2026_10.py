@@ -176,7 +176,7 @@ def test_heldout_ladder_checkpoint_schedule_and_splits():
     config = heldout.HeldoutConfig()
     assert config.total_updates == 6_152
     steps = config.eval_steps
-    assert steps[0] == 0 and steps[-1] == 6_152 and len(steps) == 69
+    assert steps[0] == 0 and steps[-1] == 6_152 and len(steps) == 36
     for fraction in heldout.HELDOUT_LADDER:
         replace(config, heldout_fraction=fraction).validate()
     assert replace(config, heldout_fraction=0.95).train_sequences == 6_554

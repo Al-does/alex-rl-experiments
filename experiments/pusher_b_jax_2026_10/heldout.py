@@ -56,7 +56,7 @@ from experiments.pusher_b_jax_2026_10.supervised import (
 )
 
 HELDOUT_LADDER = (0.50, 0.65, 0.80, 0.95)
-EARLY_EVAL_STEPS = (1, 2, 5, 10, 20, 50)
+EARLY_EVAL_STEPS = (1, 5, 20, 50)
 
 
 @dataclass(frozen=True)
@@ -71,9 +71,9 @@ class HeldoutConfig:
     weight_decay: float = 0.0
     kelly_weight: float = 0.0
     # Checkpoints: EARLY_EVAL_STEPS, then every eval_every updates, then the
-    # final update. 400M env steps = 6,152 updates -> 69 checkpoints incl. init.
+    # final update. 400M env steps = 6,152 updates -> 36 checkpoints incl. init.
     early_eval_steps: tuple[int, ...] = EARLY_EVAL_STEPS
-    eval_every: int = 100
+    eval_every: int = 200
     # Fixed scoring rows. Train rows are the first ``eval_sequences`` of the
     # pool and held-out rows the last, so both are in their split on every
     # rung (train size >= 5% of the pool, held-out size >= 50%).
@@ -390,6 +390,58 @@ def train(
     }
 
 
+def plot_curves(series: dict[str, list[dict[str, Any]]], path: Path, *, title: str) -> Path:
+    """Probe 1 - R^2 (left axis) and eval excess CE (right axis) vs env steps.
+
+    Solid = held-out rows, dotted = train rows; one marker style per series.
+    """
+
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, ax_probe = plt.subplots(figsize=(7, 4.2))
+    ax_loss = ax_probe.twinx()
+    markers = "os^vD"
+    for (label, curve), marker in zip(series.items(), markers, strict=False):
+        steps = [r["env_steps"] for r in curve]
+        for split, style in (("heldout", "-"), ("train", ":")):
+            ax_probe.plot(
+                steps,
+                [r[f"{split}_probe_1_minus_r2"] for r in curve],
+                style,
+                marker=marker,
+                markersize=3,
+                color="tab:blue",
+                label=f"{label} {split} 1-R²",
+            )
+            ax_loss.plot(
+                steps,
+                [r[f"{split}_excess_loss_nats"] for r in curve],
+                style,
+                marker=marker,
+                markersize=3,
+                color="tab:red",
+                label=f"{label} {split} excess CE",
+            )
+    ax_probe.set_xlabel("training steps (tokens)")
+    ax_probe.set_ylabel("belief probe 1 - R²", color="tab:blue")
+    ax_loss.set_ylabel("eval CE above Bayes floor (nats)", color="tab:red")
+    ax_probe.tick_params(axis="y", labelcolor="tab:blue")
+    ax_loss.tick_params(axis="y", labelcolor="tab:red")
+    ax_probe.set_ylim(bottom=0)
+    ax_loss.set_ylim(bottom=0)
+    handles = [h for ax in (ax_probe, ax_loss) for h in ax.get_legend_handles_labels()[0]]
+    ax_probe.legend(handles=handles, fontsize=7, loc="upper right")
+    ax_probe.set_title(title)
+    fig.tight_layout()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=130)
+    plt.close(fig)
+    return path
+
+
 def run_heldout(
     context,
     *,
@@ -477,7 +529,10 @@ def run_heldout(
     finally:
         uploads = writer.close()
     params = result.pop("params")
-    result.pop("history")
+    curve = [r for r in result.pop("history") if r["kind"] == "checkpoint"]
+    label = f"h{round(100 * heldout_fraction)} {'CE+Kelly' if kelly else 'CE'}"
+    outputs.write_json("curve.json", {"label": label, "checkpoints": curve})
+    plot_curves({label: curve}, outputs.results_dir / "curve.png", title=label)
     _save_params(Path(context.artifacts_dir) / "final_params.npz", params)
     result["checkpoint_uploads"] = {
         "written": len(uploads),
