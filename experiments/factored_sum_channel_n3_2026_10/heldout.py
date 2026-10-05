@@ -459,6 +459,30 @@ def train(
 
 
 ARM_COLORS = {"CE": "tab:blue", "CE+Kelly": "tab:orange"}
+LOG_PANELS = {
+    "heldout_probe_joint_1_minus_r2",
+    "heldout_probe_marginals_1_minus_r2",
+    "heldout_probe_residual_1_minus_r2",
+    "heldout_excess_loss_nats",
+}
+PERPLEXITY_ZOOM_STEP = 200
+
+
+def _zoom_past_init(ax, series, key, refs) -> None:
+    """Perplexity barely moves after the first updates (it is exp of a CE a few
+    mnats above Bayes), so a log axis doesn't help; zoom the y range instead."""
+
+    values = [
+        r[key]
+        for curve in series.values()
+        for r in curve
+        if r.get(key) is not None and r["step"] >= PERPLEXITY_ZOOM_STEP
+    ]
+    values += [v for v, _ in refs if v is not None and np.isfinite(v)]
+    if values:
+        low, high = min(values), max(values)
+        pad = 0.05 * (high - low or high)
+        ax.set_ylim(low - pad, high + pad)
 
 
 def _arm_color(label: str) -> str:
@@ -473,7 +497,7 @@ def plot_curves(
     title: str,
 ) -> Path:
     """Held-out joint-belief probe 1 - R^2 (left, solid) and excess CE (right,
-    dashed) vs env steps, one color per arm; grey dotted line is the factored
+    dashed), both log scale, vs env steps, one color per arm; grey dotted line is the factored
     filter's excess CE (what a purely factored representation can reach)."""
 
     import matplotlib
@@ -508,8 +532,8 @@ def plot_curves(
     ax_probe.set_xlabel("training steps (tokens)")
     ax_probe.set_ylabel("held-out joint belief probe 1 - R² (solid)")
     ax_loss.set_ylabel("held-out CE above Bayes floor, nats (dashed)")
-    ax_probe.set_ylim(bottom=0)
-    ax_loss.set_ylim(bottom=0)
+    ax_probe.set_yscale("log")
+    ax_loss.set_yscale("log")
     handles = [
         h for ax in (ax_probe, ax_loss) for h in ax.get_legend_handles_labels()[0]
     ]
@@ -576,14 +600,19 @@ def plot_diagnostics(
     styles = [":", "-."]
     for ax, (key, name, refs) in zip(axes.flat, panels):
         for label, curve in series.items():
-            points = [(r["env_steps"], r[key]) for r in curve if key in r]
+            points = [(r["env_steps"], r[key]) for r in curve if r.get(key) is not None]
             if points:
                 ax.plot(*zip(*points), color=_arm_color(label), alpha=0.9, label=label)
         for (value, ref_name), style in zip(refs, styles):
             if value is not None and np.isfinite(value):
                 ax.axhline(value, color="grey", ls=style, label=ref_name)
-        if key == "heldout_perplexity":
+        if not ax.lines:
+            ax.text(0.5, 0.5, "n/a (target is 0)", ha="center", transform=ax.transAxes)
+        elif key in LOG_PANELS:
             ax.set_yscale("log")
+        if key == "heldout_perplexity":
+            _zoom_past_init(ax, series, key, refs)
+            name += f" (zoomed past update {PERPLEXITY_ZOOM_STEP})"
         ax.set_title(name, fontsize=9)
         ax.set_xlabel("training steps (tokens)", fontsize=8)
         ax.tick_params(labelsize=7)
