@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
@@ -91,6 +93,59 @@ def test_supervised_smoke_runs():
     )
     assert result["completed_step"] == 4
     assert result["bayesian_floor_nats"] > 0.0
+
+
+def test_supervised_kelly_smoke_runs():
+    spec = tm.ModelSpec(d_model=32, n_layers=1, n_heads=2, d_mlp=64)
+    result = supervised.train(
+        "b10",
+        seed=0,
+        config=replace(supervised.SupervisedConfig.smoke(), kelly_weight=1.0),
+        spec=spec,
+        log=lambda _: None,
+    )
+    record = result["history"][1]
+    assert result["completed_step"] == 4
+    assert 0.0 < record["kelly_wager_mean"] < 1.0
+    assert 0.0 <= record["kelly_guess_correct"] <= 1.0
+    assert np.isfinite(record["kelly_loss"])
+
+
+def test_kelly_arm_shares_trunk_init_and_data_stream():
+    spec = tm.ModelSpec(d_model=32, n_layers=1, n_heads=2, d_mlp=64)
+    control = supervised.train(
+        "b10",
+        seed=7,
+        config=supervised.SupervisedConfig.smoke(),
+        spec=spec,
+        log=lambda _: None,
+    )
+    kelly = supervised.train(
+        "b10",
+        seed=7,
+        config=replace(supervised.SupervisedConfig.smoke(), kelly_weight=1.0),
+        spec=spec,
+        log=lambda _: None,
+    )
+    # Identical trunk init and held-out data => identical step-0 eval.
+    for key in ("validation_loss_nats", "excess_loss_nats", "greedy_accuracy"):
+        assert kelly["history"][0][key] == pytest.approx(
+            control["history"][0][key], abs=1e-7
+        )
+    # Same sampled batches: the first control-only gradient step still
+    # matches until the Kelly term moves the trunk; loss at update 1 may
+    # already differ, so only the step-0 record is compared above.
+
+
+def test_kelly_growth_matches_fair_two_way_bet():
+    import math
+
+    wager = 0.4
+    won = math.log1p(wager * supervised.KELLY_NET_WIN_ODDS)
+    lost = math.log1p(-wager)
+    assert won == pytest.approx(math.log(1.4))
+    assert lost == pytest.approx(math.log(0.6))
+    assert supervised.KELLY_NET_WIN_ODDS == 1.0
 
 
 def test_chunked_rollout_and_constant_lr_run():

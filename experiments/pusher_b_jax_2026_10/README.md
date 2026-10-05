@@ -22,8 +22,16 @@ counterparts for comparisons are in `legacy_short/`.
   steps. A batch is 2,048 synchronised complete episodes (260,096 steps,
   vs RLlib's ~262k). `next_token_aux=True` adds the auxiliary CE head from
   `pusher_b/learning.py`.
+- `supervised.py` also carries the supervised port of the
+  `mess3_token_guess_cycle_2/decoupled_kelly` arm: a two-logit Kelly head
+  off the shared trunk wagers on the model's sampled next-token guess
+  being right; the loss is the realized log-growth of a fair two-way bet
+  (net win odds 1.0, wager cap 1-1e-4), added to CE with weight 1.0. The
+  wager stream is a separate RNG fold so init and sampled data are
+  seed-identical to the plain-CE arm.
 - Leaves: `supervised_b10`, `supervised_b90`, `ppo_b10`, `ppo_b90`,
-  `ppo_b10_aux_ce`.
+  `ppo_b10_aux_ce`, `supervised_b10_300m` (300M env steps of plain CE),
+  `supervised_b10_kelly_300m` (same + decoupled Kelly head).
 - `benchmark.py`: short JAX runs that write JSON lines.
 - `results/batch_sweep/`: JAX PPO batch/minibatch/lr sweep (b10, b90, 2
   seeds, 10M steps). The default (2,048 episodes, minibatch 64, base lr)
