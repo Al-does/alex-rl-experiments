@@ -416,8 +416,8 @@ def plot_curves(series: dict[str, list[dict[str, Any]]], path: Path, *, title: s
     ax_probe.set_xlabel("training steps (tokens)")
     ax_probe.set_ylabel("held-out belief probe 1 - R² (solid)")
     ax_loss.set_ylabel("held-out CE above Bayes floor, nats (dashed)")
-    ax_probe.set_ylim(bottom=0)
-    ax_loss.set_ylim(bottom=0)
+    ax_probe.set_yscale("log")
+    ax_loss.set_yscale("log")
     handles = [h for ax in (ax_probe, ax_loss) for h in ax.get_legend_handles_labels()[0]]
     ax_probe.legend(handles=handles, fontsize=7, loc="upper right")
     ax_probe.set_title(title)
