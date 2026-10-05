@@ -32,6 +32,19 @@ counterparts for comparisons are in `legacy_short/`.
 - Leaves: `supervised_b10`, `supervised_b90`, `ppo_b10`, `ppo_b90`,
   `ppo_b10_aux_ce`, `supervised_b10_300m` (300M env steps of plain CE),
   `supervised_b10_kelly_300m` (same + decoupled Kelly head).
+- `heldout.py` + `heldout_ladder/h{50,65,80,95}_{ce,kelly}`: finite-data
+  redo of the 300M CE vs CE+Kelly comparison. Each seed draws one fixed pool
+  of 131,072 b10 sequences; the first `(1 - h)` fraction is the only data
+  trained on (uniform draws with replacement), the rest is held out. Rungs
+  hold out h = 50/65/80/95% (65,536 / 45,875 / 26,214 / 6,554 train
+  sequences); smaller train sets are prefixes of larger ones. 400M env steps
+  (6,152 updates of 512 sequences). 69 checkpoints (init, 1, 2, 5, 10, 20,
+  50, then every 100 updates, final) record CE / excess over the Bayes floor
+  / greedy accuracy on 4,096 fixed train rows and 4,096 fixed held-out rows,
+  plus an affine probe from the post-final-norm embedding to the exact
+  Bayesian filtering belief (fit on 512 sequences, `1 - R^2` on 512 others,
+  per split). Params at every checkpoint are saved and uploaded to B2 on a
+  background thread.
 - `benchmark.py`: short JAX runs that write JSON lines.
 - `results/batch_sweep/`: JAX PPO batch/minibatch/lr sweep (b10, b90, 2
   seeds, 10M steps). The default (2,048 episodes, minibatch 64, base lr)
