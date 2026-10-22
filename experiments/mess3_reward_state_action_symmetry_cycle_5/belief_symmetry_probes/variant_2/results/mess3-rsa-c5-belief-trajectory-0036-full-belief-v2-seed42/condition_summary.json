@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "study": "belief_symmetry_probes",
+  "cycle": 5,
+  "variant": 2,
+  "seed": 42,
+  "source": {
+    "source_run_id": "mess3-rsa-c5-v2-seed42",
+    "historical_study": "mess3_reward_state_action_asymmetry_cycle_5",
+    "cycle": 5,
+    "variant": 2,
+    "seed": 42,
+    "b2_base": "experiments/mess3_reward_state_action_asymmetry_cycle_5/variant_2/mess3-rsa-c5-v2-seed42",
+    "final_checkpoint_name": "checkpoint_000021",
+    "requested_target": "full_belief",
+    "checkpoint_count": 23
+  },
+  "target_definitions": {
+    "symmetric_b2": "b2",
+    "antisymmetric_b0_minus_b1": "b0-b1",
+    "coarse_b2": "separate A={0,1}, B={2} lumped Bayes filter",
+    "full_belief": "exact 3-state predictive Bayes filter belief"
+  },
+  "filter_definitions": {
+    "full": "delay-0 initial measurement; later transition@measurement using action-dependent transitions",
+    "coarse": "tokens 0/1 coarsened to not-2; destination-lump rows, never summed source rows"
+  },
+  "random_weight_baseline_interpretation": "The restored initial checkpoint estimates the affine random-network floor; it is a baseline, not evidence that an untrained network computes belief.",
+  "requested_target": "full_belief",
+  "checkpoint_schedule": [
+    {
+      "label": "initial",
+      "training_iteration": 0
+    },
+    {
+      "label": "checkpoint_000000",
+      "training_iteration": 1
+    },
+    {
+      "label": "checkpoint_000001",
+      "training_iteration": 2
+    },
+    {
+      "label": "checkpoint_000002",
+      "training_iteration": 3
+    },
+    {
+      "label": "checkpoint_000003",
+      "training_iteration": 4
+    },
+    {
+      "label": "checkpoint_000004",
+      "training_iteration": 5
+    },
+    {
+      "label": "checkpoint_000005",
+      "training_iteration": 6
+    },
+    {
+      "label": "checkpoint_000006",
+      "training_iteration": 7
+    },
+    {
+      "label": "checkpoint_000007",
+      "training_iteration": 8
+    },
+    {
+      "label": "checkpoint_000008",
+      "training_iteration": 9
+    },
+    {
+      "label": "checkpoint_000009",
+      "training_iteration": 10
+    },
+    {
+      "label": "checkpoint_000010",
+      "training_iteration": 11
+    },
+    {
+      "label": "checkpoint_000011",
+      "training_iteration": 12
+    },
+    {
+      "label": "checkpoint_000012",
+      "training_iteration": 13
+    },
+    {
+      "label": "checkpoint_000013",
+      "training_iteration": 14
+    },
+    {
+      "label": "checkpoint_000014",
+      "training_iteration": 15
+    },
+    {
+      "label": "checkpoint_000015",
+      "training_iteration": 16
+    },
+    {
+      "label": "checkpoint_000016",
+      "training_iteration": 17
+    },
+    {
+      "label": "checkpoint_000017",
+      "training_iteration": 18
+    },
+    {
+      "label": "checkpoint_000018",
+      "training_iteration": 19
+    },
+    {
+      "label": "checkpoint_000019",
+      "training_iteration": 20
+    },
+    {
+      "label": "checkpoint_000020",
+      "training_iteration": 21
+    },
+    {
+      "label": "checkpoint_000021",
+      "training_iteration": 22
+    }
+  ],
+  "checkpoints": {
+    "initial": {
+      "checkpoint": "initial",
+      "training_iteration": 0,
+      "imported_from": "training_checkpoint_probe_curve",
+      "targets": {
+        "full_belief": {
+          "status": "imported",
+          "definition": "exact full-filter 3-state belief vector",
+          "mse": 0.0039080440707448955,
+          "source_probe_target": "exact_predictive_bayesian_belief"
+        }
+      }
+    },
+    "checkpoint_000000": {
+      "checkpoint": "checkpoint_000000",
+      "training_iteration": 1,
+      "imported_from": "training_checkpoint_probe_curve",
+      "targets": {
+        "full_belief": {
+          "status": "imported",
+          "definition": "exact full-filter 3-state belief vector",
+          "mse": 0.002613308932183685,
+          "source_probe_target": "exact_predictive_bayesian_belief"
+        }
+      }
+    },
+    "checkpoint_000001": {
+      "checkpoint": "checkpoint_000001",
+      "training_iteration": 2,
+      "imported_from": "training_checkpoint_probe_curve",
+      "targets": {
+        "full_belief": {
+          "status": "imported",
+          "definition": "exact full-filter 3-state belief vector",
+          "mse": 0.002576560150360955,
+          "source_probe_target": "exact_predictive_bayesian_belief"
+        }
+      }
+    }
+  }
+}

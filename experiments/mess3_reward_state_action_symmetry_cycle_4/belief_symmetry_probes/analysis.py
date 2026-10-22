@@ -508,6 +508,68 @@ def _checkpoint_requests(bundle: Path) -> list[dict[str, Any]]:
     return checkpoints
 
 
+def _training_probe_curve_path(*, cycle: int, variant: int, seed: int) -> Path:
+    package = f"mess3_reward_state_action_symmetry_cycle_{cycle}"
+    return (
+        Path(__file__).resolve().parents[1].parent
+        / package
+        / f"variant_{variant}"
+        / "results"
+        / f"mess3-rsa-c{cycle}-v{variant}-seed{seed}"
+        / "checkpoint_probe_curve.json"
+    )
+
+
+def _training_full_belief_mse_by_label(
+    *,
+    cycle: int,
+    variant: int,
+    seed: int,
+) -> dict[str, float]:
+    """Reuse log-spaced training full-belief probes instead of re-running them."""
+
+    curve_path = _training_probe_curve_path(
+        cycle=cycle,
+        variant=variant,
+        seed=seed,
+    )
+    if not curve_path.is_file():
+        return {}
+    payload = json.loads(curve_path.read_text())
+    lookup: dict[str, float] = {}
+    for point in payload.get("checkpoints", []):
+        step = int(point["agent_steps"])
+        label = "initial" if step == 0 else point.get("checkpoint_name")
+        if not isinstance(label, str):
+            continue
+        probe = point.get("probe", {})
+        if probe.get("target") != "exact_predictive_bayesian_belief":
+            continue
+        lookup[label] = float(point["mse"])
+    return lookup
+
+
+def _imported_full_belief_checkpoint(
+    *,
+    label: str,
+    training_iteration: int | None,
+    mse: float,
+) -> dict[str, Any]:
+    return {
+        "checkpoint": label,
+        "training_iteration": training_iteration,
+        "imported_from": "training_checkpoint_probe_curve",
+        "targets": {
+            "full_belief": {
+                "status": "imported",
+                "definition": "exact full-filter 3-state belief vector",
+                "mse": mse,
+                "source_probe_target": "exact_predictive_bayesian_belief",
+            }
+        },
+    }
+
+
 def run_probe_condition(context: RunContext, *, cycle: int, variant: int) -> dict[str, Any]:
     bundle = context.resume_from
     if bundle is None:
@@ -521,6 +583,15 @@ def run_probe_condition(context: RunContext, *, cycle: int, variant: int) -> dic
         checkpoint = bundle / request["path"]
         if not checkpoint.is_dir() or not any(checkpoint.rglob("*")):
             raise FileNotFoundError(f"missing checkpoint bundle member: {checkpoint}")
+    imported_full_belief = (
+        _training_full_belief_mse_by_label(
+            cycle=cycle,
+            variant=variant,
+            seed=context.seed,
+        )
+        if requested_target == "full_belief"
+        else {}
+    )
     context.results_dir.mkdir(parents=True, exist_ok=True)
     summary = {
         "schema_version": 1,
@@ -555,16 +626,24 @@ def run_probe_condition(context: RunContext, *, cycle: int, variant: int) -> dic
     }
     for request in checkpoint_requests:
         checkpoint = bundle / request["path"]
-        result = probe_checkpoint(
-            replace(context, resume_from=checkpoint),
-            checkpoint,
-            cycle=cycle,
-            variant=variant,
-            label=request["label"],
-            target_names=target_names,
-        )
-        result["training_iteration"] = request.get("training_iteration")
-        summary["checkpoints"][request["label"]] = result
+        label = request["label"]
+        if label in imported_full_belief:
+            result = _imported_full_belief_checkpoint(
+                label=label,
+                training_iteration=request.get("training_iteration"),
+                mse=imported_full_belief[label],
+            )
+        else:
+            result = probe_checkpoint(
+                replace(context, resume_from=checkpoint),
+                checkpoint,
+                cycle=cycle,
+                variant=variant,
+                label=label,
+                target_names=target_names,
+            )
+            result["training_iteration"] = request.get("training_iteration")
+        summary["checkpoints"][label] = result
         # Persist after every checkpoint so a preempted remote job retains
         # compact progress and can be diagnosed without checkpoint artifacts.
         (context.results_dir / "condition_summary.json").write_text(
