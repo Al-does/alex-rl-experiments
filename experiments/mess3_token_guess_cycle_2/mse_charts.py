@@ -30,6 +30,7 @@ CONDITION_COLORS = {
     "ppo": "#4c78a8",
     "predictive_loss": "#f58518",
     "decoupled_kelly": "#54a24b",
+    "supervised_ce": "#e45756",
     "iqn": "#b279a2",
 }
 SEED_COLORS = {

@@ -37,7 +37,7 @@ FOCUS_PAIRS = (
     ("decoupled_kelly", "predictive_loss"),
     ("decoupled_kelly", "ppo"),
 )
-DEFAULT_ARMS = ("ppo", "predictive_loss", "decoupled_kelly")
+DEFAULT_ARMS = ("ppo", "predictive_loss", "decoupled_kelly", "supervised_ce")
 DEFAULT_SEEDS = tuple(range(45, 60))  # 15 seeds: 45..59
 THIRD_CHECKPOINT_INDEX = 2  # init=0, ~0.33M=1, ~0.66M=2
 
