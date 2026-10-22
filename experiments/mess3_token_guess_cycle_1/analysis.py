@@ -21,6 +21,7 @@ from experiments.mess3_belief_geometry_2026_07.probe import (
     collect_probe_data,
     make_transducer_target,
 )
+from experiments.mess3_token_guess_cycle_1.baselines import calibrate
 from harness.context import RunContext
 from harness.hardware import PROFILES
 from harness.seeding import named_seed_sequences
@@ -166,6 +167,7 @@ def probe_checkpoint(
             initial_belief, outcome_operator, initial_operator = (
                 make_transducer_target(environment)
             )
+            emission_matrix = environment.model.emission_matrix.copy()
         finally:
             environment.close()
 
@@ -218,6 +220,14 @@ def probe_checkpoint(
         "n_fit": len(train.beliefs),
         "n_test": len(test.beliefs),
         "target_consistency_max_abs": target_error,
+        **calibrate(
+            train,
+            test,
+            predicted,
+            emission_matrix=emission_matrix,
+            fit=fit_reduced_rank_affine,
+            rank=PROBE_RANK,
+        ),
     }
     sample_size = min(20_000, len(test.beliefs))
     sample_rng = np.random.default_rng(streams["plot_sample"])
