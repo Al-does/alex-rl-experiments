@@ -16,7 +16,6 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
 
 HERE = Path(__file__).resolve().parent
 DATA = HERE / "data"
@@ -62,14 +61,6 @@ def render_task1(family: str, out: Path) -> None:
     ax_acc.plot(x, acc, "-o", color=CURVE_COLOR, lw=1.5, ms=3.5, label=f"{family} (seed {SEED})")
     ax_acc.axhline(bayes, color="k", ls=":", lw=1.2, label=f"Bayes-optimal greedy accuracy ({bayes:.3f})")
     ax_err.plot(x, err, "-o", color=CURVE_COLOR, lw=1.5, ms=3.5)
-
-    # red box: task performance has plateaued at Bayes, probe error keeps falling
-    plateau = next(p for p in points if p["accuracy"] >= bayes - 1e-3)
-    best = min(points, key=lambda p: 1 - p["r2"])
-    x0, x1 = plateau["env_steps"] / 1e6, best["env_steps"] / 1e6
-    span = [1 - p["r2"] for p in points if x0 <= p["env_steps"] / 1e6 <= x1]
-    y0, y1 = min(span) / 1.25, max(span) * 1.25
-    ax_err.add_patch(Rectangle((x0, y0), x1 - x0, y1 - y0, fill=False, ec="red", lw=1.5, zorder=4))
 
     offsets = {"A": (-14, 12), "B": (6, 12), "C": (-6, 12)}
     for letter, (_, ckpt_label) in CHECKPOINTS[family].items():
