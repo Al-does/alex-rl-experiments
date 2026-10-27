@@ -11,18 +11,18 @@ from envs.hmm import HMMEnv, TransitionEvent
 from harness.cli import load_experiment, make_run_context
 
 from experiments.pusher_b.process import EPISODE_LENGTH, pusher_b_model_b10
-from experiments.pusher_b10_guess_or_pass_2026_10.process import (
+from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.process import (
     ppo_environment_config,
     sac_environment_config,
 )
-from experiments.pusher_b10_guess_or_pass_2026_10.campaign import (
+from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.campaign import (
     LEAF_COSTS,
     SOURCES,
     campaign_runs,
     main as campaign_main,
 )
-from experiments.pusher_b10_guess_or_pass_2026_10.task import GuessOrPassTask
-from experiments.pusher_b10_guess_or_pass_2026_10.transfer import (
+from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.task import GuessOrPassTask
+from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.transfer import (
     SOURCE_CATALOG,
     freeze_module_encoders,
     initialize_algorithm_transfer,
@@ -88,7 +88,7 @@ def test_bayes_reference_reward(cost, expected):
     ),
 )
 def test_leaf_smoke_configs_use_three_actions(leaf, cost, algorithm):
-    module = f"experiments.pusher_b10_guess_or_pass_2026_10.{leaf}.experiment"
+    module = f"experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.{leaf}.experiment"
     experiment = load_experiment(module)
     context = make_run_context(
         experiment,
@@ -97,12 +97,12 @@ def test_leaf_smoke_configs_use_three_actions(leaf, cost, algorithm):
         hardware_profile="cpu",
     )
     if algorithm == "ppo":
-        from experiments.pusher_b10_guess_or_pass_2026_10.ppo import build_config
+        from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.ppo import build_config
 
         config = build_config(context, cost=cost)
         environment_config = ppo_environment_config(cost)
     else:
-        from experiments.pusher_b10_guess_or_pass_2026_10.sac import build_config
+        from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.sac import build_config
 
         config = build_config(context, cost=cost)
         environment_config = sac_environment_config(cost)
@@ -197,7 +197,7 @@ def test_module_transfer_copies_encoders_and_keeps_fresh_heads(
     algorithm,
     keys,
 ):
-    from experiments.pusher_b10_guess_or_pass_2026_10 import transfer
+    from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib import transfer
 
     source_state = {key: np.ones((2, 2), dtype=np.float32) for key in keys}
     source_state["policy_head.weight"] = np.full((2, 2), 5.0, dtype=np.float32)
@@ -285,7 +285,7 @@ def test_ppo_ce_campaign_has_expected_unique_grid():
     assert actual_order == expected
     assert actual == set(expected)
     assert all(run.run_name for run in runs)
-    from experiments.pusher_b10_guess_or_pass_2026_10.ppo import TOTAL_ENV_STEPS
+    from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.ppo import TOTAL_ENV_STEPS
 
     assert TOTAL_ENV_STEPS == 10_000_000
 
@@ -334,11 +334,11 @@ def test_campaign_run_indices_use_python_and_continue_after_failure(
     assert calls[0][0][1:4] == [
         "-m",
         "harness.cli",
-        "experiments.pusher_b10_guess_or_pass_2026_10.ppo_c2.experiment",
+        "experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.ppo_c2.experiment",
     ]
     assert calls[1][0][1:4] == [
         "-m",
-        "experiments.pusher_b10_guess_or_pass_2026_10.transfer",
+        "experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.transfer",
         "ppo_c1",
     ]
     assert all("--smoke" in call[0] for call in calls)
@@ -360,13 +360,13 @@ def test_auxiliary_ppo_source_transfers_only_encoder(monkeypatch, tmp_path):
 
     from experiments.pusher_b import rl as pusher_b_ppo
     from experiments.pusher_b.rl_b10_aux_ce.experiment import SETTINGS as CE_SETTINGS
-    from experiments.pusher_b10_guess_or_pass_2026_10.ppo import (
+    from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.ppo import (
         build_config as build_guess_or_pass_ppo_config,
         resolved_recipe,
     )
 
     experiment = load_experiment(
-        "experiments.pusher_b10_guess_or_pass_2026_10.ppo_c2.experiment"
+        "experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.ppo_c2.experiment"
     )
     context = make_run_context(
         experiment,

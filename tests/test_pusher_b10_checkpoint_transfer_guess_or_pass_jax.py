@@ -18,22 +18,22 @@ from experiments.factored_representations_reproduction_PPO_2026_08.model import 
     ReproductionResidualEncoder,
 )
 from experiments.pusher_b.rl import MODEL_CONFIG
-from experiments.pusher_b10_guess_or_pass_2026_10.campaign import (
+from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.campaign import (
     campaign_runs as rl_campaign_runs,
 )
-from experiments.pusher_b10_guess_or_pass_2026_10.task import GuessOrPassTask
-from experiments.pusher_b10_guess_or_pass_jax_2026_10 import campaign
-from experiments.pusher_b10_guess_or_pass_jax_2026_10.convert import (
+from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.task import GuessOrPassTask
+from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_jax import campaign
+from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_jax.convert import (
     torch_encoder_to_jax,
 )
-from experiments.pusher_b10_guess_or_pass_jax_2026_10.ppo import (
+from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_jax.ppo import (
     LR_SCHEDULE,
     PPOConfig,
     bayes_expected_reward,
     init,
     make_update,
 )
-from experiments.pusher_b10_guess_or_pass_jax_2026_10.process import (
+from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_jax.process import (
     guess_or_pass_reward,
     make_env,
 )
@@ -212,7 +212,7 @@ def test_campaign_order_commands_and_all_indices(monkeypatch, capsys):
     )
     assert command[0] == campaign.sys.executable
     assert campaign.TRANSFER_MODULE in command
-    assert "pusher_b10_guess_or_pass_jax_2026_10" in " ".join(command)
+    assert "pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_jax" in " ".join(command)
 
     invoked = []
     monkeypatch.setattr(
@@ -230,7 +230,7 @@ def test_campaign_order_commands_and_all_indices(monkeypatch, capsys):
 
 def test_scratch_leaf_smoke_writes_summary_and_parameter_artifacts(tmp_path):
     experiment = load_experiment(
-        "experiments.pusher_b10_guess_or_pass_jax_2026_10.ppo_c2.experiment"
+        "experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_jax.ppo_c2.experiment"
     )
     context = RunContext(
         experiment_dir=experiment.directory,

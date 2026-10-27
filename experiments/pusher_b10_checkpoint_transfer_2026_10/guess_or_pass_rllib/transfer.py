@@ -23,7 +23,7 @@ from experiments.pusher_b10_discrete_SAC_2026_09.model import (
     SingleBackwardSACTorchLearner,
 )
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 OVERRIDES_ENV = "PUSHER_B_CONTINUE_OVERRIDES"
 MODULE_SUBDIR = Path("learner_group/learner/rl_module/default_policy")
 SOURCE_CATALOG: dict[str, dict[str, Any]] = {}
@@ -576,7 +576,7 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     if "." not in args.experiment_module:
         args.experiment_module = (
-            "experiments.pusher_b10_guess_or_pass_2026_10."
+            "experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib."
             f"{args.experiment_module}.experiment"
         )
 
@@ -634,7 +634,7 @@ def main(argv: list[str] | None = None) -> None:
         command=[
             "python",
             "-m",
-            "experiments.pusher_b10_guess_or_pass_2026_10.transfer",
+            "experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.transfer",
             args.experiment_module,
             "--source",
             args.source,

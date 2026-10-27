@@ -16,7 +16,7 @@ import torch
 from harness.cli import execute_experiment, load_experiment, make_run_context
 from ray.rllib.core.rl_module.rl_module import RLModule
 
-from experiments.pusher_b10_guess_or_pass_2026_10.transfer import (
+from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.transfer import (
     SOURCE_CATALOG,
     _local_source_module,
     fetch_source_module,
@@ -33,7 +33,7 @@ PPO_SOURCES = tuple(
     for source, metadata in SOURCE_CATALOG.items()
     if metadata["algorithm"] == "ppo"
 )
-STUDY_MODULE = "experiments.pusher_b10_guess_or_pass_jax_2026_10.transfer"
+STUDY_MODULE = "experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_jax.transfer"
 
 
 def _parity_check(module, trunk: dict, *, cost: float, seed: int) -> float:
@@ -101,7 +101,7 @@ def main(argv: list[str] | None = None) -> None:
         parser.error("only PPO transfer sources are supported")
     if "." not in args.experiment_module:
         args.experiment_module = (
-            "experiments.pusher_b10_guess_or_pass_jax_2026_10."
+            "experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_jax."
             f"{args.experiment_module}.experiment"
         )
     parts = args.experiment_module.split(".")

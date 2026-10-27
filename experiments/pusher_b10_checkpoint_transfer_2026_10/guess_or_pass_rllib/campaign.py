@@ -1,4 +1,4 @@
-"""List or launch the 27-run pure-JAX guess-or-pass transfer campaign."""
+"""List or launch one run from the PPO versus PPO+CE transfer campaign."""
 
 from __future__ import annotations
 
@@ -6,35 +6,79 @@ import argparse
 import shlex
 import subprocess
 import sys
-from dataclasses import replace
+from dataclasses import dataclass
 from pathlib import Path
 
-from experiments.pusher_b10_guess_or_pass_2026_10.campaign import (
-    LEAF_COSTS,
-    SOURCES,
-    RunSpec,
+ROOT = Path(__file__).resolve().parents[3]
+TRANSFER_MODULE = "experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.transfer"
+LEAF_COSTS = (
+    ("ppo_c2", 2.0),
+    ("ppo_c1p5", 1.5),
+    ("ppo_c1", 1.0),
 )
-from experiments.pusher_b10_guess_or_pass_2026_10.campaign import (
-    campaign_runs as _legacy_campaign_runs,
+SOURCES = (
+    "ppo_iter4",
+    "ppo_iter143",
+    "ppo_ce_iter4",
+    "ppo_ce_iter211",
+    "ppo_iter8",
+    "ppo_ce_iter8",
 )
 
-ROOT = Path(__file__).resolve().parents[2]
-TRANSFER_MODULE = "experiments.pusher_b10_guess_or_pass_jax_2026_10.transfer"
-LEAVES = tuple(leaf for leaf, _ in LEAF_COSTS)
-SOURCE_ORDER = SOURCES
-ORDER = ("scratch", "full", "frozen")
+
+@dataclass(frozen=True)
+class RunSpec:
+    leaf: str
+    source: str | None
+    trunk: str | None
+    cost: float
+    seed: int
+    run_name: str
+
+
+def _run_spec(
+    leaf: str,
+    cost: float,
+    source: str | None = None,
+    trunk: str | None = None,
+) -> RunSpec:
+    source_name = source or "scratch"
+    trunk_name = trunk or "scratch"
+    return RunSpec(
+        leaf=leaf,
+        source=source,
+        trunk=trunk,
+        cost=cost,
+        seed=42,
+        run_name=(
+            f"guess-or-pass-ppo-ce-seed42-{leaf}-{source_name}-{trunk_name}"
+        ),
+    )
 
 
 def campaign_runs(frozen_cost: float = 2.0) -> tuple[RunSpec, ...]:
-    legacy_runs = _legacy_campaign_runs(frozen_cost)
-    return tuple(
-        replace(
-            run,
-            run_name=run.run_name.replace(
-                "guess-or-pass-ppo-ce-", "guess-or-pass-jax-"
-            ),
-        )
-        for run in legacy_runs
+    frozen_leaf_cost = next(
+        (
+            (leaf, cost)
+            for leaf, cost in LEAF_COSTS
+            if cost == frozen_cost
+        ),
+        None,
+    )
+    if frozen_leaf_cost is None:
+        raise ValueError(f"unsupported frozen cost: {frozen_cost}")
+    frozen_leaf, frozen_cost = frozen_leaf_cost
+    return (
+        *(_run_spec(leaf, cost) for leaf, cost in LEAF_COSTS),
+        *(
+            _run_spec(leaf, cost, source, "full")
+            for source in SOURCES
+            for leaf, cost in LEAF_COSTS
+        ),
+        *(
+            _run_spec(frozen_leaf, frozen_cost, source, "frozen")
+            for source in SOURCES
+        ),
     )
 
 
@@ -46,7 +90,7 @@ def _command(
     smoke: bool,
 ) -> list[str]:
     module = (
-        "experiments.pusher_b10_guess_or_pass_jax_2026_10."
+        "experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib."
         f"{spec.leaf}.experiment"
     )
     if spec.source is None:
@@ -56,7 +100,7 @@ def _command(
             sys.executable,
             "-m",
             TRANSFER_MODULE,
-            module,
+            spec.leaf,
             "--source",
             spec.source,
             "--trunk",
@@ -86,7 +130,6 @@ def build_parser() -> argparse.ArgumentParser:
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--list", action="store_true")
     action.add_argument("--run-index", type=int, nargs="+", metavar="N")
-    action.add_argument("--all", action="store_true")
     parser.add_argument(
         "--frozen-cost",
         type=float,
@@ -109,37 +152,36 @@ def main(argv: list[str] | None = None) -> int:
     runs = campaign_runs(args.frozen_cost)
     commands = [
         _command(
-            run,
+            spec,
             hardware=args.hardware_profile,
             upload_artifacts=args.upload_artifacts,
             smoke=args.smoke,
         )
-        for run in runs
+        for spec in runs
     ]
     if args.list:
         for command in commands:
-            print(shlex.join(command))
+            print(shlex.join(["python", *command[1:]]))
         return 0
-    indices = (
-        list(args.run_index)
-        if args.run_index is not None
-        else [*range(21), *range(21, 27)]
-    )
-    invalid_indices = [index for index in indices if index < 0 or index >= len(runs)]
+    invalid_indices = [
+        index
+        for index in args.run_index
+        if index < 0 or index >= len(commands)
+    ]
     if invalid_indices:
         parser.error(
-            f"--run-index values must be between 0 and {len(runs) - 1}; "
+            f"--run-index values must be between 0 and {len(commands) - 1}; "
             f"invalid: {', '.join(map(str, invalid_indices))}"
         )
-    results = []
-    for index in indices:
+    exit_codes = []
+    for index in args.run_index:
         result = subprocess.run(commands[index], cwd=ROOT, check=False)
-        results.append((index, result.returncode))
+        exit_codes.append((index, result.returncode))
     print(
         "Campaign exit codes: "
-        + ", ".join(f"{index}={code}" for index, code in results)
+        + ", ".join(f"{index}={code}" for index, code in exit_codes)
     )
-    return 0 if all(code == 0 for _, code in results) else 1
+    return 0 if all(code == 0 for _, code in exit_codes) else 1
 
 
 if __name__ == "__main__":

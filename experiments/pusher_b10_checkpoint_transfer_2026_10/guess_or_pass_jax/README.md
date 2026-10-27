@@ -1,7 +1,7 @@
 # Pusher-B b10 guess-or-pass in JAX
 
 Pure-JAX PPO transfer campaign port of
-`experiments/pusher_b10_guess_or_pass_2026_10`; the RLlib study remains the
+`experiments/pusher_b10_checkpoint_transfer_2026_10/guess_or_pass_rllib`; the RLlib study remains the
 fallback. Actions 0/1 guess the pending token and action 2 passes. Rewards are
 `+1`, `-cost`, and `0`.
 
@@ -15,8 +15,8 @@ below `1e-4`.
 List and launch the campaign:
 
 ```bash
-uv run python -m experiments.pusher_b10_guess_or_pass_jax_2026_10.campaign --list
-uv run python -m experiments.pusher_b10_guess_or_pass_jax_2026_10.campaign \
+uv run python -m experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_jax.campaign --list
+uv run python -m experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_jax.campaign \
   --run-index 0 21 --frozen-cost 1.5 --smoke --hardware cpu --no-upload-artifacts
 ```
 
@@ -24,7 +24,7 @@ GPU setup and a scratch run:
 
 ```bash
 uv sync --group jax-cuda
-uv run rl-harness experiments.pusher_b10_guess_or_pass_jax_2026_10.ppo_c2.experiment
+uv run rl-harness experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_jax.ppo_c2.experiment
 ```
 
 Four CPU smoke runs (2,032 steps each) measured 2,663–3,919 active env
@@ -65,7 +65,7 @@ iter 8 falls back to 0, so its full-trunk advantage over PPO iter 8 is in
 fine-tunability rather than a linearly readable representation. All frozen
 runs report `frozen_encoder_update_verified: true`.
 
-Reward curves at c=2 (`python -m experiments.pusher_b10_guess_or_pass_jax_2026_10.plots`):
+Reward curves at c=2 (`python -m experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_jax.plots`):
 
 | | full trunk | frozen trunk |
 |---|---|---|

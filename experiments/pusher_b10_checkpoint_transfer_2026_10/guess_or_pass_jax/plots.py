@@ -1,6 +1,6 @@
 """Render reward-vs-steps panels from the committed campaign training curves.
 
-Usage: ``python -m experiments.pusher_b10_guess_or_pass_jax_2026_10.plots``
+Usage: ``python -m experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_jax.plots``
 writes four PNGs under ``results/``: PPO checkpoints alone and PPO vs PPO+CE,
 each for the full-trunk and frozen-trunk runs at one cost (default c=2).
 """

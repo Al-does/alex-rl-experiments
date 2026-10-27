@@ -20,7 +20,7 @@ def environment_config(
     config = pusher_b_environment_config("b10")
     config["task"] = {
         "class": (
-            "experiments.pusher_b10_guess_or_pass_2026_10.task:"
+            "experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.task:"
             "GuessOrPassTask"
         ),
         "kwargs": {"cost": float(cost)},

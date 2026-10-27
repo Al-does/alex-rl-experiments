@@ -137,7 +137,7 @@ def resolved_recipe(
     )
     recipe.update(
         {
-            "study": "pusher_b10_guess_or_pass_2026_10",
+            "study": "pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib",
             "cost": cost,
             "environment": sac_environment_config(cost),
             "action_semantics": (
@@ -208,7 +208,7 @@ def run_sac(
     write_training_curves(context)
     metrics = results[0].metrics
     summary = {
-        "study": "pusher_b10_guess_or_pass_2026_10",
+        "study": "pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib",
         "algorithm": "sac",
         "architecture": architecture,
         "cost": cost,

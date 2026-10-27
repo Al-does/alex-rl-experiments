@@ -161,14 +161,15 @@ def make_update(
         before_trunk = _trunk_params(state.params)
         if trunk_mode == "frozen":
             trainable_params = before_heads
-            loss_gradient = lambda heads, mb: head_loss(
-                heads, entropy_coeff, mb, before_trunk
-            )
+
+            def loss_gradient(heads, mb):
+                return head_loss(heads, entropy_coeff, mb, before_trunk)
+
         else:
             trainable_params = state.params
-            loss_gradient = lambda params, mb: full_loss(
-                params, entropy_coeff, mb
-            )
+
+            def loss_gradient(params, mb):
+                return full_loss(params, entropy_coeff, mb)
 
         def epoch(carry, epoch_key):
             order = jax.random.permutation(epoch_key, config.num_envs)
@@ -261,9 +262,9 @@ def _resolved_recipe(
     transfer: dict[str, Any] | None,
 ) -> dict[str, Any]:
     recipe = {
-        "study": "pusher_b10_guess_or_pass_jax_2026_10",
+        "study": "pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_jax",
         "framework": "jax",
-        "legacy_recipe": "experiments/pusher_b10_guess_or_pass_2026_10/ppo.py",
+        "legacy_recipe": "experiments/pusher_b10_checkpoint_transfer_2026_10/guess_or_pass_rllib/ppo.py",
         "cost": cost,
         "seed": context.seed,
         "smoke": context.smoke,
@@ -356,7 +357,7 @@ def run_ppo(context: RunContext, *, cost: float) -> dict[str, Any]:
     _save_params(context.artifacts_dir / "final_params.npz", state.params)
     final = curves[-1]
     summary = {
-        "study": "pusher_b10_guess_or_pass_jax_2026_10",
+        "study": "pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_jax",
         "algorithm": "ppo",
         "cost": cost,
         "seed": context.seed,

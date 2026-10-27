@@ -133,7 +133,7 @@ def resolved_recipe(
     )
     recipe.update(
         {
-            "study": "pusher_b10_guess_or_pass_2026_10",
+            "study": "pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib",
             "condition": "ppo_guess_or_pass",
             "pretraining_objective": (
                 transfer.get("pretraining_objective", "ppo")
@@ -208,7 +208,7 @@ def run_ppo(context: RunContext, *, cost: float) -> dict[str, object]:
     write_training_curves(context)
     metrics = results[0].metrics
     summary = {
-        "study": "pusher_b10_guess_or_pass_2026_10",
+        "study": "pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib",
         "algorithm": "ppo",
         "cost": cost,
         "seed": context.seed,

@@ -62,15 +62,15 @@ versus full trunk.
 Print all 27 launch commands:
 
 ```bash
-uv run python -m experiments.pusher_b10_guess_or_pass_2026_10.campaign --list
+uv run python -m experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.campaign --list
 ```
 
 The frozen phase can select its cost at launch time. For example, list the
 phase-2 commands with frozen `c=1.5`, then queue all six frozen runs in order:
 
 ```bash
-python -m experiments.pusher_b10_guess_or_pass_2026_10.campaign --list --frozen-cost 1.5
-python -m experiments.pusher_b10_guess_or_pass_2026_10.campaign --run-index 21 22 23 24 25 26 --frozen-cost 1.5
+python -m experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.campaign --list --frozen-cost 1.5
+python -m experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.campaign --run-index 21 22 23 24 25 26 --frozen-cost 1.5
 ```
 
 `--frozen-cost` accepts `2`, `1.5`, or `1`; `--run-index` accepts multiple
@@ -90,14 +90,14 @@ first update.
 Scratch CPU smoke:
 
 ```bash
-uv run rl-harness experiments.pusher_b10_guess_or_pass_2026_10.ppo_c2.experiment --smoke --hardware cpu --no-upload-artifacts
+uv run rl-harness experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.ppo_c2.experiment --smoke --hardware cpu --no-upload-artifacts
 ```
 
 Warm-start CPU smoke:
 
 ```bash
-uv run python -m experiments.pusher_b10_guess_or_pass_2026_10.transfer experiments.pusher_b10_guess_or_pass_2026_10.ppo_c2.experiment --source ppo_iter4 --trunk full --smoke --hardware cpu --no-upload-artifacts
-uv run python -m experiments.pusher_b10_guess_or_pass_2026_10.transfer experiments.pusher_b10_guess_or_pass_2026_10.sac_c2.experiment --source sac_split_iter64 --trunk frozen --smoke --hardware cpu --no-upload-artifacts
+uv run python -m experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.transfer experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.ppo_c2.experiment --source ppo_iter4 --trunk full --smoke --hardware cpu --no-upload-artifacts
+uv run python -m experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.transfer experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.sac_c2.experiment --source sac_split_iter64 --trunk frozen --smoke --hardware cpu --no-upload-artifacts
 ```
 
 Use `--source-dir LOCAL` to load a local RLModule checkpoint. SAC transfer
