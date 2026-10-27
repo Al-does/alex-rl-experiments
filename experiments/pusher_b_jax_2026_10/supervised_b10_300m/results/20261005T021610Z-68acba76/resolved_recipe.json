@@ -1,0 +1,96 @@
+{
+  "condition": "supervised_next_token_prediction",
+  "edge_transition_matrices": [
+    [
+      [
+        0.024999999999999994,
+        0.45,
+        0.024999999999999994
+      ],
+      [
+        0.004999999999999999,
+        0.004999999999999999,
+        0.09000000000000001
+      ],
+      [
+        0.81,
+        0.04499999999999999,
+        0.04499999999999999
+      ]
+    ],
+    [
+      [
+        0.024999999999999994,
+        0.024999999999999994,
+        0.45
+      ],
+      [
+        0.81,
+        0.04499999999999999,
+        0.04499999999999999
+      ],
+      [
+        0.004999999999999999,
+        0.09000000000000001,
+        0.004999999999999999
+      ]
+    ]
+  ],
+  "kelly": {
+    "action": "sampled from softmax over guessable tokens",
+    "head_logits": 2,
+    "loss_weight": 0.0,
+    "max_wager": 0.9999,
+    "net_win_odds": 1.0,
+    "reference": "experiments/mess3_token_guess_cycle_2/learning.py (decoupled_kelly arm)"
+  },
+  "legacy_recipe": "experiments/pusher_b/supervised.py",
+  "model": {
+    "compute_dtype": "float32",
+    "context_length": 128,
+    "d_mlp": 512,
+    "d_model": 128,
+    "init_std": 0.02,
+    "n_heads": 4,
+    "n_layers": 4,
+    "norm_eps": 1e-05,
+    "rope_base": 10000.0,
+    "vocab": 3
+  },
+  "objective": "shifted next-token cross-entropy",
+  "parameters": {
+    "b": 0.1,
+    "d": 0.9
+  },
+  "preset": "b10",
+  "seed": 42,
+  "smoke": false,
+  "study": "pusher_b_jax",
+  "training": {
+    "batch_size": 512,
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "eval_steps": [
+      1,
+      3,
+      10,
+      30,
+      100,
+      300,
+      1000,
+      3000,
+      10000
+    ],
+    "kelly_weight": 0.0,
+    "learning_rate": 0.001,
+    "log_every": 100,
+    "param_checkpoints": true,
+    "resolved_env_steps": 300020736,
+    "resolved_total_updates": 4614,
+    "target_env_steps": 300000000,
+    "total_steps": 10000,
+    "validation_batch_size": 4096,
+    "validation_minibatch_size": 512,
+    "weight_decay": 0.0
+  }
+}
