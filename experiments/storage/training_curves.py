@@ -19,6 +19,31 @@ _COMPACT_FIELD_SOURCES: tuple[tuple[str, ...], str] = (
     (("env_runners/episode_return_mean", "episode_return_mean"), "return_mean"),
     (("env_runners/episode_return_min", "episode_return_min"), "return_min"),
     (("env_runners/episode_return_max", "episode_return_max"), "return_max"),
+    (
+        (
+            "env_runners/guess_or_pass/guess_correct",
+            "guess_or_pass/guess_correct",
+        ),
+        "guess_correct",
+    ),
+    (
+        (
+            "env_runners/guess_or_pass/guess_wrong",
+            "guess_or_pass/guess_wrong",
+        ),
+        "guess_wrong",
+    ),
+    (
+        ("env_runners/guess_or_pass/passed", "guess_or_pass/passed"),
+        "passed",
+    ),
+    (
+        (
+            "env_runners/guess_or_pass/bayes_expected_reward",
+            "guess_or_pass/bayes_expected_reward",
+        ),
+        "bayes_expected_reward",
+    ),
     (("learners/default_policy/entropy", "entropy"), "entropy"),
     (("learners/default_policy/curr_entropy_coeff", "entropy_coeff"), "entropy_coeff"),
     (("learners/default_policy/policy_loss", "policy_loss"), "policy_loss"),
