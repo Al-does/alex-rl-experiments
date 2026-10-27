@@ -24,8 +24,45 @@ Scratch expected per-step rewards:
 | `ppo_iter32` | PPO | 8,648,192 | 0.084 |
 | `ppo_iter56` | PPO | 15,134,336 | 0.059 |
 | `ppo_iter143` | PPO continuation | 115,901,216 | 0.038 |
+| `ppo_ce_iter4` | PPO + next-token CE | 1,137,920 | 0.509 |
+| `ppo_ce_iter211` | PPO + next-token CE | 60,025,280 | 0.0396 |
 | `sac_split_iter32/64/128/512` | SAC, split transformers | 455,168 / 910,336 / 1,820,672 / 7,282,688 | 0.396 / 0.124 / 0.062 / 0.058 |
 | `sac_shared_iter32/64/512` | SAC, shared trunk | 455,168 / 910,336 / 7,282,688 | 0.522 / 0.167 / 0.055 |
+
+## PPO vs PPO+CE campaign
+
+Four seed-42 source checkpoints have nearly matched greedy accuracy but span
+two belief-probe qualities. The PPO+CE checkpoint indexes resolve to:
+
+| Source | Pretraining objective | Env steps | Greedy accuracy | Probe `1-R²` | Checkpoint |
+| --- | --- | ---: | ---: | ---: | --- |
+| `ppo_iter4` | PPO | 1,081,024 | 0.6375 | 0.555 | log-spaced iter 4 |
+| `ppo_iter143` | PPO | 115,901,216 | 0.6375 | 0.038 | final continuation |
+| `ppo_ce_iter4` | PPO + next-token CE | 1,137,920 | 0.6375 | 0.509 | `log_spaced_checkpoints/iteration_000004_steps_001137920` |
+| `ppo_ce_iter211` | PPO + next-token CE | 60,025,280 | 0.6373 | 0.0396 | `interval_checkpoints/iteration_000211_steps_060025280` |
+
+The campaign has two scratch controls (`ppo_c2`, `ppo_c1`) and 16 transfers:
+each of the four sources into both cost leaves at full and frozen trunk modes.
+All target-task fine-tuning is plain PPO with no CE loss or auxiliary head.
+The comparisons are early versus late checkpoints within each objective at
+`c=2`, PPO versus PPO+CE at approximately matched probe quality, the `c=1`
+negative control, scratch versus transfer, and frozen versus full trunk.
+
+Print all 18 launch commands:
+
+```bash
+uv run python -m experiments.pusher_b10_guess_or_pass_2026_10.campaign --list
+```
+
+Run one zero-based entry, for example:
+
+```bash
+uv run python -m experiments.pusher_b10_guess_or_pass_2026_10.campaign --run-index 12 --smoke --hardware cpu --no-upload-artifacts
+```
+
+This is a single-seed campaign. The late PPO+CE source has about 60M
+pretraining steps versus 116M for late PPO, so its comparison also has a
+pretraining-duration/plasticity confound.
 
 The leaves are `ppo_c1`, `ppo_c1p5`, `ppo_c2`, `sac_c1`, `sac_c1p5`, and
 `sac_c2`. PPO copies the shared encoder; SAC copies the actor and critic

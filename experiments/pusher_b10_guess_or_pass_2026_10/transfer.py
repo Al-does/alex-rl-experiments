@@ -17,6 +17,7 @@ from harness.storage.b2 import B2StorageConfig
 from ray.rllib.algorithms.ppo.torch.ppo_torch_learner import PPOTorchLearner
 from ray.rllib.core.rl_module.rl_module import RLModule
 
+import experiments.pusher_b.learning  # noqa: F401
 from experiments.pusher_b10_discrete_SAC_2026_09.model import (
     SharedTrunkSACTorchLearner,
     SingleBackwardSACTorchLearner,
@@ -43,6 +44,7 @@ for iteration, steps, probe in (
         "probe_1_minus_r2": probe,
         "training_iteration": iteration,
         "checkpoint_index": "log_spaced_checkpoints/index.json",
+        "pretraining_objective": "ppo",
     }
 
 SOURCE_CATALOG["ppo_iter143"] = {
@@ -53,7 +55,37 @@ SOURCE_CATALOG["ppo_iter143"] = {
     "env_steps": 115_901_216,
     "probe_1_minus_r2": 0.038,
     "checkpoint_index": None,
+    "pretraining_objective": "ppo",
 }
+
+for label, iteration, steps, probe, checkpoint_index in (
+    (
+        "ppo_ce_iter4",
+        4,
+        1_137_920,
+        0.509,
+        "log_spaced_checkpoints/index.json",
+    ),
+    (
+        "ppo_ce_iter211",
+        211,
+        60_025_280,
+        0.0396,
+        "interval_checkpoints/index.json",
+    ),
+):
+    SOURCE_CATALOG[label] = {
+        "algorithm": "ppo",
+        "architecture": None,
+        "leaf": "experiments/pusher_b/rl_b10_aux_ce",
+        "run_id": "20260915T033547Z-913cef7f",
+        "env_steps": steps,
+        "probe_1_minus_r2": probe,
+        "greedy_accuracy": 0.6375 if iteration == 4 else 0.6373,
+        "training_iteration": iteration,
+        "checkpoint_index": checkpoint_index,
+        "pretraining_objective": "ppo+ntp_ce",
+    }
 
 for architecture, run_id, points in (
     (
@@ -77,6 +109,7 @@ for architecture, run_id, points in (
             "probe_1_minus_r2": probe,
             "training_iteration": iteration,
             "checkpoint_index": "scheduled_checkpoints/index.json",
+            "pretraining_objective": "sac",
         }
 
 
@@ -174,6 +207,7 @@ def transfer_overrides() -> dict[str, object] | None:
         "source_probe_1_minus_r2",
         "trunk_mode",
         "architecture",
+        "pretraining_objective",
     }
     missing = required.difference(metadata)
     if missing:
@@ -229,6 +263,11 @@ def initialize_algorithm_transfer(
     if "default_policy" not in weights:
         raise RuntimeError("learner does not contain the default policy module")
     target_state = weights["default_policy"]
+    if algorithm_name == "ppo" and any(
+        "next_token" in key.lower() or "aux" in key.lower()
+        for key in target_state
+    ):
+        raise RuntimeError("target PPO module unexpectedly contains an auxiliary head")
     prefixes = _encoder_prefixes(algorithm_name)
     encoder_keys = [
         key for key in target_state if key.startswith(prefixes)
@@ -513,6 +552,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--source", choices=sorted(SOURCE_CATALOG), required=True)
     parser.add_argument("--trunk", choices=("full", "frozen"), required=True)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--run-id")
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--hardware-profile", "--hardware", default="auto")
     parser.add_argument(
@@ -568,6 +608,7 @@ def main(argv: list[str] | None = None) -> None:
         "source_module_directory": str(module_dir),
         "source_env_steps": spec["env_steps"],
         "source_probe_1_minus_r2": spec["probe_1_minus_r2"],
+        "pretraining_objective": spec["pretraining_objective"],
         "trunk_mode": args.trunk,
         "architecture": architecture,
     }
@@ -575,6 +616,7 @@ def main(argv: list[str] | None = None) -> None:
     context = make_run_context(
         experiment,
         seed=args.seed,
+        run_id=args.run_id,
         smoke=args.smoke,
         resume_from=module_dir,
         hardware_profile=args.hardware_profile,
@@ -593,9 +635,11 @@ def main(argv: list[str] | None = None) -> None:
             args.trunk,
             "--seed",
             str(args.seed),
+            *(["--run-id", args.run_id] if args.run_id is not None else []),
         ],
         runtime_overrides={
             **metadata,
+            "run_id": context.run_id,
             "source_dir": str(args.source_dir) if args.source_dir else None,
             "resume_from": str(module_dir),
             OVERRIDES_ENV: os.environ[OVERRIDES_ENV],

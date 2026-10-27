@@ -13,6 +13,11 @@ from experiments.pusher_b10_guess_or_pass_2026_10.process import (
     ppo_environment_config,
     sac_environment_config,
 )
+from experiments.pusher_b10_guess_or_pass_2026_10.campaign import (
+    CAMPAIGN_RUNS,
+    LEAF_COSTS,
+    SOURCES,
+)
 from experiments.pusher_b10_guess_or_pass_2026_10.task import GuessOrPassTask
 from experiments.pusher_b10_guess_or_pass_2026_10.transfer import (
     SOURCE_CATALOG,
@@ -107,10 +112,26 @@ class _FakeModule:
         self.state = state
 
     def get_state(self):
-        return {key: value.copy() for key, value in self.state.items()}
+        return {key: _copy_state_value(value) for key, value in self.state.items()}
 
     def set_state(self, state):
-        self.state = {key: value.copy() for key, value in state.items()}
+        self.state = {
+            key: _copy_state_value(value) for key, value in state.items()
+        }
+
+    def make_target_networks(self):
+        pass
+
+
+class _ModuleBackedFakeModule:
+    def __init__(self, module):
+        self.module = module
+
+    def get_state(self):
+        return self.module.get_state()
+
+    def set_state(self, state):
+        self.module.set_state(state)
 
     def make_target_networks(self):
         pass
@@ -149,6 +170,12 @@ class _FakeAlgorithm:
 
     def get_module(self):
         return self.runner
+
+
+def _copy_state_value(value):
+    if isinstance(value, torch.Tensor):
+        return value.detach().clone()
+    return np.array(value, copy=True)
 
 
 @pytest.mark.parametrize(
@@ -193,6 +220,134 @@ def test_module_transfer_copies_encoders_and_keeps_fresh_heads(
     assert {"ppo_iter4", "ppo_iter143", "sac_split_iter64"} <= set(SOURCE_CATALOG)
 
 
+def test_ppo_ce_campaign_has_expected_unique_grid():
+    assert LEAF_COSTS == (("ppo_c2", 2.0), ("ppo_c1", 1.0))
+    assert SOURCES == (
+        "ppo_iter4",
+        "ppo_iter143",
+        "ppo_ce_iter4",
+        "ppo_ce_iter211",
+    )
+    expected = {
+        (leaf, None, None, cost, 42)
+        for leaf, cost in (("ppo_c2", 2.0), ("ppo_c1", 1.0))
+    }
+    expected.update(
+        (leaf, source, trunk, cost, 42)
+        for source in (
+            "ppo_iter4",
+            "ppo_iter143",
+            "ppo_ce_iter4",
+            "ppo_ce_iter211",
+        )
+        for trunk in ("full", "frozen")
+        for leaf, cost in (("ppo_c2", 2.0), ("ppo_c1", 1.0))
+    )
+    actual = {
+        (run.leaf, run.source, run.trunk, run.cost, run.seed)
+        for run in CAMPAIGN_RUNS
+    }
+    assert len(CAMPAIGN_RUNS) == 18
+    assert len({run.run_name for run in CAMPAIGN_RUNS}) == 18
+    assert actual == expected
+    assert all(run.run_name for run in CAMPAIGN_RUNS)
+
+
+def test_auxiliary_ppo_source_transfers_only_encoder(monkeypatch, tmp_path):
+    from ray.rllib.core.rl_module.rl_module import RLModule
+
+    from experiments.pusher_b import rl as pusher_b_ppo
+    from experiments.pusher_b.rl_b10_aux_ce.experiment import SETTINGS as CE_SETTINGS
+    from experiments.pusher_b10_guess_or_pass_2026_10.ppo import (
+        build_config as build_guess_or_pass_ppo_config,
+        resolved_recipe,
+    )
+
+    experiment = load_experiment(
+        "experiments.pusher_b10_guess_or_pass_2026_10.ppo_c2.experiment"
+    )
+    context = make_run_context(
+        experiment,
+        seed=42,
+        smoke=True,
+        hardware_profile="cpu",
+    )
+    source_config = pusher_b_ppo.build_config(
+        context,
+        preset="b10",
+        settings=CE_SETTINGS,
+    )
+    target_config = build_guess_or_pass_ppo_config(context, cost=2.0)
+
+    def build_module(config):
+        environment = HMMEnv(config.env_config)
+        spec = config.rl_module_spec
+        spec.observation_space = environment.observation_space
+        spec.action_space = environment.action_space
+        return spec.build()
+
+    source_module = build_module(source_config)
+    target_module = build_module(target_config)
+    source_state = source_module.get_state()
+    target_state = target_module.get_state()
+    aux_keys = {
+        key
+        for key in source_state
+        if "aux" in key.lower() or "next_token" in key.lower()
+    }
+    assert aux_keys
+    assert not aux_keys.intersection(target_state)
+    assert HMMEnv(target_config.env_config).action_space.n == 3
+
+    source_only_head_shape_differs = any(
+        key in source_state
+        and np.asarray(source_state[key]).shape != np.asarray(value).shape
+        for key, value in target_state.items()
+        if not key.startswith("encoder.")
+    )
+    assert source_only_head_shape_differs
+    target_before = {
+        key: np.asarray(value).copy()
+        for key, value in target_state.items()
+        if not key.startswith("encoder.")
+    }
+
+    monkeypatch.setattr(RLModule, "from_checkpoint", lambda _: source_module)
+    recipe_path = tmp_path / "resolved_recipe.json"
+    recipe_path.write_text("{}\n")
+    algorithm = _FakeAlgorithm(_ModuleBackedFakeModule(target_module))
+    report = initialize_algorithm_transfer(
+        algorithm,
+        module_checkpoint=tmp_path,
+        algorithm_name="ppo",
+        trunk_mode="full",
+        metadata={
+            "source": "ppo_ce_iter4",
+            "pretraining_objective": "ppo+ntp_ce",
+        },
+        recipe_path=recipe_path,
+    )
+
+    transferred_state = target_module.get_state()
+    for key in report["encoder_weight_keys"]:
+        np.testing.assert_array_equal(
+            np.asarray(transferred_state[key]),
+            np.asarray(source_state[key]),
+        )
+    for key, value in target_before.items():
+        np.testing.assert_array_equal(np.asarray(transferred_state[key]), value)
+    assert report["encoder_weights_copied"]
+    recipe = resolved_recipe(
+        context,
+        cost=2.0,
+        transfer={"pretraining_objective": "ppo+ntp_ce"},
+    )
+    assert recipe["pretraining_objective"] == "ppo+ntp_ce"
+    assert recipe["next_token_aux_coefficient"] == 0.0
+    assert SOURCE_CATALOG["ppo_iter4"]["pretraining_objective"] == "ppo"
+    assert SOURCE_CATALOG["ppo_ce_iter4"]["pretraining_objective"] == "ppo+ntp_ce"
+
+
 @pytest.mark.parametrize("algorithm", ("ppo", "sac"))
 def test_frozen_encoder_stays_fixed_while_heads_update(algorithm):
     module = torch.nn.Module()
@@ -202,10 +357,13 @@ def test_frozen_encoder_stays_fixed_while_heads_update(algorithm):
         module.value_head = torch.nn.Linear(4, 1)
         encoder_names = ("encoder",)
         heads = (module.policy_head, module.value_head)
-        forward = lambda: (
-            module.policy_head(module.encoder(torch.ones(8, 2))).sum()
-            + module.value_head(module.encoder(torch.ones(8, 2))).sum()
-        )
+
+        def forward():
+            return (
+                module.policy_head(module.encoder(torch.ones(8, 2))).sum()
+                + module.value_head(module.encoder(torch.ones(8, 2))).sum()
+            )
+
     else:
         module.pi_encoder = torch.nn.Linear(2, 4)
         module.qf_encoder = torch.nn.Linear(2, 4)
@@ -215,17 +373,20 @@ def test_frozen_encoder_stays_fixed_while_heads_update(algorithm):
         module.qf_twin = torch.nn.Linear(4, 3)
         encoder_names = ("pi_encoder", "qf_encoder", "qf_twin_encoder")
         heads = (module.pi, module.qf, module.qf_twin)
-        forward = lambda: sum(
-            head(encoder(torch.ones(8, 2))).sum()
-            for encoder, head in zip(
-                (
-                    module.pi_encoder,
-                    module.qf_encoder,
-                    module.qf_twin_encoder,
-                ),
-                heads,
+
+        def forward():
+            return sum(
+                head(encoder(torch.ones(8, 2))).sum()
+                for encoder, head in zip(
+                    (
+                        module.pi_encoder,
+                        module.qf_encoder,
+                        module.qf_twin_encoder,
+                    ),
+                    heads,
+                )
             )
-        )
+
     freeze_module_encoders(module, algorithm)
     encoders = [getattr(module, name) for name in encoder_names]
     before_encoders = [

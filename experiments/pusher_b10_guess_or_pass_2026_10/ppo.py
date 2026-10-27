@@ -135,6 +135,13 @@ def resolved_recipe(
         {
             "study": "pusher_b10_guess_or_pass_2026_10",
             "condition": "ppo_guess_or_pass",
+            "pretraining_objective": (
+                transfer.get("pretraining_objective", "ppo")
+                if transfer is not None
+                else "ppo"
+            ),
+            "target_finetuning_objective": "ppo without next-token CE",
+            "next_token_aux_coefficient": 0.0,
             "cost": cost,
             "environment": ppo_environment_config(cost),
             "action_semantics": (
@@ -165,9 +172,16 @@ def run_ppo(context: RunContext, *, cost: float) -> dict[str, object]:
         raise ValueError("warm-start checkpoint and transfer metadata must be paired")
     artifacts = RunArtifacts.from_context(context)
     artifacts.prepare()
+    recipe = resolved_recipe(context, cost=cost, transfer=transfer)
+    if transfer is not None and recipe.get("next_token_aux_coefficient") not in (
+        None,
+        0,
+        0.0,
+    ):
+        raise ValueError("guess-or-pass transfer target must not use next-token CE")
     artifacts.write_json(
         "resolved_recipe.json",
-        resolved_recipe(context, cost=cost, transfer=transfer),
+        recipe,
     )
     tune_context = (
         replace(context, resume_from=None)
