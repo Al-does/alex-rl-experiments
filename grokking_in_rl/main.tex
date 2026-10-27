@@ -1,6 +1,7 @@
 \documentclass[11pt]{article}
 
 \usepackage[margin=1in]{geometry}
+\usepackage{parskip}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{subcaption}
@@ -8,8 +9,8 @@
 
 \graphicspath{{figures/}}
 
-\title{Grokking in RL}
-\author{Alex Vardakostas}
+\title{Pilot study on grokking in RL}
+\author{}
 \date{\today}
 
 \begin{document}
@@ -17,10 +18,11 @@
 
 \section{Overview}
 
-We hypothesize that grokking occurs in RL and that it affords better
+Fernando, David, and I hypothesized that grokking occurs in RL and that it affords better
 generalization. This is to say that task performance can plateau while
 continued training leads to more abstract belief representation which then
 becomes useful when learning a new but related task.
+Here, we explored this using decoded belief resolution as a proxy for grokking. Whether it is or not was not explored here.
 
 \section{Initial Training on The First Task}
 
@@ -50,38 +52,41 @@ time to task competency but does improve representation per training budget.
 \subsection{Three Important Checkpoints}
 
 For each of the two training variants, three checkpoints are highlighted. All
-three have the same task performance. However, the first checkpoint, A, has
+three have nearly identical task performance. However, the first checkpoint, A, has
 much worse belief resolution (as recovered by the linear probe) compared to
 the third checkpoint, C. The second checkpoint, B, of the PPO-only run also
-worse belief resolution but it is much improved in the PPO+CE run.
+has worse belief resolution but is much improved in the PPO+CE run.
 
 \begin{figure}[p]
   \centering
   \begin{subfigure}{\textwidth}
     \centering
-    \includegraphics[width=0.85\textwidth]{fig1a_task1_ppo}
+    \includegraphics[width=0.65\textwidth]{fig1a_task1_ppo}
     \caption{PPO.}
     \label{fig:task1-ppo}
   \end{subfigure}
   \begin{subfigure}{\textwidth}
     \centering
-    \includegraphics[width=0.85\textwidth]{fig1b_task1_ppo_ce}
+    \includegraphics[width=0.65\textwidth]{fig1b_task1_ppo_ce}
     \caption{PPO+CE.}
     \label{fig:task1-ppo-ce}
   \end{subfigure}
-  \caption{Task performance and $1-R^2$ fit on the first task, with the three
-  key checkpoints A, B and C marked.}
+  \caption{Held-out greedy accuracy and held-out affine belief-probe
+  $1-R^2$ on task 1, with selected checkpoints A, B and C marked.
+  Lower $1-R^2$ means better linear decoding. Each panel shows one training run.}
   \label{fig:task1}
 \end{figure}
 
 \section{The Second Task}
 
-Each of the three checkpoints described above are then trained on a new task.
-It is the same task and env process as above but 1) we add a third action:
-pass with 0 reward and 2) the agent is penalized $-2$ for a wrong guess. The
-agent can then choose to pass when its reward expectation is at or below 0.
+Each of the checkpoints are then trained on a new task. The second task is the same as the first but we add a third action, pass, with reward $0$, and change the wrong-guess
+reward to $-2$; a correct guess still earns $+1$.  If the most likely token has conditional probability $p$,
+the expected reward of guessing it is $p-2(1-p)=3p-2$. The Bayes rule is
+therefore to guess when $p>2/3$, pass when $p<2/3$, and choose either at
+equality. Because actions do not change future observations or dynamics,
+there is no information-gathering advantage to guessing.
 
-\subsection{Better Belief Is Correlated With Better Generalization}
+\subsection{Belief Decodability and Transfer Performance}
 
 As predicted, checkpoints with better belief representation in the first task
 do better on the second task even though all checkpoints have the same
@@ -97,15 +102,14 @@ one trained from scratch (light gray line). Figure~\ref{fig:task2-full-ppo}.
 
 \subsection{The Effect of Better Belief Resolution From A Predictive Loss}
 
-The auxiliary cross entropy loss improved generalization on the second task
-but only after its enhanced effect on belief resolution materialized.
+The clearest observed transfer advantage of PPO+CE over PPO occurs at
+checkpoint B, where the task-1 belief-probe scores also differ substantially.
 
 Comparing figure~\ref{fig:task1-ppo} to figure~\ref{fig:task1-ppo-ce} shows
-that adding cross entropy accelerates belief resolution. Notice that the
-second highlighted checkpoint, B, has low belief resolution in the PPO-only
-run but is improved in the PPO+CE run.
+that belief decoding improves earlier with cross entropy in these runs.
+At checkpoint B, held-out probe $R^2$ is 0.556 for PPO and 0.890 for PPO+CE,
+at similar traning step counts.
 
-The effect translates in performance on the second task.
 Figure~\ref{fig:task2-full-ppo-vs-ce} compares the performance of PPO-only
 checkpoints to those from PPO+CE on the second task. Performance on the
 second task is the same for checkpoints A and C whether or not it was trained
