@@ -217,40 +217,73 @@ def test_module_transfer_copies_encoders_and_keeps_fresh_heads(
     for key in keys:
         np.testing.assert_array_equal(target.state[key], source_state[key])
     assert target.state["policy_head.weight"].shape == (3, 2)
-    assert {"ppo_iter4", "ppo_iter143", "sac_split_iter64"} <= set(SOURCE_CATALOG)
+    assert {
+        "ppo_iter4",
+        "ppo_iter143",
+        "ppo_iter8",
+        "ppo_ce_iter8",
+        "sac_split_iter64",
+    } <= set(SOURCE_CATALOG)
 
 
 def test_ppo_ce_campaign_has_expected_unique_grid():
-    assert LEAF_COSTS == (("ppo_c2", 2.0), ("ppo_c1", 1.0))
+    assert LEAF_COSTS == (
+        ("ppo_c2", 2.0),
+        ("ppo_c1p5", 1.5),
+        ("ppo_c1", 1.0),
+    )
     assert SOURCES == (
         "ppo_iter4",
         "ppo_iter143",
         "ppo_ce_iter4",
         "ppo_ce_iter211",
+        "ppo_iter8",
+        "ppo_ce_iter8",
     )
-    expected = {
-        (leaf, None, None, cost, 42)
-        for leaf, cost in (("ppo_c2", 2.0), ("ppo_c1", 1.0))
+    assert SOURCE_CATALOG["ppo_iter8"]["env_steps"] == 2_162_048
+    assert SOURCE_CATALOG["ppo_iter8"]["pretraining_objective"] == "ppo"
+    assert SOURCE_CATALOG["ppo_ce_iter8"] == {
+        "algorithm": "ppo",
+        "architecture": None,
+        "leaf": "experiments/pusher_b/rl_b10_aux_ce",
+        "run_id": "20260915T033547Z-913cef7f",
+        "env_steps": 2_275_840,
+        "probe_1_minus_r2": 0.1098,
+        "greedy_accuracy": 0.6375,
+        "training_iteration": 8,
+        "checkpoint_index": "log_spaced_checkpoints/index.json",
+        "pretraining_objective": "ppo+ntp_ce",
     }
-    expected.update(
-        (leaf, source, trunk, cost, 42)
-        for source in (
-            "ppo_iter4",
-            "ppo_iter143",
-            "ppo_ce_iter4",
-            "ppo_ce_iter211",
-        )
-        for trunk in ("full", "frozen")
-        for leaf, cost in (("ppo_c2", 2.0), ("ppo_c1", 1.0))
+    expected = [
+        (leaf, None, None, cost, 42)
+        for leaf, cost in LEAF_COSTS
+    ]
+    expected.extend(
+        (leaf, source, "full", cost, 42)
+        for source in SOURCES
+        for leaf, cost in LEAF_COSTS
+    )
+    expected.extend(
+        (leaf, source, "frozen", cost, 42)
+        for source in SOURCES
+        for leaf, cost in (("ppo_c2", 2.0),)
     )
     actual = {
         (run.leaf, run.source, run.trunk, run.cost, run.seed)
         for run in CAMPAIGN_RUNS
     }
-    assert len(CAMPAIGN_RUNS) == 18
-    assert len({run.run_name for run in CAMPAIGN_RUNS}) == 18
-    assert actual == expected
+    actual_order = [
+        (run.leaf, run.source, run.trunk, run.cost, run.seed)
+        for run in CAMPAIGN_RUNS
+    ]
+    assert len(CAMPAIGN_RUNS) == 27
+    assert len({run.run_name for run in CAMPAIGN_RUNS}) == 27
+    assert actual_order == expected
+    assert actual == set(expected)
     assert all(run.run_name for run in CAMPAIGN_RUNS)
+    from experiments.pusher_b10_guess_or_pass_2026_10.ppo import TOTAL_ENV_STEPS
+
+    assert TOTAL_ENV_STEPS == 10_000_000
 
 
 def test_auxiliary_ppo_source_transfers_only_encoder(monkeypatch, tmp_path):

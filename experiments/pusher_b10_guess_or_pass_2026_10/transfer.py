@@ -67,6 +67,13 @@ for label, iteration, steps, probe, checkpoint_index in (
         "log_spaced_checkpoints/index.json",
     ),
     (
+        "ppo_ce_iter8",
+        8,
+        2_275_840,
+        0.1098,
+        "log_spaced_checkpoints/index.json",
+    ),
+    (
         "ppo_ce_iter211",
         211,
         60_025_280,
@@ -81,7 +88,7 @@ for label, iteration, steps, probe, checkpoint_index in (
         "run_id": "20260915T033547Z-913cef7f",
         "env_steps": steps,
         "probe_1_minus_r2": probe,
-        "greedy_accuracy": 0.6375 if iteration == 4 else 0.6373,
+        "greedy_accuracy": 0.6373 if iteration == 211 else 0.6375,
         "training_iteration": iteration,
         "checkpoint_index": checkpoint_index,
         "pretraining_objective": "ppo+ntp_ce",

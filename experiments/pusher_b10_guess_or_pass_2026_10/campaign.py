@@ -10,8 +10,20 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 TRANSFER_MODULE = "experiments.pusher_b10_guess_or_pass_2026_10.transfer"
-LEAF_COSTS = (("ppo_c2", 2.0), ("ppo_c1", 1.0))
-SOURCES = ("ppo_iter4", "ppo_iter143", "ppo_ce_iter4", "ppo_ce_iter211")
+LEAF_COSTS = (
+    ("ppo_c2", 2.0),
+    ("ppo_c1p5", 1.5),
+    ("ppo_c1", 1.0),
+)
+FROZEN_LEAF_COSTS = (("ppo_c2", 2.0),)
+SOURCES = (
+    "ppo_iter4",
+    "ppo_iter143",
+    "ppo_ce_iter4",
+    "ppo_ce_iter211",
+    "ppo_iter8",
+    "ppo_ce_iter8",
+)
 
 
 @dataclass(frozen=True)
@@ -47,10 +59,14 @@ def _run_spec(
 CAMPAIGN_RUNS = (
     *(_run_spec(leaf, cost) for leaf, cost in LEAF_COSTS),
     *(
-        _run_spec(leaf, cost, source, trunk)
+        _run_spec(leaf, cost, source, "full")
         for source in SOURCES
-        for trunk in ("full", "frozen")
         for leaf, cost in LEAF_COSTS
+    ),
+    *(
+        _run_spec(leaf, cost, source, "frozen")
+        for source in SOURCES
+        for leaf, cost in FROZEN_LEAF_COSTS
     ),
 )
 

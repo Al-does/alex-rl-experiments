@@ -27,7 +27,7 @@ from .transfer import (
     verify_frozen_update,
 )
 
-TOTAL_ENV_STEPS = 20_000_000
+TOTAL_ENV_STEPS = 10_000_000
 SMOKE_ENV_STEPS = pusher_b_ppo.SMOKE_ENV_STEPS
 LEARNING_RATE = 5e-5
 ENTROPY_COEFF_SCHEDULE = ((0, 0.01), (6_000_000, 0.01), (8_000_000, 0.0))
