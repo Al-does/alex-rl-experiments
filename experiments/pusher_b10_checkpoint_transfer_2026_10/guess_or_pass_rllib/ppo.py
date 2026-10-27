@@ -18,7 +18,7 @@ from experiments.pusher_b.process import EPISODE_LENGTH
 from experiments.pusher_b.rl import PPOSettings
 from experiments.storage.training_curves import write_training_curves
 
-from .metrics import GuessOrPassMetricsCallback
+from .metrics import GuessOrPassMetricsCallback, TRAINING_CURVE_FIELDS
 from .process import ppo_environment_config
 from .transfer import (
     FrozenEncoderPPOTorchLearner,
@@ -205,7 +205,7 @@ def run_ppo(context: RunContext, *, cost: float) -> dict[str, object]:
     results = list(result_grid)
     if len(results) != 1 or results[0].error is not None:
         raise RuntimeError("guess-or-pass PPO training failed")
-    write_training_curves(context)
+    write_training_curves(context, extra_fields=TRAINING_CURVE_FIELDS)
     metrics = results[0].metrics
     summary = {
         "study": "pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib",

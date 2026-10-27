@@ -11,9 +11,14 @@ from envs.hmm import HMMEnv, TransitionEvent
 from harness.cli import load_experiment, make_run_context
 
 from experiments.pusher_b.process import EPISODE_LENGTH, pusher_b_model_b10
+from experiments.storage.training_curves import compact_training_curve_row
 from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.process import (
     ppo_environment_config,
     sac_environment_config,
+)
+from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.metrics import (
+    METRIC_NAMES,
+    TRAINING_CURVE_FIELDS,
 )
 from experiments.pusher_b10_checkpoint_transfer_2026_10.guess_or_pass_rllib.campaign import (
     LEAF_COSTS,
@@ -46,6 +51,22 @@ def test_task_reward_components(action, expected_reward, metric):
         "guess_wrong",
         "passed",
         "bayes_expected_reward",
+    }
+
+
+def test_training_curve_fields_project_all_guess_or_pass_metrics():
+    flattened = {
+        f"env_runners/guess_or_pass/{name}": index + 1
+        for index, name in enumerate(METRIC_NAMES)
+    }
+
+    row = compact_training_curve_row(
+        flattened,
+        extra_fields=TRAINING_CURVE_FIELDS,
+    )
+
+    assert {name: row[name] for name in METRIC_NAMES} == {
+        name: index + 1 for index, name in enumerate(METRIC_NAMES)
     }
 
 

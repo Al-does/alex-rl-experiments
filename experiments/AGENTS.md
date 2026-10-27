@@ -67,6 +67,12 @@ land in Git-tracked `results/`. See `experiments/storage/training_curves.py`.
 
 After `run_tune()`, call `write_training_curves(context)` from
 `experiments.storage.training_curves` to materialize compact curves.
+`training_curves.py` is shared by every study: its field table holds only
+generic RLlib metrics. To keep study-specific metrics (custom callback values),
+define a `CurveField` tuple in the study folder and pass
+`write_training_curves(context, extra_fields=...)`; never add study keys to the
+shared table. The same applies to everything under `experiments/storage/`:
+code there must not name a specific study, task or metric.
 
 ### Agent guide: what to read
 

@@ -4,11 +4,20 @@ from collections.abc import Mapping
 
 from ray.rllib.callbacks.callbacks import RLlibCallback
 
+from experiments.storage import CurveField
+
 METRIC_NAMES = (
     "guess_correct",
     "guess_wrong",
     "passed",
     "bayes_expected_reward",
+)
+TRAINING_CURVE_FIELDS: tuple[CurveField, ...] = tuple(
+    (
+        (f"env_runners/guess_or_pass/{name}", f"guess_or_pass/{name}"),
+        name,
+    )
+    for name in METRIC_NAMES
 )
 
 
