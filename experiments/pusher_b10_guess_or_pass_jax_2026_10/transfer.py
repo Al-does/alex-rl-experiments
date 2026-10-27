@@ -65,9 +65,8 @@ def _parity_check(module, trunk: dict, *, cost: float, seed: int) -> float:
         source_activations = module.encoder.forward_complete_episode(
             torch_observations
         )
-    jax_activations = tm.encode(
-        tm.ModelSpec(), trunk, model_tokens
-    )
+    with jax.default_matmul_precision("highest"):
+        jax_activations = tm.encode(tm.ModelSpec(), trunk, model_tokens)
     difference = np.max(
         np.abs(
             source_activations.detach().cpu().numpy()

@@ -30,4 +30,8 @@ uv run rl-harness experiments.pusher_b10_guess_or_pass_jax_2026_10.ppo_c2.experi
 Four CPU smoke runs (2,032 steps each) measured 2,663–3,919 active env
 steps/s. The full-trunk PPO transfer parity error was `3.10e-6`; the frozen
 PPO+NTP transfer error was `6.68e-6`, and both frozen-trunk/head-update checks
-passed. No GPU throughput was measured.
+passed. On a Vast RTX 4090 the scratch `c=2` run (10M env steps) measured
+187k active env steps/s (~54 s of training plus ~8 s compile). The parity
+check runs the JAX encoder at `jax.default_matmul_precision("highest")`;
+with the GPU default (TF32) the Torch/JAX difference is ~1.4e-3 and would
+trip the `1e-4` tolerance.
