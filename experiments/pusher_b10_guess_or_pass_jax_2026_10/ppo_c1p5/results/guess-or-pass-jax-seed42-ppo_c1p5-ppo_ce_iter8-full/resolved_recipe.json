@@ -1,0 +1,136 @@
+{
+  "action_semantics": "0/1 guess the pending token; 2 passes",
+  "cost": 1.5,
+  "framework": "jax",
+  "legacy_recipe": "experiments/pusher_b10_guess_or_pass_2026_10/ppo.py",
+  "model": {
+    "compute_dtype": "float32",
+    "context_length": 128,
+    "d_mlp": 512,
+    "d_model": 128,
+    "init_std": 0.02,
+    "n_heads": 4,
+    "n_layers": 4,
+    "norm_eps": 1e-05,
+    "rope_base": 10000.0,
+    "vocab": 3
+  },
+  "ppo": {
+    "aux_coeff": 1.0,
+    "clip_param": 0.2,
+    "entropy_schedule": [
+      [
+        0,
+        0.01
+      ],
+      [
+        6000000,
+        0.01
+      ],
+      [
+        8000000,
+        0.0
+      ]
+    ],
+    "gae_lambda": 0.0,
+    "gamma": 0.0,
+    "lr_schedule": [
+      [
+        0,
+        5e-05
+      ],
+      [
+        10000000,
+        5e-05
+      ]
+    ],
+    "minibatch_episodes": 64,
+    "next_token_aux": false,
+    "num_envs": 2048,
+    "num_epochs": 6,
+    "rollout_chunks": 1,
+    "total_env_steps": 10000000,
+    "vf_clip": 10.0,
+    "vf_coeff": 0.25
+  },
+  "pretraining_objective": "ppo+ntp_ce",
+  "reward": "1 for a correct guess, -cost for a wrong guess, 0 for pass",
+  "seed": 42,
+  "smoke": false,
+  "study": "pusher_b10_guess_or_pass_jax_2026_10",
+  "target_env_steps": 10000000,
+  "transfer": {
+    "checkpoint_path": "log_spaced_checkpoints/iteration_000008_steps_002275840",
+    "encoder_keys": [
+      "encoder.blocks.0.attention.output.bias",
+      "encoder.blocks.0.attention.output.weight",
+      "encoder.blocks.0.attention.qkv.bias",
+      "encoder.blocks.0.attention.qkv.weight",
+      "encoder.blocks.0.attention_norm.weight",
+      "encoder.blocks.0.mlp.gate.bias",
+      "encoder.blocks.0.mlp.gate.weight",
+      "encoder.blocks.0.mlp.output.bias",
+      "encoder.blocks.0.mlp.output.weight",
+      "encoder.blocks.0.mlp.value.bias",
+      "encoder.blocks.0.mlp.value.weight",
+      "encoder.blocks.0.mlp_norm.weight",
+      "encoder.blocks.1.attention.output.bias",
+      "encoder.blocks.1.attention.output.weight",
+      "encoder.blocks.1.attention.qkv.bias",
+      "encoder.blocks.1.attention.qkv.weight",
+      "encoder.blocks.1.attention_norm.weight",
+      "encoder.blocks.1.mlp.gate.bias",
+      "encoder.blocks.1.mlp.gate.weight",
+      "encoder.blocks.1.mlp.output.bias",
+      "encoder.blocks.1.mlp.output.weight",
+      "encoder.blocks.1.mlp.value.bias",
+      "encoder.blocks.1.mlp.value.weight",
+      "encoder.blocks.1.mlp_norm.weight",
+      "encoder.blocks.2.attention.output.bias",
+      "encoder.blocks.2.attention.output.weight",
+      "encoder.blocks.2.attention.qkv.bias",
+      "encoder.blocks.2.attention.qkv.weight",
+      "encoder.blocks.2.attention_norm.weight",
+      "encoder.blocks.2.mlp.gate.bias",
+      "encoder.blocks.2.mlp.gate.weight",
+      "encoder.blocks.2.mlp.output.bias",
+      "encoder.blocks.2.mlp.output.weight",
+      "encoder.blocks.2.mlp.value.bias",
+      "encoder.blocks.2.mlp.value.weight",
+      "encoder.blocks.2.mlp_norm.weight",
+      "encoder.blocks.3.attention.output.bias",
+      "encoder.blocks.3.attention.output.weight",
+      "encoder.blocks.3.attention.qkv.bias",
+      "encoder.blocks.3.attention.qkv.weight",
+      "encoder.blocks.3.attention_norm.weight",
+      "encoder.blocks.3.mlp.gate.bias",
+      "encoder.blocks.3.mlp.gate.weight",
+      "encoder.blocks.3.mlp.output.bias",
+      "encoder.blocks.3.mlp.output.weight",
+      "encoder.blocks.3.mlp.value.bias",
+      "encoder.blocks.3.mlp.value.weight",
+      "encoder.blocks.3.mlp_norm.weight",
+      "encoder.bos_embedding",
+      "encoder.final_norm.weight",
+      "encoder.input_embedding.weight"
+    ],
+    "encoder_parity_max_abs_diff": 3.509223461151123e-06,
+    "fresh_heads_changed_after_update": null,
+    "frozen_encoder_update_verified": null,
+    "ignored_source_keys": [
+      "heads.policy.bias",
+      "heads.policy.weight",
+      "heads.value.bias",
+      "heads.value.weight",
+      "next_token_aux_head.bias",
+      "next_token_aux_head.weight"
+    ],
+    "pretraining_objective": "ppo+ntp_ce",
+    "run_id": "20260915T033547Z-913cef7f",
+    "source": "ppo_ce_iter8",
+    "source_env_steps": 2275840,
+    "source_module_directory": "/root/work/alex-rl-experiments/experiments/pusher_b10_guess_or_pass_jax_2026_10/artifacts/sources/ppo_ce_iter8/log_spaced_checkpoints/iteration_000008_steps_002275840/learner_group/learner/rl_module/default_policy",
+    "source_probe_1_minus_r2": 0.1098,
+    "trunk_mode": "full"
+  }
+}
