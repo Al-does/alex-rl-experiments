@@ -1,6 +1,7 @@
 """Experiment-owned storage conventions (Git vs B2, compact vs verbose)."""
 
 from experiments.storage.training_curves import (
+    CurveField,
     TRAINING_CURVES_FILENAME,
     VERBOSE_METRICS_FILENAME,
     compact_training_curve_row,
@@ -9,6 +10,7 @@ from experiments.storage.training_curves import (
 )
 
 __all__ = [
+    "CurveField",
     "TRAINING_CURVES_FILENAME",
     "VERBOSE_METRICS_FILENAME",
     "compact_training_curve_row",

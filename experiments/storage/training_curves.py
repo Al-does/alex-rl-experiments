@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -13,37 +13,16 @@ from harness.context import RunContext
 TRAINING_CURVES_FILENAME = "training_curves.jsonl"
 VERBOSE_METRICS_FILENAME = "progress.jsonl"
 
-_COMPACT_FIELD_SOURCES: tuple[tuple[str, ...], str] = (
+CurveField = tuple[tuple[str, ...], str]
+
+# These are generic RLlib fields shared by every study. Study-specific metrics
+# go through extra_fields, with their mapping defined in the study's own folder.
+_COMPACT_FIELD_SOURCES: tuple[CurveField, ...] = (
     (("training_iteration",), "iteration"),
     (("num_env_steps_sampled_lifetime", "timesteps_total"), "steps"),
     (("env_runners/episode_return_mean", "episode_return_mean"), "return_mean"),
     (("env_runners/episode_return_min", "episode_return_min"), "return_min"),
     (("env_runners/episode_return_max", "episode_return_max"), "return_max"),
-    (
-        (
-            "env_runners/guess_or_pass/guess_correct",
-            "guess_or_pass/guess_correct",
-        ),
-        "guess_correct",
-    ),
-    (
-        (
-            "env_runners/guess_or_pass/guess_wrong",
-            "guess_or_pass/guess_wrong",
-        ),
-        "guess_wrong",
-    ),
-    (
-        ("env_runners/guess_or_pass/passed", "guess_or_pass/passed"),
-        "passed",
-    ),
-    (
-        (
-            "env_runners/guess_or_pass/bayes_expected_reward",
-            "guess_or_pass/bayes_expected_reward",
-        ),
-        "bayes_expected_reward",
-    ),
     (("learners/default_policy/entropy", "entropy"), "entropy"),
     (("learners/default_policy/curr_entropy_coeff", "entropy_coeff"), "entropy_coeff"),
     (("learners/default_policy/policy_loss", "policy_loss"), "policy_loss"),
@@ -61,10 +40,20 @@ _COMPACT_FIELD_SOURCES: tuple[tuple[str, ...], str] = (
 )
 
 
-def compact_training_curve_row(flattened: Mapping[str, Any]) -> dict[str, Any]:
-    """Project one flattened metrics row into a short, agent-safe curve record."""
-    row: dict[str, Any] = {}
-    for sources, target in _COMPACT_FIELD_SOURCES:
+def _validate_extra_fields(extra_fields: Sequence[CurveField]) -> None:
+    targets = {target for _, target in _COMPACT_FIELD_SOURCES}
+    for _, target in extra_fields:
+        if target in targets:
+            raise ValueError(f"duplicate compact training-curve target: {target}")
+        targets.add(target)
+
+
+def _project_fields(
+    flattened: Mapping[str, Any],
+    row: dict[str, Any],
+    fields: Sequence[CurveField],
+) -> None:
+    for sources, target in fields:
         for key in sources:
             if key not in flattened:
                 continue
@@ -73,6 +62,17 @@ def compact_training_curve_row(flattened: Mapping[str, Any]) -> dict[str, Any]:
                 continue
             row[target] = value
             break
+
+
+def compact_training_curve_row(
+    flattened: Mapping[str, Any],
+    extra_fields: Sequence[CurveField] = (),
+) -> dict[str, Any]:
+    """Project one flattened metrics row into a short, agent-safe curve record."""
+    _validate_extra_fields(extra_fields)
+    row: dict[str, Any] = {}
+    _project_fields(flattened, row, _COMPACT_FIELD_SOURCES)
+    _project_fields(flattened, row, extra_fields)
     return row
 
 
@@ -103,8 +103,13 @@ def _verbose_metric_sources(artifacts: RunArtifacts) -> list[Path]:
     ]
 
 
-def write_training_curves(context: RunContext | RunArtifacts) -> Path | None:
+def write_training_curves(
+    context: RunContext | RunArtifacts,
+    *,
+    extra_fields: Sequence[CurveField] = (),
+) -> Path | None:
     """Materialize compact Git-tracked curves from verbose artifact metrics."""
+    _validate_extra_fields(extra_fields)
     artifacts = (
         RunArtifacts.from_context(context)
         if isinstance(context, RunContext)
@@ -124,7 +129,10 @@ def write_training_curves(context: RunContext | RunArtifacts) -> Path | None:
     for raw in source.read_text().splitlines():
         if not raw.strip():
             continue
-        row = compact_training_curve_row(json.loads(raw))
+        flattened = json.loads(raw)
+        row: dict[str, Any] = {}
+        _project_fields(flattened, row, _COMPACT_FIELD_SOURCES)
+        _project_fields(flattened, row, extra_fields)
         if row:
             lines.append(json.dumps(row, sort_keys=True))
     curves_path.write_text("\n".join(lines) + ("\n" if lines else ""))

@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.13"
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'win32'",
@@ -2330,13 +2330,14 @@ storage = [
 [package.metadata]
 requires-dist = [
     { name = "boto3", marker = "extra == 'storage'", specifier = ">=1.35" },
+    { name = "jax", marker = "extra == 'jax'", specifier = ">=0.4.30" },
     { name = "matplotlib", specifier = ">=3.9" },
     { name = "plotly", marker = "extra == 'visualization'", specifier = "==6.3.0" },
     { name = "ray", extras = ["rllib"], specifier = "==2.56.0" },
     { name = "scipy", specifier = ">=1.18.0" },
     { name = "torch", specifier = ">=2.9,<3" },
 ]
-provides-extras = ["storage", "visualization"]
+provides-extras = ["storage", "visualization", "jax"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=9.1.1" }]
