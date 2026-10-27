@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import shlex
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,7 +16,6 @@ LEAF_COSTS = (
     ("ppo_c1p5", 1.5),
     ("ppo_c1", 1.0),
 )
-FROZEN_LEAF_COSTS = (("ppo_c2", 2.0),)
 SOURCES = (
     "ppo_iter4",
     "ppo_iter143",
@@ -56,19 +56,30 @@ def _run_spec(
     )
 
 
-CAMPAIGN_RUNS = (
-    *(_run_spec(leaf, cost) for leaf, cost in LEAF_COSTS),
-    *(
-        _run_spec(leaf, cost, source, "full")
-        for source in SOURCES
-        for leaf, cost in LEAF_COSTS
-    ),
-    *(
-        _run_spec(leaf, cost, source, "frozen")
-        for source in SOURCES
-        for leaf, cost in FROZEN_LEAF_COSTS
-    ),
-)
+def campaign_runs(frozen_cost: float = 2.0) -> tuple[RunSpec, ...]:
+    frozen_leaf_cost = next(
+        (
+            (leaf, cost)
+            for leaf, cost in LEAF_COSTS
+            if cost == frozen_cost
+        ),
+        None,
+    )
+    if frozen_leaf_cost is None:
+        raise ValueError(f"unsupported frozen cost: {frozen_cost}")
+    frozen_leaf, frozen_cost = frozen_leaf_cost
+    return (
+        *(_run_spec(leaf, cost) for leaf, cost in LEAF_COSTS),
+        *(
+            _run_spec(leaf, cost, source, "full")
+            for source in SOURCES
+            for leaf, cost in LEAF_COSTS
+        ),
+        *(
+            _run_spec(frozen_leaf, frozen_cost, source, "frozen")
+            for source in SOURCES
+        ),
+    )
 
 
 def _command(
@@ -83,12 +94,10 @@ def _command(
         f"{spec.leaf}.experiment"
     )
     if spec.source is None:
-        command = ["uv", "run", "rl-harness", module]
+        command = [sys.executable, "-m", "harness.cli", module]
     else:
         command = [
-            "uv",
-            "run",
-            "python",
+            sys.executable,
             "-m",
             TRANSFER_MODULE,
             spec.leaf,
@@ -120,7 +129,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--list", action="store_true")
-    action.add_argument("--run-index", type=int, metavar="N")
+    action.add_argument("--run-index", type=int, nargs="+", metavar="N")
+    parser.add_argument(
+        "--frozen-cost",
+        type=float,
+        default=2.0,
+        choices=(2.0, 1.5, 1.0),
+    )
     parser.add_argument("--hardware-profile", "--hardware", default="auto")
     parser.add_argument(
         "--upload-artifacts",
@@ -134,6 +149,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    runs = campaign_runs(args.frozen_cost)
     commands = [
         _command(
             spec,
@@ -141,16 +157,31 @@ def main(argv: list[str] | None = None) -> int:
             upload_artifacts=args.upload_artifacts,
             smoke=args.smoke,
         )
-        for spec in CAMPAIGN_RUNS
+        for spec in runs
     ]
     if args.list:
         for command in commands:
-            print(shlex.join(command))
+            print(shlex.join(["python", *command[1:]]))
         return 0
-    if args.run_index < 0 or args.run_index >= len(commands):
-        parser.error(f"--run-index must be between 0 and {len(commands) - 1}")
-    result = subprocess.run(commands[args.run_index], cwd=ROOT, check=False)
-    return result.returncode
+    invalid_indices = [
+        index
+        for index in args.run_index
+        if index < 0 or index >= len(commands)
+    ]
+    if invalid_indices:
+        parser.error(
+            f"--run-index values must be between 0 and {len(commands) - 1}; "
+            f"invalid: {', '.join(map(str, invalid_indices))}"
+        )
+    exit_codes = []
+    for index in args.run_index:
+        result = subprocess.run(commands[index], cwd=ROOT, check=False)
+        exit_codes.append((index, result.returncode))
+    print(
+        "Campaign exit codes: "
+        + ", ".join(f"{index}={code}" for index, code in exit_codes)
+    )
+    return 0 if all(code == 0 for _, code in exit_codes) else 1
 
 
 if __name__ == "__main__":

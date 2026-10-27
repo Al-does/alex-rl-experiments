@@ -65,12 +65,16 @@ Print all 27 launch commands:
 uv run python -m experiments.pusher_b10_guess_or_pass_2026_10.campaign --list
 ```
 
-Run one zero-based entry, for example (index 26 is `ppo_ce_iter8`, frozen,
-`ppo_c2`):
+The frozen phase can select its cost at launch time. For example, list the
+phase-2 commands with frozen `c=1.5`, then queue all six frozen runs in order:
 
 ```bash
-uv run python -m experiments.pusher_b10_guess_or_pass_2026_10.campaign --run-index 26 --smoke --hardware cpu --no-upload-artifacts
+python -m experiments.pusher_b10_guess_or_pass_2026_10.campaign --list --frozen-cost 1.5
+python -m experiments.pusher_b10_guess_or_pass_2026_10.campaign --run-index 21 22 23 24 25 26 --frozen-cost 1.5
 ```
+
+`--frozen-cost` accepts `2`, `1.5`, or `1`; `--run-index` accepts multiple
+indices and executes them sequentially, continuing after a failed run.
 
 This is a single-seed campaign. The late PPO+CE source has about 60M
 pretraining steps versus 116M for late PPO, so its comparison also has a

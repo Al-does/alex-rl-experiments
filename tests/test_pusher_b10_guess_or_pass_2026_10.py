@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 from types import SimpleNamespace
 
 import numpy as np
@@ -14,9 +16,10 @@ from experiments.pusher_b10_guess_or_pass_2026_10.process import (
     sac_environment_config,
 )
 from experiments.pusher_b10_guess_or_pass_2026_10.campaign import (
-    CAMPAIGN_RUNS,
     LEAF_COSTS,
     SOURCES,
+    campaign_runs,
+    main as campaign_main,
 )
 from experiments.pusher_b10_guess_or_pass_2026_10.task import GuessOrPassTask
 from experiments.pusher_b10_guess_or_pass_2026_10.transfer import (
@@ -268,22 +271,88 @@ def test_ppo_ce_campaign_has_expected_unique_grid():
         for source in SOURCES
         for leaf, cost in (("ppo_c2", 2.0),)
     )
+    runs = campaign_runs()
     actual = {
         (run.leaf, run.source, run.trunk, run.cost, run.seed)
-        for run in CAMPAIGN_RUNS
+        for run in runs
     }
     actual_order = [
         (run.leaf, run.source, run.trunk, run.cost, run.seed)
-        for run in CAMPAIGN_RUNS
+        for run in runs
     ]
-    assert len(CAMPAIGN_RUNS) == 27
-    assert len({run.run_name for run in CAMPAIGN_RUNS}) == 27
+    assert len(runs) == 27
+    assert len({run.run_name for run in runs}) == 27
     assert actual_order == expected
     assert actual == set(expected)
-    assert all(run.run_name for run in CAMPAIGN_RUNS)
+    assert all(run.run_name for run in runs)
     from experiments.pusher_b10_guess_or_pass_2026_10.ppo import TOTAL_ENV_STEPS
 
     assert TOTAL_ENV_STEPS == 10_000_000
+
+
+def test_campaign_runs_select_frozen_cost_at_launch_time():
+    default_runs = campaign_runs()
+    alternate_runs = campaign_runs(1.5)
+
+    assert alternate_runs[:21] == default_runs[:21]
+    assert all(
+        run.leaf == "ppo_c1p5" and run.cost == 1.5
+        for run in alternate_runs[21:]
+    )
+    assert [run.source for run in alternate_runs[21:]] == list(SOURCES)
+    assert [run.trunk for run in alternate_runs[21:]] == ["frozen"] * 6
+    assert len({run.run_name for run in alternate_runs}) == 27
+    assert [run.run_name for run in alternate_runs[21:]] == [
+        run.run_name.replace("-ppo_c2-", "-ppo_c1p5-")
+        for run in default_runs[21:]
+    ]
+
+
+def test_campaign_runs_reject_unsupported_frozen_cost():
+    with pytest.raises(ValueError, match="unsupported frozen cost"):
+        campaign_runs(3.0)
+
+
+def test_campaign_run_indices_use_python_and_continue_after_failure(
+    monkeypatch,
+    capsys,
+):
+    calls = []
+    exit_codes = iter((1, 0))
+
+    def fake_run(command, *, cwd, check):
+        calls.append((command, cwd, check))
+        return SimpleNamespace(returncode=next(exit_codes))
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    result = campaign_main(["--run-index", "0", "5", "--smoke"])
+
+    assert result == 1
+    assert len(calls) == 2
+    assert [call[0][0] for call in calls] == [sys.executable, sys.executable]
+    assert all("uv" not in call[0] for call in calls)
+    assert calls[0][0][1:4] == [
+        "-m",
+        "harness.cli",
+        "experiments.pusher_b10_guess_or_pass_2026_10.ppo_c2.experiment",
+    ]
+    assert calls[1][0][1:4] == [
+        "-m",
+        "experiments.pusher_b10_guess_or_pass_2026_10.transfer",
+        "ppo_c1",
+    ]
+    assert all("--smoke" in call[0] for call in calls)
+    assert capsys.readouterr().out == "Campaign exit codes: 0=1, 5=0\n"
+
+
+def test_campaign_rejects_out_of_range_indices_before_launch(monkeypatch):
+    def fail_if_run(*args, **kwargs):
+        raise AssertionError("campaign launched before validating every index")
+
+    monkeypatch.setattr(subprocess, "run", fail_if_run)
+    with pytest.raises(SystemExit) as error:
+        campaign_main(["--run-index", "0", "27"])
+    assert error.value.code == 2
 
 
 def test_auxiliary_ppo_source_transfers_only_encoder(monkeypatch, tmp_path):
