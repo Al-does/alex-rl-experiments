@@ -1,0 +1,63 @@
+{
+  "action_semantics": "0/1 guess the pending token; 2 passes",
+  "cost": 1.5,
+  "framework": "jax",
+  "legacy_recipe": "experiments/pusher_b10_guess_or_pass_2026_10/ppo.py",
+  "model": {
+    "compute_dtype": "float32",
+    "context_length": 128,
+    "d_mlp": 512,
+    "d_model": 128,
+    "init_std": 0.02,
+    "n_heads": 4,
+    "n_layers": 4,
+    "norm_eps": 1e-05,
+    "rope_base": 10000.0,
+    "vocab": 3
+  },
+  "ppo": {
+    "aux_coeff": 1.0,
+    "clip_param": 0.2,
+    "entropy_schedule": [
+      [
+        0,
+        0.01
+      ],
+      [
+        6000000,
+        0.01
+      ],
+      [
+        8000000,
+        0.0
+      ]
+    ],
+    "gae_lambda": 0.0,
+    "gamma": 0.0,
+    "lr_schedule": [
+      [
+        0,
+        5e-05
+      ],
+      [
+        10000000,
+        5e-05
+      ]
+    ],
+    "minibatch_episodes": 64,
+    "next_token_aux": false,
+    "num_envs": 2048,
+    "num_epochs": 6,
+    "rollout_chunks": 1,
+    "total_env_steps": 10000000,
+    "vf_clip": 10.0,
+    "vf_coeff": 0.25
+  },
+  "pretraining_objective": "scratch",
+  "reward": "1 for a correct guess, -cost for a wrong guess, 0 for pass",
+  "seed": 42,
+  "smoke": false,
+  "study": "pusher_b10_guess_or_pass_jax_2026_10",
+  "target_env_steps": 10000000,
+  "transfer": null
+}
