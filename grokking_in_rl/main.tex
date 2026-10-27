@@ -1,0 +1,124 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{subcaption}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{figures/}}
+
+\title{Grokking in RL:\\ transfer of Pusher-B PPO checkpoints to guess-or-pass}
+\author{Alex Vardakostas}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Setup}
+
+Pusher-B (b10) transformer trunks are taken from two pretraining runs on the
+pure-reward task: PPO (\texttt{rl\_b10}, checkpoints at iterations 4, 8 and
+143) and PPO with a next-token cross-entropy auxiliary loss (PPO+CE,
+\texttt{rl\_b10\_aux\_ce}, checkpoints at iterations 4, 8 and 211). Each
+checkpoint is converted into a pure-JAX trunk and fine-tuned with PPO on the
+guess-or-pass task: actions 0/1 guess the pending token (reward $+1$ if
+correct, $-c$ otherwise) and action 2 passes (reward $0$). Every run uses
+seed 42 and 10M env steps. The trunk is either fine-tuned together with the
+new heads (\emph{full trunk}) or frozen so that only the heads train
+(\emph{frozen trunk}); a scratch run with a randomly initialised trunk is
+the reference. Costs $c\in\{1, 1.5, 2\}$ were run with a full trunk; at
+$c=1$ and $c=1.5$ every source and the scratch run reach the Bayes-optimal
+reward, so the frozen-trunk phase and all figures below use $c=2$, the only
+rung that separates trunks. Results and the plotting script live in
+\texttt{experiments/pusher\_b10\_guess\_or\_pass\_jax\_2026\_10}.
+
+\section{Results at $c=2$}
+
+Table~\ref{tab:c2} gives the reward per step at 10M steps;
+Figures~\ref{fig:ppo} and~\ref{fig:ce} show the training curves.
+
+\begin{table}[h]
+  \centering
+  \caption{Reward per step at 10M env steps, seed 42. Bayes optimal: $0.082$
+  at $c=2$, $0.149$ at $c=1.5$, $0.275$ at $c=1$.}
+  \label{tab:c2}
+  \begin{tabular}{lcccc}
+    \toprule
+    source & $c=2$ full & $c=2$ frozen & $c=1.5$ full & $c=1$ full \\
+    \midrule
+    scratch        & 0.002 & --    & 0.145 & 0.276 \\
+    PPO iter 4     & 0.020 & 0.000 & 0.145 & 0.276 \\
+    PPO iter 8     & 0.039 & 0.000 & 0.146 & 0.276 \\
+    PPO iter 143   & 0.076 & 0.050 & 0.147 & 0.276 \\
+    PPO+CE iter 4  & 0.002 & 0.000 & 0.138 & 0.276 \\
+    PPO+CE iter 8  & 0.075 & 0.000 & 0.143 & 0.276 \\
+    PPO+CE iter 211 & 0.077 & 0.065 & 0.146 & 0.276 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[p]
+  \centering
+  \begin{subfigure}{\textwidth}
+    \centering
+    \includegraphics[width=0.9\textwidth]{c2_ppo_checkpoints_full}
+    \caption{Full trunk (encoder fine-tuned).}
+    \label{fig:ppo-full}
+  \end{subfigure}
+  \begin{subfigure}{\textwidth}
+    \centering
+    \includegraphics[width=0.9\textwidth]{c2_ppo_checkpoints_frozen}
+    \caption{Frozen trunk (heads only).}
+    \label{fig:ppo-frozen}
+  \end{subfigure}
+  \caption{PPO checkpoints transferred to guess-or-pass at $c=2$. Scratch
+  and the iteration-4 trunk collapse to always-pass; only the late
+  checkpoint (iteration 143) supports a useful head when the trunk is
+  frozen.}
+  \label{fig:ppo}
+\end{figure}
+
+\begin{figure}[p]
+  \centering
+  \begin{subfigure}{\textwidth}
+    \centering
+    \includegraphics[width=0.9\textwidth]{c2_ppo_vs_ppo_ce_full}
+    \caption{Full trunk (encoder fine-tuned).}
+    \label{fig:ce-full}
+  \end{subfigure}
+  \begin{subfigure}{\textwidth}
+    \centering
+    \includegraphics[width=0.9\textwidth]{c2_ppo_vs_ppo_ce_frozen}
+    \caption{Frozen trunk (heads only).}
+    \label{fig:ce-frozen}
+  \end{subfigure}
+  \caption{PPO (solid) versus PPO+CE (dashed) checkpoints at $c=2$. With a
+  trainable trunk, PPO+CE iteration 8 already reaches $\sim$93\% of Bayes
+  (0.075 vs.\ 0.039 for PPO iteration 8). With the trunk frozen that
+  advantage disappears (PPO+CE iteration 8 returns to 0), while the late
+  PPO+CE checkpoint (0.065) beats late PPO (0.050) and lifts off about 1M
+  steps earlier.}
+  \label{fig:ce}
+\end{figure}
+
+\section{Observations}
+
+\begin{itemize}
+  \item At $c=2$ the scratch run and both iteration-4 trunks collapse to
+    always-pass (pass rate $\approx 0.99$). PPO iteration 143, PPO+CE
+    iteration 8 and PPO+CE iteration 211 reach roughly 93\% of the Bayes
+    reward with a trainable trunk.
+  \item The clearest CE effect is at iteration 8 (0.075 vs.\ 0.039), but it
+    is a fine-tunability effect: with the trunk frozen, PPO+CE iteration 8
+    falls back to 0, so the representation is not linearly readable by a
+    fresh head at that point.
+  \item Frozen-trunk transfer works only from the late checkpoints, and
+    there PPO+CE (0.065) is ahead of PPO (0.050).
+\end{itemize}
+
+\paragraph{Caveats.} Single seed (42); the late PPO+CE checkpoint had
+$\sim$60M pretraining steps versus $\sim$116M for late PPO.
+
+\end{document}
