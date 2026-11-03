@@ -25,9 +25,17 @@ this policy and this intervention distribution.
 The resampling changed 49.80% of A/B tokens. Across all 65,536 decisions,
 neither the closed-loop actions nor shadow-trajectory greedy actions differed.
 The shadow action distributions were slightly different (mean total variation
-0.001417), so the result establishes greedy-action invariance in these
-rollouts rather than exact invariance of the policy probabilities. It does
-not establish the same result for sampling from the trained policy.
+0.001417 over all decisions; 0.002919 on the 21,831 flipped A/B inputs), so
+the result establishes greedy-action invariance in these rollouts rather than
+exact invariance of the policy probabilities. It does not establish the same
+result for sampling from the trained policy.
+
+The JSON was regenerated with the current script, which adds the flipped-input
+summaries. All counts, actions and rewards are identical to the first run;
+total-variation sums differ only at the 1e-7 level (CPU float32).
+
+The Full-State Quotient positive control, under the identical intervention,
+is in `../../variant_3_ctx32_ent/results/ab_token_intervention_seed42.md`.
 
 ## Reproduce locally
 

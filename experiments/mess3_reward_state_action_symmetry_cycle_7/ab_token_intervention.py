@@ -1,10 +1,11 @@
-"""Evaluate a trained Reward-State Quotient policy with randomized A/B inputs."""
+"""Evaluate a trained Belief-Quotient Ladder policy with randomized A/B inputs."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 
 import numpy as np
@@ -18,6 +19,8 @@ from experiments.mess3_reward_state_action_symmetry_cycle_7.shared import (
 )
 from harness.seeding import child_seed_sequence, seed_sequence_to_int
 from learners.models.transformer import TransformerModel
+
+CONDITIONS = {2: "Reward-State Quotient", 3: "Full-State Quotient"}
 
 
 def randomize_ab(observation: np.ndarray, replacement: int) -> np.ndarray:
@@ -45,11 +48,14 @@ def evaluate(
     episodes: int,
     batch_size: int,
     seed: int,
+    variant: int = 2,
     identity_control: bool = False,
 ) -> dict[str, object]:
     if episodes <= 0 or batch_size <= 0:
         raise ValueError("episodes and batch_size must be positive")
-    config = environment_config(2)
+    if variant not in CONDITIONS:
+        raise ValueError(f"variant must be one of {sorted(CONDITIONS)}")
+    config = environment_config(variant)
     config["randomize_first_episode_length"] = False
     horizon = int(config["episode_length"])
     module.eval().to("cpu")
@@ -78,7 +84,9 @@ def evaluate(
                 "shadow_disagreements": 0,
                 "shadow_disagreements_ab": 0,
                 "shadow_disagreements_c": 0,
+                "shadow_disagreements_flipped": 0,
                 "shadow_total_variation": 0.0,
+                "shadow_total_variation_flipped": 0.0,
             }
             for index in indices
         ]
@@ -128,13 +136,20 @@ def evaluate(
                 next_observations = []
                 for i, (pair, record) in enumerate(zip(pairs, episode_records)):
                     original_token = int(baseline_batch[i, :3].argmax())
+                    flipped = (
+                        original_token != 2
+                        and not identity_control
+                        and shadow_batch[i, :3].argmax() != original_token
+                    )
                     if original_token != 2:
                         record["ab_tokens"] += 1
-                        record["changed_ab_tokens"] += int(
-                            not identity_control
-                            and shadow_batch[i, :3].argmax() != original_token
-                        )
+                        record["changed_ab_tokens"] += int(flipped)
                     mismatch = int(actions[i] != actions[2 * count + i])
+                    if flipped:
+                        record["shadow_disagreements_flipped"] += mismatch
+                        record["shadow_total_variation_flipped"] += float(
+                            variation[i]
+                        )
                     record["shadow_disagreements"] += mismatch
                     record[
                         "shadow_disagreements_c"
@@ -179,9 +194,11 @@ def evaluate(
         [row["intervention_actions"] for row in records]
     ).sum(axis=0)
     ab_count = sum(row["ab_tokens"] for row in records)
+    flipped_count = sum(row["changed_ab_tokens"] for row in records)
     return {
         "protocol": {
-            "condition": "Reward-State Quotient",
+            "condition": CONDITIONS[variant],
+            "variant": variant,
             "policy": "greedy",
             "intervention": (
                 "identity control" if identity_control
@@ -225,6 +242,18 @@ def evaluate(
                 sum(row["shadow_total_variation"] for row in records)
                 / (episodes * horizon)
             ),
+            "shadow_greedy_disagreement_fraction_on_flipped_ab": (
+                sum(row["shadow_disagreements_flipped"] for row in records)
+                / flipped_count
+                if flipped_count
+                else None
+            ),
+            "shadow_mean_total_variation_on_flipped_ab": (
+                sum(row["shadow_total_variation_flipped"] for row in records)
+                / flipped_count
+                if flipped_count
+                else None
+            ),
         },
         "episodes": records,
     }
@@ -248,17 +277,27 @@ def main() -> None:
     if not isinstance(module, TransformerModel):
         raise TypeError("checkpoint must contain a TransformerModel")
     manifest = json.loads(args.run_manifest.read_text())
-    if manifest["runtime"]["seed"] != 42 or "variant_2_ctx32_ent" not in manifest["run_id"]:
-        raise ValueError("manifest must describe Reward-State Quotient seed 42")
+    match = re.search(r"-variant_(\d)_ctx32_ent-seed(\d+)-", manifest["run_id"])
+    if (
+        match is None
+        or int(match.group(1)) not in CONDITIONS
+        or int(match.group(2)) != manifest["runtime"]["seed"]
+    ):
+        raise ValueError(
+            "manifest must describe a Reward-State or Full-State Quotient run"
+        )
+    variant = int(match.group(1))
     report = evaluate(
         module,
         episodes=args.episodes,
         batch_size=args.batch_size,
         seed=args.seed,
+        variant=variant,
         identity_control=args.identity_control,
     )
     report["provenance"] = {
         "training_run_id": manifest["run_id"],
+        "training_seed": manifest["runtime"]["seed"],
         "training_source_commit": manifest["git"]["experiment_repository"]["commit"],
         "training_library_commit": manifest["git"]["library"]["commit"],
         "run_manifest_sha256": _sha256(args.run_manifest),
