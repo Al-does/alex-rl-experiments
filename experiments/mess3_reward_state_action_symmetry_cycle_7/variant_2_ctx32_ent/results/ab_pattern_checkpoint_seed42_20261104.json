@@ -1,0 +1,578 @@
+{
+  "protocol": {
+    "condition": "Reward-State Quotient; training seed 42",
+    "seed": 20261104,
+    "episodes": 64,
+    "episode_length": 1024,
+    "warmup": 128,
+    "histories": "fresh final-policy greedy trajectories; same inputs and fixed executed actions for all model copies",
+    "matched_endings": "AA, AB, BA, BB replace the last two symbols only when both baseline symbols were A/B; shared prefix and actions",
+    "pattern_contrast": "(AB + BA - AA - BB) / 2; positive Noop-minus-Tilt-X contrast predicted from finer reward evidence",
+    "label_contrasts": "balanced current-label and previous-label contrasts reported separately",
+    "embeddings": "swap or average columns 0 and 1 of encoder.input_projection.weight in independent model copies; restart all caches",
+    "checkpoint_selection": "immediately preceding durable checkpoint, not preceding log-spaced probe checkpoint",
+    "bootstrap": "2000 paired episode resamples; sample-weighted means; fixed comparisons without fitted probes",
+    "limitations": "one seed; frozen final-policy histories are off-policy for altered/earlier models; forced suffixes may be uncommon; probabilities are not reward estimates; no long-horizon optimality claim"
+  },
+  "provenance": {
+    "training_run_id": "mess3_reward_state_action_symmetry_cycle_6-variant_2_ctx32_ent-seed42-10m",
+    "training_revisions": {
+      "commit": "bfee0dbd72176a164576dc485984c853ee323eb4",
+      "dirty": false,
+      "experiment_repository": {
+        "commit": "bfee0dbd72176a164576dc485984c853ee323eb4",
+        "dirty": false,
+        "root": "/root/work/alex-rl-experiments"
+      },
+      "library": {
+        "commit": "a0f669e4930c886edff276808c478314e4071044",
+        "dirty": false,
+        "package": "rl-harness",
+        "root": "/root/work/rl-harness",
+        "version": "0.1.0"
+      }
+    },
+    "analysis_revisions": {
+      "experiment": {
+        "commit": "b6b72776623a3dd204f6d5996f321559d3be96a6",
+        "dirty": true
+      },
+      "library": {
+        "commit": "9e1bff5516684ac64943bbbf59c00f0510057c95",
+        "dirty": false
+      }
+    },
+    "final": {
+      "checkpoint": "checkpoint_000025",
+      "agent_steps": 10192528,
+      "sha256": "6ff2b60203e298c7967cd16e2a0ad5676fbc22c288e02e2515a38a06a635cc5b"
+    },
+    "previous": {
+      "manifest_key": "experiments/mess3_reward_state_action_symmetry_cycle_6/variant_2_ctx32_ent/mess3_reward_state_action_symmetry_cycle_6-variant_2_ctx32_ent-seed42-10m/metadata/durability_manifest.json",
+      "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000024/learner_group/learner/rl_module/default_policy",
+      "module_files": {
+        "class_and_ctor_args.pkl": {
+          "sha256": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "size_bytes": 1687
+        },
+        "metadata.json": {
+          "sha256": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "size_bytes": 197
+        },
+        "module_state.pkl": {
+          "sha256": "8ce5304cf4bedfd511e858894c77f0b53557c30dc74b113a247ec01c0a4c4394",
+          "size_bytes": 806417
+        }
+      },
+      "checkpoint_name": "checkpoint_000024",
+      "agent_steps": 9799312,
+      "training_iteration": 25
+    },
+    "source_sha256": "d39e410c3bb61a23b33c9d7e2fbc1111b26bb0a9a83f87baf5cd1f1168630d14",
+    "collector_source_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+    "history_sha256": "23ec1a0d96b5f71f6c9779602ea1b36ba8c8be166395ab87c018df99e167ce70",
+    "replay_sha256": "b7fcf944fa47d4db876630ead3f3800f83932c1dc68549646ab6321dd0f08247",
+    "python": "3.13.7",
+    "numpy": "2.5.1",
+    "torch": "2.12.1"
+  },
+  "results": {
+    "final": {
+      "baseline": {
+        "entropy_nats": {
+          "mean": 0.07796232582034561,
+          "ci95": [
+            0.07776434673223707,
+            0.07817096842197666
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "mean_max_action_probability": 0.986721606438991,
+        "mean_top_two_logit_margin": 4.732215526590153
+      },
+      "randomized_AB": {
+        "total_variation": {
+          "mean": 0.0013035329238488215,
+          "ci95": [
+            0.0012827367344811116,
+            0.0013245158905661936
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "rms_logit_preference_change": 0.2261393048552921,
+        "greedy_disagreements": 0,
+        "n_decisions": 57344
+      },
+      "global_AB_swap": {
+        "total_variation": {
+          "mean": 0.0022185297573521978,
+          "ci95": [
+            0.002198140986529195,
+            0.002239117216954685
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "rms_logit_preference_change": 0.32669889015707815,
+        "greedy_disagreements": 0,
+        "n_decisions": 57344
+      },
+      "embedding_swap": {
+        "total_variation": {
+          "mean": 0.0022185297573521978,
+          "ci95": [
+            0.002198140986529195,
+            0.002239117216954685
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "rms_logit_preference_change": 0.32669889015707815,
+        "greedy_disagreements": 0,
+        "n_decisions": 57344
+      },
+      "mean_AB_embeddings": {
+        "total_variation": {
+          "mean": 0.0016437998109526913,
+          "ci95": [
+            0.0016279002918747362,
+            0.0016611384033601744
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "rms_logit_preference_change": 0.22106434597964783,
+        "greedy_disagreements": 0,
+        "n_decisions": 57344
+      },
+      "embedding_controls": {
+        "max_swap_embedding_vs_global_input_swap_logit_error": 0.0,
+        "max_randomization_logit_error_with_mean_embeddings": 0.0,
+        "interpretation": "Swapping input-projection columns equals global input relabeling; merging columns removes the distinction by construction. Neither alone localizes the source of the original sensitivity."
+      },
+      "matched_endings": {
+        "logit_contrasts": {
+          "alternating_minus_repeated": {
+            "mean": -0.0013000593003537524,
+            "ci95": [
+              -0.0013573335422309206,
+              -0.0012380964486149186
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64,
+            "rms": 0.00244693367095332
+          },
+          "current_A_minus_B": {
+            "mean": 0.32886551532659447,
+            "ci95": [
+              0.32781101362779325,
+              0.3299419035407286
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64,
+            "rms": 0.33004095838331216
+          },
+          "previous_A_minus_B": {
+            "mean": 0.03534019956511968,
+            "ci95": [
+              0.03467561694648909,
+              0.03601817403884242
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64,
+            "rms": 0.03810888913740741
+          }
+        },
+        "noop_probability_contrasts": {
+          "alternating_minus_repeated": {
+            "mean": -2.5600648865251618e-05,
+            "ci95": [
+              -2.6041616358549692e-05,
+              -2.516417206273088e-05
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64
+          },
+          "current_A_minus_B": {
+            "mean": 0.0011597429802166503,
+            "ci95": [
+              0.0011500615584360617,
+              0.0011692685122090944
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64
+          },
+          "previous_A_minus_B": {
+            "mean": 0.0001290209350073368,
+            "ci95": [
+              0.00012593152291715258,
+              0.00013225517899187648
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64
+          }
+        },
+        "exact_reward_evidence_contrast": {
+          "mean": 0.061044861974247716,
+          "ci95": [
+            0.06100648330697723,
+            0.06108485027278166
+          ],
+          "n_rows": 26085,
+          "n_episodes": 64
+        },
+        "fraction_pattern_changes_aligned_with_evidence": 0.21809469043511598,
+        "pattern_share_of_squared_factorial_contrasts": 5.424167796818819e-05,
+        "max_logit_spread_across_four_endings": 0.6807163953781128,
+        "prefixes_with_any_greedy_action_difference": 0
+      },
+      "matched_endings_mean_embeddings": {
+        "logit_contrasts": {
+          "alternating_minus_repeated": {
+            "mean": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64,
+            "rms": 0.0
+          },
+          "current_A_minus_B": {
+            "mean": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64,
+            "rms": 0.0
+          },
+          "previous_A_minus_B": {
+            "mean": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64,
+            "rms": 0.0
+          }
+        },
+        "noop_probability_contrasts": {
+          "alternating_minus_repeated": {
+            "mean": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64
+          },
+          "current_A_minus_B": {
+            "mean": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64
+          },
+          "previous_A_minus_B": {
+            "mean": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64
+          }
+        },
+        "exact_reward_evidence_contrast": {
+          "mean": 0.061044861974247716,
+          "ci95": [
+            0.06100648330697723,
+            0.06108485027278166
+          ],
+          "n_rows": 26085,
+          "n_episodes": 64
+        },
+        "fraction_pattern_changes_aligned_with_evidence": 0.0,
+        "pattern_share_of_squared_factorial_contrasts": null,
+        "max_logit_spread_across_four_endings": 0.0,
+        "prefixes_with_any_greedy_action_difference": 0
+      }
+    },
+    "previous": {
+      "baseline": {
+        "entropy_nats": {
+          "mean": 0.08643856404359937,
+          "ci95": [
+            0.0862525811682463,
+            0.08663459524198217
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "mean_max_action_probability": 0.9850698447693537,
+        "mean_top_two_logit_margin": 4.661347189980526
+      },
+      "randomized_AB": {
+        "total_variation": {
+          "mean": 0.0013907081469416171,
+          "ci95": [
+            0.001366380206759729,
+            0.0014163063080512362
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "rms_logit_preference_change": 0.2793520620029546,
+        "greedy_disagreements": 0,
+        "n_decisions": 57344
+      },
+      "global_AB_swap": {
+        "total_variation": {
+          "mean": 0.0022650626202715893,
+          "ci95": [
+            0.0022365183483472615,
+            0.0022933435556172772
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "rms_logit_preference_change": 0.4044980967298562,
+        "greedy_disagreements": 0,
+        "n_decisions": 57344
+      },
+      "embedding_swap": {
+        "total_variation": {
+          "mean": 0.0022650626202715893,
+          "ci95": [
+            0.0022365183483472615,
+            0.0022933435556172772
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "rms_logit_preference_change": 0.4044980967298562,
+        "greedy_disagreements": 0,
+        "n_decisions": 57344
+      },
+      "mean_AB_embeddings": {
+        "total_variation": {
+          "mean": 0.001939195172750631,
+          "ci95": [
+            0.0019219746726085007,
+            0.0019567669242471215
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "rms_logit_preference_change": 0.2514867821447604,
+        "greedy_disagreements": 0,
+        "n_decisions": 57344
+      },
+      "embedding_controls": {
+        "max_swap_embedding_vs_global_input_swap_logit_error": 0.0,
+        "max_randomization_logit_error_with_mean_embeddings": 0.0,
+        "interpretation": "Swapping input-projection columns equals global input relabeling; merging columns removes the distinction by construction. Neither alone localizes the source of the original sensitivity."
+      },
+      "matched_endings": {
+        "logit_contrasts": {
+          "alternating_minus_repeated": {
+            "mean": -0.0013059882750245193,
+            "ci95": [
+              -0.0013816786101476426,
+              -0.0012247861235834883
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64,
+            "rms": 0.0031420645967909057
+          },
+          "current_A_minus_B": {
+            "mean": 0.4132291384439759,
+            "ci95": [
+              0.41190060473524204,
+              0.41464222038755727
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64,
+            "rms": 0.4146244140976974
+          },
+          "previous_A_minus_B": {
+            "mean": 0.04357888850759953,
+            "ci95": [
+              0.0428233149330861,
+              0.044351396618797174
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64,
+            "rms": 0.04641042686944506
+          }
+        },
+        "noop_probability_contrasts": {
+          "alternating_minus_repeated": {
+            "mean": -5.0033935636578976e-05,
+            "ci95": [
+              -5.096638509953772e-05,
+              -4.910117094710843e-05
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64
+          },
+          "current_A_minus_B": {
+            "mean": 0.0019624997840020893,
+            "ci95": [
+              0.0019422652592306414,
+              0.001982003387912332
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64
+          },
+          "previous_A_minus_B": {
+            "mean": 0.00021619591178336203,
+            "ci95": [
+              0.00021097180232946376,
+              0.00022158103154771802
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64
+          }
+        },
+        "exact_reward_evidence_contrast": {
+          "mean": 0.061044861974247716,
+          "ci95": [
+            0.06100648330697723,
+            0.06108485027278166
+          ],
+          "n_rows": 26085,
+          "n_episodes": 64
+        },
+        "fraction_pattern_changes_aligned_with_evidence": 0.27211040828062105,
+        "pattern_share_of_squared_factorial_contrasts": 5.6713743348060864e-05,
+        "max_logit_spread_across_four_endings": 0.7487049102783203,
+        "prefixes_with_any_greedy_action_difference": 0
+      },
+      "matched_endings_mean_embeddings": {
+        "logit_contrasts": {
+          "alternating_minus_repeated": {
+            "mean": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64,
+            "rms": 0.0
+          },
+          "current_A_minus_B": {
+            "mean": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64,
+            "rms": 0.0
+          },
+          "previous_A_minus_B": {
+            "mean": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64,
+            "rms": 0.0
+          }
+        },
+        "noop_probability_contrasts": {
+          "alternating_minus_repeated": {
+            "mean": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64
+          },
+          "current_A_minus_B": {
+            "mean": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64
+          },
+          "previous_A_minus_B": {
+            "mean": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "n_rows": 26085,
+            "n_episodes": 64
+          }
+        },
+        "exact_reward_evidence_contrast": {
+          "mean": 0.061044861974247716,
+          "ci95": [
+            0.06100648330697723,
+            0.06108485027278166
+          ],
+          "n_rows": 26085,
+          "n_episodes": 64
+        },
+        "fraction_pattern_changes_aligned_with_evidence": 0.0,
+        "pattern_share_of_squared_factorial_contrasts": null,
+        "max_logit_spread_across_four_endings": 0.0,
+        "prefixes_with_any_greedy_action_difference": 0
+      }
+    },
+    "paired_checkpoint_comparison": {
+      "previous_minus_final_randomization_TV": {
+        "mean": 8.717522309279583e-05,
+        "ci95": [
+          7.821570017654896e-05,
+          9.660258549666257e-05
+        ],
+        "n_rows": 57344,
+        "n_episodes": 64
+      },
+      "baseline_greedy_disagreements_between_checkpoints": 0,
+      "previous_logit_perturbation_at_final_baseline": {
+        "total_variation": {
+          "mean": 0.0012260217748121893,
+          "ci95": [
+            0.0012053547210885448,
+            0.001247268138889406
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "rms_logit_preference_change": 0.2793520620029546,
+        "greedy_disagreements": 0,
+        "n_decisions": 57344
+      },
+      "final_logit_perturbation_at_previous_baseline": {
+        "total_variation": {
+          "mean": 0.0014250911862488153,
+          "ci95": [
+            0.0014018687562405748,
+            0.0014485185880319055
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "rms_logit_preference_change": 0.2261393048552921,
+        "greedy_disagreements": 0,
+        "n_decisions": 57344
+      },
+      "recombination_caveat": "The transferred-perturbation quantities recombine output logits to describe softmax sensitivity, not an intervention inside a network."
+    }
+  }
+}

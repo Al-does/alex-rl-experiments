@@ -1,0 +1,316 @@
+{
+  "protocol": {
+    "training_seed": 42,
+    "evaluation_seed": 20261105,
+    "episodes_per_checkpoint_and_mode": 64,
+    "horizon": 1024,
+    "warmup": 128,
+    "action_modes": [
+      "greedy",
+      "sampled"
+    ],
+    "histories": "each checkpoint controls its own environment, without observation randomization",
+    "shadow": "independent policy cache receives A/B-randomized inputs, preserving C and original executed actions; never controls the environment",
+    "sampling": "unmodified softmax; inverse-CDF sampling with common uniforms across checkpoints",
+    "seed_keys": "SeedSequence([evaluation_seed, episode, stream]); stream 0 environment, 1 symbol draws, 2 action uniforms; common across checkpoints and modes",
+    "bootstrap": "2000 paired-episode resamples, decision-weighted means",
+    "bootstrap_seed": 20261104,
+    "limitations": "one training seed, three late adjacent checkpoints, no causal identification of the role of residual A/B information"
+  },
+  "provenance": {
+    "checkpoints": {
+      "checkpoint_000023": {
+        "agent_steps": 9406096,
+        "module_state_sha256": "415118945953743695e96ed2c81791175edc9f4a647fb31f1236d742c8c0ac5c"
+      },
+      "checkpoint_000024": {
+        "agent_steps": 9799312,
+        "module_state_sha256": "8ce5304cf4bedfd511e858894c77f0b53557c30dc74b113a247ec01c0a4c4394"
+      },
+      "checkpoint_000025": {
+        "agent_steps": 10192528,
+        "module_state_sha256": "6ff2b60203e298c7967cd16e2a0ad5676fbc22c288e02e2515a38a06a635cc5b"
+      }
+    },
+    "source_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+    "helper_source_sha256": "d39e410c3bb61a23b33c9d7e2fbc1111b26bb0a9a83f87baf5cd1f1168630d14",
+    "raw": {
+      "greedy_checkpoint_000023": {
+        "path": "experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_on_policy_tv_seed42/greedy_checkpoint_000023.npz",
+        "sha256": "1fff7f4470b18838737a01ac418a82718511f5659063c26a4f56d63de2b3fbd9"
+      },
+      "greedy_checkpoint_000024": {
+        "path": "experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_on_policy_tv_seed42/greedy_checkpoint_000024.npz",
+        "sha256": "1b831594d3a2fcdd705e859f9c365e9abf899daad95a1c049a73461bdbb572b8"
+      },
+      "greedy_checkpoint_000025": {
+        "path": "experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_on_policy_tv_seed42/greedy_checkpoint_000025.npz",
+        "sha256": "6a97dd771647756b17a5beb1c6e642bb8b3258db04c8baa0c82ab7303dbbdf95"
+      },
+      "sampled_checkpoint_000023": {
+        "path": "experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_on_policy_tv_seed42/sampled_checkpoint_000023.npz",
+        "sha256": "bab0a812640ff2c20435df9ff6081dab44fef5e61179e1c23312084521e96ca1"
+      },
+      "sampled_checkpoint_000024": {
+        "path": "experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_on_policy_tv_seed42/sampled_checkpoint_000024.npz",
+        "sha256": "af3e4d4b869653d305eafd73c785c9c688bb4d82cae23543c74723e0c3218305"
+      },
+      "sampled_checkpoint_000025": {
+        "path": "experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_on_policy_tv_seed42/sampled_checkpoint_000025.npz",
+        "sha256": "28629ac4d9dfcadce383a883ca97395cde4b3050390b0e6b4ebc8510c014e740"
+      }
+    },
+    "experiment_revision": "b6b72776623a3dd204f6d5996f321559d3be96a6",
+    "experiment_dirty": true,
+    "library_revision": "9e1bff5516684ac64943bbbf59c00f0510057c95",
+    "python": "3.13.7",
+    "numpy": "2.5.1",
+    "torch": "2.12.1"
+  },
+  "results": {
+    "greedy": {
+      "checkpoint_000023": {
+        "total_variation": {
+          "mean": 0.002027752434177835,
+          "ci95": [
+            0.001996422384536647,
+            0.0020596439044022006
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "rms_logit_preference_change": 0.3327652843721325,
+        "greedy_disagreements": 0,
+        "n_decisions": 57344,
+        "baseline_entropy_nats": 0.10119929760464474,
+        "baseline_mean_max_action_probability": 0.9820526965463028,
+        "selected_non_greedy_actions": 0,
+        "selected_action_fractions": [
+          0.32859584263392855,
+          0.6714041573660714,
+          0.0
+        ]
+      },
+      "checkpoint_000024": {
+        "total_variation": {
+          "mean": 0.0013907361508685827,
+          "ci95": [
+            0.0013710392503649437,
+            0.0014111366663314864
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "rms_logit_preference_change": 0.27714626711874474,
+        "greedy_disagreements": 0,
+        "n_decisions": 57344,
+        "baseline_entropy_nats": 0.08633709296540427,
+        "baseline_mean_max_action_probability": 0.9850923944795041,
+        "selected_non_greedy_actions": 0,
+        "selected_action_fractions": [
+          0.32859584263392855,
+          0.6714041573660714,
+          0.0
+        ]
+      },
+      "checkpoint_000025": {
+        "total_variation": {
+          "mean": 0.0013120612305448293,
+          "ci95": [
+            0.0012949599506743342,
+            0.0013293998137581386
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "rms_logit_preference_change": 0.22435651488183045,
+        "greedy_disagreements": 0,
+        "n_decisions": 57344,
+        "baseline_entropy_nats": 0.0779238791594719,
+        "baseline_mean_max_action_probability": 0.9867307571791196,
+        "selected_non_greedy_actions": 0,
+        "selected_action_fractions": [
+          0.32859584263392855,
+          0.6714041573660714,
+          0.0
+        ]
+      }
+    },
+    "sampled": {
+      "checkpoint_000023": {
+        "total_variation": {
+          "mean": 0.002069383968230071,
+          "ci95": [
+            0.002038415493237532,
+            0.0021032208435903116
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "rms_logit_preference_change": 0.3348194636649162,
+        "greedy_disagreements": 0,
+        "n_decisions": 57344,
+        "baseline_entropy_nats": 0.1010928690917995,
+        "baseline_mean_max_action_probability": 0.9820832070321176,
+        "selected_non_greedy_actions": 1019,
+        "selected_action_fractions": [
+          0.3235560825892857,
+          0.6663992745535714,
+          0.010044642857142858
+        ]
+      },
+      "checkpoint_000024": {
+        "total_variation": {
+          "mean": 0.0014030571659604599,
+          "ci95": [
+            0.0013844260769331406,
+            0.0014241080898650261
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "rms_logit_preference_change": 0.279406216487707,
+        "greedy_disagreements": 0,
+        "n_decisions": 57344,
+        "baseline_entropy_nats": 0.08613089986406579,
+        "baseline_mean_max_action_probability": 0.9851468024939937,
+        "selected_non_greedy_actions": 848,
+        "selected_action_fractions": [
+          0.32308523995535715,
+          0.6676897321428571,
+          0.009225027901785714
+        ]
+      },
+      "checkpoint_000025": {
+        "total_variation": {
+          "mean": 0.0013069686360612,
+          "ci95": [
+            0.0012904430883336683,
+            0.0013243610110652531
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "rms_logit_preference_change": 0.22673167732805674,
+        "greedy_disagreements": 0,
+        "n_decisions": 57344,
+        "baseline_entropy_nats": 0.0776586197207931,
+        "baseline_mean_max_action_probability": 0.9867972555480138,
+        "selected_non_greedy_actions": 749,
+        "selected_action_fractions": [
+          0.32285853794642855,
+          0.6683000837053571,
+          0.008841378348214286
+        ]
+      }
+    }
+  },
+  "paired_comparisons": {
+    "greedy": {
+      "checkpoint_000023_minus_checkpoint_000024": {
+        "left_minus_right_TV": {
+          "mean": 0.0006370162833092527,
+          "ci95": [
+            0.0006209974323416799,
+            0.0006542007814678449
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "token_difference_fraction_scored": 0.0,
+        "action_difference_fraction_scored": 0.0,
+        "episodes_with_different_tokens_including_warmup": 0,
+        "episodes_with_different_actions_including_warmup": 0,
+        "total_token_disagreements_including_warmup": 0,
+        "total_action_disagreements_including_warmup": 0
+      },
+      "checkpoint_000024_minus_checkpoint_000025": {
+        "left_minus_right_TV": {
+          "mean": 7.867492032375331e-05,
+          "ci95": [
+            7.239647306548933e-05,
+            8.525367100088455e-05
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "token_difference_fraction_scored": 0.0,
+        "action_difference_fraction_scored": 0.0,
+        "episodes_with_different_tokens_including_warmup": 0,
+        "episodes_with_different_actions_including_warmup": 0,
+        "total_token_disagreements_including_warmup": 0,
+        "total_action_disagreements_including_warmup": 0
+      },
+      "checkpoint_000023_minus_checkpoint_000025": {
+        "left_minus_right_TV": {
+          "mean": 0.000715691203633006,
+          "ci95": [
+            0.0006947702292279128,
+            0.0007384276092744419
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "token_difference_fraction_scored": 0.0,
+        "action_difference_fraction_scored": 0.0,
+        "episodes_with_different_tokens_including_warmup": 0,
+        "episodes_with_different_actions_including_warmup": 0,
+        "total_token_disagreements_including_warmup": 0,
+        "total_action_disagreements_including_warmup": 0
+      }
+    },
+    "sampled": {
+      "checkpoint_000023_minus_checkpoint_000024": {
+        "left_minus_right_TV": {
+          "mean": 0.000666326802269611,
+          "ci95": [
+            0.0006495795043568402,
+            0.0006845635454187022
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "token_difference_fraction_scored": 0.0013078962053571428,
+        "action_difference_fraction_scored": 0.003871372767857143,
+        "episodes_with_different_tokens_including_warmup": 36,
+        "episodes_with_different_actions_including_warmup": 60,
+        "total_token_disagreements_including_warmup": 98,
+        "total_action_disagreements_including_warmup": 271
+      },
+      "checkpoint_000024_minus_checkpoint_000025": {
+        "left_minus_right_TV": {
+          "mean": 9.60885298992601e-05,
+          "ci95": [
+            8.892398097094643e-05,
+            0.00010370692586129422
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "token_difference_fraction_scored": 0.0009765625,
+        "action_difference_fraction_scored": 0.002354213169642857,
+        "episodes_with_different_tokens_including_warmup": 31,
+        "episodes_with_different_actions_including_warmup": 57,
+        "total_token_disagreements_including_warmup": 58,
+        "total_action_disagreements_including_warmup": 153
+      },
+      "checkpoint_000023_minus_checkpoint_000025": {
+        "left_minus_right_TV": {
+          "mean": 0.0007624153321688711,
+          "ci95": [
+            0.000740044084839266,
+            0.0007863859418694998
+          ],
+          "n_rows": 57344,
+          "n_episodes": 64
+        },
+        "token_difference_fraction_scored": 0.002284458705357143,
+        "action_difference_fraction_scored": 0.0062255859375,
+        "episodes_with_different_tokens_including_warmup": 51,
+        "episodes_with_different_actions_including_warmup": 62,
+        "total_token_disagreements_including_warmup": 156,
+        "total_action_disagreements_including_warmup": 424
+      }
+    }
+  }
+}

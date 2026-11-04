@@ -1,0 +1,2698 @@
+{
+  "protocol": {
+    "evaluation_seed": 20261105,
+    "episodes": 64,
+    "horizon": 1024,
+    "warmup": 128,
+    "resamples": 2000,
+    "bootstrap_seed": 20261104,
+    "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+    "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49",
+    "training_seed": 42,
+    "action_modes": [
+      "greedy",
+      "sampled"
+    ],
+    "history": "each checkpoint controls its own environment; shadow receives randomized A/B inputs with C and executed original actions preserved",
+    "sampling": "unmodified softmax; common inverse-CDF action uniforms across checkpoints",
+    "uncertainty": "pointwise 95% paired-episode bootstrap intervals; not training-seed variation or simultaneous curve bands",
+    "coverage": "initialization at step zero and all 26 durable checkpoints; actual progress.csv steps"
+  },
+  "provenance": {
+    "checkpoint_index_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/checkpoint_index.json",
+    "checkpoint_index_sha256": "5f160c7c3a1e3439f2086a9c0aa7d74030a5fe5a86133461944478f9f215fff8",
+    "training_run_id": "mess3_reward_state_action_symmetry_cycle_6-variant_2_ctx32_ent-seed42-10m",
+    "training_revisions": {
+      "commit": "bfee0dbd72176a164576dc485984c853ee323eb4",
+      "dirty": false,
+      "experiment_repository": {
+        "commit": "bfee0dbd72176a164576dc485984c853ee323eb4",
+        "dirty": false,
+        "root": "/root/work/alex-rl-experiments"
+      },
+      "library": {
+        "commit": "a0f669e4930c886edff276808c478314e4071044",
+        "dirty": false,
+        "package": "rl-harness",
+        "root": "/root/work/rl-harness",
+        "version": "0.1.0"
+      }
+    },
+    "source_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49",
+    "metric_helper_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+    "reuse_report_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+    "reuse_report_sha256": "123a8b5fb3645247847e9893bb1291ddb0e7ed2c607d06930988faf533fbd0e2",
+    "experiment_revision": "b6b72776623a3dd204f6d5996f321559d3be96a6",
+    "experiment_dirty": true,
+    "library_revision": "9e1bff5516684ac64943bbbf59c00f0510057c95",
+    "library_dirty": false,
+    "python": "3.13.7",
+    "numpy": "2.5.1",
+    "torch": "2.12.1"
+  },
+  "points": [
+    {
+      "checkpoint": {
+        "name": "initial_checkpoint",
+        "training_iteration": 0,
+        "agent_steps": 0,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/initial_checkpoint",
+        "checkpoint_relative_path": "initial_checkpoint/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "db50540d6980731030ae72ddec4efb13bdb7e11fdd17596fbde9855024a00c5b",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "e027d0c4a4c2ea9b4f19ecbf2ed2a244c8297a9b299a9c7fdb338028ea3fdc52"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.02433182548178562,
+            "ci95": [
+              0.02409893052133365,
+              0.02456751013138329
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.1871390552902946,
+          "greedy_disagreements": 3397,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 1.0784792335461009,
+          "baseline_mean_max_action_probability": 0.4105711596703582,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.00010463169642857142,
+            0.46446010044642855,
+            0.5354352678571429
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.025779862081288244,
+            "ci95": [
+              0.025479089004420013,
+              0.02608295530141915
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.21506311798158306,
+          "greedy_disagreements": 7530,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 1.0687718076926287,
+          "baseline_mean_max_action_probability": 0.412093487295556,
+          "selected_non_greedy_actions": 33554,
+          "selected_action_fractions": [
+            0.23153250558035715,
+            0.3909912109375,
+            0.37747628348214285
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_initial_checkpoint.npz",
+          "sha256": "39c0029c58aea804bf5060098960577c8aa8a4d72365f5bc72e1bf27e94d9884"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_initial_checkpoint.npz",
+          "sha256": "6c0b0e5fded1edcab94ec2c66aa12783c391b9ddb4dd2c7b60a41f297413c5f4"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/initial_checkpoint.json",
+        "original_point_sha256": "dd56b01e1baae3447353900ddce605237aaa50cc1203b82a2320ce31aa75e658",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000000",
+        "training_iteration": 1,
+        "agent_steps": 362128,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000000",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000000/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "74290073d4d6b088fe2a00c664dab2ad3e20317abb71b858b6caf11d90088c0b"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.018773883658640255,
+            "ci95": [
+              0.018603884848684468,
+              0.018950099514598494
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.1243356197315483,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.9337623166927582,
+          "baseline_mean_max_action_probability": 0.6075607702465776,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.02125927187847255,
+            "ci95": [
+              0.021015300219976225,
+              0.02150625980412348
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.16489390908512488,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.8872988615127773,
+          "baseline_mean_max_action_probability": 0.6419053382793768,
+          "selected_non_greedy_actions": 20426,
+          "selected_action_fractions": [
+            0.22049386160714285,
+            0.643798828125,
+            0.13570731026785715
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000000.npz",
+          "sha256": "602f010ca981a671288b279697cd2ce0954b98de28b218c685af0df472b2bfe0"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000000.npz",
+          "sha256": "dd9e24e79b593a7ec8cd0df2e5769cbf02231ac0f197dd4319dcde11f260de64"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000000.json",
+        "original_point_sha256": "ad7c2f7985e1cda715f2d51bb1d5142f3d60958220dd052a542d3b27021d5591",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000001",
+        "training_iteration": 2,
+        "agent_steps": 755344,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000001",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000001/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "ae453d62b24ccf15323f83be361002696c5f145c969e0bcf1db73d586d2b8814"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.02175649089012736,
+            "ci95": [
+              0.02156609792398922,
+              0.02194944155632832
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.12924411685374998,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.9148551723317071,
+          "baseline_mean_max_action_probability": 0.5458869618445746,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.026712185876465185,
+            "ci95": [
+              0.026431382042638483,
+              0.026995531950640507
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.1779683472507658,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.8692383835922018,
+          "baseline_mean_max_action_probability": 0.5870521026680112,
+          "selected_non_greedy_actions": 23620,
+          "selected_action_fractions": [
+            0.33755929129464285,
+            0.5880998883928571,
+            0.0743408203125
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000001.npz",
+          "sha256": "4b493eefb73fe87f290863a3060d377e4786face74960b0c82cc9ede821af0a9"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000001.npz",
+          "sha256": "198e4a11a4f6f6fe250a216c71c9640c8cf2a1d5073acacae6b829a37ec6d798"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000001.json",
+        "original_point_sha256": "a562f5c94da0860dd32c78e4971c1f7da5398563e1e87e1e61a130ae00ae878d",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000002",
+        "training_iteration": 3,
+        "agent_steps": 1148560,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000002",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000002/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "c91f2bf337dfdcecc96ceb5472a510585d46305b9d7e6d989a02eadbe9d52058"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.020296218017201866,
+            "ci95": [
+              0.020126415777117223,
+              0.020474117141632452
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.11399289579949529,
+          "greedy_disagreements": 2774,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.8823171554820216,
+          "baseline_mean_max_action_probability": 0.5164091597781449,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.03801618303571429,
+            0.9619838169642857,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.025341109373781454,
+            "ci95": [
+              0.02508541690038191,
+              0.02559797335013081
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.15667620322730386,
+          "greedy_disagreements": 1271,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.8486756352372253,
+          "baseline_mean_max_action_probability": 0.5527387327699079,
+          "selected_non_greedy_actions": 25544,
+          "selected_action_fractions": [
+            0.3909214564732143,
+            0.5543910435267857,
+            0.0546875
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000002.npz",
+          "sha256": "9a5d9cae00032bbef28e97c5983d2feeb98f1151e3aabf1685f03272bee3e0bd"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000002.npz",
+          "sha256": "ef4afeca9d6c968f4a0bdb6ed2027be5a3d468b8bba4adb32c9e2cbc4657003a"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000002.json",
+        "original_point_sha256": "6ba23b0ebfb80cdb11377a971eda0d8cd25c69ee1fe7eb8ad780550326bc75a6",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000003",
+        "training_iteration": 4,
+        "agent_steps": 1541776,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000003",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000003/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "87094de458bf88b024ddb6bd36bd7b80fdc8c9699c017bbf80afd93070a026a3"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.01611790731856574,
+            "ci95": [
+              0.01597792406241903,
+              0.016263653721995206
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.08425662970964322,
+          "greedy_disagreements": 136,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.8533137580703958,
+          "baseline_mean_max_action_probability": 0.5559768752716326,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.0017438616071428572,
+            0.9982561383928571,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.019160681558548387,
+            "ci95": [
+              0.018966997697718004,
+              0.019359161054560464
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.11476895501794725,
+          "greedy_disagreements": 58,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.8168075036618553,
+          "baseline_mean_max_action_probability": 0.593565208920704,
+          "selected_non_greedy_actions": 23248,
+          "selected_action_fractions": [
+            0.3575439453125,
+            0.5946044921875,
+            0.0478515625
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000003.npz",
+          "sha256": "bd47ced9e0a4f58d7fc12375db036d7800e21442621779a99e43a40814b2235d"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000003.npz",
+          "sha256": "eb879323c3393b44f77825f316afd83da0776b6b78c1fe7ee00558febd3019f6"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000003.json",
+        "original_point_sha256": "6ce87ab2660ff7004039e6ec33eab927f15135b4ae07bc8e6894f199bd1f7e60",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000004",
+        "training_iteration": 5,
+        "agent_steps": 1934992,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000004",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000004/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "291bc2dfa2274094bd775994a05fa74731936e1e98958175a9d31b72e3106f92"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.012456732649903822,
+            "ci95": [
+              0.012326068666536905,
+              0.012597401368698611
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.06588750744358883,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.8104165903108428,
+          "baseline_mean_max_action_probability": 0.6218977101806554,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.014017278761338948,
+            "ci95": [
+              0.013862994069186419,
+              0.014173341381668503
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.08499513345811499,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.7720943299819459,
+          "baseline_mean_max_action_probability": 0.653736525442403,
+          "selected_non_greedy_actions": 19762,
+          "selected_action_fractions": [
+            0.29884556361607145,
+            0.6553780691964286,
+            0.0457763671875
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000004.npz",
+          "sha256": "de0d820ade845475930cb1a35f3c298670b6392afe8c4fbdf647ef281392542d"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000004.npz",
+          "sha256": "67d42c33b7102a2b221bba6b990f2f5e29cb637e745c6eadf3f9d429671f81d3"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000004.json",
+        "original_point_sha256": "395fa289c4d0285526d859a7188902e9cbeb3584185f4e70f8ce173a6f8fd5e1",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000005",
+        "training_iteration": 6,
+        "agent_steps": 2328208,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000005",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000005/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "5487f47301cd95edf9d652218193ac53a3861b29da71872410266631f2a617d3"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.009889352352766233,
+            "ci95": [
+              0.009729822168021386,
+              0.010064482548332964
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.055222378850117805,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.7682628005500588,
+          "baseline_mean_max_action_probability": 0.6717070400415438,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.01058114069322193,
+            "ci95": [
+              0.010420004359864263,
+              0.010748180363247845
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.06492611223984573,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.7305588361906127,
+          "baseline_mean_max_action_probability": 0.6980668842398072,
+          "selected_non_greedy_actions": 17234,
+          "selected_action_fractions": [
+            0.2544642857142857,
+            0.699462890625,
+            0.04607282366071429
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000005.npz",
+          "sha256": "93ca2559874dda8b43c9e5560f1b0e651aafc94aafdd6cfa1e1cf609ef199456"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000005.npz",
+          "sha256": "a0bf7fbe58b5e344f8b315113f567402ae182f0de4a5372352757e4ff68df418"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000005.json",
+        "original_point_sha256": "7d4f3e9ba1c16a80b8ee9f96f31e245029b68198cfcf76f6a3158f2acae3d562",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000006",
+        "training_iteration": 7,
+        "agent_steps": 2721424,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000006",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000006/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "13d7d08f952da55b7690688259733438ed4c2dd784fb070859b3ae187012bf0b"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.009863949266351767,
+            "ci95": [
+              0.009664634260349013,
+              0.010077975716639851
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.056238527500562636,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.7691008098586563,
+          "baseline_mean_max_action_probability": 0.6725476700553074,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.010246587936996714,
+            "ci95": [
+              0.010056372861637037,
+              0.010436937339590788
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.06181978418525441,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.7318578753242916,
+          "baseline_mean_max_action_probability": 0.6980971319552532,
+          "selected_non_greedy_actions": 17228,
+          "selected_action_fractions": [
+            0.25156947544642855,
+            0.6995675223214286,
+            0.048863002232142856
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000006.npz",
+          "sha256": "8c854ff6b6939539a4f79c31d3e6948fcc88cf92c56c1e4f9dd080b28f10edb1"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000006.npz",
+          "sha256": "06ab96192997de71cda9ca937b43a754e837ce4d9164a7b42bbec4ba2691445d"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000006.json",
+        "original_point_sha256": "174160623666e9549fb0e30f4abc3925046f5c0a07405408d28db5680e8cec3a",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000007",
+        "training_iteration": 8,
+        "agent_steps": 3114640,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000007",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000007/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "5b8ae7344c9881ba5e7f4b5493af0fea1fda224df71d875d21d49f3c15b266f9"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.010827824445084917,
+            "ci95": [
+              0.010595191608374126,
+              0.011078667840495453
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.06114282400637812,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.7875154619713124,
+          "baseline_mean_max_action_probability": 0.6510383248252444,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.011055661351604214,
+            "ci95": [
+              0.01083431102224536,
+              0.011281316601400502
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.06499664616470495,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.749914113417616,
+          "baseline_mean_max_action_probability": 0.678281426391577,
+          "selected_non_greedy_actions": 18354,
+          "selected_action_fractions": [
+            0.26806640625,
+            0.679931640625,
+            0.052001953125
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000007.npz",
+          "sha256": "07b9a704802da06549493b6423e3e9a948af7e5bb49c06dd967be54b2a20f3d2"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000007.npz",
+          "sha256": "eff57e96609c0821bc5da83ea63edd0b31da82d0077b1770a4da055046c81138"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000007.json",
+        "original_point_sha256": "112a7840451dd887e87c5344c8def905b617d8e72f634d20616b8d092fae174e",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000008",
+        "training_iteration": 9,
+        "agent_steps": 3507856,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000008",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000008/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "95267667902d8fe8c96ec6d37e35a642fc2a195c0938296dac28bbccbaf3c895"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.012180122503149328,
+            "ci95": [
+              0.01190856462506992,
+              0.012461281669532325
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.06828644999621496,
+          "greedy_disagreements": 6400,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.8009580524265248,
+          "baseline_mean_max_action_probability": 0.6290367814536392,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.16273716517857142,
+            0.8372628348214286,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.012533998225249702,
+            "ci95": [
+              0.012256131515056301,
+              0.012816455644211758
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.0713009652245989,
+          "greedy_disagreements": 4656,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.7773647047964843,
+          "baseline_mean_max_action_probability": 0.6484701692705072,
+          "selected_non_greedy_actions": 20128,
+          "selected_action_fractions": [
+            0.2999965122767857,
+            0.6445138113839286,
+            0.05548967633928571
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000008.npz",
+          "sha256": "81db20baf9c7695b78d00f50a4934c74bfcfb6c6fc0b8a3561343383e534e278"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000008.npz",
+          "sha256": "0c37cab99a9b5ed062d90827c2c37afc6b5075eb940607cc5d8115414e49f33b"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000008.json",
+        "original_point_sha256": "15d0c3888f3f4d40bc62abcb61fca550e1ceeff0cbf4d7bacc44239810b36b33",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000009",
+        "training_iteration": 10,
+        "agent_steps": 3901072,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000009",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000009/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "df8e17dd4297a370d1f92cad70438432c1b7c6fb0eb5b5939ca9c837bf0963bb"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.014043145479572802,
+            "ci95": [
+              0.013742597979765996,
+              0.014362114989119438
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.07967220317334471,
+          "greedy_disagreements": 6,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.8078708897980917,
+          "baseline_mean_max_action_probability": 0.6352182539101483,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.3284912109375,
+            0.6715087890625,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.014426840670458232,
+            "ci95": [
+              0.014117460788904954,
+              0.014751027945661173
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.08235672571630415,
+          "greedy_disagreements": 1,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.794417849460485,
+          "baseline_mean_max_action_probability": 0.6478449806224228,
+          "selected_non_greedy_actions": 20214,
+          "selected_action_fractions": [
+            0.32723563058035715,
+            0.6141183035714286,
+            0.05864606584821429
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000009.npz",
+          "sha256": "f294df6a9fc7ded4af98a389d55acba50b5f74a73d4520d05573fee20a79b4f7"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000009.npz",
+          "sha256": "59fe289b8af9a006ec562d9849accb65d8a874943b9286f2473212feb3dad874"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000009.json",
+        "original_point_sha256": "5c1bf526e8a119b7f3da65188b30d1887e30133d47d0418f89b7221f236093dd",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000010",
+        "training_iteration": 11,
+        "agent_steps": 4294288,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000010",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000010/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "d26bc1357a5d46524364f5a66745ed60a3cc84d88bf9e1e963d58bc7ae330707"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.015766251318215557,
+            "ci95": [
+              0.015436381610295627,
+              0.016118051085897592
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.09047971439870872,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.8147081172989654,
+          "baseline_mean_max_action_probability": 0.643819737887578,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.32859584263392855,
+            0.6714041573660714,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.01620171855517202,
+            "ci95": [
+              0.01585205421196669,
+              0.016572090288770013
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.09341792405785197,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.8004733747314667,
+          "baseline_mean_max_action_probability": 0.6538485607434532,
+          "selected_non_greedy_actions": 19883,
+          "selected_action_fractions": [
+            0.34840611049107145,
+            0.5907331194196429,
+            0.06086077008928571
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000010.npz",
+          "sha256": "8486231b07e6a9d32a37841fc465f8610814b5065200b77d8a537dcfa2c87d4b"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000010.npz",
+          "sha256": "3a508054f263f47c6ff8e65f7e0f60d62bad18ae992969c1ba77d9146c234e21"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000010.json",
+        "original_point_sha256": "e641761eaf8c7be3edae8384c1c0869776351b90dfd28b4564293462ad24fe26",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000011",
+        "training_iteration": 12,
+        "agent_steps": 4687504,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000011",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000011/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "71b606929b46510fcf2787713ab44da15c105f1e3e8f4962de69c57e31a4e8ce"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.016807260532660278,
+            "ci95": [
+              0.016459921069731924,
+              0.017175160646996798
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.10247183289864718,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.7977208164055295,
+          "baseline_mean_max_action_probability": 0.6647234393160767,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.32859584263392855,
+            0.6714041573660714,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.01718594301306055,
+            "ci95": [
+              0.016822719171893572,
+              0.0175877670940578
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.105108996944522,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.7831913367967456,
+          "baseline_mean_max_action_probability": 0.6742823626301517,
+          "selected_non_greedy_actions": 18644,
+          "selected_action_fractions": [
+            0.34012276785714285,
+            0.5984061104910714,
+            0.06147112165178571
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000011.npz",
+          "sha256": "f92fdedceb4bc79ec7ea6ccc11bc8647aab01a35dc6704e8f0a147de4b4d8287"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000011.npz",
+          "sha256": "3c77ab17c47edaa25c73355e1b184106a93e719109f008d31ae6867ba64f90af"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000011.json",
+        "original_point_sha256": "73910f32a8cd6a07c7d33381a98a9c5445f35178055bfc14ff721d2f0268bd97",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000012",
+        "training_iteration": 13,
+        "agent_steps": 5080720,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000012",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000012/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "e067244b1ecb249777ee36cf55a74369fdcc6179804db516c375663f924e8033"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.017534485970910153,
+            "ci95": [
+              0.017173285430831863,
+              0.017913902016969383
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.11463529471086668,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.7731683215153841,
+          "baseline_mean_max_action_probability": 0.689251014448418,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.32859584263392855,
+            0.6714041573660714,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.017885724512066388,
+            "ci95": [
+              0.017518235863589564,
+              0.018288478296498663
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.11717374359108047,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.7584777323208832,
+          "baseline_mean_max_action_probability": 0.698317769868248,
+          "selected_non_greedy_actions": 17302,
+          "selected_action_fractions": [
+            0.3305140904017857,
+            0.6080322265625,
+            0.06145368303571429
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000012.npz",
+          "sha256": "391a285be1ce12ccea6d442732bd07b7d334ba023e03c2d43dfc688de649b3b2"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000012.npz",
+          "sha256": "58e203eb2cc3175ec12c2b607d2e9f04aaed769e9b75b16a2009baae9e5d4c6d"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000012.json",
+        "original_point_sha256": "16cf5cb654cc58159e594f06a0b83228e8a133f13986ed28d0a0acbd4fb385c9",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000013",
+        "training_iteration": 14,
+        "agent_steps": 5473936,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000013",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000013/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "116feba362ba12e9d25aa648e1c3f3883703b6ca80d00993c9d571b07ed6cb5a"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.01770624107049151,
+            "ci95": [
+              0.017341939653162528,
+              0.018089196819762583
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.12937592652514066,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.7299196328356558,
+          "baseline_mean_max_action_probability": 0.7214032024996025,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.32859584263392855,
+            0.6714041573660714,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.01800009573734391,
+            "ci95": [
+              0.01763636561998043,
+              0.018381178025325306
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.1320679298859182,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.71576141796134,
+          "baseline_mean_max_action_probability": 0.7300190516813688,
+          "selected_non_greedy_actions": 15538,
+          "selected_action_fractions": [
+            0.3118198939732143,
+            0.6288364955357143,
+            0.05934361049107143
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000013.npz",
+          "sha256": "ffcb05dc8aed8000da4e812f2b064e440fc53d9ba85f62c87028f7247578ef64"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000013.npz",
+          "sha256": "00673dc95a54a0bf87d7fa4dda2ab0d49005058bb58019786cea706e52694f9f"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000013.json",
+        "original_point_sha256": "84f38222fe358ce27d5c2a2608c6834747faed276278c2fb8f9bcc8ad9a58632",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000014",
+        "training_iteration": 15,
+        "agent_steps": 5867152,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000014",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000014/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "d1fd672597b9d9b4b77e9e5dfe256e0ae3527d6ed03dbc9b5258a3ac4eadb911"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.017923647548290098,
+            "ci95": [
+              0.01756153786566639,
+              0.018300541274318127
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.15046438152231814,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.6810030511792317,
+          "baseline_mean_max_action_probability": 0.7530984941281584,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.32859584263392855,
+            0.6714041573660714,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.01814353591333239,
+            "ci95": [
+              0.017785654992544746,
+              0.018525032859633146
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.15267975808431397,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.6681331725525274,
+          "baseline_mean_max_action_probability": 0.7607710293596792,
+          "selected_non_greedy_actions": 13754,
+          "selected_action_fractions": [
+            0.29624720982142855,
+            0.647216796875,
+            0.05653599330357143
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000014.npz",
+          "sha256": "f9349984197ce67b44dea6aeb00d90edfe6850a2f51e3c327578caeba76741bd"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000014.npz",
+          "sha256": "d2dd070885084a8472362211f2747271df7e14db010987d1aaab4e272bd579ac"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000014.json",
+        "original_point_sha256": "80231a3f344997dfbecad74d4f83a4bdfc261a7a3db0082c88d61ce81af37c7c",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000015",
+        "training_iteration": 16,
+        "agent_steps": 6260368,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000015",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000015/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "ff6f7f14ded4653887387a43f02a77cd08b5238343ad4b0f85b9e74339309faf"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.017673149536542247,
+            "ci95": [
+              0.01731662892846246,
+              0.018044776901172215
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.17215576357518617,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.6207775451114583,
+          "baseline_mean_max_action_probability": 0.7891690603229905,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.32859584263392855,
+            0.6714041573660714,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.01788516465310291,
+            "ci95": [
+              0.01756530793547895,
+              0.018230213777190692
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.17451785005707737,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.6098869215533552,
+          "baseline_mean_max_action_probability": 0.7950429446405053,
+          "selected_non_greedy_actions": 11730,
+          "selected_action_fractions": [
+            0.29298618861607145,
+            0.6559012276785714,
+            0.051112583705357144
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000015.npz",
+          "sha256": "f69bc5a4c4244268416c92572f1ad3b131a932045b781bf72a39ccf8f13e541c"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000015.npz",
+          "sha256": "54b1a3f86f3f413fac25d8ab2108418fe8a55c1b9e8943dd3b7cac3a064245fd"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000015.json",
+        "original_point_sha256": "c5899a3a1122e9d9eb1921bb4dbce4f241c937562e2ef488dd5bdd703fa256f5",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000016",
+        "training_iteration": 17,
+        "agent_steps": 6653584,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000016",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000016/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "f188dabf171e3d87d5ff125752680d1db0333d5d2c435a38c3d510fc0fa1bb4c"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.016771131326681128,
+            "ci95": [
+              0.01643457949193226,
+              0.01711866095586649
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.1945524538354447,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.5477335521506391,
+          "baseline_mean_max_action_probability": 0.8292553314632274,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.32859584263392855,
+            0.6714041573660714,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.016979099704709007,
+            "ci95": [
+              0.016684641429389503,
+              0.01729238591699691
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.19726548608195088,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.5395122063553591,
+          "baseline_mean_max_action_probability": 0.8328530048689264,
+          "selected_non_greedy_actions": 9536,
+          "selected_action_fractions": [
+            0.3021937779017857,
+            0.6540876116071429,
+            0.04371861049107143
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000016.npz",
+          "sha256": "fbd53b95cc8a8e66de6a8f50cd1678f468488b379a91d32662b45188862ada46"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000016.npz",
+          "sha256": "6397c8293d1ac8c75d4d9a40f09e8b7168dd886c6c2b4a3a59351b440079f38e"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000016.json",
+        "original_point_sha256": "0ea9e807d66aac83a4864d6fef85438b7e2c416e2e345f33ec2244af76ef45bd",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000017",
+        "training_iteration": 18,
+        "agent_steps": 7046800,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000017",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000017/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "00799d0d9168caa7129a4ca0ede5d4152703889e631c89e3718e37c4136efb7f"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.015399681969626667,
+            "ci95": [
+              0.015110986725341866,
+              0.015702867173603162
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.2238107662642489,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.4661029513887619,
+          "baseline_mean_max_action_probability": 0.8679696507254092,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.32859584263392855,
+            0.6714041573660714,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.01562508746611081,
+            "ci95": [
+              0.015345426773158909,
+              0.015929041644593345
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.22662102235811932,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.4607616700990609,
+          "baseline_mean_max_action_probability": 0.8697178639368747,
+          "selected_non_greedy_actions": 7425,
+          "selected_action_fractions": [
+            0.31760951450892855,
+            0.64599609375,
+            0.03639439174107143
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000017.npz",
+          "sha256": "d828a306be3d72d424456bd45d328f2f2d7236e1a7a8e19389638ca2d5d868bb"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000017.npz",
+          "sha256": "955034e94b7b1f8dae4cf1bae80de5c4758bf5abb373cec0e01e78d5cd65a475"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000017.json",
+        "original_point_sha256": "84c7397f54b0aeceb4bda0b80ad6844e55347ce6b5da5436b97a5afbc2770f26",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000018",
+        "training_iteration": 19,
+        "agent_steps": 7440016,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000018",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000018/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "436ac25bb332cb8fb006c1afe1ed23f8f0fac266006d8571bf278cfff98fe201"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.012971329161589348,
+            "ci95": [
+              0.012741644983289653,
+              0.013214120050672861
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.2639899525237843,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.3680121609288841,
+          "baseline_mean_max_action_probability": 0.90613249744332,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.32859584263392855,
+            0.6714041573660714,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.013212048474832,
+            "ci95": [
+              0.012979259333027801,
+              0.01346619180544131
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.26681343329765406,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.3653252863332984,
+          "baseline_mean_max_action_probability": 0.9067839891386488,
+          "selected_non_greedy_actions": 5352,
+          "selected_action_fractions": [
+            0.3236607142857143,
+            0.6474086216517857,
+            0.0289306640625
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000018.npz",
+          "sha256": "e5bc213c09caa2f1f2af61315726e5debb74a8b215d3b2d07d1140906739c005"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000018.npz",
+          "sha256": "0fea8b1aafb8322a92e191eadd5cf77210d0f194e99c29e3a8cbb022bd65db1b"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000018.json",
+        "original_point_sha256": "cc6b2698999674e9830455a86b5890488c7145042bad71223624cefe9a2e2dec",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000019",
+        "training_iteration": 20,
+        "agent_steps": 7833232,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000019",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000019/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "ac57050810459a75e9894ee17a1846de3bb3ad9fec16e466473c9d90d257e108"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.010288677590338082,
+            "ci95": [
+              0.010108175696705728,
+              0.010470868024324696
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.30258027667680276,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.28527044939365026,
+          "baseline_mean_max_action_probability": 0.9336811353181768,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.32859584263392855,
+            0.6714041573660714,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.010503830858739694,
+            "ci95": [
+              0.010324505430185107,
+              0.010691777122431526
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.30517429422777786,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.2842682748403904,
+          "baseline_mean_max_action_probability": 0.9338241256857263,
+          "selected_non_greedy_actions": 3840,
+          "selected_action_fractions": [
+            0.32730538504464285,
+            0.6496058872767857,
+            0.023088727678571428
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000019.npz",
+          "sha256": "31667719179007e4fe1374afb4934652ee33abf743cb05da061bca49f1c554b4"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000019.npz",
+          "sha256": "2c2bc6173bc45b78fa1d8df46e7d35eb5d1f6e1c285bf94bf4ceca864a047911"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000019.json",
+        "original_point_sha256": "32c55f0c46000e42a807c61476ae44ac17d5e3feb99d57b998854fc1eaf53a4a",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000020",
+        "training_iteration": 21,
+        "agent_steps": 8226448,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000020",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000020/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "a735d114a96e3d2c0ff9d9c58be3597b569cb5d5f32f74affce004a81ef21ee2"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.007963760393738365,
+            "ci95": [
+              0.007826844892932412,
+              0.00810320535371676
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.3428961212769364,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.21943498783583965,
+          "baseline_mean_max_action_probability": 0.9529200792117811,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.32859584263392855,
+            0.6714041573660714,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.008119157335330243,
+            "ci95": [
+              0.00797942427317543,
+              0.00826502146505154
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.3446425228069042,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.21935186261740397,
+          "baseline_mean_max_action_probability": 0.9528630387636665,
+          "selected_non_greedy_actions": 2711,
+          "selected_action_fractions": [
+            0.32791573660714285,
+            0.6540876116071429,
+            0.017996651785714284
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000020.npz",
+          "sha256": "55de67b6a1ba0a1fb428fc3708ca162f83b5d72408f24e847b7665818e0e843a"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000020.npz",
+          "sha256": "6667a9211f45b0fb507195f6c8bde4bae4d76bf2e5ca57819c67325eb4601847"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000020.json",
+        "original_point_sha256": "25441725bcbe5b6b54f2f20254c6aef9be81ee6db7c62ff243b04e9463dceee0",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000021",
+        "training_iteration": 22,
+        "agent_steps": 8619664,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000021",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000021/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "3f8969d4009d4fab6a9d6b9ac5c321f460bbcb0403f3062634cabf0ad9487b76"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.005507003540831931,
+            "ci95": [
+              0.0054159184469152535,
+              0.00560124860856657
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.37119065037922405,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.1660073599816291,
+          "baseline_mean_max_action_probability": 0.9670234267352719,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.32859584263392855,
+            0.6714041573660714,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.005640561316402034,
+            "ci95": [
+              0.0055501361869930805,
+              0.005738585145872297
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.3736748886259306,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.16614522871980286,
+          "baseline_mean_max_action_probability": 0.9669613270655871,
+          "selected_non_greedy_actions": 1882,
+          "selected_action_fractions": [
+            0.3258056640625,
+            0.6598423549107143,
+            0.014351981026785714
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000021.npz",
+          "sha256": "27edb933a5e5354b73a7689b4f4cc8aadd962bb4cc08aa5401de138d5ccbd394"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000021.npz",
+          "sha256": "d32032b37c05772ad884d77644d9b7b64049c216ea76711ce6fd85feaa8abb89"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000021.json",
+        "original_point_sha256": "1bcfd27f438aa0094dc6fe8b1001315ce65b1d4b6c354c2c9a5af0a607af08f8",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000022",
+        "training_iteration": 23,
+        "agent_steps": 9012880,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/modules/checkpoint_000022",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000022/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "5674778a79e05c4221f5acf534747a895a81c72c68009c37f0a8e86b207add6d"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.003313247440349175,
+            "ci95": [
+              0.003260511648138382,
+              0.0033671904282130565
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.36298766487388456,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.12594049219334416,
+          "baseline_mean_max_action_probability": 0.9766235236246512,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.32859584263392855,
+            0.6714041573660714,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.0033911124468681566,
+            "ci95": [
+              0.0033388915548370523,
+              0.0034500925083903082
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.36531209773090495,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.12594920807542104,
+          "baseline_mean_max_action_probability": 0.9766203478196179,
+          "selected_non_greedy_actions": 1294,
+          "selected_action_fractions": [
+            0.32381766183035715,
+            0.6644810267857143,
+            0.011701311383928572
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/greedy_checkpoint_000022.npz",
+          "sha256": "310f40d1308689e6a2a960dc9f7a9a1326922509575a3665f42d18105456828d"
+        },
+        "sampled": {
+          "path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/sampled_checkpoint_000022.npz",
+          "sha256": "f931a0f5554f2f98793cb3f2f9264a0398027a9f06e364719db06bdb12835ea2"
+        }
+      },
+      "reused": false,
+      "collection_spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "f22c21a037c4b26a431112138fa66a5108c5e9cfe4c9169e732c1d15ea7a8406",
+        "driver_sha256": "663057270593a7061a0815c923cedd83a5854c72de94208edd9da72806eb2267"
+      },
+      "provenance_correction": {
+        "reason": "Original collector hash described the torch inference-mode decorator, not the underlying collector.",
+        "actual_collector_verified_against": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_on_policy_tv_seed42_20261105.json",
+        "actual_collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "original_driver_snapshot": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/driver_before_source_fix.py",
+        "original_point_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_tv_curve_seed42/full/points/checkpoint_000022.json",
+        "original_point_sha256": "6924ae964a8187d8be28dc0f2af720c012fbf1e99153873d4b0da52cd2dd3c87",
+        "validation": "Numeric protocol unchanged; both raw hashes verified and both summaries recomputed exactly."
+      }
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000023",
+        "training_iteration": 24,
+        "agent_steps": 9406096,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_checkpoint23_tv_seed42/module",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000023/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "415118945953743695e96ed2c81791175edc9f4a647fb31f1236d742c8c0ac5c"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.002027752434177835,
+            "ci95": [
+              0.001996422384536647,
+              0.0020596439044022006
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.3327652843721325,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.10119929760464474,
+          "baseline_mean_max_action_probability": 0.9820526965463028,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.32859584263392855,
+            0.6714041573660714,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.002069383968230071,
+            "ci95": [
+              0.002038415493237532,
+              0.0021032208435903116
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.3348194636649162,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.1010928690917995,
+          "baseline_mean_max_action_probability": 0.9820832070321176,
+          "selected_non_greedy_actions": 1019,
+          "selected_action_fractions": [
+            0.3235560825892857,
+            0.6663992745535714,
+            0.010044642857142858
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_on_policy_tv_seed42/greedy_checkpoint_000023.npz",
+          "sha256": "1fff7f4470b18838737a01ac418a82718511f5659063c26a4f56d63de2b3fbd9"
+        },
+        "sampled": {
+          "path": "experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_on_policy_tv_seed42/sampled_checkpoint_000023.npz",
+          "sha256": "bab0a812640ff2c20435df9ff6081dab44fef5e61179e1c23312084521e96ca1"
+        }
+      },
+      "reused": true
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000024",
+        "training_iteration": 25,
+        "agent_steps": 9799312,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_pattern_checkpoint_seed42/previous_module",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000024/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "8ce5304cf4bedfd511e858894c77f0b53557c30dc74b113a247ec01c0a4c4394"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.0013907361508685827,
+            "ci95": [
+              0.0013710392503649437,
+              0.0014111366663314864
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.27714626711874474,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.08633709296540427,
+          "baseline_mean_max_action_probability": 0.9850923944795041,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.32859584263392855,
+            0.6714041573660714,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.0014030571659604599,
+            "ci95": [
+              0.0013844260769331406,
+              0.0014241080898650261
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.279406216487707,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.08613089986406579,
+          "baseline_mean_max_action_probability": 0.9851468024939937,
+          "selected_non_greedy_actions": 848,
+          "selected_action_fractions": [
+            0.32308523995535715,
+            0.6676897321428571,
+            0.009225027901785714
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_on_policy_tv_seed42/greedy_checkpoint_000024.npz",
+          "sha256": "1b831594d3a2fcdd705e859f9c365e9abf899daad95a1c049a73461bdbb572b8"
+        },
+        "sampled": {
+          "path": "experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_on_policy_tv_seed42/sampled_checkpoint_000024.npz",
+          "sha256": "af3e4d4b869653d305eafd73c785c9c688bb4d82cae23543c74723e0c3218305"
+        }
+      },
+      "reused": true
+    },
+    {
+      "checkpoint": {
+        "name": "checkpoint_000025",
+        "training_iteration": 26,
+        "agent_steps": 10192528,
+        "module_path": "/Users/alex/Software/XOR/alex-rl-experiments/experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_logit_evidence_seed42/module",
+        "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000025/learner_group/learner/rl_module/default_policy",
+        "module_files": {
+          "class_and_ctor_args.pkl": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "metadata.json": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "module_state.pkl": "6ff2b60203e298c7967cd16e2a0ad5676fbc22c288e02e2515a38a06a635cc5b"
+        }
+      },
+      "spec": {
+        "evaluation_seed": 20261105,
+        "episodes": 64,
+        "horizon": 1024,
+        "warmup": 128,
+        "resamples": 2000,
+        "bootstrap_seed": 20261104,
+        "collector_sha256": "1110fd1437a33f2e72d46638101576f8ada1db1367e817e1c87580c4616eda31",
+        "driver_sha256": "68728dbd64bba8f10695cfbd58c2fb0f97d7f5e64c6dbf245a85f5833ca32d49"
+      },
+      "results": {
+        "greedy": {
+          "total_variation": {
+            "mean": 0.0013120612305448293,
+            "ci95": [
+              0.0012949599506743342,
+              0.0013293998137581386
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.22435651488183045,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.0779238791594719,
+          "baseline_mean_max_action_probability": 0.9867307571791196,
+          "selected_non_greedy_actions": 0,
+          "selected_action_fractions": [
+            0.32859584263392855,
+            0.6714041573660714,
+            0.0
+          ]
+        },
+        "sampled": {
+          "total_variation": {
+            "mean": 0.0013069686360612,
+            "ci95": [
+              0.0012904430883336683,
+              0.0013243610110652531
+            ],
+            "n_rows": 57344,
+            "n_episodes": 64
+          },
+          "rms_logit_preference_change": 0.22673167732805674,
+          "greedy_disagreements": 0,
+          "n_decisions": 57344,
+          "baseline_entropy_nats": 0.0776586197207931,
+          "baseline_mean_max_action_probability": 0.9867972555480138,
+          "selected_non_greedy_actions": 749,
+          "selected_action_fractions": [
+            0.32285853794642855,
+            0.6683000837053571,
+            0.008841378348214286
+          ]
+        }
+      },
+      "raw": {
+        "greedy": {
+          "path": "experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_on_policy_tv_seed42/greedy_checkpoint_000025.npz",
+          "sha256": "6a97dd771647756b17a5beb1c6e642bb8b3258db04c8baa0c82ab7303dbbdf95"
+        },
+        "sampled": {
+          "path": "experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/artifacts/ab_on_policy_tv_seed42/sampled_checkpoint_000025.npz",
+          "sha256": "28629ac4d9dfcadce383a883ca97395cde4b3050390b0e6b4ebc8510c014e740"
+        }
+      },
+      "reused": true
+    }
+  ]
+}

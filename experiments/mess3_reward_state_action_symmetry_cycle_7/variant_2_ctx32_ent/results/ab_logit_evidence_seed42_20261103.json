@@ -1,0 +1,600 @@
+{
+  "protocol": {
+    "condition": "Reward-State Quotient",
+    "training_seed": 42,
+    "checkpoint": "final checkpoint_000025, 10192528 sampled steps",
+    "hypothesis": "original minus randomized Noop-minus-Tilt-X logit increases with original minus randomized full-filter reward-state evidence",
+    "expected_sign": "positive",
+    "evaluation_seed": 20261103,
+    "episodes_per_split": 64,
+    "episode_length": 1024,
+    "warmup": 128,
+    "policy": "greedy baseline controls the sole environment",
+    "randomization": "independent fair A/B replacement; C and baseline actions fixed",
+    "evidence": "rho minus randomized-history rho; common coarse belief cancels. Randomized-history rho applies the ORIGINAL emission model to the altered symbols; it is NOT the posterior for a known randomized channel.",
+    "controls": "separate cubic coarse-belief curves in original-token, randomized-token, previous-action cells; fit on training episodes only",
+    "regression": "residualize evidence and logit differences against the same controls; fit one signed slope on training episodes and score held-out episodes",
+    "subsets": "all primary; same current token and current C secondary",
+    "limitations": "one seed and final checkpoint; altered histories are distribution-shifted; association does not identify filtering computation or establish causality"
+  },
+  "provenance": {
+    "run_id": "mess3_reward_state_action_symmetry_cycle_6-variant_2_ctx32_ent-seed42-10m",
+    "training_revisions": {
+      "commit": "bfee0dbd72176a164576dc485984c853ee323eb4",
+      "dirty": false,
+      "experiment_repository": {
+        "commit": "bfee0dbd72176a164576dc485984c853ee323eb4",
+        "dirty": false,
+        "root": "/root/work/alex-rl-experiments"
+      },
+      "library": {
+        "commit": "a0f669e4930c886edff276808c478314e4071044",
+        "dirty": false,
+        "package": "rl-harness",
+        "root": "/root/work/rl-harness",
+        "version": "0.1.0"
+      }
+    },
+    "analysis_revisions": {
+      "experiment": {
+        "commit": "b6b72776623a3dd204f6d5996f321559d3be96a6",
+        "dirty": true
+      },
+      "library": {
+        "commit": "9e1bff5516684ac64943bbbf59c00f0510057c95",
+        "dirty": false
+      }
+    },
+    "module_state_sha256": "6ff2b60203e298c7967cd16e2a0ad5676fbc22c288e02e2515a38a06a635cc5b",
+    "run_manifest_sha256": "82bbcb6cd30102a9144f4299717b1590bc5f040f8d3ec819ec814b210ea6f18b",
+    "analysis_source_sha256": "174f51c9d15a7fc2b0dc74d3cc1dd468d4e089a7c5cac39d5152ec9201a041f4",
+    "raw_data_sha256": "9eefa03c1ad3240371a5d2f9ad8a393e0ec1a4c7476f45e019cdd509b90f4974",
+    "python": "3.13.7",
+    "numpy": "2.5.1",
+    "torch": "2.12.1"
+  },
+  "results": {
+    "all": {
+      "fit_slope": -0.013758928093723841,
+      "heldout_partial_association": {
+        "slope": -0.007651805826035267,
+        "slope_ci95": [
+          -0.03819445152570725,
+          0.02296318082828001
+        ],
+        "correlation": -0.0023860590573109115,
+        "correlation_ci95": [
+          -0.011749090044189002,
+          0.007231940001794072
+        ],
+        "n_episodes": 64,
+        "n_rows": 57344,
+        "bootstrap": "paired episodes; training-fitted nuisance models fixed"
+      },
+      "heldout_incremental_prediction": {
+        "prediction": {
+          "mse": 0.009873456414181936,
+          "target_variance": 0.05049750315831252,
+          "normalized_mse": 0.19552365556031737,
+          "r_squared": 0.8044763444396826,
+          "n_evaluated": 57344
+        },
+        "baseline": {
+          "mse": 0.00987347695330515,
+          "target_variance": 0.05049750315831252,
+          "normalized_mse": 0.1955240622957385,
+          "r_squared": 0.8044759377042615,
+          "n_evaluated": 57344
+        },
+        "mse_improvement": 2.053912321296758e-08,
+        "delta_r_squared": 4.0673542112718466e-07,
+        "residual_fraction_recovered": 2.0802320509494265e-06,
+        "mse_improvement_ci": [
+          -7.859157459093917e-07,
+          8.222124914349365e-07
+        ],
+        "delta_r_squared_ci": [
+          -1.573652845528849e-05,
+          1.622976994619833e-05
+        ],
+        "ci_reason": null,
+        "delta_r_squared_ci_reason": null,
+        "delta_r_squared_valid_resamples": 2000,
+        "n_evaluated": 57344,
+        "n_groups": 64,
+        "n_resamples": 2000,
+        "requested_resamples": 2000,
+        "confidence": 0.95,
+        "seed": 20261103,
+        "bootstrap_unit": "group",
+        "bootstrap_refit": false
+      },
+      "nuisance_fit": {
+        "method": "grouped_svd_cutoff_cv",
+        "seed": 20261103,
+        "n_samples": 57344,
+        "n_features": 108,
+        "n_targets": 2,
+        "n_groups": 64,
+        "requested_folds": 5,
+        "folds": 5,
+        "rconds": [
+          1e-10
+        ],
+        "selected_rcond": 1e-10,
+        "cv_mse": [
+          0.005445457627990467
+        ],
+        "fold_mse": [
+          [
+            0.005647813591609291
+          ],
+          [
+            0.005042410446582111
+          ],
+          [
+            0.005231932897436604
+          ],
+          [
+            0.005877538840777026
+          ],
+          [
+            0.005426103591510368
+          ]
+        ],
+        "cv_weighting": "sample",
+        "fold_validation_groups": [
+          [
+            10,
+            8,
+            36,
+            7,
+            5,
+            13,
+            52,
+            58,
+            30,
+            54,
+            2,
+            32,
+            29
+          ],
+          [
+            23,
+            55,
+            47,
+            48,
+            60,
+            50,
+            37,
+            40,
+            38,
+            59,
+            43,
+            56,
+            4
+          ],
+          [
+            14,
+            15,
+            21,
+            0,
+            26,
+            9,
+            11,
+            46,
+            18,
+            16,
+            28,
+            39,
+            31
+          ],
+          [
+            51,
+            61,
+            27,
+            44,
+            53,
+            63,
+            17,
+            6,
+            41,
+            24,
+            62,
+            25,
+            22
+          ],
+          [
+            1,
+            42,
+            20,
+            35,
+            3,
+            49,
+            33,
+            45,
+            57,
+            12,
+            34,
+            19
+          ]
+        ],
+        "fold_validation_sizes": [
+          11648,
+          11648,
+          11648,
+          11648,
+          10752
+        ],
+        "rank": 30,
+        "singular_value_cutoff": 1.1169234567004994e-08,
+        "fit_source": "train"
+      },
+      "rms_evidence_change": 0.03197558867675725,
+      "rms_logit_change": 0.2247935029417938
+    },
+    "same_current_token": {
+      "fit_slope": -0.01698378915013641,
+      "heldout_partial_association": {
+        "slope": 0.011191722374152033,
+        "slope_ci95": [
+          -0.03588340910374418,
+          0.05876079875323278
+        ],
+        "correlation": 0.0031099334312146352,
+        "correlation_ci95": [
+          -0.009989399856457287,
+          0.016327295861858934
+        ],
+        "n_episodes": 64,
+        "n_rows": 38106,
+        "bootstrap": "paired episodes; training-fitted nuisance models fixed"
+      },
+      "heldout_incremental_prediction": {
+        "prediction": {
+          "mse": 0.009384323389647451,
+          "target_variance": 0.009508297586203432,
+          "normalized_mse": 0.9869614728155052,
+          "r_squared": 0.01303852718449483,
+          "n_evaluated": 38106
+        },
+        "baseline": {
+          "mse": 0.0093838150433031,
+          "target_variance": 0.009508297586203432,
+          "normalized_mse": 0.9869080093705779,
+          "r_squared": 0.013091990629422123,
+          "n_evaluated": 38106
+        },
+        "mse_improvement": -5.083463443522618e-07,
+        "delta_r_squared": -5.346344492728897e-05,
+        "residual_fraction_recovered": -5.417267305540818e-05,
+        "mse_improvement_ci": [
+          -1.6745597916586068e-06,
+          7.295937884701709e-07
+        ],
+        "delta_r_squared_ci": [
+          -0.00017821984218873636,
+          7.504619108744144e-05
+        ],
+        "ci_reason": null,
+        "delta_r_squared_ci_reason": null,
+        "delta_r_squared_valid_resamples": 2000,
+        "n_evaluated": 38106,
+        "n_groups": 64,
+        "n_resamples": 2000,
+        "requested_resamples": 2000,
+        "confidence": 0.95,
+        "seed": 20261103,
+        "bootstrap_unit": "group",
+        "bootstrap_refit": false
+      },
+      "nuisance_fit": {
+        "method": "grouped_svd_cutoff_cv",
+        "seed": 20261103,
+        "n_samples": 37953,
+        "n_features": 108,
+        "n_targets": 2,
+        "n_groups": 64,
+        "requested_folds": 5,
+        "folds": 5,
+        "rconds": [
+          1e-10
+        ],
+        "selected_rcond": 1e-10,
+        "cv_mse": [
+          0.005053813093426373
+        ],
+        "fold_mse": [
+          [
+            0.004961871973501642
+          ],
+          [
+            0.005264330538829978
+          ],
+          [
+            0.004996195625116519
+          ],
+          [
+            0.004995647123331518
+          ],
+          [
+            0.00504840205178643
+          ]
+        ],
+        "cv_weighting": "sample",
+        "fold_validation_groups": [
+          [
+            14,
+            11,
+            38,
+            10,
+            7,
+            9,
+            56,
+            57,
+            17,
+            59,
+            3,
+            32,
+            25
+          ],
+          [
+            30,
+            62,
+            40,
+            48,
+            61,
+            51,
+            39,
+            43,
+            41,
+            60,
+            46,
+            49,
+            5
+          ],
+          [
+            6,
+            13,
+            26,
+            1,
+            28,
+            12,
+            15,
+            37,
+            20,
+            18,
+            16,
+            42,
+            22
+          ],
+          [
+            55,
+            52,
+            31,
+            47,
+            58,
+            63,
+            19,
+            8,
+            44,
+            21,
+            53,
+            27,
+            29
+          ],
+          [
+            2,
+            45,
+            24,
+            36,
+            4,
+            50,
+            33,
+            35,
+            54,
+            0,
+            34,
+            23
+          ]
+        ],
+        "fold_validation_sizes": [
+          7716,
+          7778,
+          7702,
+          7665,
+          7092
+        ],
+        "rank": 18,
+        "singular_value_cutoff": 1.0844521165684713e-08,
+        "fit_source": "train"
+      },
+      "rms_evidence_change": 0.02768337123929323,
+      "rms_logit_change": 0.09752181075190407
+    },
+    "current_C": {
+      "fit_slope": -0.2944704984880333,
+      "heldout_partial_association": {
+        "slope": -0.0804744257864962,
+        "slope_ci95": [
+          -0.43643166136645745,
+          0.27209101059280394
+        ],
+        "correlation": -0.0034492608551469615,
+        "correlation_ci95": [
+          -0.018715950453011127,
+          0.011728825110860416
+        ],
+        "n_episodes": 64,
+        "n_rows": 18712,
+        "bootstrap": "paired episodes; training-fitted nuisance models fixed"
+      },
+      "heldout_incremental_prediction": {
+        "prediction": {
+          "mse": 0.008096526381134712,
+          "target_variance": 0.008081853682552742,
+          "normalized_mse": 1.0018155115346428,
+          "r_squared": -0.0018155115346427664,
+          "n_evaluated": 18712
+        },
+        "baseline": {
+          "mse": 0.008095940399737886,
+          "target_variance": 0.008081853682552742,
+          "normalized_mse": 1.0017430057185464,
+          "r_squared": -0.0017430057185463532,
+          "n_evaluated": 18712
+        },
+        "mse_improvement": -5.859813968257799e-07,
+        "delta_r_squared": -7.250581609647395e-05,
+        "residual_fraction_recovered": -7.237965793871481e-05,
+        "mse_improvement_ci": [
+          -3.7141859159756903e-06,
+          2.3076505422364864e-06
+        ],
+        "delta_r_squared_ci": [
+          -0.0004625143744405595,
+          0.00028780497873204583
+        ],
+        "ci_reason": null,
+        "delta_r_squared_ci_reason": null,
+        "delta_r_squared_valid_resamples": 2000,
+        "n_evaluated": 18712,
+        "n_groups": 64,
+        "n_resamples": 2000,
+        "requested_resamples": 2000,
+        "confidence": 0.95,
+        "seed": 20261103,
+        "bootstrap_unit": "group",
+        "bootstrap_refit": false
+      },
+      "nuisance_fit": {
+        "method": "grouped_svd_cutoff_cv",
+        "seed": 20261103,
+        "n_samples": 18740,
+        "n_features": 108,
+        "n_targets": 2,
+        "n_groups": 64,
+        "requested_folds": 5,
+        "folds": 5,
+        "rconds": [
+          1e-10
+        ],
+        "selected_rcond": 1e-10,
+        "cv_mse": [
+          0.004034478543269352
+        ],
+        "fold_mse": [
+          [
+            0.0043218665327410645
+          ],
+          [
+            0.004134631127390912
+          ],
+          [
+            0.004070725964880738
+          ],
+          [
+            0.003932755973725097
+          ],
+          [
+            0.003686972428653297
+          ]
+        ],
+        "cv_weighting": "sample",
+        "fold_validation_groups": [
+          [
+            6,
+            8,
+            36,
+            0,
+            12,
+            4,
+            58,
+            61,
+            19,
+            55,
+            5,
+            33,
+            16
+          ],
+          [
+            26,
+            57,
+            40,
+            48,
+            49,
+            51,
+            39,
+            35,
+            42,
+            63,
+            38,
+            59,
+            10
+          ],
+          [
+            13,
+            3,
+            18,
+            1,
+            31,
+            9,
+            11,
+            44,
+            24,
+            20,
+            22,
+            32,
+            27
+          ],
+          [
+            56,
+            53,
+            17,
+            34,
+            62,
+            52,
+            23,
+            14,
+            37,
+            28,
+            54,
+            25,
+            21
+          ],
+          [
+            2,
+            45,
+            30,
+            47,
+            7,
+            50,
+            43,
+            41,
+            60,
+            15,
+            46,
+            29
+          ]
+        ],
+        "fold_validation_sizes": [
+          3816,
+          3758,
+          3839,
+          3800,
+          3527
+        ],
+        "rank": 6,
+        "singular_value_cutoff": 9.823371115467577e-09,
+        "fit_source": "train"
+      },
+      "rms_evidence_change": 0.003985123903477334,
+      "rms_logit_change": 0.09027222660295457
+    },
+    "test_rollout": {
+      "n_decisions_including_warmup": 65536,
+      "mean_total_variation": 0.001409324533208947,
+      "greedy_disagreements": 0
+    }
+  }
+}

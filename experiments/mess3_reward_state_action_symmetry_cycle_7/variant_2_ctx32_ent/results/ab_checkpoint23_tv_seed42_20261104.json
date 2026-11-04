@@ -1,0 +1,131 @@
+{
+  "protocol": {
+    "training_seed": 42,
+    "evaluation_seed": 20261104,
+    "split": 2,
+    "episodes": 64,
+    "horizon": 1024,
+    "warmup": 128,
+    "scored_decisions": 57344,
+    "comparison": "original versus independently A/B-randomized inputs; C and final-policy executed actions preserved",
+    "history_source": "identical saved final-policy histories and randomization draws as the preceding comparison",
+    "bootstrap": "2,000 paired-episode resamples, decision-weighted means",
+    "selection": "checkpoint 23 requested after observing checkpoint 24 > 25; descriptive extension, not independent confirmation of a training trend",
+    "caveats": "one training seed, late adjacent checkpoints, frozen histories rather than earlier-policy on-policy visitation"
+  },
+  "provenance": {
+    "download": {
+      "manifest_key": "experiments/mess3_reward_state_action_symmetry_cycle_6/variant_2_ctx32_ent/mess3_reward_state_action_symmetry_cycle_6-variant_2_ctx32_ent-seed42-10m/metadata/durability_manifest.json",
+      "checkpoint_relative_path": "tune/PPO_HMMEnv_1f66a_00000_0_2026-09-21_04-08-38/checkpoint_000023/learner_group/learner/rl_module/default_policy",
+      "module_files": {
+        "class_and_ctor_args.pkl": {
+          "sha256": "e3f300ba1f0cecb7dfce362f09cb014be5d0b1d7a6632a4dd6a80d278d33cc60",
+          "size_bytes": 1687
+        },
+        "metadata.json": {
+          "sha256": "cc57438758a0093190e169fb3e58d627c13321952ce6d9c7d55d64abe53d6112",
+          "size_bytes": 197
+        },
+        "module_state.pkl": {
+          "sha256": "415118945953743695e96ed2c81791175edc9f4a647fb31f1236d742c8c0ac5c",
+          "size_bytes": 806417
+        }
+      },
+      "checkpoint_name": "checkpoint_000023",
+      "agent_steps": 9406096,
+      "training_iteration": 24,
+      "module_state_sha256": "415118945953743695e96ed2c81791175edc9f4a647fb31f1236d742c8c0ac5c"
+    },
+    "previous_report_path": "experiments/mess3_reward_state_action_symmetry_cycle_7/variant_2_ctx32_ent/results/ab_pattern_checkpoint_seed42_20261104.json",
+    "previous_report_sha256": "736fa9695f358d571a416b811a97439e580bbb8638cbecc783005c18b83aacb2",
+    "history_sha256": "23ec1a0d96b5f71f6c9779602ea1b36ba8c8be166395ab87c018df99e167ce70",
+    "previous_replay_sha256": "b7fcf944fa47d4db876630ead3f3800f83932c1dc68549646ab6321dd0f08247",
+    "raw_output_sha256": "e079ffaa121e95f01aa08af86363c96b7d671b71cc55ca0f565c6f1d4b46b18a",
+    "source_sha256": "a48d884f558fb16d2d7e922ae66d1bcdf29a8b39de28df8bfb63641c3b766530",
+    "helper_source_sha256": "d39e410c3bb61a23b33c9d7e2fbc1111b26bb0a9a83f87baf5cd1f1168630d14",
+    "experiment_revision": "b6b72776623a3dd204f6d5996f321559d3be96a6",
+    "experiment_dirty": true,
+    "library_revision": "9e1bff5516684ac64943bbbf59c00f0510057c95",
+    "python": "3.13.7",
+    "torch": "2.12.1",
+    "numpy": "2.5.1"
+  },
+  "validation": {
+    "four_episode_final_replay_max_logit_error": 1.9073486328125e-06
+  },
+  "results": {
+    "checkpoint_000023": {
+      "agent_steps": 9406096,
+      "total_variation": {
+        "mean": 0.0020474106047782105,
+        "ci95": [
+          0.0020057951610196784,
+          0.002090175461616221
+        ],
+        "n_rows": 57344,
+        "n_episodes": 64
+      },
+      "rms_logit_preference_change": 0.3351863286652803,
+      "greedy_disagreements": 0,
+      "n_decisions": 57344,
+      "baseline_entropy_nats": 0.10140338944843005,
+      "baseline_mean_max_action_probability": 0.9820060735567117
+    },
+    "checkpoint_000024": {
+      "agent_steps": 9799312,
+      "total_variation": {
+        "mean": 0.0013907081469416171,
+        "ci95": [
+          0.001366380206759729,
+          0.0014163063080512362
+        ],
+        "n_rows": 57344,
+        "n_episodes": 64
+      },
+      "rms_logit_preference_change": 0.2793520620029546,
+      "greedy_disagreements": 0,
+      "n_decisions": 57344,
+      "baseline_entropy_nats": 0.08643856404359937,
+      "baseline_mean_max_action_probability": 0.9850698447693537
+    },
+    "checkpoint_000025": {
+      "agent_steps": 10192528,
+      "total_variation": {
+        "mean": 0.0013035329238488215,
+        "ci95": [
+          0.0012827367344811116,
+          0.0013245158905661936
+        ],
+        "n_rows": 57344,
+        "n_episodes": 64
+      },
+      "rms_logit_preference_change": 0.2261393048552921,
+      "greedy_disagreements": 0,
+      "n_decisions": 57344,
+      "baseline_entropy_nats": 0.07796232582034561,
+      "baseline_mean_max_action_probability": 0.986721606438991
+    }
+  },
+  "paired_comparisons": {
+    "checkpoint_000023_minus_checkpoint_000024": {
+      "mean": 0.0006567024578365935,
+      "ci95": [
+        0.0006364417441833168,
+        0.0006782401839404179
+      ],
+      "n_rows": 57344,
+      "n_episodes": 64,
+      "relative_mean_TV_change": 0.4722072415271199
+    },
+    "checkpoint_000023_minus_checkpoint_000025": {
+      "mean": 0.0007438776809293894,
+      "ci95": [
+        0.0007148858745327086,
+        0.0007745715532996623
+      ],
+      "n_rows": 57344,
+      "n_episodes": 64,
+      "relative_mean_TV_change": 0.5706627483815367
+    }
+  }
+}
