@@ -1,9 +1,11 @@
 """Sequential single-seed PPO arms, following the RockSample sweep recipe."""
 
 from dataclasses import asdict, dataclass, replace
-from itertools import product
+from pathlib import Path
+import sys
 
-from harness.artifacts import RunArtifacts
+from harness.artifacts import RunArtifacts, maybe_upload_run_artifacts
+from harness.context import new_run_id
 
 from experiments.mrrxor_grokking_jax_2026_11 import ppo
 from experiments.mrrxor_grokking_jax_2026_11.analysis import analyze
@@ -35,17 +37,15 @@ class SweepRecipe:
 
 def grid_recipe():
     return SweepRecipe(tuple(
-        Arm(f"n{n}_wd{wd:g}_lr{lr:g}", ppo.PPOConfig(
-            train_sequences=n, weight_decay=wd, lr_schedule=((0, lr),)))
-        for n, wd, lr in product((256, 1024, 4096), (0.0, 0.1, 1.0), (1e-4, 3e-4))
+        Arm(f"n{n}", ppo.PPOConfig(train_sequences=n))
+        for n in (256, 1024, 4096, 16384)
     ))
 
 
 def smoke_recipe():
     return SweepRecipe(tuple(
-        Arm(f"n32_wd{wd:g}_lr{lr:g}", ppo.PPOConfig.smoke(
-            weight_decay=wd, lr_schedule=((0, lr),)))
-        for wd, lr in ((0.0, 1e-4), (0.1, 3e-4))
+        Arm(f"n{n}", ppo.PPOConfig.smoke(train_sequences=n))
+        for n in (16, 32)
     ), model=ModelSpec(vocab=3, context_length=32, d_model=16, n_layers=1, n_heads=2, d_mlp=32))
 
 
@@ -74,10 +74,11 @@ def run(context, recipe):
     for arm in recipe.arms:
         print(f"[sweep] {arm.name}, seed={context.seed}", flush=True)
         child = replace(context, results_dir=outputs.results_dir / arm.name,
-                        artifacts_dir=outputs.artifacts_dir / arm.name,
+                        artifacts_dir=outputs.results_dir / arm.name / "artifacts",
                         run_id=f"{context.run_id}-{arm.name}")
         trained = ppo.train(child, arm.ppo, recipe.model)
         report = analyze(child.artifacts_dir, child.results_dir / "analysis.json")
+        maybe_upload_run_artifacts(child)
         final = report["checkpoints"][-1]
         metrics = final["metrics"]
         rows.append({"arm": arm.name, "seed": context.seed,
@@ -99,3 +100,34 @@ def run(context, recipe):
         (outputs.results_dir / "summary.md").write_text(summary_markdown(rows))
     print(summary_markdown(rows), flush=True)
     return summary
+
+
+STUDY_DIR = Path(__file__).resolve().parent
+EXPERIMENT = "experiments.mrrxor_grokking_jax_2026_11.ppo_sweep.experiment"
+
+
+def run_paths(run_id, *, smoke=False, publish_smoke=False):
+    if not run_id or run_id in (".", "..") or Path(run_id).name != run_id:
+        raise ValueError("run ID must be a single directory name")
+    root = STUDY_DIR / (".smoke" if smoke and not publish_smoke else "runs") / run_id
+    return root, root / "artifacts"
+
+
+def main(argv=None):
+    """Resolve study-local paths before the harness writes its first manifest."""
+    from harness.cli import build_parser, main as harness_main
+
+    argv = list(sys.argv[1:] if argv is None else argv)
+    parser = build_parser()
+    args = parser.parse_args([EXPERIMENT, *argv])
+    if args.results_dir is not None or args.artifacts_dir is not None:
+        parser.error("sweep paths are managed inside the study; use --run-id instead")
+    run_id = args.run_id or new_run_id()
+    results, artifacts = run_paths(run_id, smoke=args.smoke, publish_smoke=args.publish_smoke)
+    print(f"[sweep] run folder: {results}", flush=True)
+    return harness_main([EXPERIMENT, *argv, "--run-id", run_id,
+                         "--results-dir", str(results), "--artifacts-dir", str(artifacts)])
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

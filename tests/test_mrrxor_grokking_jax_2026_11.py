@@ -93,9 +93,12 @@ def test_smoke_and_analysis(tmp_path):
 
 def test_sweep_grid_and_validation():
     recipe = sweep.grid_recipe()
-    assert len(recipe.arms) == 18
-    assert {(a.ppo.train_sequences, a.ppo.weight_decay, a.ppo.lr_schedule[0][1]) for a in recipe.arms} == set(
-        itertools.product((256, 1024, 4096), (0, .1, 1), (1e-4, 3e-4)))
+    assert len(recipe.arms) == 4
+    assert [a.name for a in recipe.arms] == ["n256", "n1024", "n4096", "n16384"]
+    assert {(a.ppo.train_sequences, a.ppo.weight_decay, a.ppo.lr_schedule[0][1]) for a in recipe.arms} == {
+        (n, 1., 3e-4) for n in (256, 1024, 4096, 16384)}
+    assert PPOConfig().weight_decay == 1.
+    assert PPOConfig().lr_schedule == ((0, 3e-4),)
     with pytest.raises(ValueError, match="at least one"):
         sweep.SweepRecipe(())
     with pytest.raises(ValueError, match="duplicate"):
@@ -105,7 +108,7 @@ def test_sweep_grid_and_validation():
 
 
 def test_sweep_smoke(tmp_path):
-    context = RunContext(experiment_dir=tmp_path, results_dir=tmp_path / "results",
+    context = RunContext(experiment_dir=tmp_path, results_dir=tmp_path,
                          artifacts_dir=tmp_path / "artifacts", smoke=True, upload_artifacts=False, seed=17)
     hits_before = make_update.cache_info().hits
     summary = sweep.run(context, sweep.smoke_recipe())
@@ -121,9 +124,28 @@ def test_sweep_smoke(tmp_path):
         assert len(report["checkpoints"]) == 3
         assert (context.results_dir / row["arm"] / "analysis.png").is_file()
         assert (context.results_dir / row["arm"] / "curve.json").is_file()
-        assert (context.artifacts_dir / row["arm"] / "checkpoint_index.json").is_file()
+        assert (context.results_dir / row["arm"] / "artifacts" / "checkpoint_index.json").is_file()
     assert json.loads((context.results_dir / "summary.json").read_text())["arms"] == summary["arms"]
     assert "NTP-PC 1−R²" in (context.results_dir / "summary.md").read_text()
+
+
+def test_sweep_run_paths_and_launcher(monkeypatch, tmp_path):
+    from harness import cli
+
+    root, artifacts = sweep.run_paths("layout-check")
+    assert root == sweep.STUDY_DIR / "runs" / "layout-check"
+    assert artifacts == root / "artifacts"
+    assert sweep.run_paths("layout-check", smoke=True)[0] == sweep.STUDY_DIR / ".smoke" / "layout-check"
+    with pytest.raises(ValueError):
+        sweep.run_paths("../escape")
+    calls = []
+    monkeypatch.setattr(cli, "main", lambda argv: calls.append(argv) or 0)
+    assert sweep.main(["--run-id", "layout-check", "--no-upload-artifacts"]) == 0
+    args = cli.build_parser().parse_args(calls[0])
+    assert args.results_dir == root
+    assert args.artifacts_dir == artifacts
+    with pytest.raises(SystemExit):
+        sweep.main(["--results-dir", str(tmp_path)])
 
 
 def test_dynamic_adamw_matches_optax():

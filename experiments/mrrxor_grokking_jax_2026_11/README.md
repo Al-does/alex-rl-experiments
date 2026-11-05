@@ -11,8 +11,8 @@ a training row uniformly with replacement. Input at decision n is BOS followed
 by tokens strictly before n; actions never enter the input or change the process.
 Exact beliefs start at stationarity. No reward or latent state reaches the model.
 
-Defaults: four layers, width 128, MLP 512; AdamW learning rate 1e-4,
-weight decay 0.1, four PPO epochs, clip 0.2, gamma=lambda=0,
+Defaults: four layers, width 128, MLP 512; AdamW constant learning rate 3e-4,
+weight decay 1.0, four PPO epochs, clip 0.2, gamma=lambda=0,
 standardized advantages, value coefficient .25 and entropy coefficient .01.
 Budget is 100M steps rounded up to a complete update. Configure scientific
 hyperparameters through `PPOConfig` in the leaf, not runtime CLI overrides.
@@ -68,29 +68,31 @@ controls beyond the requested NTP/full-belief comparison are not included.
 ## Single-GPU sequential sweep
 
 ```bash
-uv run rl-harness experiments.mrrxor_grokking_jax_2026_11.ppo_sweep.experiment --smoke --hardware cpu --no-upload-artifacts
+uv run python -m experiments.mrrxor_grokking_jax_2026_11.sweep --smoke --hardware cpu --no-upload-artifacts
 # On an already-provisioned GPU, omit --smoke and choose its hardware profile:
-uv run rl-harness experiments.mrrxor_grokking_jax_2026_11.ppo_sweep.experiment --hardware cuda4090
+uv run python -m experiments.mrrxor_grokking_jax_2026_11.sweep --hardware cuda4090
 ```
 
 The `ppo_sweep` leaf follows the existing RockSample `Arm` / `SweepRecipe`
 convention; unlike the Pusher heldout ladder's separate leaves, it runs all arms
 sequentially inside one process, with one common seed from `context.seed`.
-The default grid is train sequences {256, 1024, 4096} × weight decay
-{0, 0.1, 1.0} × learning rate {1e-4, 3e-4}. Edit `RECIPE` or construct a
+The four arms vary only train sequences {256, 1024, 4096, 16384}; all use
+weight decay 1.0 and constant learning rate 3e-4, also the `PPOConfig` defaults.
+Edit `RECIPE` or construct a
 `SweepRecipe` with replaced `PPOConfig`s to narrow the grid or reduce budgets.
 The single-run `ppo_grokking` leaf remains unchanged.
 
 Each arm costs **100,003,840 environment steps** (24,415 updates × 4,096
 steps, rounded up from 100M), plus checkpoint evaluation and offline analysis.
-All 18 arms cost about **1.8 billion steps**; this is not a wall-time guarantee
+All four arms cost about **400 million agent steps**; this is not a wall-time guarantee
 and has not been GPU-benchmarked. Reduce per-arm `total_env_steps` for a quick
-pilot. Smoke runs two width-16, one-layer arms at 2,048 steps each and analyzes
+pilot. Smoke runs two width-16, one-layer arms (`n16`, `n32`) with the same
+weight decay and learning rate, at 2,048 steps each, and analyzes
 all three checkpoints of each arm on CPU.
 
-Arms use labels such as `n256_wd0.1_lr0.0001`, with separate artifact and result
-subdirectories. Each gets checkpoints, recipe, pools, curve, analysis JSON and
-PNG. Root `summary.json` and `summary.md` rank arms by descending final held-out
+Arms use labels `n256`, `n1024`, `n4096`, `n16384`. Each gets checkpoints,
+recipe, pools, curve, analysis JSON and PNG. Root `summary.json` and `summary.md`
+rank arms by descending final held-out
 random-bit accuracy, breaking ties by held-out expected reward, and include
 train/held-out random-bit accuracy, excess CE and held-out NTP-PC probe error.
 The summary is refreshed after each completed arm; failures stop the sweep.
@@ -102,3 +104,49 @@ across arms sharing pool and model shapes, and evaluation/PCA are cached too.
 Arms are not vmapped, keeping peak training memory at one arm's state. AdamW
 is composed from Optax Adam moments plus decoupled weight decay; its learning
 rate is constant within each rollout/update, scheduled in environment steps.
+
+### One folder per sweep run
+
+The study launcher resolves paths **before** calling the shared harness CLI,
+so even its initial/final provenance manifests live inside the run folder.
+Non-smoke runs use `experiments/mrrxor_grokking_jax_2026_11/runs/<run-id>/`;
+unpublished smoke runs use `experiments/mrrxor_grokking_jax_2026_11/.smoke/<run-id>/`.
+Use `--run-id NAME` to choose the final folder name; directory overrides are
+rejected by this launcher. The ordinary `rl-harness ...ppo_sweep.experiment`
+command without explicit matching paths is not supported: its default context
+would split metadata into leaf-local `results/<id>` and `artifacts/<id>` trees.
+The single-run `ppo_grokking` command still uses the usual harness layout.
+
+```text
+runs/<run-id>/
+  run_manifest.json       # harness provenance, completion/upload status
+  resolved_recipe.json
+  summary.json
+  summary.md
+  artifacts/              # harness-level heavy-output destination
+  n256/
+    resolved_recipe.json
+    curve.json
+    summary.json
+    analysis.json
+    analysis.png
+    remote_artifacts.json # optional full B2 index, ignored
+    artifacts/
+      metrics.jsonl
+      pools.npz
+      recipe.json
+      checkpoint_index.json
+      param_checkpoints/update_*/params.npz
+  n1024/ ...
+  n4096/ ...
+  n16384/ ...
+```
+
+Each arm's complete heavy subtree is uploaded using the existing harness
+upload helper when enabled, in addition to asynchronous checkpoint uploads.
+The harness retains its own top-level metadata/upload lifecycle. No shared
+harness or storage code is modified. Repository `.gitignore` already excludes
+`experiments/**/artifacts/` at any depth and all `.smoke/` trees; the study's
+`.gitignore` also excludes full B2 indexes in `runs/`. Thus checkpoints, pools,
+and verbose logs stay ignored, while compact curves, analysis, summary tables,
+and provenance under this single run folder remain committable.

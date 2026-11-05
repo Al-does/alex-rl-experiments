@@ -25,9 +25,9 @@ class PPOConfig(BaseConfig):
     num_envs: int = 128
     minibatch_episodes: int = 32
     num_epochs: int = 4
-    lr_schedule: tuple = ((0, 1e-4),)
+    lr_schedule: tuple = ((0, 3e-4),)
     entropy_schedule: tuple = ((0, 0.01),)
-    weight_decay: float = 0.1
+    weight_decay: float = 1.0
     train_sequences: int = 1024
     heldout_sequences: int = 4096
     sequence_length: int = 32
