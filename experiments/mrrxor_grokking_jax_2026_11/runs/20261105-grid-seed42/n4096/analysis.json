@@ -1,0 +1,1750 @@
+{
+  "recipe": {
+    "seed": 42,
+    "model": {
+      "vocab": 3,
+      "context_length": 32,
+      "d_model": 128,
+      "n_layers": 4,
+      "n_heads": 4,
+      "d_mlp": 512,
+      "compute_dtype": "float32",
+      "init_std": 0.02,
+      "norm_eps": 1e-05,
+      "rope_base": 10000.0
+    },
+    "training": {
+      "total_env_steps": 100000000,
+      "num_envs": 128,
+      "minibatch_episodes": 32,
+      "num_epochs": 4,
+      "lr_schedule": [
+        [
+          0,
+          0.0003
+        ]
+      ],
+      "entropy_schedule": [
+        [
+          0,
+          0.01
+        ]
+      ],
+      "gamma": 0.0,
+      "gae_lambda": 0.0,
+      "clip_param": 0.2,
+      "vf_coeff": 0.25,
+      "vf_clip": 10.0,
+      "next_token_aux": false,
+      "aux_coeff": 1.0,
+      "rollout_chunks": 1,
+      "weight_decay": 1.0,
+      "train_sequences": 4096,
+      "heldout_sequences": 4096,
+      "sequence_length": 32,
+      "checkpoint_every": 1000
+    },
+    "process": "MRRXOR eps=0.05, jump before emit, stationary reset",
+    "jax_version": "0.11.1",
+    "parameter_snapshot_only": true
+  },
+  "pca": {
+    "mean": [
+      0.3375866851595007,
+      0.16449375866851687,
+      0.16449375866851687,
+      0.16671289875173387,
+      0.16671289875173317
+    ],
+    "components": [
+      [
+        -0.8934697045583061,
+        1.2612706675431856e-16,
+        -2.2214495643530983e-16,
+        -0.041374956634334874
+      ],
+      [
+        0.24649673003969605,
+        -0.7071067811865476,
+        2.8491232218253045e-15,
+        -0.48912100964867294
+      ],
+      [
+        0.2464967300396963,
+        0.7071067811865476,
+        -3.0266289590615965e-15,
+        -0.48912100964867317
+      ],
+      [
+        0.20023812223945717,
+        -3.1049501252345324e-15,
+        -0.7071067811865472,
+        0.5098084879658403
+      ],
+      [
+        0.2002381222394568,
+        3.0080111421425962e-15,
+        0.7071067811865477,
+        0.50980848796584
+      ]
+    ],
+    "eigenvalues": [
+      0.13840305666219643,
+      0.10600299045552186,
+      0.09577774530376763,
+      0.07328994870046393
+    ],
+    "ntp_pc_index": 3,
+    "ntp_pc_predictive_r2": 1.0000000000000093,
+    "weighting": "exact probabilities of all 2^16 stationary histories"
+  },
+  "representation": "post-final-RMSNorm residual stream",
+  "probe": "affine ridge 1e-6, fit train sequences, score heldout sequences; all prefixes incl BOS",
+  "checkpoints": [
+    {
+      "update": 0,
+      "env_steps": 0,
+      "path": "param_checkpoints/update_0000000/params.npz",
+      "sha256": "c8e01e6eaba0b3dacdf22180c56b4e8e06259d6f847d4a5f11f6389a59f25ceb",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.49908924213729733,
+          "greedy_accuracy": 0.4976043701171875,
+          "random_bit_accuracy": 0.49891965083114864,
+          "random_bit_count": 69422,
+          "ce_nats": 0.7509239276394242,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 0.13803048081557112,
+          "bayes_to_policy_kl_nats": 0.13744991038654986
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.500601262454848,
+          "greedy_accuracy": 0.5028915405273438,
+          "random_bit_accuracy": 0.5039949234186161,
+          "random_bit_count": 69338,
+          "ce_nats": 0.7470791928096354,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 0.13586344159703345,
+          "bayes_to_policy_kl_nats": 0.13542503722530916
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.7410565517626988,
+        "pc1": 0.9207924622758697,
+        "pc2": 0.4252113907294069,
+        "pc3": 0.6801624345561509,
+        "pc4": 0.9860764535177093
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.0003057644312014496,
+          "heldout": -0.0014701420671372478,
+          "train_minus_heldout": 0.0017759064983386974
+        },
+        "belief": {
+          "train": 0.07729057422561281,
+          "heldout": 0.07317764358575718,
+          "train_minus_heldout": 0.004112930639855628
+        }
+      }
+    },
+    {
+      "update": 1,
+      "env_steps": 4096,
+      "path": "param_checkpoints/update_0000001/params.npz",
+      "sha256": "b5935db5bbab01e3fe9127e2aec13695ec821eb7f2e8925c62c7042a23b781b7",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.4996948200865611,
+          "greedy_accuracy": 0.4976043701171875,
+          "random_bit_accuracy": 0.49891965083114864,
+          "random_bit_count": 69422,
+          "ce_nats": 0.7208051426198104,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 0.10791169579595739,
+          "bayes_to_policy_kl_nats": 0.1077110348365076
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.5007784548839267,
+          "greedy_accuracy": 0.5028915405273438,
+          "random_bit_accuracy": 0.5039949234186161,
+          "random_bit_count": 69338,
+          "ce_nats": 0.7183609961494903,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 0.10714524493688837,
+          "bayes_to_policy_kl_nats": 0.10633612807670521
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.7589435791708676,
+        "pc1": 0.940063235934621,
+        "pc2": 0.430357542779524,
+        "pc3": 0.720478281424592,
+        "pc4": 0.9900175235488309
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.0013830452299623541,
+          "heldout": -0.0002619330597211089,
+          "train_minus_heldout": 0.001644978289683463
+        },
+        "belief": {
+          "train": 0.08128421981408873,
+          "heldout": 0.07784206233569724,
+          "train_minus_heldout": 0.0034421574783914943
+        }
+      }
+    },
+    {
+      "update": 2,
+      "env_steps": 8192,
+      "path": "param_checkpoints/update_0000002/params.npz",
+      "sha256": "82d129766465a50bb2ae3226f073cf352cb9ed1e3bfbde6fe0133439e20ece2f",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.4996249418326286,
+          "greedy_accuracy": 0.4976043701171875,
+          "random_bit_accuracy": 0.49891965083114864,
+          "random_bit_count": 69422,
+          "ce_nats": 0.7423568809405129,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 0.12946343411665984,
+          "bayes_to_policy_kl_nats": 0.1290471438756661
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.501052017734158,
+          "greedy_accuracy": 0.5028915405273438,
+          "random_bit_accuracy": 0.5039949234186161,
+          "random_bit_count": 69338,
+          "ce_nats": 0.7391053628571415,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 0.1278896116445395,
+          "bayes_to_policy_kl_nats": 0.12739769491442723
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.7568724495184413,
+        "pc1": 0.9362352931978449,
+        "pc2": 0.4311733614126947,
+        "pc3": 0.714637426647913,
+        "pc4": 0.9920619121340305
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.0016241112563732951,
+          "heldout": 0.0005099082229724772,
+          "train_minus_heldout": 0.001114203033400818
+        },
+        "belief": {
+          "train": 0.10044748935043846,
+          "heldout": 0.0977286709603098,
+          "train_minus_heldout": 0.0027188183901286633
+        }
+      }
+    },
+    {
+      "update": 5,
+      "env_steps": 20480,
+      "path": "param_checkpoints/update_0000005/params.npz",
+      "sha256": "510207f56793124015bc9c7137df812d56b97c0e6d331b18fa631f131d34ff84",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.501519597208614,
+          "greedy_accuracy": 0.4977874755859375,
+          "random_bit_accuracy": 0.49926536256518106,
+          "random_bit_count": 69422,
+          "ce_nats": 0.732286722704506,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 0.11939327588065296,
+          "bayes_to_policy_kl_nats": 0.11963956687219157
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.5022804283695456,
+          "greedy_accuracy": 0.5021743774414062,
+          "random_bit_accuracy": 0.5026392454354034,
+          "random_bit_count": 69338,
+          "ce_nats": 0.7299509981427994,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 0.11873524693019744,
+          "bayes_to_policy_kl_nats": 0.11791937788423998
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.7307850449016685,
+        "pc1": 0.9033156044656168,
+        "pc2": 0.4271367652362467,
+        "pc3": 0.6561199120183384,
+        "pc4": 0.9897137044805149
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.006525997077607704,
+          "heldout": 0.005058255272865297,
+          "train_minus_heldout": 0.0014677418047424062
+        },
+        "belief": {
+          "train": 0.2111609791776865,
+          "heldout": 0.20584257562702535,
+          "train_minus_heldout": 0.005318403550661155
+        }
+      }
+    },
+    {
+      "update": 10,
+      "env_steps": 40960,
+      "path": "param_checkpoints/update_0000010/params.npz",
+      "sha256": "c6a0dd703dcf82eee847ea20aea469a6b64cd1b60981b08eab468f41a66e825a",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.5614013491342159,
+          "greedy_accuracy": 0.6245803833007812,
+          "random_bit_accuracy": 0.5248768401947509,
+          "random_bit_count": 69422,
+          "ce_nats": 0.7152740106063833,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 0.10238056378253024,
+          "bayes_to_policy_kl_nats": 0.1016383941574247
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.5627380414559917,
+          "greedy_accuracy": 0.6271514892578125,
+          "random_bit_accuracy": 0.5257434595748363,
+          "random_bit_count": 69338,
+          "ce_nats": 0.712468097306894,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 0.10125234609429201,
+          "bayes_to_policy_kl_nats": 0.10173130911305898
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.5264967856252993,
+        "pc1": 0.5849417537394845,
+        "pc2": 0.33493304420138625,
+        "pc3": 0.40528014649669003,
+        "pc4": 0.8932394195422177
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.41239226664194306,
+          "heldout": 0.41189350445558626,
+          "train_minus_heldout": 0.0004987621863568048
+        },
+        "belief": {
+          "train": 0.41813248958300875,
+          "heldout": 0.4158366114700184,
+          "train_minus_heldout": 0.0022958781129903683
+        }
+      }
+    },
+    {
+      "update": 20,
+      "env_steps": 81920,
+      "path": "param_checkpoints/update_0000020/params.npz",
+      "sha256": "0fe0641f147b3d887595ff52882f5bf1ea74b09c69b472596fc2a900638570a4",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6310699434963958,
+          "greedy_accuracy": 0.633575439453125,
+          "random_bit_accuracy": 0.5253089798622915,
+          "random_bit_count": 69422,
+          "ce_nats": 1.6912317494874336,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.0783383026635804,
+          "bayes_to_policy_kl_nats": 1.071491035375403
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6332779471601268,
+          "greedy_accuracy": 0.6363143920898438,
+          "random_bit_accuracy": 0.5270414491332314,
+          "random_bit_count": 69338,
+          "ce_nats": 1.6759355456379499,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.064719794425348,
+          "bayes_to_policy_kl_nats": 1.0672105725258842
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.5115417028481629,
+        "pc1": 0.5745657716078786,
+        "pc2": 0.31053785822888097,
+        "pc3": 0.38873529364593484,
+        "pc4": 0.8868282164426479
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.5185345694208731,
+          "heldout": 0.5182027754499317,
+          "train_minus_heldout": 0.0003317939709414075
+        },
+        "belief": {
+          "train": 0.5253259948326248,
+          "heldout": 0.524116490712514,
+          "train_minus_heldout": 0.0012095041201107826
+        }
+      }
+    },
+    {
+      "update": 50,
+      "env_steps": 204800,
+      "path": "param_checkpoints/update_0000050/params.npz",
+      "sha256": "14155ae339ca39b155a1d5d407b42c9570086d551361efeee557547f327adcf2",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.5674155240153919,
+          "greedy_accuracy": 0.56787109375,
+          "random_bit_accuracy": 0.5143758462735156,
+          "random_bit_count": 69422,
+          "ce_nats": 2.722536970038526,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 2.1096435232146726,
+          "bayes_to_policy_kl_nats": 2.111217697664625
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.5688141813575309,
+          "greedy_accuracy": 0.5692520141601562,
+          "random_bit_accuracy": 0.5152730104704492,
+          "random_bit_count": 69338,
+          "ce_nats": 2.7100046978216463,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 2.0987889466090444,
+          "bayes_to_policy_kl_nats": 2.1077911194921564
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.5672883210457097,
+        "pc1": 0.6815862747758752,
+        "pc2": 0.37604254371894613,
+        "pc3": 0.4041270657231599,
+        "pc4": 0.8840039091280151
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.14908387842043802,
+          "heldout": 0.14881024297053824,
+          "train_minus_heldout": 0.0002736354498997784
+        },
+        "belief": {
+          "train": 0.3460994788809113,
+          "heldout": 0.3433502665611422,
+          "train_minus_heldout": 0.002749212319769101
+        }
+      }
+    },
+    {
+      "update": 100,
+      "env_steps": 409600,
+      "path": "param_checkpoints/update_0000100/params.npz",
+      "sha256": "e9ba4dca64b4f144d03a96ffb9960af8d34c34c2650ecddeaabbdcf56b82e5bb",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.571863710676995,
+          "greedy_accuracy": 0.5679397583007812,
+          "random_bit_accuracy": 0.5143758462735156,
+          "random_bit_count": 69422,
+          "ce_nats": 2.0384806250797225,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.4255871782558693,
+          "bayes_to_policy_kl_nats": 1.42429712344114
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.5734136450752422,
+          "greedy_accuracy": 0.5693359375,
+          "random_bit_accuracy": 0.5152874325766535,
+          "random_bit_count": 69338,
+          "ce_nats": 2.0275262162153442,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.4163104650027423,
+          "bayes_to_policy_kl_nats": 1.4238206380625213
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.4585466364705928,
+        "pc1": 0.5363626472087233,
+        "pc2": 0.302529628605519,
+        "pc3": 0.3324075174577504,
+        "pc4": 0.7371453995461579
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.27687888407250816,
+          "heldout": 0.27734915805111116,
+          "train_minus_heldout": -0.00047027397860299747
+        },
+        "belief": {
+          "train": 0.39445340474238755,
+          "heldout": 0.39138467339387173,
+          "train_minus_heldout": 0.0030687313485158185
+        }
+      }
+    },
+    {
+      "update": 200,
+      "env_steps": 819200,
+      "path": "param_checkpoints/update_0000200/params.npz",
+      "sha256": "acbf299947def35e0fd720a5b86b0d813e11e2804a623d1c5feefc1f3ef46c0d",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.5839776357480186,
+          "greedy_accuracy": 0.568603515625,
+          "random_bit_accuracy": 0.5112068220448849,
+          "random_bit_count": 69422,
+          "ce_nats": 1.7850465110998044,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.1721530642759515,
+          "bayes_to_policy_kl_nats": 1.1579550469107747
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.5879952388002772,
+          "greedy_accuracy": 0.57281494140625,
+          "random_bit_accuracy": 0.5134125587700827,
+          "random_bit_count": 69338,
+          "ce_nats": 1.770510834469414,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.159295083256812,
+          "bayes_to_policy_kl_nats": 1.1631091271863192
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.4518404211004337,
+        "pc1": 0.5372251151915569,
+        "pc2": 0.2694072770326907,
+        "pc3": 0.3432738728794618,
+        "pc4": 0.7333646054192009
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.37695235227114354,
+          "heldout": 0.37857738298442634,
+          "train_minus_heldout": -0.0016250307132827935
+        },
+        "belief": {
+          "train": 0.4227159617122265,
+          "heldout": 0.42650691614066427,
+          "train_minus_heldout": -0.0037909544284377983
+        }
+      }
+    },
+    {
+      "update": 500,
+      "env_steps": 2048000,
+      "path": "param_checkpoints/update_0000500/params.npz",
+      "sha256": "8db8b787310af123e915d24e73e44699ece01bd4d0580e47e5ea496411c35c3a",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.49871197885342966,
+          "greedy_accuracy": 0.4976043701171875,
+          "random_bit_accuracy": 0.49891965083114864,
+          "random_bit_count": 69422,
+          "ce_nats": 1.0029878581150682,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 0.39009441129121514,
+          "bayes_to_policy_kl_nats": 0.38771576430072985
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.5021432303306952,
+          "greedy_accuracy": 0.5028915405273438,
+          "random_bit_accuracy": 0.5039949234186161,
+          "random_bit_count": 69338,
+          "ce_nats": 0.9919839896849745,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 0.3807682384723725,
+          "bayes_to_policy_kl_nats": 0.38271736851857396
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.765954204237278,
+        "pc1": 0.9653404320990641,
+        "pc2": 0.4344564055951385,
+        "pc3": 0.7078647771189318,
+        "pc4": 0.9939029416601282
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.0015055929351338593,
+          "heldout": -9.001190995960862e-05,
+          "train_minus_heldout": 0.001595604845093468
+        },
+        "belief": {
+          "train": 0.06744142502150863,
+          "heldout": 0.06553387214103534,
+          "train_minus_heldout": 0.0019075528804732844
+        }
+      }
+    },
+    {
+      "update": 1000,
+      "env_steps": 4096000,
+      "path": "param_checkpoints/update_0001000/params.npz",
+      "sha256": "cad04a25513d1eb166efc4d95e7d614c4ac61959b441f6fdec221827e607e3b4",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6325106164446723,
+          "greedy_accuracy": 0.6334457397460938,
+          "random_bit_accuracy": 0.5254962403848924,
+          "random_bit_count": 69422,
+          "ce_nats": 2.0604274271494702,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.447533980325617,
+          "bayes_to_policy_kl_nats": 1.438074490457498
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.634837079304897,
+          "greedy_accuracy": 0.636016845703125,
+          "random_bit_accuracy": 0.5270126049208227,
+          "random_bit_count": 69338,
+          "ce_nats": 2.0463071766448313,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.4350914254322293,
+          "bayes_to_policy_kl_nats": 1.438672004167248
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.5534020135011044,
+        "pc1": 0.6334657922878892,
+        "pc2": 0.3627447472920469,
+        "pc3": 0.4011004885295004,
+        "pc4": 0.9205673415690704
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.5126684061254483,
+          "heldout": 0.5126117630771727,
+          "train_minus_heldout": 5.6643048275573094e-05
+        },
+        "belief": {
+          "train": 0.5127899957055133,
+          "heldout": 0.5125597831635764,
+          "train_minus_heldout": 0.00023021254193689167
+        }
+      }
+    },
+    {
+      "update": 2000,
+      "env_steps": 8192000,
+      "path": "param_checkpoints/update_0002000/params.npz",
+      "sha256": "a77e00c85a525aadee6c0c2a54b30020afc8f8865ab27c45719b294dfcf31abe",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6327988347783842,
+          "greedy_accuracy": 0.6341400146484375,
+          "random_bit_accuracy": 0.5266342081760825,
+          "random_bit_count": 69422,
+          "ce_nats": 2.1013071794212537,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.4884137325974005,
+          "bayes_to_policy_kl_nats": 1.480310650096487
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6344272093304644,
+          "greedy_accuracy": 0.6353912353515625,
+          "random_bit_accuracy": 0.5255127058755661,
+          "random_bit_count": 69338,
+          "ce_nats": 2.0859977586606444,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.4747820074480424,
+          "bayes_to_policy_kl_nats": 1.4770431330972214
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.5475066650999659,
+        "pc1": 0.6228466228255729,
+        "pc2": 0.3557847699572954,
+        "pc3": 0.404536953339174,
+        "pc4": 0.9123771576042485
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.5223556787827188,
+          "heldout": 0.5221823001386028,
+          "train_minus_heldout": 0.0001733786441160401
+        },
+        "belief": {
+          "train": 0.5224055353618124,
+          "heldout": 0.5221669858504135,
+          "train_minus_heldout": 0.00023854951139890002
+        }
+      }
+    },
+    {
+      "update": 3000,
+      "env_steps": 12288000,
+      "path": "param_checkpoints/update_0003000/params.npz",
+      "sha256": "b00d4960e2c343374ffcf0a23ae5baa30df84d7d0abe49ca5b04a095b4400070",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6191670529808897,
+          "greedy_accuracy": 0.625518798828125,
+          "random_bit_accuracy": 0.5245455331163031,
+          "random_bit_count": 69422,
+          "ce_nats": 1.5423797360383005,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 0.9294862892144474,
+          "bayes_to_policy_kl_nats": 0.9235394220895845
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6220508851720323,
+          "greedy_accuracy": 0.6283721923828125,
+          "random_bit_accuracy": 0.5268683838587788,
+          "random_bit_count": 69338,
+          "ce_nats": 1.5294348348173,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 0.918219083604698,
+          "bayes_to_policy_kl_nats": 0.9234889651621259
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.5772825499890523,
+        "pc1": 0.6507521381448972,
+        "pc2": 0.38091914116090014,
+        "pc3": 0.4347622627107401,
+        "pc4": 0.9526507197813407
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.4539517544035955,
+          "heldout": 0.4538051619464104,
+          "train_minus_heldout": 0.00014659245718506853
+        },
+        "belief": {
+          "train": 0.45708044499482536,
+          "heldout": 0.45661333767170353,
+          "train_minus_heldout": 0.00046710732312182923
+        }
+      }
+    },
+    {
+      "update": 4000,
+      "env_steps": 16384000,
+      "path": "param_checkpoints/update_0004000/params.npz",
+      "sha256": "4bdb0016f8b79ed409e5164cb98115dd51e3ccc97c763909b2175a3243c792d7",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6324437182329502,
+          "greedy_accuracy": 0.6334762573242188,
+          "random_bit_accuracy": 0.5251073146841059,
+          "random_bit_count": 69422,
+          "ce_nats": 2.0677336881071273,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.4548402412832742,
+          "bayes_to_policy_kl_nats": 1.4451100819930311
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6354365765319343,
+          "greedy_accuracy": 0.6365814208984375,
+          "random_bit_accuracy": 0.5277048660186333,
+          "random_bit_count": 69338,
+          "ce_nats": 2.0502485996046316,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.4390328483920296,
+          "bayes_to_policy_kl_nats": 1.4447535851793631
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.567153658509785,
+        "pc1": 0.6571434143762995,
+        "pc2": 0.36698761539906427,
+        "pc3": 0.41924111057702146,
+        "pc4": 0.9240663782794439
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.511558356536,
+          "heldout": 0.511779430364313,
+          "train_minus_heldout": -0.00022107382831293432
+        },
+        "belief": {
+          "train": 0.5117272781638333,
+          "heldout": 0.5121214513518983,
+          "train_minus_heldout": -0.0003941731880650057
+        }
+      }
+    },
+    {
+      "update": 5000,
+      "env_steps": 20480000,
+      "path": "param_checkpoints/update_0005000/params.npz",
+      "sha256": "23b4e2d37f456d9654975f5ab0565ffc09fa4b972d72925756f177243a49a00b",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.5675210015598842,
+          "greedy_accuracy": 0.5664749145507812,
+          "random_bit_accuracy": 0.5148079859410561,
+          "random_bit_count": 69422,
+          "ce_nats": 1.6626624870690574,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.0497690402452045,
+          "bayes_to_policy_kl_nats": 1.053995791419816
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.5641448201630991,
+          "greedy_accuracy": 0.5627670288085938,
+          "random_bit_accuracy": 0.5140471314430759,
+          "random_bit_count": 69338,
+          "ce_nats": 1.6726892119130294,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.0614734607004275,
+          "bayes_to_policy_kl_nats": 1.0605788001788137
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.6095590226201643,
+        "pc1": 0.7064837061250331,
+        "pc2": 0.39535509567148924,
+        "pc3": 0.4618112993731013,
+        "pc4": 0.9753470558197169
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.1969168148218241,
+          "heldout": 0.18489844538817624,
+          "train_minus_heldout": 0.012018369433647869
+        },
+        "belief": {
+          "train": 0.42927020881957023,
+          "heldout": 0.423180654960558,
+          "train_minus_heldout": 0.00608955385901222
+        }
+      }
+    },
+    {
+      "update": 6000,
+      "env_steps": 24576000,
+      "path": "param_checkpoints/update_0006000/params.npz",
+      "sha256": "ba24562a3577d4b5dadc8b80d22afe0a416d8c0c6746af9164edcf4f77542d39",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.4979314551457783,
+          "greedy_accuracy": 0.4976043701171875,
+          "random_bit_accuracy": 0.49891965083114864,
+          "random_bit_count": 69422,
+          "ce_nats": 1.4554755451067045,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 0.8425820982828515,
+          "bayes_to_policy_kl_nats": 0.8391167139243847
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.5022119763402908,
+          "greedy_accuracy": 0.5028915405273438,
+          "random_bit_accuracy": 0.5039949234186161,
+          "random_bit_count": 69338,
+          "ce_nats": 1.440297797617827,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 0.8290820464052251,
+          "bayes_to_policy_kl_nats": 0.8325974077950324
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.7503145935328531,
+        "pc1": 0.9303579265849387,
+        "pc2": 0.43311468891307575,
+        "pc3": 0.6913253207241811,
+        "pc4": 0.9942193373976126
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.00012223373774111757,
+          "heldout": -0.00023362127949422273,
+          "train_minus_heldout": 0.0003558550172353403
+        },
+        "belief": {
+          "train": 0.12807263438920924,
+          "heldout": 0.12878955239414913,
+          "train_minus_heldout": -0.0007169180049398927
+        }
+      }
+    },
+    {
+      "update": 7000,
+      "env_steps": 28672000,
+      "path": "param_checkpoints/update_0007000/params.npz",
+      "sha256": "bcc7dc358830658daa76004274f54dcf636047707b9c163cbe53bf9ceb2154f3",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6316756069935741,
+          "greedy_accuracy": 0.6340179443359375,
+          "random_bit_accuracy": 0.5264469476534817,
+          "random_bit_count": 69422,
+          "ce_nats": 1.8820795430174924,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.2691860961936392,
+          "bayes_to_policy_kl_nats": 1.2633455156719955
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6331248545329454,
+          "greedy_accuracy": 0.6354904174804688,
+          "random_bit_accuracy": 0.525844414318267,
+          "random_bit_count": 69338,
+          "ce_nats": 1.8763247384496862,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.2651089872370842,
+          "bayes_to_policy_kl_nats": 1.269294626525743
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.5775273123319687,
+        "pc1": 0.665164388077987,
+        "pc2": 0.38049956603942225,
+        "pc3": 0.42502646240565145,
+        "pc4": 0.9404731352076884
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.5086531031526123,
+          "heldout": 0.5081162029310127,
+          "train_minus_heldout": 0.0005369002215995788
+        },
+        "belief": {
+          "train": 0.5104609052805031,
+          "heldout": 0.5096169024255145,
+          "train_minus_heldout": 0.0008440028549886458
+        }
+      }
+    },
+    {
+      "update": 8000,
+      "env_steps": 32768000,
+      "path": "param_checkpoints/update_0008000/params.npz",
+      "sha256": "0e9c9d59f0650b3b2e4b908537c0334e10915ebad80a3b873ca00015ce4cabdb",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.632899039022764,
+          "greedy_accuracy": 0.634002685546875,
+          "random_bit_accuracy": 0.526245282475296,
+          "random_bit_count": 69422,
+          "ce_nats": 2.061399842388918,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.4485063955650648,
+          "bayes_to_policy_kl_nats": 1.4389160274518809
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6351891022474132,
+          "greedy_accuracy": 0.6360549926757812,
+          "random_bit_accuracy": 0.5267385849029392,
+          "random_bit_count": 69338,
+          "ce_nats": 2.048772081749438,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.437556330536836,
+          "bayes_to_policy_kl_nats": 1.4422462925197956
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.5821598821267968,
+        "pc1": 0.671047275476231,
+        "pc2": 0.39226236857828073,
+        "pc3": 0.42038259074682344,
+        "pc4": 0.9443168375388014
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.5200093331709936,
+          "heldout": 0.5203455115973159,
+          "train_minus_heldout": -0.00033617842632227557
+        },
+        "belief": {
+          "train": 0.5200234699892599,
+          "heldout": 0.5202989735086883,
+          "train_minus_heldout": -0.00027550351942839946
+        }
+      }
+    },
+    {
+      "update": 9000,
+      "env_steps": 36864000,
+      "path": "param_checkpoints/update_0009000/params.npz",
+      "sha256": "a5955218b9a5bf9a4b5b5965a17cbf1db785bf08e798925f5de60318d3e32627",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.618779237421452,
+          "greedy_accuracy": 0.6302490234375,
+          "random_bit_accuracy": 0.526706231454006,
+          "random_bit_count": 69422,
+          "ce_nats": 1.382591283367596,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 0.7696978365437429,
+          "bayes_to_policy_kl_nats": 0.7697369793901776
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6185983062116898,
+          "greedy_accuracy": 0.6307449340820312,
+          "random_bit_accuracy": 0.5254261732383397,
+          "random_bit_count": 69338,
+          "ce_nats": 1.3767706143416811,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 0.7655548631290792,
+          "bayes_to_policy_kl_nats": 0.7641260239153111
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.5994903526800934,
+        "pc1": 0.703250194420541,
+        "pc2": 0.3800133674184325,
+        "pc3": 0.44443962250747227,
+        "pc4": 0.9707989774493674
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.48025204056785686,
+          "heldout": 0.4778852461764316,
+          "train_minus_heldout": 0.0023667943914252865
+        },
+        "belief": {
+          "train": 0.48812724074276215,
+          "heldout": 0.4858080185474343,
+          "train_minus_heldout": 0.0023192221953278747
+        }
+      }
+    },
+    {
+      "update": 10000,
+      "env_steps": 40960000,
+      "path": "param_checkpoints/update_0010000/params.npz",
+      "sha256": "2b28d190061f6466bf00b95570d4b2befc56b10b3cf72a4647b04dd07afe5199",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6170790628453575,
+          "greedy_accuracy": 0.6261367797851562,
+          "random_bit_accuracy": 0.5247760076056581,
+          "random_bit_count": 69422,
+          "ce_nats": 1.4588302529166273,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 0.8459368060927742,
+          "bayes_to_policy_kl_nats": 0.8424110310269497
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6204743667642426,
+          "greedy_accuracy": 0.630401611328125,
+          "random_bit_accuracy": 0.5280365744613343,
+          "random_bit_count": 69338,
+          "ce_nats": 1.4462639120420258,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 0.8350481608294238,
+          "bayes_to_policy_kl_nats": 0.845737534452468
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.6052681774275878,
+        "pc1": 0.7105145142292076,
+        "pc2": 0.37960309128766473,
+        "pc3": 0.46041520070657643,
+        "pc4": 0.969200561753308
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.47609862785721413,
+          "heldout": 0.47546027517405576,
+          "train_minus_heldout": 0.0006383526831583719
+        },
+        "belief": {
+          "train": 0.47727353591677757,
+          "heldout": 0.47657724586113026,
+          "train_minus_heldout": 0.0006962900556473084
+        }
+      }
+    },
+    {
+      "update": 11000,
+      "env_steps": 45056000,
+      "path": "param_checkpoints/update_0011000/params.npz",
+      "sha256": "a73f3ce9211dac6683745d81ec5b86d723831281240c50c31315f32f0ebdb4be",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6306159597077141,
+          "greedy_accuracy": 0.6334915161132812,
+          "random_bit_accuracy": 0.5254386217625536,
+          "random_bit_count": 69422,
+          "ce_nats": 1.7703933932328613,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.157499946409008,
+          "bayes_to_policy_kl_nats": 1.150879721857446
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6335034653395243,
+          "greedy_accuracy": 0.6363677978515625,
+          "random_bit_accuracy": 0.5276327554876115,
+          "random_bit_count": 69338,
+          "ce_nats": 1.7580898093527433,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.1468740581401413,
+          "bayes_to_policy_kl_nats": 1.1548874478428128
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.5806511007873625,
+        "pc1": 0.6777043665979339,
+        "pc2": 0.36753265326859785,
+        "pc3": 0.4281798189583822,
+        "pc4": 0.9511335289968228
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.5109279201528036,
+          "heldout": 0.5095802012451558,
+          "train_minus_heldout": 0.0013477189076478435
+        },
+        "belief": {
+          "train": 0.5118510628769003,
+          "heldout": 0.5103035907622432,
+          "train_minus_heldout": 0.0015474721146571113
+        }
+      }
+    },
+    {
+      "update": 12000,
+      "env_steps": 49152000,
+      "path": "param_checkpoints/update_0012000/params.npz",
+      "sha256": "2dd302c695389ccee7159dce3aa2cf5b0b20f8776ae3a05e29598d5569b91ef6",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6309822825968083,
+          "greedy_accuracy": 0.6338424682617188,
+          "random_bit_accuracy": 0.5264037336867275,
+          "random_bit_count": 69422,
+          "ce_nats": 1.9145447704327885,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.3016513236089353,
+          "bayes_to_policy_kl_nats": 1.2951518908046642
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6324747850528254,
+          "greedy_accuracy": 0.6352691650390625,
+          "random_bit_accuracy": 0.525584816406588,
+          "random_bit_count": 69338,
+          "ce_nats": 1.9033820102825052,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.2921662590699032,
+          "bayes_to_policy_kl_nats": 1.2929143501378317
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.5951262984363033,
+        "pc1": 0.682121462504736,
+        "pc2": 0.39255581554460706,
+        "pc3": 0.4362218749617187,
+        "pc4": 0.9773408776512169
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.5086530691467885,
+          "heldout": 0.5089024284476132,
+          "train_minus_heldout": -0.00024935930082470303
+        },
+        "belief": {
+          "train": 0.5100122148189191,
+          "heldout": 0.5097621338566879,
+          "train_minus_heldout": 0.000250080962231225
+        }
+      }
+    },
+    {
+      "update": 13000,
+      "env_steps": 53248000,
+      "path": "param_checkpoints/update_0013000/params.npz",
+      "sha256": "01ade6e00c11d8a9b671630d7070b09dfc55995a2797f0996f2dcaa9d44b33af",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.56768038672722,
+          "greedy_accuracy": 0.5691299438476562,
+          "random_bit_accuracy": 0.5143758462735156,
+          "random_bit_count": 69422,
+          "ce_nats": 2.1440043810997236,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.5311109342758704,
+          "bayes_to_policy_kl_nats": 1.5396425151301663
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.56221113024102,
+          "greedy_accuracy": 0.56353759765625,
+          "random_bit_accuracy": 0.5089561279529262,
+          "random_bit_count": 69338,
+          "ce_nats": 2.1701073298932503,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.5588915786806483,
+          "bayes_to_policy_kl_nats": 1.5498093976521168
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.6104447470889222,
+        "pc1": 0.690517536423763,
+        "pc2": 0.39375555639375437,
+        "pc3": 0.4888671498549896,
+        "pc4": 0.9760226048727192
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.1673342084485382,
+          "heldout": 0.1610576132873034,
+          "train_minus_heldout": 0.006276595161234799
+        },
+        "belief": {
+          "train": 0.3946762269889552,
+          "heldout": 0.3893045282203861,
+          "train_minus_heldout": 0.005371698768569133
+        }
+      }
+    },
+    {
+      "update": 14000,
+      "env_steps": 57344000,
+      "path": "param_checkpoints/update_0014000/params.npz",
+      "sha256": "c4a2b349a96d158345a6412af601d109565d44af603afeb73294772c65a632ca",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.5678484195902025,
+          "greedy_accuracy": 0.5702590942382812,
+          "random_bit_accuracy": 0.5146783440407939,
+          "random_bit_count": 69422,
+          "ce_nats": 2.276472360754717,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.6635789139308637,
+          "bayes_to_policy_kl_nats": 1.6749192568248152
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.562123211427997,
+          "greedy_accuracy": 0.5646286010742188,
+          "random_bit_accuracy": 0.5093311027142404,
+          "random_bit_count": 69338,
+          "ce_nats": 2.3176692566926542,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.7064535054800523,
+          "bayes_to_policy_kl_nats": 1.6944893941862926
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.6203014991747485,
+        "pc1": 0.7070668743706816,
+        "pc2": 0.3970361665211609,
+        "pc3": 0.49559929907997036,
+        "pc4": 0.9878565694028006
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.1424937624311835,
+          "heldout": 0.13583299025369822,
+          "train_minus_heldout": 0.006660772177485286
+        },
+        "belief": {
+          "train": 0.3840193752491372,
+          "heldout": 0.37824013823898783,
+          "train_minus_heldout": 0.005779237010149374
+        }
+      }
+    },
+    {
+      "update": 15000,
+      "env_steps": 61440000,
+      "path": "param_checkpoints/update_0015000/params.npz",
+      "sha256": "44f95c945e09307a66cb00777385776ca6c1493c9f3a7d0e3d79bdb58ce44f06",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6326012559979105,
+          "greedy_accuracy": 0.6333389282226562,
+          "random_bit_accuracy": 0.5253377891734609,
+          "random_bit_count": 69422,
+          "ce_nats": 2.2317943653446584,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.6189009185208052,
+          "bayes_to_policy_kl_nats": 1.6078036387816987
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6351096387799514,
+          "greedy_accuracy": 0.6358642578125,
+          "random_bit_accuracy": 0.5265799417346909,
+          "random_bit_count": 69338,
+          "ce_nats": 2.2164930387765396,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.6052772875639376,
+          "bayes_to_policy_kl_nats": 1.6120688491264927
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.6002405181804491,
+        "pc1": 0.6977367509507586,
+        "pc2": 0.3998510599749955,
+        "pc3": 0.43918856113485016,
+        "pc4": 0.9614936584755019
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.5099260169585873,
+          "heldout": 0.5094600416514438,
+          "train_minus_heldout": 0.0004659753071435402
+        },
+        "belief": {
+          "train": 0.5110071287630183,
+          "heldout": 0.5106960533309213,
+          "train_minus_heldout": 0.00031107543209707433
+        }
+      }
+    },
+    {
+      "update": 16000,
+      "env_steps": 65536000,
+      "path": "param_checkpoints/update_0016000/params.npz",
+      "sha256": "19ae964ac743ecd60a81c5e48ffd8e32627606af6e986fdf29c755e0e01bb28f",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6304505001539173,
+          "greedy_accuracy": 0.6332321166992188,
+          "random_bit_accuracy": 0.5262740917864653,
+          "random_bit_count": 69422,
+          "ce_nats": 1.8988500697749544,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.2859566229511015,
+          "bayes_to_policy_kl_nats": 1.2807614139134973
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6321423253923525,
+          "greedy_accuracy": 0.6353073120117188,
+          "random_bit_accuracy": 0.5270991375580489,
+          "random_bit_count": 69338,
+          "ce_nats": 1.887094094967309,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.275878343754707,
+          "bayes_to_policy_kl_nats": 1.277752847007561
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.600395677597087,
+        "pc1": 0.6920305141998845,
+        "pc2": 0.3947866560531447,
+        "pc3": 0.44114829629258584,
+        "pc4": 0.9789444921368556
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.4919328303831564,
+          "heldout": 0.49231617160923025,
+          "train_minus_heldout": -0.00038334122607386334
+        },
+        "belief": {
+          "train": 0.5017348922123239,
+          "heldout": 0.5013985236582599,
+          "train_minus_heldout": 0.0003363685540640482
+        }
+      }
+    },
+    {
+      "update": 17000,
+      "env_steps": 69632000,
+      "path": "param_checkpoints/update_0017000/params.npz",
+      "sha256": "e2e3401d87a4a2f465f227f98de1fba7777c7a5821465c623a2814f228d9e33d",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6194993008013681,
+          "greedy_accuracy": 0.6246795654296875,
+          "random_bit_accuracy": 0.5230186396243266,
+          "random_bit_count": 69422,
+          "ce_nats": 1.6262116377844267,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.0133181909605735,
+          "bayes_to_policy_kl_nats": 1.0090139808294447
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6204119694293997,
+          "greedy_accuracy": 0.625701904296875,
+          "random_bit_accuracy": 0.5229744151835934,
+          "random_bit_count": 69338,
+          "ce_nats": 1.6211075692799743,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.0098918180673724,
+          "bayes_to_policy_kl_nats": 1.010570773142363
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.5951884802897894,
+        "pc1": 0.6844163689079267,
+        "pc2": 0.3922679538796707,
+        "pc3": 0.4334642663078862,
+        "pc4": 0.9776085855239928
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.4764834139000015,
+          "heldout": 0.47526104114205914,
+          "train_minus_heldout": 0.0012223727579423471
+        },
+        "belief": {
+          "train": 0.4807178091783132,
+          "heldout": 0.4798005929700475,
+          "train_minus_heldout": 0.000917216208265681
+        }
+      }
+    },
+    {
+      "update": 18000,
+      "env_steps": 73728000,
+      "path": "param_checkpoints/update_0018000/params.npz",
+      "sha256": "a36669b5ca03869754c1d1065028229e9a6acbcee735a4f5f74fa4c922f3327b",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6200121966552923,
+          "greedy_accuracy": 0.625701904296875,
+          "random_bit_accuracy": 0.5251793379620293,
+          "random_bit_count": 69422,
+          "ce_nats": 1.8318530862327569,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.218959639408904,
+          "bayes_to_policy_kl_nats": 1.216671731420742
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.618453317065016,
+          "greedy_accuracy": 0.6244277954101562,
+          "random_bit_accuracy": 0.5229744151835934,
+          "random_bit_count": 69338,
+          "ce_nats": 1.8239833753695256,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.2127676241569236,
+          "bayes_to_policy_kl_nats": 1.207746135297846
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.5910285753028905,
+        "pc1": 0.6733072775460562,
+        "pc2": 0.38443370363719354,
+        "pc3": 0.4427700691965974,
+        "pc4": 0.9738444767502732
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.46578177731709636,
+          "heldout": 0.46300118941557633,
+          "train_minus_heldout": 0.0027805879015200263
+        },
+        "belief": {
+          "train": 0.4872867265424027,
+          "heldout": 0.48452467541372723,
+          "train_minus_heldout": 0.0027620511286754468
+        }
+      }
+    },
+    {
+      "update": 19000,
+      "env_steps": 77824000,
+      "path": "param_checkpoints/update_0019000/params.npz",
+      "sha256": "6484bd8fcfdc443f7350f0f4cebf9c56f318b3ca1921e54f885c190327b71a28",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6312858731152013,
+          "greedy_accuracy": 0.6340789794921875,
+          "random_bit_accuracy": 0.5263461150643888,
+          "random_bit_count": 69422,
+          "ce_nats": 1.804545854035537,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.1916524072116839,
+          "bayes_to_policy_kl_nats": 1.1846054257290768
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6330215786555048,
+          "greedy_accuracy": 0.6356353759765625,
+          "random_bit_accuracy": 0.5259309469554934,
+          "random_bit_count": 69338,
+          "ce_nats": 1.7929694587362426,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.1817537075236406,
+          "bayes_to_policy_kl_nats": 1.1832391304999197
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.6051567376194571,
+        "pc1": 0.7045147910136549,
+        "pc2": 0.3978852973115452,
+        "pc3": 0.4396618918759786,
+        "pc4": 0.980174187481818
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.5041014800125032,
+          "heldout": 0.5038415016774815,
+          "train_minus_heldout": 0.0002599783350216711
+        },
+        "belief": {
+          "train": 0.5042801911940599,
+          "heldout": 0.5038770796328191,
+          "train_minus_heldout": 0.0004031115612407321
+        }
+      }
+    },
+    {
+      "update": 20000,
+      "env_steps": 81920000,
+      "path": "param_checkpoints/update_0020000/params.npz",
+      "sha256": "27c083adb96abdb7d446d3c75089bbd18518aa8a96fe147163931a73e6bcb0d0",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.4989927478543952,
+          "greedy_accuracy": 0.4976043701171875,
+          "random_bit_accuracy": 0.49891965083114864,
+          "random_bit_count": 69422,
+          "ce_nats": 0.8214261206610357,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 0.20853267383718266,
+          "bayes_to_policy_kl_nats": 0.20755885100856522
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.5012263926433385,
+          "greedy_accuracy": 0.5028915405273438,
+          "random_bit_accuracy": 0.5039949234186161,
+          "random_bit_count": 69338,
+          "ce_nats": 0.815907616646052,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 0.20469186543345008,
+          "bayes_to_policy_kl_nats": 0.20508796539026877
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.76296062977925,
+        "pc1": 0.9987747624741057,
+        "pc2": 0.43813698463248424,
+        "pc3": 0.6407862885968949,
+        "pc4": 0.9999158916748776
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 7.16434927864329e-05,
+          "heldout": -0.0008146557081494255,
+          "train_minus_heldout": 0.0008862992009358583
+        },
+        "belief": {
+          "train": 0.41310984464223544,
+          "heldout": 0.4114510072603539,
+          "train_minus_heldout": 0.0016588373818815505
+        }
+      }
+    },
+    {
+      "update": 21000,
+      "env_steps": 86016000,
+      "path": "param_checkpoints/update_0021000/params.npz",
+      "sha256": "b781a3103f5be1677c6217951f93f83c71c43da7f53b9c3e671094655bfbacfc",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6279664879279214,
+          "greedy_accuracy": 0.633148193359375,
+          "random_bit_accuracy": 0.5255394543516465,
+          "random_bit_count": 69422,
+          "ce_nats": 1.634424947273469,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.021531500449616,
+          "bayes_to_policy_kl_nats": 1.011895352413616
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6301589624543786,
+          "greedy_accuracy": 0.6349639892578125,
+          "random_bit_accuracy": 0.5262914996106032,
+          "random_bit_count": 69338,
+          "ce_nats": 1.6217801643513998,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.0105644131387979,
+          "bayes_to_policy_kl_nats": 1.015790122416664
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.5983650631441513,
+        "pc1": 0.6821488884663022,
+        "pc2": 0.39289795978706105,
+        "pc3": 0.44492426341584645,
+        "pc4": 0.9837717193470394
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.49377426721429485,
+          "heldout": 0.4933611927433148,
+          "train_minus_heldout": 0.000413074470980046
+        },
+        "belief": {
+          "train": 0.49691879823065943,
+          "heldout": 0.49672209540849144,
+          "train_minus_heldout": 0.0001967028221679934
+        }
+      }
+    },
+    {
+      "update": 22000,
+      "env_steps": 90112000,
+      "path": "param_checkpoints/update_0022000/params.npz",
+      "sha256": "13d462ff53b3a198758c461b98929e16ab78dfa7729c81d852e31256eb2a4125",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6322029568973113,
+          "greedy_accuracy": 0.6335067749023438,
+          "random_bit_accuracy": 0.5254530264181383,
+          "random_bit_count": 69422,
+          "ce_nats": 2.1159004648576687,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.5030070180338155,
+          "bayes_to_policy_kl_nats": 1.4945889521936715
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6346906732501942,
+          "greedy_accuracy": 0.6360244750976562,
+          "random_bit_accuracy": 0.5269116501773919,
+          "random_bit_count": 69338,
+          "ce_nats": 2.1023632274860296,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.4911474762734276,
+          "bayes_to_policy_kl_nats": 1.4947152100688814
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.5967636843817535,
+        "pc1": 0.6952294011916451,
+        "pc2": 0.3945126119918637,
+        "pc3": 0.436129474684377,
+        "pc4": 0.9585354216760108
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.4926696012686834,
+          "heldout": 0.4926875685891796,
+          "train_minus_heldout": -1.7967320496192762e-05
+        },
+        "belief": {
+          "train": 0.49443811719735065,
+          "heldout": 0.4938878008682911,
+          "train_minus_heldout": 0.0005503163290595525
+        }
+      }
+    },
+    {
+      "update": 23000,
+      "env_steps": 94208000,
+      "path": "param_checkpoints/update_0023000/params.npz",
+      "sha256": "7edd076b796a7a346382fbf6114f8e7072c9364a604b95a6b407d8c8b359a8bc",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6328822067827015,
+          "greedy_accuracy": 0.6339187622070312,
+          "random_bit_accuracy": 0.525971594019187,
+          "random_bit_count": 69422,
+          "ce_nats": 2.172830043486086,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.559936596662233,
+          "bayes_to_policy_kl_nats": 1.5516968953511534
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6354008685474055,
+          "greedy_accuracy": 0.636474609375,
+          "random_bit_accuracy": 0.5274020017883412,
+          "random_bit_count": 69338,
+          "ce_nats": 2.153992148884469,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.542776397671867,
+          "bayes_to_policy_kl_nats": 1.5483964865510331
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.596780910574596,
+        "pc1": 0.689393171961014,
+        "pc2": 0.39695208912760277,
+        "pc3": 0.42553841951374366,
+        "pc4": 0.9811043761269035
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.4910759232247396,
+          "heldout": 0.4911274751850978,
+          "train_minus_heldout": -5.1551960358220406e-05
+        },
+        "belief": {
+          "train": 0.4938981754499243,
+          "heldout": 0.49328048813871184,
+          "train_minus_heldout": 0.0006176873112124781
+        }
+      }
+    },
+    {
+      "update": 24000,
+      "env_steps": 98304000,
+      "path": "param_checkpoints/update_0024000/params.npz",
+      "sha256": "5f24e9ad5f64ed2024179d433aa96467b99282dd360873be987109182c4acc70",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6319573128998974,
+          "greedy_accuracy": 0.6341781616210938,
+          "random_bit_accuracy": 0.5263893290311429,
+          "random_bit_count": 69422,
+          "ce_nats": 1.889693300778706,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.276799853954853,
+          "bayes_to_policy_kl_nats": 1.2697738343393972
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.633732150274904,
+          "greedy_accuracy": 0.6357345581054688,
+          "random_bit_accuracy": 0.5259742132741065,
+          "random_bit_count": 69338,
+          "ce_nats": 1.8821223746002005,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.2709066233875985,
+          "bayes_to_policy_kl_nats": 1.2744452937166866
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.5982601290912654,
+        "pc1": 0.6810355841792813,
+        "pc2": 0.3976532931232983,
+        "pc3": 0.4385684513798279,
+        "pc4": 0.986656744919919
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.5100302687922684,
+          "heldout": 0.5098289021211748,
+          "train_minus_heldout": 0.00020136667109360573
+        },
+        "belief": {
+          "train": 0.5104664004977508,
+          "heldout": 0.5102844095284104,
+          "train_minus_heldout": 0.000181990969340462
+        }
+      }
+    },
+    {
+      "update": 24415,
+      "env_steps": 100003840,
+      "path": "param_checkpoints/update_0024415/params.npz",
+      "sha256": "b79d0c893c786ec24715507b103c4a4ec414580fe653714bb112ff80e0208b7a",
+      "metrics": {
+        "train": {
+          "sampled_policy_mean_reward": 0.6326332337496885,
+          "greedy_accuracy": 0.6335296630859375,
+          "random_bit_accuracy": 0.5251649333064446,
+          "random_bit_count": 69422,
+          "ce_nats": 2.111361251302112,
+          "bayes_floor_nats": 0.612893446823853,
+          "excess_ce_nats": 1.498467804478259,
+          "bayes_to_policy_kl_nats": 1.4878685831279066
+        },
+        "heldout": {
+          "sampled_policy_mean_reward": 0.6358652584094642,
+          "greedy_accuracy": 0.6367950439453125,
+          "random_bit_accuracy": 0.5278923533992904,
+          "random_bit_count": 69338,
+          "ce_nats": 2.0934890370347525,
+          "bayes_floor_nats": 0.611215751212602,
+          "excess_ce_nats": 1.4822732858221506,
+          "bayes_to_policy_kl_nats": 1.4891803793939258
+        }
+      },
+      "probe_1_minus_r2": {
+        "belief": 0.5930867496064578,
+        "pc1": 0.6727988887782951,
+        "pc2": 0.4019238417425284,
+        "pc3": 0.42822999606857215,
+        "pc4": 0.9795512312931868
+      },
+      "policy_logodds_r2": {
+        "ntp_pc": {
+          "train": 0.5062040799734571,
+          "heldout": 0.5063287537833039,
+          "train_minus_heldout": -0.0001246738098468203
+        },
+        "belief": {
+          "train": 0.5069541123694982,
+          "heldout": 0.507189150594872,
+          "train_minus_heldout": -0.00023503822537385144
+        }
+      }
+    }
+  ]
+}
