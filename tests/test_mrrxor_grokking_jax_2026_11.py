@@ -1,13 +1,16 @@
 import itertools
 import json
 
+import jax.numpy as jnp
 import numpy as np
+import optax
 import pytest
 from harness.context import RunContext
 
 from experiments.mrrxor_grokking_jax_2026_11 import process
+from experiments.mrrxor_grokking_jax_2026_11 import sweep
 from experiments.mrrxor_grokking_jax_2026_11.analysis import analyze, fit_pca
-from experiments.mrrxor_grokking_jax_2026_11.ppo import PPOConfig, checkpoint_updates, train
+from experiments.mrrxor_grokking_jax_2026_11.ppo import PPOConfig, checkpoint_updates, make_update, train
 from experiments.pusher_b_jax_2026_10.model import ModelSpec
 
 
@@ -86,3 +89,54 @@ def test_smoke_and_analysis(tmp_path):
     with np.load(context.artifacts_dir / entries[0]["path"]) as first, np.load(context.artifacts_dir / entries[-1]["path"]) as last:
         assert any(not np.array_equal(first[k], last[k]) for k in first.files)
     assert report["checkpoints"][-1]["metrics"]["heldout"]["random_bit_count"] > 0
+
+
+def test_sweep_grid_and_validation():
+    recipe = sweep.grid_recipe()
+    assert len(recipe.arms) == 18
+    assert {(a.ppo.train_sequences, a.ppo.weight_decay, a.ppo.lr_schedule[0][1]) for a in recipe.arms} == set(
+        itertools.product((256, 1024, 4096), (0, .1, 1), (1e-4, 3e-4)))
+    with pytest.raises(ValueError, match="at least one"):
+        sweep.SweepRecipe(())
+    with pytest.raises(ValueError, match="duplicate"):
+        sweep.SweepRecipe((recipe.arms[0], recipe.arms[0]))
+    with pytest.raises(ValueError, match="directory"):
+        sweep.SweepRecipe((sweep.Arm("../bad", PPOConfig()),))
+
+
+def test_sweep_smoke(tmp_path):
+    context = RunContext(experiment_dir=tmp_path, results_dir=tmp_path / "results",
+                         artifacts_dir=tmp_path / "artifacts", smoke=True, upload_artifacts=False, seed=17)
+    hits_before = make_update.cache_info().hits
+    summary = sweep.run(context, sweep.smoke_recipe())
+    assert len(summary["arms"]) == 2
+    assert make_update.cache_info().hits > hits_before
+    assert summary["arms"] == sorted(summary["arms"], key=lambda r: (
+        r["heldout_random_bit_accuracy"], r["heldout_reward"]), reverse=True)
+    for row in summary["arms"]:
+        assert row["seed"] == 17
+        assert row["env_steps"] == 2048
+        assert np.isfinite(row["ntp_pc_probe_1_minus_r2"])
+        report = json.loads((context.results_dir / row["arm"] / "analysis.json").read_text())
+        assert len(report["checkpoints"]) == 3
+        assert (context.results_dir / row["arm"] / "analysis.png").is_file()
+        assert (context.results_dir / row["arm"] / "curve.json").is_file()
+        assert (context.artifacts_dir / row["arm"] / "checkpoint_index.json").is_file()
+    assert json.loads((context.results_dir / "summary.json").read_text())["arms"] == summary["arms"]
+    assert "NTP-PC 1−R²" in (context.results_dir / "summary.md").read_text()
+
+
+def test_dynamic_adamw_matches_optax():
+    params = {"w": jnp.array([1., -2.])}
+    optimizer = optax.scale_by_adam()
+    reference = optax.adamw(learning_rate=3e-4, weight_decay=.1)
+    state, reference_state = optimizer.init(params), reference.init(params)
+    reference_params = params
+    for _ in range(3):
+        grads = {"w": jnp.array([.2, -.4])}
+        updates, state = optimizer.update(grads, state, params)
+        updates = {"w": -3e-4 * (updates["w"] + .1 * params["w"])}
+        expected, reference_state = reference.update(grads, reference_state, reference_params)
+        params = optax.apply_updates(params, updates)
+        reference_params = optax.apply_updates(reference_params, expected)
+        np.testing.assert_allclose(params["w"], reference_params["w"], atol=1e-7)

@@ -15,6 +15,7 @@ from experiments.pusher_b_jax_2026_10 import model as tm
 from experiments.mrrxor_grokking_jax_2026_11 import process as process
 
 
+@lru_cache(maxsize=8)
 def fit_pca(depth=16):
     """Exact process weighting over all stationary length-depth histories."""
     b = process.stationary_distribution(process.transition_tensor())[None]

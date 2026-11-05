@@ -64,3 +64,41 @@ identification of the model's representation, and a smoke run cannot establish
 grokking. Prefixes within a sequence are correlated; no confidence intervals
 or checkpoint-selection claims are made. Per-layer probing and specificity
 controls beyond the requested NTP/full-belief comparison are not included.
+
+## Single-GPU sequential sweep
+
+```bash
+uv run rl-harness experiments.mrrxor_grokking_jax_2026_11.ppo_sweep.experiment --smoke --hardware cpu --no-upload-artifacts
+# On an already-provisioned GPU, omit --smoke and choose its hardware profile:
+uv run rl-harness experiments.mrrxor_grokking_jax_2026_11.ppo_sweep.experiment --hardware cuda4090
+```
+
+The `ppo_sweep` leaf follows the existing RockSample `Arm` / `SweepRecipe`
+convention; unlike the Pusher heldout ladder's separate leaves, it runs all arms
+sequentially inside one process, with one common seed from `context.seed`.
+The default grid is train sequences {256, 1024, 4096} × weight decay
+{0, 0.1, 1.0} × learning rate {1e-4, 3e-4}. Edit `RECIPE` or construct a
+`SweepRecipe` with replaced `PPOConfig`s to narrow the grid or reduce budgets.
+The single-run `ppo_grokking` leaf remains unchanged.
+
+Each arm costs **100,003,840 environment steps** (24,415 updates × 4,096
+steps, rounded up from 100M), plus checkpoint evaluation and offline analysis.
+All 18 arms cost about **1.8 billion steps**; this is not a wall-time guarantee
+and has not been GPU-benchmarked. Reduce per-arm `total_env_steps` for a quick
+pilot. Smoke runs two width-16, one-layer arms at 2,048 steps each and analyzes
+all three checkpoints of each arm on CPU.
+
+Arms use labels such as `n256_wd0.1_lr0.0001`, with separate artifact and result
+subdirectories. Each gets checkpoints, recipe, pools, curve, analysis JSON and
+PNG. Root `summary.json` and `summary.md` rank arms by descending final held-out
+random-bit accuracy, breaking ties by held-out expected reward, and include
+train/held-out random-bit accuracy, excess CE and held-out NTP-PC probe error.
+The summary is refreshed after each completed arm; failures stop the sweep.
+Do not interpret this ranking on one seed as a confirmed hyperparameter result.
+
+Training pools are runtime arguments rather than compiled constants; learning
+rates and weight decay are dynamic scalars/arrays. Jitted PPO updates are reused
+across arms sharing pool and model shapes, and evaluation/PCA are cached too.
+Arms are not vmapped, keeping peak training memory at one arm's state. AdamW
+is composed from Optax Adam moments plus decoupled weight decay; its learning
+rate is constant within each rollout/update, scheduled in environment steps.

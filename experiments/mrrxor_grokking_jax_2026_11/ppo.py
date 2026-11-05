@@ -2,8 +2,8 @@
 
 import json
 import math
-from dataclasses import asdict, dataclass
-from functools import partial
+from dataclasses import asdict, dataclass, replace
+from functools import lru_cache, partial
 from pathlib import Path
 
 import jax
@@ -57,14 +57,14 @@ def checkpoint_updates(total, every):
     return sorted(points)
 
 
-def make_update(config, spec, pool):
-    optimizer = optax.adamw(learning_rate=lambda count: schedule_value(
-        config.lr_schedule, count // (config.num_epochs * (config.num_envs // config.minibatch_episodes))
-        * config.num_envs * config.sequence_length), weight_decay=config.weight_decay)
+@lru_cache(maxsize=8)
+def make_update(config, spec):
+    optimizer = optax.scale_by_adam()
     loss_grad = jax.value_and_grad(partial(_loss, config, spec), has_aux=True)
 
     @jax.jit
-    def update(params, opt_state, key, env_steps):
+    def update(params, opt_state, key, env_steps, pool, lr_schedule, weight_decay):
+        lr = jnp.interp(env_steps, lr_schedule[:, 0], lr_schedule[:, 1])
         key, data_key, act_key, shuffle_key = jax.random.split(key, 4)
         raw = pool[jax.random.randint(data_key, (config.num_envs,), 0, len(pool))]
         tokens = jnp.concatenate([jnp.full((len(raw), 1), 2, dtype=jnp.int32), raw[:, :-1]], -1)
@@ -86,6 +86,7 @@ def make_update(config, spec, pool):
                 p, state = carry
                 (_, metrics), grads = loss_grad(p, entropy, mb)
                 updates, state = optimizer.update(grads, state, p)
+                updates = jax.tree.map(lambda u, w: -lr * (u + weight_decay * w), updates, p)
                 return (optax.apply_updates(p, updates), state), metrics
             return jax.lax.scan(minibatch, carry, minibatches)
 
@@ -111,7 +112,11 @@ def train(context, config=None, spec=None):
     (root / "recipe.json").write_text(json.dumps(recipe, indent=2))
     outputs.write_json("resolved_recipe.json", recipe)
     params = tm.init_params(spec, jax.random.PRNGKey(context.seed), actor_critic=True)
-    optimizer, update = make_update(config, spec, jnp.asarray(pools["train"]))
+    compiled_config = replace(config, train_sequences=1024, heldout_sequences=4096,
+                              lr_schedule=((0, 1e-4),), weight_decay=0.1)
+    optimizer, update = make_update(compiled_config, spec)
+    pool = jnp.asarray(pools["train"])
+    lr_schedule = jnp.asarray(config.lr_schedule, dtype=jnp.float32)
     state, key = optimizer.init(params), jax.random.PRNGKey(context.seed + 1)
     total = math.ceil(config.total_env_steps / (config.num_envs * config.sequence_length))
     checkpoints = set(checkpoint_updates(total, config.checkpoint_every))
@@ -131,7 +136,8 @@ def train(context, config=None, spec=None):
                 outputs.append_result(record)
                 print(json.dumps(record), flush=True)
             if step < total:
-                params, state, key, _ = update(params, state, key, jnp.int32(env_steps))
+                params, state, key, _ = update(params, state, key, jnp.int32(env_steps),
+                                              pool, lr_schedule, jnp.float32(config.weight_decay))
     finally:
         uploads = writer.close()
         (root / "checkpoint_index.json").write_text(json.dumps(index, indent=2))
