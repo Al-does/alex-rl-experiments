@@ -1,4 +1,6 @@
 from dataclasses import replace
+import json
+import pickle
 
 import jax
 import jax.numpy as jnp
@@ -10,6 +12,94 @@ from experiments.rocksample_jax_2026_10 import belief_probe as bp
 from experiments.rocksample_jax_2026_10 import env as rs
 from experiments.rocksample_jax_2026_10 import model as tm
 from experiments.rocksample_jax_2026_10 import ppo
+
+
+def test_checkpoint_order_seed_identity_and_invalid_metadata(tmp_path):
+    records = [
+        {"update": 29, "env_steps": 29_360_128, "path": "d128_kl0.1/seed2.pkl"},
+        {"update": 1, "env_steps": 1_048_576, "path": "d128_kl0.1/seed2/update001.pkl"},
+    ]
+    seed = {"seed_index": 2, "checkpoints": records}
+    summary = {"arms": {"d128_kl0.1": {"seeds": [seed]}}}
+    path = tmp_path / "summary.json"
+    path.write_text(json.dumps(summary))
+    assert [r["update"] for r in bp.checkpoint_records(tmp_path, 2)] == [1, 29]
+    records[0]["path"] = "d128_kl0.1/seed1.pkl"
+    path.write_text(json.dumps(summary))
+    with pytest.raises(ValueError, match="path disagrees"):
+        bp.checkpoint_records(tmp_path, 2)
+    records[0]["path"] = "d128_kl0.1/seed2.pkl"
+    records[0]["env_steps"] = 1_048_576
+    path.write_text(json.dumps(summary))
+    with pytest.raises(ValueError, match="increase strictly"):
+        bp.checkpoint_records(tmp_path, 2)
+
+
+def test_light_checkpoint_verification_precedes_loading(tmp_path, monkeypatch):
+    root = tmp_path / "experiments" / "study"
+    run = root / "ppo_bmax_r7" / "results" / "test-run"
+    run.mkdir(parents=True)
+    monkeypatch.setattr(bp, "ROOT", root)
+    recipe = {
+        "seed": 42,
+        "num_seeds": 4,
+        "arms": [{"name": "d128_kl0.1", "env_steps_per_seed": 30_408_704}],
+    }
+    (run / "resolved_recipe.json").write_text(json.dumps(recipe))
+    record = {
+        "update": 1,
+        "env_steps": 1_048_576,
+        "path": "d128_kl0.1/seed0/update001.pkl",
+    }
+    summary = {
+        "arms": {"d128_kl0.1": {"seeds": [{"seed_index": 0, "checkpoints": [record]}]}}
+    }
+    (run / "summary.json").write_text(json.dumps(summary))
+    directory = tmp_path / "checkpoints"
+    path = directory / record["path"]
+    path.parent.mkdir(parents=True)
+    state = ppo.RunnerState(
+        {"weight": np.ones((2, 2))},
+        (),
+        np.asarray(0.1),
+        None,
+        np.zeros(2, np.uint32),
+        np.asarray(1_048_576),
+        np.asarray(0),
+    )
+    path.write_bytes(pickle.dumps(state))
+    manifest_path = directory / "durability_manifest.json"
+
+    def write_manifest():
+        key = "experiments/study/ppo_bmax_r7/test-run/d128_kl0.1/seed0/update001.pkl"
+        manifest_path.write_text(
+            json.dumps(
+                {
+                    "files": [
+                        {
+                            "key": key,
+                            "uri": f"s3://bucket/{key}",
+                            "sha256": bp.sha256(path),
+                            "size_bytes": path.stat().st_size,
+                        }
+                    ]
+                }
+            )
+        )
+
+    write_manifest()
+    params, steps, _, provenance = bp.checkpoint(
+        directory, 0, False, run_results=run, update=1
+    )
+    np.testing.assert_array_equal(params["weight"], 1)
+    assert steps == 1_048_576 and provenance["run_id"] == "test-run"
+    path.write_bytes(path.read_bytes() + b"corruption")
+    with pytest.raises(ValueError, match="durability verification"):
+        bp.checkpoint(directory, 0, False, run_results=run, update=1)
+    path.write_bytes(pickle.dumps(state._replace(env_steps=np.asarray(2_097_152))))
+    write_manifest()
+    with pytest.raises(ValueError, match="checkpoint metadata"):
+        bp.checkpoint(directory, 0, False, run_results=run, update=1)
 
 
 @pytest.fixture(scope="module")

@@ -54,13 +54,31 @@ def source(seed: int) -> tuple[str, Path]:
 
 
 def checkpoint(
-    directory: Path, seed: int, download: bool
+    directory: Path,
+    seed: int,
+    download: bool,
+    *,
+    run_results: Path | None = None,
+    update: int | None = None,
 ) -> tuple[dict, int, dict, dict]:
-    prefix, recipe_path = source(seed)
+    if run_results is None:
+        prefix, recipe_path = source(seed)
+        manifest_path = directory / f"r{5 if seed == 0 else 6}_manifest.json"
+        relative = f"d128_kl0.1/seed{seed}.pkl"
+        expected_steps = None
+    else:
+        run_results = run_results.resolve()
+        leaf = run_results.parent.parent
+        prefix = f"{leaf.relative_to(ROOT.parents[1])}/{run_results.name}"
+        recipe_path = run_results / "resolved_recipe.json"
+        manifest_path = directory / "durability_manifest.json"
+        records = checkpoint_records(run_results, seed)
+        selected = next(r for r in records if r["update"] == update)
+        relative, expected_steps = selected["path"], selected["env_steps"]
     recipe = json.loads(recipe_path.read_text())
     arm = next(a for a in recipe["arms"] if a["name"] == "d128_kl0.1")
-    manifest_path = directory / f"r{5 if seed == 0 else 6}_manifest.json"
-    path = directory / f"seed{seed}.pkl"
+    path = directory / relative if run_results else directory / f"seed{seed}.pkl"
+    path.parent.mkdir(parents=True, exist_ok=True)
     if download:
         client = boto3.client(
             "s3",
@@ -77,14 +95,14 @@ def checkpoint(
         if not path.exists():
             client.download_file(
                 os.environ["B2_BUCKET"],
-                f"{prefix}/d128_kl0.1/seed{seed}.pkl",
+                f"{prefix}/{relative}",
                 str(path),
             )
     manifest = json.loads(manifest_path.read_text())
     record = next(
         f
         for f in manifest["files"]
-        if f["key"] == f"{prefix}/d128_kl0.1/seed{seed}.pkl"
+        if f["key"] == f"{prefix}/{relative}"
     )
     digest = sha256(path)
     if digest != record["sha256"] or path.stat().st_size != record["size_bytes"]:
@@ -93,8 +111,8 @@ def checkpoint(
         state: ppo.RunnerState = pickle.load(stream)
     params = jax.tree.map(jnp.asarray, state.params)
     steps = int(state.env_steps)
-    if steps != arm["env_steps_per_seed"]:
-        raise ValueError("checkpoint steps disagree with resolved recipe")
+    if steps != (arm["env_steps_per_seed"] if expected_steps is None else expected_steps):
+        raise ValueError("checkpoint steps disagree with recorded checkpoint metadata")
     return (
         params,
         steps,
@@ -104,12 +122,40 @@ def checkpoint(
             "sha256": digest,
             "size_bytes": record["size_bytes"],
             "runtime_seed": recipe["seed"],
+            "num_keys": recipe.get("num_keys") or recipe["num_seeds"],
+            "run_id": run_results.name if run_results else prefix.rsplit("/", 1)[1],
+            "update": update,
+            "recipe_sha256": sha256(recipe_path),
+            "durability_manifest_sha256": sha256(manifest_path),
         },
     )
 
 
-def initialization(spec: tm.TransformerSpec, seed: int, runtime_seed: int) -> dict:
-    run_key = jax.random.split(jax.random.key(runtime_seed), 4)[seed]
+def checkpoint_records(run_results: Path, seed: int) -> list[dict]:
+    summary = json.loads((run_results / "summary.json").read_text())
+    selected = next(
+        s for s in summary["arms"]["d128_kl0.1"]["seeds"] if s["seed_index"] == seed
+    )
+    records = sorted(selected["checkpoints"], key=lambda r: r["update"])
+    if not records or any(
+        a["update"] >= b["update"] or a["env_steps"] >= b["env_steps"]
+        for a, b in zip(records, records[1:])
+    ):
+        raise ValueError("checkpoint updates and steps must increase strictly")
+    for record in records:
+        path = Path(record["path"])
+        if path.is_absolute() or ".." in path.parts or not (
+            path == Path(f"d128_kl0.1/seed{seed}.pkl")
+            or path.parent == Path(f"d128_kl0.1/seed{seed}")
+        ):
+            raise ValueError("checkpoint path disagrees with seed or artifact scope")
+    return records
+
+
+def initialization(
+    spec: tm.TransformerSpec, seed: int, runtime_seed: int, num_keys: int = 4
+) -> dict:
+    run_key = jax.random.split(jax.random.key(runtime_seed), num_keys)[seed]
     _, param_key, _ = jax.random.split(run_key, 3)
     return tm.init_params(spec, param_key)
 
@@ -132,7 +178,8 @@ def check_route(env: rs.RockSampleParams) -> np.ndarray:
     )
 
 
-def collect(
+@partial(jax.jit, static_argnames=("spec", "env", "episodes", "key_seed", "scripted"))
+def collect_device(
     spec: tm.TransformerSpec,
     env: rs.RockSampleParams,
     params: dict,
@@ -141,7 +188,7 @@ def collect(
     episodes: int,
     key_seed: int,
     scripted: bool = False,
-) -> dict[str, np.ndarray]:
+) -> dict[str, jax.Array]:
     """Complete episodes, both encoders seeing exactly the same input histories."""
     obs, state = jax.vmap(partial(rs.reset, env))(
         jax.random.split(jax.random.key(key_seed), episodes)
@@ -191,10 +238,27 @@ def collect(
         jnp.zeros(episodes, bool),
         jax.random.key(key_seed + 1),
     )
-    _, rows = jax.jit(
-        lambda c: jax.lax.scan(advance, c, jnp.arange(env.episode_length))
-    )(carry)
-    return {name: np.swapaxes(np.asarray(value), 0, 1) for name, value in rows.items()}
+    _, rows = jax.lax.scan(advance, carry, jnp.arange(env.episode_length))
+    return {name: jnp.swapaxes(value, 0, 1) for name, value in rows.items()}
+
+
+def collect(
+    spec: tm.TransformerSpec,
+    env: rs.RockSampleParams,
+    params: dict,
+    init_params: dict,
+    *,
+    episodes: int,
+    key_seed: int,
+    scripted: bool = False,
+) -> dict[str, np.ndarray]:
+    return {
+        name: np.asarray(value)
+        for name, value in collect_device(
+            spec, env, params, init_params,
+            episodes=episodes, key_seed=key_seed, scripted=scripted,
+        ).items()
+    }
 
 
 @dataclass
@@ -417,17 +481,7 @@ def analyze(
                 "metrics": score_prediction(x[test] @ w + b, data.joint[test]),
                 "fit": cv,
             }
-    report["behavior"] = {
-        "return_mean": float(data.returns.mean()),
-        "return_sem": float(data.returns.std(ddof=1) / np.sqrt(len(data.returns))),
-        "returns": data.returns.tolist(),
-        "length_mean": float(data.lengths.mean()),
-        "exit_fraction": float(data.exits.mean()),
-        "check_episode_fraction": (data.checks > 0).mean(axis=0).tolist(),
-        "sample_episode_fraction": (data.samples > 0).mean(axis=0).tolist(),
-        "good_sample_episode_fraction": (data.good_samples > 0).mean(axis=0).tolist(),
-        "prior_at_end_fraction": (data.final_belief == 0.5).mean(axis=0).tolist(),
-    }
+    report["behavior"] = behavior(data)
     report["validation"] = {
         "joint_sum_max_error": float(np.abs(data.joint.sum(axis=1) - 1).max()),
         "marginal_joint_max_error": float(
@@ -482,6 +536,23 @@ def analyze(
             }
         )
     return report, predictions
+
+
+def behavior(data: Dataset) -> dict:
+    return {
+        "episodes": len(data.returns),
+        "return_mean": float(data.returns.mean()),
+        "return_sem": float(data.returns.std(ddof=1) / np.sqrt(len(data.returns))),
+        "returns": data.returns.tolist(),
+        "length_mean": float(data.lengths.mean()),
+        "exit_fraction": float(data.exits.mean()),
+        "checks_per_episode": data.checks.mean(axis=0).tolist(),
+        "samples_per_episode": data.samples.mean(axis=0).tolist(),
+        "check_episode_fraction": (data.checks > 0).mean(axis=0).tolist(),
+        "sample_episode_fraction": (data.samples > 0).mean(axis=0).tolist(),
+        "good_sample_episode_fraction": (data.good_samples > 0).mean(axis=0).tolist(),
+        "prior_at_end_fraction": (data.final_belief == 0.5).mean(axis=0).tolist(),
+    }
 
 
 def revision(directory: Path) -> str:
