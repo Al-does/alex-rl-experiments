@@ -314,6 +314,7 @@ def test_bmax_sweep_recipe_and_smoke(tmp_path):
     from experiments.rocksample_jax_2026_10.ppo_bmax_r5 import experiment as r5
     from experiments.rocksample_jax_2026_10.ppo_bmax_r6 import experiment as r6
     from experiments.rocksample_jax_2026_10.ppo_bmax_r6b import experiment as r6b
+    from experiments.rocksample_jax_2026_10.ppo_bmax_r7 import experiment as r7
 
     ctx = RunContext(experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a")
     rounds = [r1.recipe(ctx), r2.recipe(ctx)]
@@ -354,10 +355,22 @@ def test_bmax_sweep_recipe_and_smoke(tmp_path):
     r6b_recipe = r6b.recipe(ctx)
     assert r6b_recipe.arms == (combo,) and r6b_recipe.env_steps_per_seed == r6_recipe.env_steps_per_seed
     assert (r6b_recipe.first_seed, r6b_recipe.num_seeds, r6b_recipe.num_keys) == (2, 2, 4)
+    r7_recipe = r7.recipe(ctx)
+    (r7_arm,) = r7_recipe.arms
+    assert r7_arm == r5_arms["d128_kl0.1"] or (r7_arm.ppo, r7_arm.d_model) == (r5_arms["d128_kl0.1"].ppo, 128)
+    assert (r7_recipe.num_seeds, r7_recipe.num_keys, r7_recipe.first_seed) == (4, 4, 0)
+    assert r7_recipe.env_steps_per_seed == r6_recipe.env_steps_per_seed
+    r7_ckpts = sweep.checkpoint_updates(r7_arm.num_updates(r7_recipe.env_steps_per_seed), r7_recipe.num_checkpoints)
+    assert r7_ckpts == (1, 2, 3, 4, 5, 6, 9, 14, 20, 29)
+    assert sweep.checkpoint_updates(29, 1) == (29,)
+    assert sweep.checkpoint_updates(3, 10) == (1, 2, 3)
+    assert sweep.checkpoint_updates(1000, 4) == (1, 10, 100, 1000)
+    with pytest.raises(ValueError):
+        sweep.SweepRecipe(arms=r7_recipe.arms, env_steps_per_seed=1, num_seeds=1, num_checkpoints=0)
     smoke = RunContext(
         experiment_dir=tmp_path, results_dir=tmp_path / "r", artifacts_dir=tmp_path / "a", smoke=True
     )
-    summary = sweep.run(smoke, r1.recipe(smoke))
+    summary = sweep.run(smoke, replace(r1.recipe(smoke), num_checkpoints=2))
     assert set(summary["arms"]) == {"smoke_d16", "smoke_d32_lr1e-3"}
     for arm in summary["arms"].values():
         assert arm["error"] is None
@@ -368,6 +381,16 @@ def test_bmax_sweep_recipe_and_smoke(tmp_path):
     assert len(rows) == 4
     saved = tmp_path / "a" / "smoke_d16" / "seed0.pkl"
     assert saved.exists()
+    light = tmp_path / "a" / "smoke_d16" / "seed0" / "update001.pkl"
+    assert light.exists() and light.stat().st_size < saved.stat().st_size
+    with pytest.raises(ValueError):
+        sweep.load_state(light)
+    ckpts = summary["arms"]["smoke_d16"]["seeds"][0]["checkpoints"]
+    assert [c["update"] for c in ckpts] == [1, 2]
+    assert ckpts[1]["path"] == "smoke_d16/seed0.pkl"
+    assert json.loads((tmp_path / "r" / "resolved_recipe.json").read_text())["checkpoint_updates"] == {
+        "smoke_d16": [1, 2], "smoke_d32_lr1e-3": [1, 2]
+    }
 
     smoke_recipe = sweep.smoke_recipe()
     first = smoke_recipe.arms[0]
