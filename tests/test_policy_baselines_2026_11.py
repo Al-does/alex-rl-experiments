@@ -37,7 +37,7 @@ def canonical(value):
 CASES = [
     (ladder, arch, condition)
     for ladder in (True, False)
-    for arch in ("memoryless", "gru")
+    for arch in ("memoryless", "gru", "gru92")
     for condition in ((1, 2, 3) if ladder else ("reward_both", "reward_factor_1"))
 ]
 
@@ -65,9 +65,10 @@ def test_architecture_only_recipe_delta(tmp_path, ladder, architecture, conditio
         old_dict.pop(key, None)
     assert canonical(new_dict) == canonical(old_dict)
     spec = config.get_rl_module_spec()
-    assert spec.module_class is (ReinforceGRU if architecture == "gru" else ReinforceResidualMLP)
-    if architecture == "gru":
-        assert spec.model_config == {"vf_share_layers": False, "hidden_dim": 128, "n_layers": 2, "max_seq_len": 32,
+    assert spec.module_class is (ReinforceGRU if architecture in ("gru", "gru92") else ReinforceResidualMLP)
+    if architecture in ("gru", "gru92"):
+        hidden_dim, n_layers = (92, 4) if architecture == "gru92" else (128, 2)
+        assert spec.model_config == {"vf_share_layers": False, "hidden_dim": hidden_dim, "n_layers": n_layers, "max_seq_len": 32,
                                      "obs_feature_indices": None, "sampling_temperature": 1.0}
     else:
         assert spec.model_config == {"vf_share_layers": False, "d_model": 64, "n_layers": 6,
@@ -82,7 +83,9 @@ def test_architecture_only_recipe_delta(tmp_path, ladder, architecture, conditio
                                            model_config=source_spec.model_config)
     count = sum(p.numel() for p in module.parameters())
     reference_count = sum(p.numel() for p in transformer.parameters())
-    assert abs(count / reference_count - 1) < 0.02
+    assert abs(count / reference_count - 1) < (0.04 if architecture == "gru92" else 0.02)
+    if architecture == "gru92":
+        assert count == (206_544 if ladder else 208_206)
     recipe = recipe_overrides(context, condition, study=study, architecture=architecture, ladder=ladder)
     assert recipe["parameter_count"] == count
     assert recipe["study"] == study

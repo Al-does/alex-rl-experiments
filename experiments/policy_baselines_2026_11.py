@@ -56,6 +56,9 @@ def model_spec(architecture, *, ladder):
     elif architecture == "gru":
         config = GRUModelConfig(hidden_dim=128, n_layers=2, max_seq_len=32).to_dict()
         cls = ReinforceGRU
+    elif architecture == "gru92":
+        config = GRUModelConfig(hidden_dim=92, n_layers=4, max_seq_len=32).to_dict()
+        cls = ReinforceGRU
     else:
         raise ValueError(f"unknown architecture: {architecture}")
     return RLModuleSpec(module_class=cls, model_config={**config, "sampling_temperature": 1.0})
