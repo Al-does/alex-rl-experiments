@@ -18,12 +18,27 @@ TRANSITIONS[:, :, 2] *= np.exp(1.5 * DIRECTIONS)
 TRANSITIONS /= TRANSITIONS.sum(axis=2, keepdims=True)
 
 
+def transitions_for(variant: int) -> np.ndarray:
+    if variant == 3:
+        return TRANSITIONS.copy()
+    if variant != 2:
+        raise ValueError("variant must be 2 or 3")
+    matrices = np.repeat(BASE[None], 3, axis=0)
+    matrices[:, :, 2] *= np.exp(1.5*np.array([[0., 0., 0.], [1., 1., -1.], [-1., -1., -1.]]))
+    return matrices/matrices.sum(axis=2, keepdims=True)
+
+
 def target(belief: np.ndarray, mode: str) -> np.ndarray:
     b = np.asarray(belief, dtype=np.float64)
-    if b.shape[-1] != 3 or not np.isfinite(b).all():
+    if b.ndim == 0 or b.shape[-1] != 3 or not np.isfinite(b).all():
         raise ValueError("belief must have three finite coordinates")
     if mode == "mirror":
         return b[..., [1, 0, 2]].copy()
+    if mode in ("rho_flip", "rho_point"):
+        rho = 1-b[..., 2] if mode == "rho_flip" else (b[..., 2] < .5).astype(float)
+        mass = b[..., :2].sum(axis=-1, keepdims=True)
+        ratio = np.divide(b[..., :2], mass, out=np.full_like(b[..., :2], .5), where=mass > 0)
+        return np.concatenate((ratio*(1-rho[..., None]), rho[..., None]), axis=-1)
     if mode != "point":
         raise ValueError(f"unknown intervention: {mode}")
     out = np.zeros_like(b)
@@ -35,18 +50,20 @@ def target(belief: np.ndarray, mode: str) -> np.ndarray:
 
 
 class BeliefPolicy:
-    def __init__(self, n: int = 60, gamma: float = .97, iterations: int = 800):
+    def __init__(self, n: int = 60, gamma: float = .97, iterations: int = 800, variant: int = 3):
         if n < 1 or not 0 < gamma < 1 or iterations < 1:
             raise ValueError("invalid value-iteration settings")
         self.n = n
         self.gamma = gamma
         self.iterations = iterations
+        self.variant = variant
+        self.transitions = transitions_for(variant)
         self.grid = np.array([(i/n, j/n, 1-(i+j)/n)
                               for i in range(n+1) for j in range(n+1-i)])
         self.lookup = np.full((n+1, n+1), -1, dtype=int)
         ij = np.rint(self.grid[:, :2] * n).astype(int)
         self.lookup[ij[:, 0], ij[:, 1]] = np.arange(len(ij))
-        prior = np.einsum("ks,asj->kaj", self.grid, TRANSITIONS)
+        prior = np.einsum("ks,asj->kaj", self.grid, self.transitions)
         weights = prior[:, :, None, :] * EMISSION.T[None, None, :, :]
         probability = weights.sum(axis=-1)
         nxt = self.nearest(weights / probability[..., None])
@@ -88,15 +105,15 @@ def simulate(policy: BeliefPolicy, mode: str, strength: float, *,
         installed = (1-strength)*b + strength*target(b, mode)
         action = rng.integers(3, size=episodes) if random_actions else policy(installed)
         counts += np.bincount(action, minlength=3)
-        probabilities = TRANSITIONS[action, state]
+        probabilities = policy.transitions[action, state]
         state = (rng.random(episodes)[:, None] >= probabilities.cumsum(axis=1)).sum(1)
-        prior = np.einsum("bs,bsj->bj", b, TRANSITIONS[action])
+        prior = np.einsum("bs,bsj->bj", b, policy.transitions[action])
     occupied /= horizon
     return {"occupancy": float(occupied.mean()),
             "occupancy_se": float(occupied.std(ddof=1)/np.sqrt(episodes)),
             "action_fractions": (counts/(episodes*horizon)).tolist()}
 
 
-def prediction_curve(policy: BeliefPolicy, **kwargs) -> dict:
+def prediction_curve(policy: BeliefPolicy, *, modes=("point", "mirror"), **kwargs) -> dict:
     return {mode: {str(l): simulate(policy, mode, l, **kwargs) for l in LAMBDAS}
-            for mode in ("point", "mirror")}
+            for mode in modes}

@@ -78,6 +78,8 @@ class ResidualSites:
         self.strength = 0.
         self.mode = "point"
         self.direction = None
+        self.last_shift_norm = None
+        self.last_activation_norm = None
 
     def __enter__(self):
         for layer, block in enumerate(self.module.encoder.blocks):
@@ -99,6 +101,8 @@ class ResidualSites:
         delta = shift(activation.cpu().numpy(), self.mapping, self.mode)
         if self.direction is not None:
             delta = np.linalg.norm(delta, axis=1, keepdims=True)*self.direction
+        self.last_shift_norm = np.linalg.norm(self.strength*delta, axis=1)
+        self.last_activation_norm = np.linalg.norm(activation.cpu().numpy(), axis=1)
         return torch.as_tensor(self.strength*delta, dtype=activation.dtype)
 
     def __exit__(self, *_):
@@ -106,20 +110,20 @@ class ResidualSites:
             handle.remove()
 
 
-def config(horizon):
-    cfg = environment_config(3)
+def config(horizon, variant=3):
+    cfg = environment_config(variant)
     cfg.update(episode_length=horizon, randomize_first_episode_length=False,
                diagnostics={"belief": True, "state": True})
     return cfg
 
 
 @torch.inference_mode()
-def collect_sites(module, steps, seed, horizon=1024):
+def collect_sites(module, steps, seed, horizon=1024, variant=3):
     if steps < 1 or horizon <= 8:
         raise ValueError("positive retained steps and horizon > warmup required")
     xs, bs = [], []
     n = 8
-    envs = [HMMEnv(config(horizon)) for _ in range(n)]
+    envs = [HMMEnv(config(horizon, variant)) for _ in range(n)]
     try:
         reset = [env.reset(seed=int(s)) for env, s in zip(
             envs, np.random.default_rng(seed).integers(2**31, size=n))]
@@ -152,7 +156,8 @@ def collect_sites(module, steps, seed, horizon=1024):
 
 @torch.inference_mode()
 def evaluate(module, mapping, policy, *, site=3, strength=0., mode="point",
-             episodes=32, seed=2042, horizon=1024, random_actions=False, matched_null=False):
+             episodes=32, seed=2042, horizon=1024, random_actions=False, matched_null=False,
+             variant=3):
     if episodes < 2 or horizon < 1:
         raise ValueError("at least two complete episodes required")
     rng = np.random.default_rng(seed)
@@ -161,9 +166,10 @@ def evaluate(module, mapping, policy, *, site=3, strength=0., mode="point",
     occupied = np.zeros(episodes)
     counts = np.zeros((3, 3), dtype=int)
     changed = agreement = total = 0
+    shift_sum = activation_sum = 0.
     for start in range(0, episodes, 16):
         n = min(16, episodes-start)
-        envs = [HMMEnv(config(horizon)) for _ in range(n)]
+        envs = [HMMEnv(config(horizon, variant)) for _ in range(n)]
         try:
             reset = [env.reset(seed=int(s)) for env, s in zip(envs, env_seeds[start:start+n])]
             obs, infos = map(list, zip(*reset))
@@ -186,6 +192,8 @@ def evaluate(module, mapping, policy, *, site=3, strength=0., mode="point",
                         h, state = module.encode_step(tensor, state)
                         if site == 4:
                             h = h + sites.delta(h)
+                        shift_sum += float(sites.last_shift_norm.sum())
+                        activation_sum += float(sites.last_activation_norm.sum())
                         actions = module.action_distribution_inputs(h).argmax(-1).numpy()
                     b = np.stack([info["belief_current"] for info in infos])
                     installed = (1-strength)*b+strength*target(b, mode)
@@ -211,6 +219,9 @@ def evaluate(module, mapping, policy, *, site=3, strength=0., mode="point",
             "action_given_state": conditional, "state_action_counts": counts.tolist(),
             "noop_given_reward_state": conditional[2][0],
             "installed_belief_policy_agreement": agreement/total,
+            "mean_shift_norm": shift_sum/total,
+            "mean_activation_norm": activation_sum/total,
+            "shift_relative_to_mean_activation": shift_sum/activation_sum if activation_sum else 0.,
             "steps": total, "episodes": episodes}
 
 
