@@ -29,8 +29,8 @@ DIRECTIONS = {
 }
 TOTAL_ENV_STEPS = 200_000_000
 ENTROPY_COEFF = 0.015
-NUM_MINIBATCHES = 32
-# Largest multiple of 32 keeping the transformer under ~70% of a 24 GB RTX 4090.
+NUM_MINIBATCHES = 64
+# Largest multiple of 64 keeping the transformer under ~70% of a 24 GB RTX 4090.
 NUM_ENVS = 19_456
 SMOKE_ENV_STEPS = 4_096
 EPISODE_LENGTH = 1024

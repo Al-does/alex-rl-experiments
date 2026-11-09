@@ -133,7 +133,7 @@ def test_returns_advantages_and_entropy_schedule():
     assert float(advantages.mean()) == pytest.approx(0.0, abs=1e-6)
     assert float(advantages.std()) == pytest.approx(1.0, abs=1e-5)
     for config in (ladder.train_config(False), factor_shared.train_config(False)):
-        assert config.num_minibatches == 32 and config.num_envs % 32 == 0
+        assert config.num_minibatches == 64 and config.num_envs % 64 == 0
         for steps in (0, 5_000_000, 30_000_000):
             assert reinforce.entropy_coefficient(config.entropy_schedule, steps) == pytest.approx(0.015)
 
