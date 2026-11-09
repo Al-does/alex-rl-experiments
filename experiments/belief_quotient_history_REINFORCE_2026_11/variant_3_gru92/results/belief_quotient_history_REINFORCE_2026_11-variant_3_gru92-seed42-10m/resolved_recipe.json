@@ -1,0 +1,272 @@
+{
+  "algorithm": "REINFORCE",
+  "analytic_design": {
+    "baseline_transition_matrix": [
+      [
+        0.9375,
+        0.0375,
+        0.025
+      ],
+      [
+        0.0375,
+        0.9375,
+        0.025
+      ],
+      [
+        0.075,
+        0.075,
+        0.85
+      ]
+    ],
+    "effect_size": 1.5,
+    "emission_alpha": 0.75,
+    "reference_scope": "long-run expected occupancy; not an empirical reward cap",
+    "tilt_order": "mix the baseline with identity, then tilt reward-state odds",
+    "transition_rate": 0.25,
+    "variants": {
+      "variant_1": {
+        "best_deterministic_current_token_policy": [
+          1,
+          1,
+          1
+        ],
+        "best_deterministic_current_token_stationary_reward": 0.7312318752008278,
+        "name": "Trivial Quotient",
+        "privileged_state_policy": [
+          1,
+          1,
+          1
+        ],
+        "privileged_state_stationary_reward": 0.7312318752008277
+      },
+      "variant_2": {
+        "best_deterministic_current_token_policy": [
+          1,
+          1,
+          0
+        ],
+        "best_deterministic_current_token_stationary_reward": 0.2950888738939275,
+        "feasible_three_token_policy": [
+          [
+            [
+              1,
+              1,
+              0
+            ],
+            [
+              1,
+              1,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ]
+          ],
+          [
+            [
+              1,
+              1,
+              0
+            ],
+            [
+              1,
+              1,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ]
+          ],
+          [
+            [
+              1,
+              1,
+              0
+            ],
+            [
+              1,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0
+            ]
+          ]
+        ],
+        "feasible_three_token_stationary_reward": 0.32022973794194554,
+        "history_reference_scope": "fixed feasible three-token lookup; not a Bayes optimum or a learned-model result",
+        "name": "Reward-State Quotient",
+        "privileged_state_policy": [
+          1,
+          1,
+          0
+        ],
+        "privileged_state_stationary_reward": 0.40728030871532717,
+        "three_token_gain_over_deterministic_current_token": 0.02514086404801802
+      },
+      "variant_3": {
+        "best_deterministic_current_token_policy": [
+          1,
+          2,
+          0
+        ],
+        "best_deterministic_current_token_stationary_reward": 0.26686690303691657,
+        "feasible_three_token_policy": [
+          [
+            [
+              1,
+              1,
+              0
+            ],
+            [
+              1,
+              2,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ]
+          ],
+          [
+            [
+              1,
+              2,
+              0
+            ],
+            [
+              2,
+              2,
+              0
+            ],
+            [
+              0,
+              2,
+              0
+            ]
+          ],
+          [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              2,
+              0
+            ],
+            [
+              0,
+              0,
+              0
+            ]
+          ]
+        ],
+        "feasible_three_token_stationary_reward": 0.30234034825146794,
+        "history_reference_scope": "fixed feasible three-token lookup; not a Bayes optimum or a learned-model result",
+        "name": "Full-State Quotient",
+        "privileged_state_policy": [
+          1,
+          2,
+          0
+        ],
+        "privileged_state_stationary_reward": 0.40728030871532717,
+        "three_token_gain_over_deterministic_current_token": 0.03547344521455137
+      }
+    }
+  },
+  "architecture": "gru92",
+  "baseline_recipe": "mess3_reward_state_action_symmetry_cycle_7/variant_*_ctx32_ent",
+  "checkpoint_schedule": "actual initialization, powers of two iterations, 2M steps, final",
+  "condition": "variant_3",
+  "condition_name": "Full-State Quotient",
+  "entropy_anneal_remaining_steps": 1000000,
+  "entropy_coeff": [
+    [
+      0,
+      0.03
+    ],
+    [
+      9000000,
+      0.0
+    ]
+  ],
+  "environment": {
+    "delay": 0,
+    "episode_length": 1024,
+    "model": {
+      "factory": "envs.mess3.model:control_model",
+      "kwargs": {
+        "alpha": 0.75,
+        "transition_matrix": [
+          [
+            0.9375,
+            0.0375,
+            0.025
+          ],
+          [
+            0.0375,
+            0.9375,
+            0.025
+          ],
+          [
+            0.075,
+            0.075,
+            0.85
+          ]
+        ]
+      }
+    },
+    "randomize_first_episode_length": true,
+    "task": {
+      "class": "experiments.mess3_reward_state_action_symmetry_cycle_7.task:ActionSymmetryTask",
+      "kwargs": {
+        "effect_size": 1.5,
+        "variant": 3
+      }
+    }
+  },
+  "gamma": 0.99,
+  "hypothesis": "history improves control in the two nontrivial quotient conditions; compare initialization-to-final affine belief accessibility",
+  "interpretation": "compare probe fits from initialization to final within architecture; own-policy changes also change visitation; accessibility is not causal use",
+  "lambda": 1.0,
+  "learning_rate": 0.00042,
+  "minimum_harness_model_support": "RL-Harness PR 87, merged as 9e4fc16",
+  "model_config": {
+    "hidden_dim": 92,
+    "max_seq_len": 32,
+    "n_layers": 4,
+    "obs_feature_indices": null,
+    "sampling_temperature": 1.0,
+    "vf_share_layers": false
+  },
+  "module_class": "experiments.belief_quotient_history_REINFORCE_2026_11.models.ReinforceGRU",
+  "num_epochs": 1,
+  "parameter_count": 206544,
+  "policy_evaluation_mode": "greedy",
+  "probe_fit_rows": 60000,
+  "probe_representation": "post_final_layer_norm",
+  "probe_sampling_distribution": "each checkpoint's own-policy histories",
+  "probe_test_rows": 80000,
+  "probe_warmup": 64,
+  "rllib_engine": "PPOConfig/PPOTorchLearner",
+  "seed": 42,
+  "smoke": false,
+  "smoke_probe_fit_rows": 4096,
+  "smoke_probe_test_rows": 4096,
+  "smoke_probe_warmup": 4,
+  "study": "belief_quotient_history_REINFORCE_2026_11",
+  "total_env_steps": 10000000,
+  "train_batch_size_per_learner": 32768,
+  "use_critic": false,
+  "use_gae": false,
+  "value_loss_coeff": 0.0
+}
