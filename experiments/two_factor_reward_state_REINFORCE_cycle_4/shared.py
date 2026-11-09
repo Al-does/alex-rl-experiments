@@ -457,19 +457,24 @@ def _resolved_recipe(context: RunContext, condition: str) -> dict[str, Any]:
     }
 
 
-def run_condition(context: RunContext, condition: str) -> dict[str, Any]:
+def run_condition(
+    context: RunContext,
+    condition: str,
+    *,
+    config_builder: Callable[[RunContext, str], PPOConfig] = build_config,
+    recipe_overrides: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     if context.seed is None:
         raise ValueError("two-factor REINFORCE requires a resolved seed")
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
-    outputs.write_json(
-        "resolved_recipe.json",
-        _resolved_recipe(context, condition),
-    )
+    recipe = _resolved_recipe(context, condition)
+    recipe.update(recipe_overrides or {})
+    outputs.write_json("resolved_recipe.json", recipe)
     target_steps = _resolve_step_target(context)
     if context.resume_from is not None:
         final_metrics = _run_continuation_algorithm(
-            build_config(context, condition),
+            config_builder(context, condition),
             context,
             target_steps=target_steps,
         )
@@ -481,7 +486,7 @@ def run_condition(context: RunContext, condition: str) -> dict[str, Any]:
         )
     else:
         result_grid = run_tune(
-            build_config(context, condition),
+            config_builder(context, condition),
             context,
             stop={"env_runners/num_env_steps_sampled_lifetime": target_steps},
             run_config_kwargs={
