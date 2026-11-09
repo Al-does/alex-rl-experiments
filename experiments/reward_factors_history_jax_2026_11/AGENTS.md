@@ -14,7 +14,7 @@ reuses the JAX environment, models, REINFORCE trainer and probes from
 - `reward_both`: occupancy of state 2 in factor 1 plus factor 2;
   `reward_factor_1`: factor 1 only. Both components are logged.
 - Same recipe as the ladder (32 minibatches, constant entropy 0.015; the source
-  study used entropy 0.0) and a 30M env-step budget (84 updates of 360,448 steps). Transformer window 10
+  study used entropy 0.0) and a 90M env-step budget (source: 30M; 250 rollouts of 360,448 steps). Transformer window 10
   (lookback 40); memoryless reads only the current joint token.
 - Probes use the pre-final-LayerNorm representation and report the joint
   nine-state belief plus each factor marginal.

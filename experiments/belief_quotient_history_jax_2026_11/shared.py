@@ -27,7 +27,7 @@ DIRECTIONS = {
     2: np.array([[0.0, 1.0, -1.0], [0.0, 1.0, -1.0], [0.0, -1.0, -1.0]]),
     3: np.array([[0.0, 1.0, -1.0], [0.0, -1.0, 1.0], [0.0, -1.0, -1.0]]),
 }
-TOTAL_ENV_STEPS = 10_000_000
+TOTAL_ENV_STEPS = 30_000_000
 ENTROPY_COEFF = 0.015
 NUM_MINIBATCHES = 32
 SMOKE_ENV_STEPS = 4_096

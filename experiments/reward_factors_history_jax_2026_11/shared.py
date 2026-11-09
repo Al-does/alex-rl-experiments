@@ -20,7 +20,7 @@ from experiments.reward_factors_history_jax_2026_11.process import (
 STUDY = "reward_factors_history_jax_2026_11"
 SOURCE_STUDY = "reward_factors_history_REINFORCE_2026_11"
 CONDITION_NAMES = {"reward_both": "Joint Reward", "reward_factor_1": "Unrewarded Factor 2"}
-TOTAL_ENV_STEPS = 30_000_000
+TOTAL_ENV_STEPS = 90_000_000
 SMOKE_ENV_STEPS = 4_096
 CONTEXT_LEN = 10
 
