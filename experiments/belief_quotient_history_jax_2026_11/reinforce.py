@@ -1,12 +1,13 @@
-"""Baseline-free Monte Carlo REINFORCE in the RLlib PPO shell, fully in JAX.
+"""Critic-free Monte Carlo policy gradient in the RLlib PPO shell, fully in JAX.
 
-This reproduces the history studies' PPO configuration (``use_critic=False``,
-``lambda_=1``, one epoch, one full-batch minibatch): advantages are discounted
-episode reward-to-go, standardized over the whole batch with RLlib's
-``max(1e-4, std)`` floor, and the clipped PPO surrogate reduces to REINFORCE
-because the importance ratio is exactly one. Every iteration samples
-``num_envs`` synchronized complete episodes, then takes one Adam step. Rollout,
-returns, loss and update run inside a single jitted function.
+Advantages are discounted episode reward-to-go (``use_critic=False``,
+``lambda_=1``), standardized over the whole batch with RLlib's
+``max(1e-4, std)`` floor. Every iteration samples ``num_envs`` synchronized
+complete episodes, then takes one Adam step per minibatch of whole episodes
+with the clipped PPO surrogate plus an additive entropy bonus. With one
+minibatch the ratio is exactly one (REINFORCE); with more, later minibatches
+are off-policy and the clip is active. Rollout, returns, loss and updates run
+inside a single jitted function.
 """
 
 from __future__ import annotations
@@ -36,6 +37,10 @@ class TrainConfig:
     num_epochs: int = 1
     num_minibatches: int = 1
     entropy_schedule: tuple[tuple[int, float], ...] = ((0, 0.0),)
+
+    def __post_init__(self):
+        if self.num_envs % self.num_minibatches:
+            raise ValueError("num_envs must be divisible by num_minibatches")
 
     @property
     def batch_steps(self) -> int:

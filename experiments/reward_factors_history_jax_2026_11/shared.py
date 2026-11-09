@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from experiments.belief_quotient_history_jax_2026_11.models import architecture_spec
 from experiments.belief_quotient_history_jax_2026_11.reinforce import TrainConfig
-from experiments.belief_quotient_history_jax_2026_11.shared import ARCHITECTURES, EPISODE_LENGTH
+from experiments.belief_quotient_history_jax_2026_11.shared import (
+    ARCHITECTURES,
+    EPISODE_LENGTH,
+    NUM_MINIBATCHES,
+    entropy_schedule,
+)
 from experiments.belief_quotient_history_jax_2026_11.training import run_study
 from experiments.reward_factors_history_jax_2026_11.process import (
     CONDITIONS,
@@ -22,7 +27,8 @@ CONTEXT_LEN = 10
 
 def train_config(smoke: bool) -> TrainConfig:
     return TrainConfig(total_env_steps=SMOKE_ENV_STEPS if smoke else TOTAL_ENV_STEPS,
-                       episode_length=EPISODE_LENGTH)
+                       episode_length=EPISODE_LENGTH, num_minibatches=NUM_MINIBATCHES,
+                       entropy_schedule=entropy_schedule())
 
 
 def model_spec(architecture, process):

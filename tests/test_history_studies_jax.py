@@ -7,6 +7,7 @@ from experiments.belief_quotient_history_jax_2026_11 import env as hmm
 from experiments.belief_quotient_history_jax_2026_11 import models, reinforce
 from experiments.belief_quotient_history_jax_2026_11 import shared as ladder
 from experiments.reward_factors_history_jax_2026_11 import process as factors
+from experiments.reward_factors_history_jax_2026_11 import shared as factor_shared
 
 
 def _source_env(config, diagnostics=False):
@@ -131,10 +132,10 @@ def test_returns_advantages_and_entropy_schedule():
     advantages = reinforce.standardized_advantages(rewards, 0.5)
     assert float(advantages.mean()) == pytest.approx(0.0, abs=1e-6)
     assert float(advantages.std()) == pytest.approx(1.0, abs=1e-5)
-    schedule = ladder.entropy_schedule(10_000_000)
-    assert reinforce.entropy_coefficient(schedule, 0) == pytest.approx(0.03)
-    assert reinforce.entropy_coefficient(schedule, 4_500_000) == pytest.approx(0.015)
-    assert reinforce.entropy_coefficient(schedule, 9_500_000) == 0.0
+    for config in (ladder.train_config(False), factor_shared.train_config(False)):
+        assert config.num_minibatches == 32 and config.num_envs % 32 == 0
+        for steps in (0, 5_000_000, 30_000_000):
+            assert reinforce.entropy_coefficient(config.entropy_schedule, steps) == pytest.approx(0.015)
 
 
 def test_training_iteration_improves_surrogate_and_is_seeded():
@@ -146,3 +147,20 @@ def test_training_iteration_improves_surrogate_and_is_seeded():
     np.testing.assert_array_equal(
         jax.tree_util.tree_leaves(first[0])[0], jax.tree_util.tree_leaves(second[0])[0])
     assert first[2]["iterations"] == 2 and np.isfinite(first[1][-1]["policy_loss"])
+
+
+def test_minibatches_take_one_adam_step_each():
+    process = ladder.ladder_process(3)
+    spec = ladder.model_spec("transformer", process)
+    single = reinforce.TrainConfig(total_env_steps=4 * 64, num_envs=4, episode_length=64)
+    split = reinforce.TrainConfig(total_env_steps=4 * 64, num_envs=4, episode_length=64,
+                                  num_minibatches=4)
+    one = reinforce.train(spec, process, single, seed=0)[0]
+    four = reinforce.train(spec, process, split, seed=0)[0]
+    init = models.init_params(spec, jax.random.fold_in(jax.random.PRNGKey(0), 0))
+    leaf = lambda tree: np.asarray(jax.tree_util.tree_leaves(tree)[-1])
+    step_one = np.abs(leaf(one) - leaf(init)).max()
+    step_four = np.abs(leaf(four) - leaf(init)).max()
+    assert step_four > 2 * step_one
+    with pytest.raises(ValueError):
+        reinforce.TrainConfig(total_env_steps=1, num_envs=6, num_minibatches=4)

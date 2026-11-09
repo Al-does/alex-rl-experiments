@@ -12,11 +12,13 @@ Adam update all run inside one jitted function per iteration (`reinforce.py`).
   (`shared.py`; parity with the source `HMMEnv` is tested).
 - Reward 1 when the pre-transition state is 2; zero-delay token emission;
   observation `[one_hot(token), one_hot(previous action)]`, zero action at reset.
-- Baseline-free Monte Carlo REINFORCE in the PPO shell: gamma 0.99, no critic,
-  advantages = batch-standardized discounted reward-to-go, one epoch, one
-  full-batch minibatch, Adam lr 4.2e-4, no gradient clipping. Entropy uses the
-  source RLlib schedule `[[0, 0.03], [T - 1M, 0]]` (linear decay to zero at
-  9M steps). Budget 10M env steps; fresh runs only, seed default 42.
+- Critic-free Monte Carlo policy gradient in the PPO shell: gamma 0.99, no
+  critic, advantages = batch-standardized discounted reward-to-go, one epoch
+  split into 32 minibatches of whole episodes (one Adam step each, lr 4.2e-4,
+  PPO clip 0.2, no gradient clipping), constant additive entropy bonus 0.015
+  (not annealed). Budget 10M env steps; fresh runs only, seed default 42.
+  The source study used one full-batch minibatch (pure REINFORCE) and entropy
+  0.03 annealed to zero at 9M steps.
 - Architectures: transformer 64x4, 1 head, banded RoPE window 32 (lookback
   128); memoryless residual MLP 64x6 reading only the current token;
   GRU 128x2 and GRU 92x4 with 32-step truncated BPTT chunks seeded from the

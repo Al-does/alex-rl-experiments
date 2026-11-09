@@ -28,8 +28,8 @@ DIRECTIONS = {
     3: np.array([[0.0, 1.0, -1.0], [0.0, -1.0, 1.0], [0.0, -1.0, -1.0]]),
 }
 TOTAL_ENV_STEPS = 10_000_000
-ENTROPY_COEFF = 0.03
-ENTROPY_ANNEAL_REMAINING_STEPS = 1_000_000
+ENTROPY_COEFF = 0.015
+NUM_MINIBATCHES = 32
 SMOKE_ENV_STEPS = 4_096
 EPISODE_LENGTH = 1024
 CONTEXT_LEN = 32
@@ -67,16 +67,16 @@ def ladder_process(variant):
                         reward, reward[None])
 
 
-def entropy_schedule(total_steps):
-    """RLlib schedule [[0, c], [T - 1M, 0]]: linear decay to zero at T - 1M."""
+def entropy_schedule():
+    """Constant entropy bonus (no annealing)."""
 
-    return ((0, ENTROPY_COEFF), (max(1, total_steps - ENTROPY_ANNEAL_REMAINING_STEPS), 0.0))
+    return ((0, ENTROPY_COEFF),)
 
 
 def train_config(smoke: bool) -> TrainConfig:
     total = SMOKE_ENV_STEPS if smoke else TOTAL_ENV_STEPS
     return TrainConfig(total_env_steps=total, episode_length=EPISODE_LENGTH,
-                       entropy_schedule=entropy_schedule(total))
+                       num_minibatches=NUM_MINIBATCHES, entropy_schedule=entropy_schedule())
 
 
 def model_spec(architecture, process):

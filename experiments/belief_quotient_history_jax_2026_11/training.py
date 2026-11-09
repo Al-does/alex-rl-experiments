@@ -37,7 +37,8 @@ def run_study(context, *, study, condition, architecture, process, spec, config,
     if context.resume_from is not None:
         raise ValueError("JAX history studies always train from scratch")
     if context.smoke:
-        config = TrainConfig(**{**asdict(config), "num_envs": SMOKE_NUM_ENVS})
+        config = TrainConfig(**{**asdict(config), "num_envs": SMOKE_NUM_ENVS,
+                                "num_minibatches": min(config.num_minibatches, SMOKE_NUM_ENVS)})
     outputs = RunArtifacts.from_context(context)
     outputs.prepare()
     outputs.write_json("resolved_recipe.json", {
