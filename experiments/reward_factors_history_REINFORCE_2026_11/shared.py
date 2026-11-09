@@ -37,35 +37,39 @@ def build_config(context, condition, *, architecture):
     )
 
 
+def condition_recipe(condition, *, architecture):
+    return {
+        "study": STUDY,
+        "condition": condition,
+        "condition_name": CONDITION_NAMES[condition],
+        "architecture": architecture,
+        "total_env_steps": TOTAL_ENV_STEPS,
+        "baseline_recipe": "two_factor_reward_state_REINFORCE_cycle_4",
+        "hypothesis": (
+            "reward relevance selectively changes factor-belief accessibility "
+            "when temporal integration can improve control"
+        ),
+        "factor_count": 2,
+        "factor_design": analytic_design_summary(),
+        "joint_reference_caveat": (
+            "single-factor memoryless bounds do not establish a joint-token "
+            "memoryless bound; joint reactive policies may couple factor actions"
+        ),
+        "action_pairs_by_flat_index": [list(pair) for pair in ACTION_PAIRS],
+        "action_labels_by_flat_index": list(ACTION_LABELS),
+        "probe_representation": "pre_final_layer_norm",
+        "probe_fit_rows": FULL_PROBE_TRAIN_STEPS,
+        "probe_test_rows": FULL_PROBE_TEST_STEPS,
+        "probe_warmup": WARMUP,
+        "smoke_probe_fit_rows": SMOKE_PROBE_STEPS,
+        "smoke_probe_test_rows": SMOKE_PROBE_STEPS,
+    }
+
+
 def run_condition(context, condition, *, architecture):
     return run_study(
         context,
         build_config(context, condition, architecture=architecture),
-        recipe={
-            "study": STUDY,
-            "condition": condition,
-            "condition_name": CONDITION_NAMES[condition],
-            "architecture": architecture,
-            "total_env_steps": TOTAL_ENV_STEPS,
-            "baseline_recipe": "two_factor_reward_state_REINFORCE_cycle_4",
-            "hypothesis": (
-                "reward relevance selectively changes factor-belief accessibility "
-                "when temporal integration can improve control"
-            ),
-            "factor_count": 2,
-            "factor_design": analytic_design_summary(),
-            "joint_reference_caveat": (
-                "single-factor memoryless bounds do not establish a joint-token "
-                "memoryless bound; joint reactive policies may couple factor actions"
-            ),
-            "action_pairs_by_flat_index": [list(pair) for pair in ACTION_PAIRS],
-            "action_labels_by_flat_index": list(ACTION_LABELS),
-            "probe_representation": "pre_final_layer_norm",
-            "probe_fit_rows": FULL_PROBE_TRAIN_STEPS,
-            "probe_test_rows": FULL_PROBE_TEST_STEPS,
-            "probe_warmup": WARMUP,
-            "smoke_probe_fit_rows": SMOKE_PROBE_STEPS,
-            "smoke_probe_test_rows": SMOKE_PROBE_STEPS,
-        },
+        recipe=condition_recipe(condition, architecture=architecture),
         analyze_checkpoint=analyze_checkpoint,
     )

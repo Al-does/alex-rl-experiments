@@ -24,7 +24,14 @@ SMOKE_ENV_STEPS = 4_096
 STEP_CHECKPOINT_INTERVAL = 2_000_000
 
 
-def _save_training_checkpoints(*, algorithm, result, context, **kwargs):
+def _restore_then_save_initial(*, algorithm, restore_path, checkpoint_path, **kwargs):
+    algorithm.restore_from_path(str(restore_path))
+    _save_initial_checkpoint(algorithm=algorithm, checkpoint_path=checkpoint_path)
+
+
+def _save_training_checkpoints(
+    *, algorithm, result, context, minimum_threshold=0, **kwargs
+):
     _save_log_spaced_checkpoint(
         algorithm=algorithm,
         result=result,
@@ -36,7 +43,7 @@ def _save_training_checkpoints(*, algorithm, result, context, **kwargs):
         return
     steps = int(steps_value)
     threshold = (steps // STEP_CHECKPOINT_INTERVAL) * STEP_CHECKPOINT_INTERVAL
-    if threshold == 0:
+    if threshold <= minimum_threshold:
         return
     root = context.artifacts_dir / "step_checkpoints"
     index_path = root / "index.json"
@@ -59,7 +66,7 @@ def _save_training_checkpoints(*, algorithm, result, context, **kwargs):
     temporary.replace(index_path)
 
 
-def run_study(context, config, *, recipe, analyze_checkpoint):
+def run_study(context, config, *, recipe, analyze_checkpoint, continue_from=None):
     if context.seed is None:
         raise ValueError("history-dependent studies require a resolved seed")
     if context.resume_from is not None:
@@ -83,7 +90,12 @@ def run_study(context, config, *, recipe, analyze_checkpoint):
     finally:
         environment.close()
     del module
-    target_steps = SMOKE_ENV_STEPS if context.smoke else recipe["total_env_steps"]
+    start_steps = continue_from.agent_steps if continue_from is not None else 0
+    target_steps = (
+        start_steps + SMOKE_ENV_STEPS if context.smoke else recipe["total_env_steps"]
+    )
+    if target_steps <= start_steps:
+        raise ValueError("continuation budget must exceed the parent's final step count")
     resolved = {
         **recipe,
         "seed": context.seed,
@@ -112,14 +124,27 @@ def run_study(context, config, *, recipe, analyze_checkpoint):
             "own-policy changes also change visitation; accessibility is not causal use"
         ),
         "minimum_harness_model_support": "RL-Harness PR 87, merged as 9e4fc16",
+        "start_env_steps": start_steps,
+        "continued_from": continue_from.parent if continue_from is not None else None,
     }
     outputs.write_json("resolved_recipe.json", resolved)
+    initial_path = str(context.artifacts_dir / "initial_checkpoint")
+    if continue_from is None:
+        on_init = partial(_save_initial_checkpoint, checkpoint_path=initial_path)
+    else:
+        on_init = partial(
+            _restore_then_save_initial,
+            restore_path=continue_from.checkpoint_path,
+            checkpoint_path=initial_path,
+        )
     config = config.callbacks(
-        on_algorithm_init=partial(
-            _save_initial_checkpoint,
-            checkpoint_path=str(context.artifacts_dir / "initial_checkpoint"),
+        on_algorithm_init=on_init,
+        on_train_result=partial(
+            _save_training_checkpoints,
+            context=context,
+            minimum_threshold=(start_steps // STEP_CHECKPOINT_INTERVAL)
+            * STEP_CHECKPOINT_INTERVAL,
         ),
-        on_train_result=partial(_save_training_checkpoints, context=context),
     )
     result_grid = run_tune(
         config,
@@ -139,9 +164,13 @@ def run_study(context, config, *, recipe, analyze_checkpoint):
     records = [
         {
             "checkpoint_path": context.artifacts_dir / "initial_checkpoint",
-            "checkpoint_name": "initial_checkpoint",
-            "training_iteration": 0,
-            "agent_steps": 0,
+            "checkpoint_name": (
+                "initial_checkpoint" if continue_from is None else "restored_checkpoint"
+            ),
+            "training_iteration": (
+                0 if continue_from is None else continue_from.training_iteration
+            ),
+            "agent_steps": start_steps,
         },
         *_step_checkpoint_records(context.artifacts_dir / "step_checkpoints"),
         *checkpoint_records(
@@ -167,8 +196,8 @@ def run_study(context, config, *, recipe, analyze_checkpoint):
                 training_iteration=record["training_iteration"],
             )
         )
-    if len(reports) < 2 or reports[0]["agent_steps"] != 0:
-        raise RuntimeError("initialization and trained-checkpoint probes are required")
+    if len(reports) < 2 or reports[0]["agent_steps"] != start_steps:
+        raise RuntimeError("starting and trained-checkpoint probes are required")
     summary = {
         "study": recipe["study"],
         "condition": recipe["condition"],
@@ -177,6 +206,8 @@ def run_study(context, config, *, recipe, analyze_checkpoint):
         "smoke": context.smoke,
         "algorithm": "REINFORCE",
         "target_env_steps": target_steps,
+        "start_env_steps": start_steps,
+        "continued_from": continue_from.parent if continue_from is not None else None,
         "checkpoint_reports": reports,
     }
     outputs.write_json("condition_summary.json", summary)

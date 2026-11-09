@@ -56,30 +56,34 @@ def build_config(context, variant, *, architecture):
     )
 
 
+def condition_recipe(variant, *, architecture):
+    return {
+        "study": STUDY,
+        "condition": f"variant_{variant}",
+        "condition_name": CONDITION_NAMES[variant],
+        "architecture": architecture,
+        "total_env_steps": TOTAL_ENV_STEPS,
+        "baseline_recipe": "mess3_reward_state_action_symmetry_cycle_7/variant_*_ctx32_ent",
+        "hypothesis": (
+            "history improves control in the two nontrivial quotient conditions; "
+            "compare initialization-to-final affine belief accessibility"
+        ),
+        "analytic_design": analytic_design_summary(),
+        "entropy_anneal_remaining_steps": ENTROPY_ANNEAL_REMAINING_STEPS,
+        "probe_representation": "post_final_layer_norm",
+        "probe_fit_rows": 60_000,
+        "probe_test_rows": 80_000,
+        "probe_warmup": 64,
+        "smoke_probe_fit_rows": 4_096,
+        "smoke_probe_test_rows": 4_096,
+        "smoke_probe_warmup": 4,
+    }
+
+
 def run_condition(context, variant, *, architecture):
     return run_study(
         context,
         build_config(context, variant, architecture=architecture),
-        recipe={
-            "study": STUDY,
-            "condition": f"variant_{variant}",
-            "condition_name": CONDITION_NAMES[variant],
-            "architecture": architecture,
-            "total_env_steps": TOTAL_ENV_STEPS,
-            "baseline_recipe": "mess3_reward_state_action_symmetry_cycle_7/variant_*_ctx32_ent",
-            "hypothesis": (
-                "history improves control in the two nontrivial quotient conditions; "
-                "compare initialization-to-final affine belief accessibility"
-            ),
-            "analytic_design": analytic_design_summary(),
-            "entropy_anneal_remaining_steps": ENTROPY_ANNEAL_REMAINING_STEPS,
-            "probe_representation": "post_final_layer_norm",
-            "probe_fit_rows": 60_000,
-            "probe_test_rows": 80_000,
-            "probe_warmup": 64,
-            "smoke_probe_fit_rows": 4_096,
-            "smoke_probe_test_rows": 4_096,
-            "smoke_probe_warmup": 4,
-        },
+        recipe=condition_recipe(variant, architecture=architecture),
         analyze_checkpoint=analyze_checkpoint,
     )
