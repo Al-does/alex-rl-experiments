@@ -27,9 +27,11 @@ DIRECTIONS = {
     2: np.array([[0.0, 1.0, -1.0], [0.0, 1.0, -1.0], [0.0, -1.0, -1.0]]),
     3: np.array([[0.0, 1.0, -1.0], [0.0, -1.0, 1.0], [0.0, -1.0, -1.0]]),
 }
-TOTAL_ENV_STEPS = 30_000_000
+TOTAL_ENV_STEPS = 200_000_000
 ENTROPY_COEFF = 0.015
 NUM_MINIBATCHES = 32
+# Largest multiple of 32 keeping the transformer under ~70% of a 24 GB RTX 4090.
+NUM_ENVS = 19_456
 SMOKE_ENV_STEPS = 4_096
 EPISODE_LENGTH = 1024
 CONTEXT_LEN = 32
@@ -76,7 +78,7 @@ def entropy_schedule():
 def train_config(smoke: bool) -> TrainConfig:
     total = SMOKE_ENV_STEPS if smoke else TOTAL_ENV_STEPS
     return TrainConfig(total_env_steps=total, episode_length=EPISODE_LENGTH,
-                       num_minibatches=NUM_MINIBATCHES, entropy_schedule=entropy_schedule())
+                       num_envs=NUM_ENVS, num_minibatches=NUM_MINIBATCHES, entropy_schedule=entropy_schedule())
 
 
 def model_spec(architecture, process):

@@ -16,7 +16,7 @@ Adam update all run inside one jitted function per iteration (`reinforce.py`).
   critic, advantages = batch-standardized discounted reward-to-go, one epoch
   split into 32 minibatches of whole episodes (one Adam step each, lr 4.2e-4,
   PPO clip 0.2, no gradient clipping), constant additive entropy bonus 0.015
-  (not annealed). Budget 30M env steps (source: 10M); fresh runs only, seed default 42.
+  (not annealed). Budget 200M env steps (source: 10M); fresh runs only, seed default 42.
   The source study used one full-batch minibatch (pure REINFORCE) and entropy
   0.03 annealed to zero at 9M steps.
 - Architectures: transformer 64x4, 1 head, banded RoPE window 32 (lookback
@@ -26,9 +26,12 @@ Adam update all run inside one jitted function per iteration (`reinforce.py`).
 
 ## Deliberate execution differences
 
-- Each iteration samples `num_envs=352` synchronized, complete 1,024-step
-  episodes (360,448 steps), matching the ~344K-393K steps per update that the
-  RLlib runs actually used; 30M steps = 84 rollouts x 32 minibatch steps. RLlib's randomized first
+- Each iteration samples `num_envs=19,456` synchronized, complete 1,024-step
+  episodes (19,922,944 steps), split into 32 minibatches of 608 episodes
+  (622,592 steps); 200M steps = 11 rollouts = 352 Adam steps. 19,456 is the
+  largest multiple of 32 keeping the transformer (the most memory-hungry arm,
+  ~0.86 GB per 1,000 envs; OOM at 22,528) under ~70% of a 24 GB RTX 4090, and
+  is shared by every arm. The RLlib source used ~344K-393K steps per update. RLlib's randomized first
   episode lengths only desynchronize its runners and are not reproduced.
 - Probes: greedy JAX rollouts of fresh episodes, 64-step warmup per episode,
   60K fit / 80K test rows, ridge 1e-6 affine probe on the post-final-LayerNorm

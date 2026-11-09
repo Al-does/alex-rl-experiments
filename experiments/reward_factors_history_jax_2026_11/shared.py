@@ -7,6 +7,7 @@ from experiments.belief_quotient_history_jax_2026_11.reinforce import TrainConfi
 from experiments.belief_quotient_history_jax_2026_11.shared import (
     ARCHITECTURES,
     EPISODE_LENGTH,
+    NUM_ENVS,
     NUM_MINIBATCHES,
     entropy_schedule,
 )
@@ -20,14 +21,14 @@ from experiments.reward_factors_history_jax_2026_11.process import (
 STUDY = "reward_factors_history_jax_2026_11"
 SOURCE_STUDY = "reward_factors_history_REINFORCE_2026_11"
 CONDITION_NAMES = {"reward_both": "Joint Reward", "reward_factor_1": "Unrewarded Factor 2"}
-TOTAL_ENV_STEPS = 90_000_000
+TOTAL_ENV_STEPS = 200_000_000
 SMOKE_ENV_STEPS = 4_096
 CONTEXT_LEN = 10
 
 
 def train_config(smoke: bool) -> TrainConfig:
     return TrainConfig(total_env_steps=SMOKE_ENV_STEPS if smoke else TOTAL_ENV_STEPS,
-                       episode_length=EPISODE_LENGTH, num_minibatches=NUM_MINIBATCHES,
+                       episode_length=EPISODE_LENGTH, num_envs=NUM_ENVS, num_minibatches=NUM_MINIBATCHES,
                        entropy_schedule=entropy_schedule())
 
 
