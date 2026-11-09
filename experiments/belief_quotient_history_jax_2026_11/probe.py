@@ -30,13 +30,16 @@ def probe_budget(smoke: bool) -> dict:
     return {"train_rows": 60_000, "test_rows": 80_000, "warmup": 64}
 
 
+@partial(jax.jit, static_argnums=(0, 4, 5))
+def _probe_rollout(spec, process, params, key, num_envs, episode_length):
+    return rollout(spec, process, params, key, num_envs, episode_length,
+                   greedy=True, track_belief=True)
+
+
 def collect(spec, process, params, key, *, rows, warmup, episode_length):
     usable = episode_length - warmup
     n_episodes = -(-rows // usable)
-    records = jax.jit(
-        partial(rollout, spec, process, num_envs=n_episodes,
-                episode_length=episode_length, greedy=True, track_belief=True)
-    )(params, key)
+    records = _probe_rollout(spec, process, params, key, n_episodes, episode_length)
     names = ("belief", "residual", "embedding", "action", "reward", "components", "state")
     out = {}
     for name in names:
