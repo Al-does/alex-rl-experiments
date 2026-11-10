@@ -409,3 +409,43 @@ def test_bmax_sweep_recipe_and_smoke(tmp_path):
     rows = [json.loads(r) for r in (tmp_path / "r2" / "training_curves.jsonl").read_text().splitlines()]
     assert [r["update"] for r in rows] == [2, 3]
     assert rows[0]["env_steps"] == 3 * first.ppo.batch_size
+
+
+# --- r7 continuation -----------------------------------------------------------
+
+
+def test_r7_continuation_recipe_adds_300m_steps_with_25m_checkpoints():
+    from experiments.rocksample_jax_2026_10.ppo_bmax_r7_cont330m import experiment as cont
+
+    recipe = cont.recipe(2)
+    (arm,) = recipe.arms
+    assert arm.ppo == cont.r7.ARM.ppo and arm.d_model == 128
+    updates = arm.num_updates(recipe.env_steps_per_seed)
+    added = (updates - cont.SOURCE_UPDATES) * arm.ppo.batch_size
+    assert 300_000_000 <= added < 300_000_000 + arm.ppo.batch_size
+    schedule = recipe.checkpoint_schedule(updates)
+    assert schedule[-1] == updates and schedule[0] == cont.SOURCE_UPDATES + 24
+    assert all(b - a <= 24 for a, b in zip(schedule, schedule[1:]))
+    assert (recipe.first_seed, recipe.num_seeds, recipe.num_keys) == (2, 1, 4)
+
+
+def test_r7_continuation_smoke_resumes_from_saved_state(tmp_path):
+    from harness.context import RunContext
+
+    from experiments.rocksample_jax_2026_10.ppo_bmax_r7_cont330m import experiment as cont
+
+    context = RunContext(
+        experiment_dir=tmp_path,
+        results_dir=tmp_path / "results",
+        artifacts_dir=tmp_path / "artifacts",
+        seed=42,
+        run_id="test",
+        smoke=True,
+        upload_artifacts=False,
+    )
+    summary = cont.run(context)
+    (seed,) = summary["arms"]["smoke_d16"]["seeds"]
+    assert len(seed["returns"]) == 2
+    assert [c["update"] for c in seed["checkpoints"]] == [2, 3]
+    rows = [json.loads(line) for line in (tmp_path / "results/training_curves.jsonl").open()]
+    assert [r["env_steps"] for r in rows] == [2048, 3072]
