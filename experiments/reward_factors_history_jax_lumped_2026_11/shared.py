@@ -96,8 +96,8 @@ def factor_targets(belief):
     return {"joint": belief, "factor_1": joint.sum(2), "factor_2": joint.sum(1)}
 
 
-def train_config(smoke: bool) -> TrainConfig:
-    return TrainConfig(total_env_steps=SMOKE_ENV_STEPS if smoke else TOTAL_ENV_STEPS,
+def train_config(smoke: bool, total_env_steps: int = TOTAL_ENV_STEPS) -> TrainConfig:
+    return TrainConfig(total_env_steps=SMOKE_ENV_STEPS if smoke else total_env_steps,
                        episode_length=EPISODE_LENGTH, num_envs=NUM_ENVS, num_minibatches=NUM_MINIBATCHES,
                        entropy_schedule=entropy_schedule())
 
@@ -107,15 +107,16 @@ def model_spec(architecture, process):
                              n_tokens=process.n_tokens, context_len=CONTEXT_LEN)
 
 
-def run_condition(context, *, condition, architecture):
+def run_condition(context, *, condition, architecture, total_env_steps=TOTAL_ENV_STEPS, study=STUDY,
+                  continue_from=None):
     if condition not in CONDITIONS or architecture not in ARCHITECTURES:
         raise ValueError("unknown condition or architecture")
     process = factor_process(condition)
     return run_study(
-        context, study=STUDY, condition=condition, architecture=architecture,
+        context, study=study, condition=condition, architecture=architecture,
         process=process, spec=model_spec(architecture, process),
-        config=train_config(context.smoke), targets=factor_targets,
-        representation="residual",
+        config=train_config(context.smoke, total_env_steps), targets=factor_targets,
+        representation="residual", continue_from=continue_from,
         recipe_extra={
             "source_study": SOURCE_STUDY,
             "environment_revision": ENVIRONMENT_REVISION,
