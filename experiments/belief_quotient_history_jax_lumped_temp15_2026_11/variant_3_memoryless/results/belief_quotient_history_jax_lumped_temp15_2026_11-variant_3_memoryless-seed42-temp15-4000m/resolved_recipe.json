@@ -1,0 +1,154 @@
+{
+  "architecture": "memoryless",
+  "baseline_transition_matrix": [
+    [
+      0.4875,
+      0.4875,
+      0.025
+    ],
+    [
+      0.4875,
+      0.4875,
+      0.025
+    ],
+    [
+      0.075,
+      0.075,
+      0.85
+    ]
+  ],
+  "condition": "variant_3",
+  "condition_name": "Full-State Quotient",
+  "continued_from": null,
+  "effect_size": 1.5,
+  "emission_alpha": 0.75,
+  "environment_revision": "uniform_nonreward_destination_v2",
+  "framework": "jax",
+  "jax_version": "0.11.1",
+  "model": {
+    "chunk_len": 32,
+    "context_len": 32,
+    "feature_count": 3,
+    "kind": "memoryless",
+    "n_actions": 3,
+    "n_heads": 1,
+    "n_layers": 6,
+    "obs_dim": 6,
+    "width": 64
+  },
+  "process": {
+    "emission": [
+      [
+        0.75,
+        0.125,
+        0.125
+      ],
+      [
+        0.125,
+        0.75,
+        0.125
+      ],
+      [
+        0.125,
+        0.125,
+        0.75
+      ]
+    ],
+    "initial": [
+      0.3333333432674408,
+      0.3333333432674408,
+      0.3333333432674408
+    ],
+    "reward": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "reward_components": [
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "transitions": [
+      [
+        [
+          0.48750001192092896,
+          0.48750001192092896,
+          0.02500000037252903
+        ],
+        [
+          0.48750001192092896,
+          0.48750001192092896,
+          0.02500000037252903
+        ],
+        [
+          0.07500000298023224,
+          0.07500000298023224,
+          0.8500000238418579
+        ]
+      ],
+      [
+        [
+          0.44846463203430176,
+          0.44846463203430176,
+          0.10307072103023529
+        ],
+        [
+          0.49715563654899597,
+          0.49715563654899597,
+          0.005688739474862814
+        ],
+        [
+          0.22080862522125244,
+          0.22080862522125244,
+          0.5583827495574951
+        ]
+      ],
+      [
+        [
+          0.49715563654899597,
+          0.49715563654899597,
+          0.005688739474862814
+        ],
+        [
+          0.44846463203430176,
+          0.44846463203430176,
+          0.10307072103023529
+        ],
+        [
+          0.22080862522125244,
+          0.22080862522125244,
+          0.5583827495574951
+        ]
+      ]
+    ]
+  },
+  "representation": "post_final_layer_norm",
+  "reward": "1 when the pre-transition hidden state is 2",
+  "seed": 42,
+  "smoke": false,
+  "source_study": "belief_quotient_history_jax_2026_11",
+  "study": "belief_quotient_history_jax_lumped_temp15_2026_11",
+  "training": {
+    "clip_param": 0.2,
+    "entropy_schedule": [
+      [
+        0,
+        0.0
+      ]
+    ],
+    "episode_length": 1024,
+    "gamma": 0.99,
+    "lr": 0.00042,
+    "num_envs": 19456,
+    "num_epochs": 1,
+    "num_minibatches": 64,
+    "step_offset": 0,
+    "temperature": 1.5,
+    "total_env_steps": 4000000000,
+    "total_env_steps_absolute": 4000000000
+  },
+  "variant": 3
+}
