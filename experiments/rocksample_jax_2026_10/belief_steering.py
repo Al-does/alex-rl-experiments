@@ -278,6 +278,9 @@ def write_report(output, report):
              "| Variant | λ | Good→Bad pickup | Bad→Good pickup |",
              "|---|---:|---:|---:|"]
     for variant, tuning in report["tuning"].items():
+        if variant != VARIANTS[0]:
+            lines += ["| Variant | λ | Good→Bad pickup | Bad→Good pickup |",
+                      "|---|---:|---:|---:|"]
         for row in tuning["sweep"]:
             lines.append(f"| {variant} | {row['strength']} | {row['good']['target']:.4f} | {row['bad']['target']:.4f} |")
         lines += [f"Selected {variant}: λ={tuning['strength']}; threshold met: "
