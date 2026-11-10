@@ -187,22 +187,32 @@ def make_iteration(spec, process, config: TrainConfig, optimizer):
 
 
 def train(spec, process, config: TrainConfig, *, seed: int, checkpoint_steps=(),
-          on_checkpoint: Callable | None = None, log: Callable | None = None):
-    """Run the recipe; ``on_checkpoint(steps, params)`` fires at step 0, each
-    requested threshold crossing, and the end."""
+          on_checkpoint: Callable | None = None, log: Callable | None = None,
+          initial_params=None, step_offset: int = 0):
+    """Run the recipe; ``on_checkpoint(steps, params)`` fires at the start, each
+    requested threshold crossing, and the end.
+
+    ``initial_params``/``step_offset`` continue a finished run: training starts
+    from the given parameters, step counts are absolute (offset + new steps),
+    and the per-iteration RNG keys continue past the parent's iterations. Only
+    parameters are checkpointed, so Adam moments restart from zero."""
 
     root = jax.random.PRNGKey(seed)
-    params = models.init_params(spec, jax.random.fold_in(root, 0))
+    params = initial_params if initial_params is not None else models.init_params(
+        spec, jax.random.fold_in(root, 0))
     optimizer = optax.adam(config.lr)
     opt_state = optimizer.init(params)
     iteration = make_iteration(spec, process, config, optimizer)
+    if step_offset % config.batch_steps:
+        raise ValueError("step_offset must be a whole number of rollouts")
+    first_index = step_offset // config.batch_steps
     if on_checkpoint:
-        on_checkpoint(0, params)
-    pending = sorted(set(int(s) for s in checkpoint_steps if 0 < s))
-    curves, steps, compile_seconds, train_seconds = [], 0, None, 0.0
+        on_checkpoint(step_offset, params)
+    pending = sorted(set(int(s) for s in checkpoint_steps if step_offset < s))
+    curves, steps, compile_seconds, train_seconds = [], step_offset, None, 0.0
     for index in range(config.iterations):
         coeff = jnp.float32(entropy_coefficient(config.entropy_schedule, steps))
-        key = jax.random.fold_in(jax.random.fold_in(root, 1), index)
+        key = jax.random.fold_in(jax.random.fold_in(root, 1), first_index + index)
         start = time.perf_counter()
         if index == 0:
             compiled = iteration.lower(params, opt_state, key, coeff).compile()
@@ -229,13 +239,14 @@ def train(spec, process, config: TrainConfig, *, seed: int, checkpoint_steps=(),
         on_checkpoint(steps, params)
     summary = {
         "env_steps": steps,
+        "step_offset": step_offset,
         "iterations": config.iterations,
         "batch_steps": config.batch_steps,
         "compile_seconds": compile_seconds,
         "train_seconds": train_seconds,
         "env_steps_per_second": steps / train_seconds if train_seconds else None,
         "steady_env_steps_per_second": (
-            (steps - config.batch_steps) / (train_seconds - curves[0]["iteration_seconds"])
+            (steps - step_offset - config.batch_steps) / (train_seconds - curves[0]["iteration_seconds"])
             if len(curves) > 1 else None
         ),
         "parameter_count": models.parameter_count(params),

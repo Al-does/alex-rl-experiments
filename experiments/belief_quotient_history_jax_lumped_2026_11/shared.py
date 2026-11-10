@@ -76,8 +76,8 @@ def entropy_schedule():
     return ((0, ENTROPY_COEFF),)
 
 
-def train_config(smoke: bool) -> TrainConfig:
-    total = SMOKE_ENV_STEPS if smoke else TOTAL_ENV_STEPS
+def train_config(smoke: bool, total_env_steps: int = TOTAL_ENV_STEPS) -> TrainConfig:
+    total = SMOKE_ENV_STEPS if smoke else total_env_steps
     return TrainConfig(total_env_steps=total, episode_length=EPISODE_LENGTH,
                        num_envs=NUM_ENVS, num_minibatches=NUM_MINIBATCHES, entropy_schedule=entropy_schedule())
 
@@ -91,15 +91,16 @@ def belief_targets(belief):
     return {"belief": belief}
 
 
-def run_condition(context, *, variant, architecture):
+def run_condition(context, *, variant, architecture, total_env_steps=TOTAL_ENV_STEPS, study=STUDY,
+                  continue_from=None):
     if architecture not in ARCHITECTURES:
         raise ValueError(f"architecture must be one of {ARCHITECTURES}")
     process = ladder_process(variant)
     return run_study(
-        context, study=STUDY, condition=f"variant_{variant}", architecture=architecture,
+        context, study=study, condition=f"variant_{variant}", architecture=architecture,
         process=process, spec=model_spec(architecture, process),
-        config=train_config(context.smoke), targets=belief_targets,
-        representation="embedding",
+        config=train_config(context.smoke, total_env_steps), targets=belief_targets,
+        representation="embedding", continue_from=continue_from,
         recipe_extra={
             "source_study": SOURCE_STUDY,
             "environment_revision": ENVIRONMENT_REVISION,
