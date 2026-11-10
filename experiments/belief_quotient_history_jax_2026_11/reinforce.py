@@ -37,10 +37,13 @@ class TrainConfig:
     num_epochs: int = 1
     num_minibatches: int = 1
     entropy_schedule: tuple[tuple[int, float], ...] = ((0, 0.0),)
+    temperature: float = 1.0  # softmax temperature for sampling and the PPO likelihoods
 
     def __post_init__(self):
         if self.num_envs % self.num_minibatches:
             raise ValueError("num_envs must be divisible by num_minibatches")
+        if self.temperature <= 0:
+            raise ValueError("temperature must be positive")
 
     @property
     def batch_steps(self) -> int:
@@ -59,8 +62,11 @@ def entropy_coefficient(schedule, steps):
 
 
 def rollout(spec, process, params, key, num_envs, episode_length, *, greedy=False,
-            track_belief=False):
-    """Sample ``num_envs`` synchronized episodes with ``lax.scan``."""
+            track_belief=False, temperature=1.0):
+    """Sample ``num_envs`` synchronized episodes with ``lax.scan``.
+
+    Actions are drawn from ``softmax(logits / temperature)`` and ``logp`` is
+    recorded under that same tempered policy; greedy rollouts ignore it."""
 
     reset_key, key = jax.random.split(key)
     env_state = jax.vmap(hmm.reset, (None, 0))(process, jax.random.split(reset_key, num_envs))
@@ -75,6 +81,7 @@ def rollout(spec, process, params, key, num_envs, episode_length, *, greedy=Fals
         key, action_key, step_key = jax.random.split(key, 3)
         obs = jax.vmap(hmm.observe, (None, 0))(process, env_state)
         logits, residual, embedding, carry = models.step(spec, params, carry, obs, t)
+        logits = logits / temperature
         if greedy:
             action = jnp.argmax(logits, -1)
         else:
@@ -128,7 +135,7 @@ def standardized_advantages(rewards, gamma):
 
 def surrogate_loss(spec, config, params, batch, entropy_coeff):
     logits, _, _ = models.sequence(spec, params, batch["obs"], batch.get("chunk_starts"))
-    log_probs = jax.nn.log_softmax(logits)
+    log_probs = jax.nn.log_softmax(logits / config.temperature)
     logp = jnp.take_along_axis(log_probs, batch["action"][..., None], -1)[..., 0]
     ratio = jnp.exp(logp - batch["logp"])
     advantages = batch["advantages"]
@@ -166,7 +173,8 @@ def make_iteration(spec, process, config: TrainConfig, optimizer):
     @jax.jit
     def iteration(params, opt_state, key, entropy_coeff):
         rollout_key, update_key = jax.random.split(key)
-        records = rollout(spec, process, params, rollout_key, config.num_envs, config.episode_length)
+        records = rollout(spec, process, params, rollout_key, config.num_envs, config.episode_length,
+                          temperature=config.temperature)
         batch = {name: records[name] for name in ("obs", "action", "logp")}
         if spec.kind == "gru":
             batch["chunk_starts"] = records["chunk_starts"]
