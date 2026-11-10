@@ -40,10 +40,10 @@ def test_surrogate_ratio_is_one_under_matching_temperature():
     records = rollout(spec, process, params, jax.random.PRNGKey(2), 8, 16, temperature=1.5)
     batch = {"obs": records["obs"], "action": records["action"], "logp": records["logp"],
              "advantages": jnp.ones_like(records["logp"])}
-    _, info = surrogate_loss(spec, config, params, batch, 0.0)
+    _, info = surrogate_loss(spec, config, params, batch, 0.0, 1.5)
     assert info["policy_loss"] == pytest.approx(-1.0, abs=1e-5)  # ratio == 1 everywhere
     mismatched = TrainConfig(total_env_steps=256, num_envs=8, episode_length=16, temperature=1.0)
-    _, info2 = surrogate_loss(spec, mismatched, params, batch, 0.0)
+    _, info2 = surrogate_loss(spec, mismatched, params, batch, 0.0, 1.0)
     assert abs(float(info2["policy_loss"]) + 1.0) > 1e-3
 
 
