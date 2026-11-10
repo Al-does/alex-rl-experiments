@@ -29,3 +29,7 @@ linear-accessibility measurements do not establish causal use. Check with
 `uv run pytest -q tests/test_history_jax_reprobe.py tests/test_history_jax_temperature.py`.
 
 Uniform nonreward destinations and symmetric emissions make A/B tokens carry identical reward-class likelihood, so c[B] equals rho for Trivial Quotient and Reward-State Quotient (up to numerical tolerance).
+
+After all 12 reports are present, `uv run python -m experiments.belief_quotient_history_jax_lumped_temp15_2026_11.plot_reprobe`
+validates completeness and writes per-target linear/log-x PNG/PDF figures,
+input hashes, and `reprobe_findings.md` with the final-checkpoint table.
