@@ -70,3 +70,47 @@ def test_rollout_smoke():
     assert len(result["sample_ci95"]) == 7
     np.testing.assert_allclose(result["decoded_before_after"], [.5, .5])
     assert np.isfinite(result["mean_return"])
+
+
+def test_calibrated_endpoints_and_minimum_norm():
+    rng = np.random.default_rng(23)
+    w = rng.normal(size=(4, 16, 7)).astype(np.float32)
+    encoder = rng.normal(size=(4, 7, 16)).astype(np.float32)
+    bias = rng.normal(size=(4, 7)).astype(np.float32)
+    null = rng.normal(size=(4, 7, 16)).astype(np.float32)
+    variants, diagnostics = bs.calibrated_maps((w, bias, encoder, null))
+    assert len(diagnostics) == 4
+    for site in range(4):
+        h = rng.normal(size=16).astype(np.float32)
+        decoded = h @ w[site] + bias[site]
+        for rock in range(7):
+            for target in (0., 1.):
+                shifts = {}
+                for name in ("calibrated_encoder", "min_norm_decoder"):
+                    d, b, e, n = variants[name]
+                    changed, _, after = bs.shift(jnp.asarray(h), d[site], b[site], e[site],
+                        n[site], rock, target, 1., False, True)
+                    desired = decoded.copy(); desired[rock] = target
+                    np.testing.assert_allclose(np.asarray(changed @ d[site] + b[site]),
+                                               desired, atol=1e-4)
+                    assert abs(float(after)-target) < 1e-4
+                    shifts[name] = np.linalg.norm(np.asarray(changed)-h)
+                assert shifts["min_norm_decoder"] <= shifts["calibrated_encoder"] + 1e-4
+
+
+def test_calibration_rejects_rank_deficiency():
+    with pytest.raises(ValueError, match="full-rank"):
+        bs.calibrated_maps((np.zeros((4, 8, 7)), np.zeros((4, 7)),
+                            np.zeros((4, 7, 8)), np.ones((4, 7, 8))))
+
+
+def test_conditional_selectivity():
+    picked = np.array([[True, True, False], [False, False, True]])
+    good = np.array([[True, True, True], [False, False, False]])
+    values = (picked, np.array([2, 0]), np.array([10., -10.]),
+              np.array([1., 2., 0., 0., 0.]), np.array(2), good,
+              np.array([True, True]), np.empty((0,)), np.array(0.), np.array(0.))
+    result = bs.summarize(values, 0)
+    assert result["nontarget"]["good"] == dict(picked=1, count=2, probability=.5)
+    assert result["nontarget"]["bad"] == dict(picked=1, count=2, probability=.5)
+    assert result["visit_without_pickup_probability"] == .5
