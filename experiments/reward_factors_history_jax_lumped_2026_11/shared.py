@@ -96,10 +96,11 @@ def factor_targets(belief):
     return {"joint": belief, "factor_1": joint.sum(2), "factor_2": joint.sum(1)}
 
 
-def train_config(smoke: bool, total_env_steps: int = TOTAL_ENV_STEPS) -> TrainConfig:
+def train_config(smoke: bool, total_env_steps: int = TOTAL_ENV_STEPS,
+                 entropy_schedule_points=None) -> TrainConfig:
     return TrainConfig(total_env_steps=SMOKE_ENV_STEPS if smoke else total_env_steps,
                        episode_length=EPISODE_LENGTH, num_envs=NUM_ENVS, num_minibatches=NUM_MINIBATCHES,
-                       entropy_schedule=entropy_schedule())
+                       entropy_schedule=entropy_schedule() if entropy_schedule_points is None else tuple(entropy_schedule_points))
 
 
 def model_spec(architecture, process):
@@ -108,14 +109,14 @@ def model_spec(architecture, process):
 
 
 def run_condition(context, *, condition, architecture, total_env_steps=TOTAL_ENV_STEPS, study=STUDY,
-                  continue_from=None):
+                  continue_from=None, entropy_schedule_points=None):
     if condition not in CONDITIONS or architecture not in ARCHITECTURES:
         raise ValueError("unknown condition or architecture")
     process = factor_process(condition)
     return run_study(
         context, study=study, condition=condition, architecture=architecture,
         process=process, spec=model_spec(architecture, process),
-        config=train_config(context.smoke, total_env_steps), targets=factor_targets,
+        config=train_config(context.smoke, total_env_steps, entropy_schedule_points), targets=factor_targets,
         representation="residual", continue_from=continue_from,
         recipe_extra={
             "source_study": SOURCE_STUDY,
