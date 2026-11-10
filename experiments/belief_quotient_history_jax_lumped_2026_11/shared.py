@@ -77,10 +77,11 @@ def entropy_schedule():
 
 
 def train_config(smoke: bool, total_env_steps: int = TOTAL_ENV_STEPS,
-                 entropy_schedule_points=None, temperature: float = 1.0) -> TrainConfig:
+                 entropy_schedule_points=None, temperature: float = 1.0,
+                 num_envs: int = NUM_ENVS) -> TrainConfig:
     total = SMOKE_ENV_STEPS if smoke else total_env_steps
     return TrainConfig(total_env_steps=total, episode_length=EPISODE_LENGTH,
-                       num_envs=NUM_ENVS, num_minibatches=NUM_MINIBATCHES, entropy_schedule=entropy_schedule() if entropy_schedule_points is None else tuple(entropy_schedule_points),
+                       num_envs=num_envs, num_minibatches=NUM_MINIBATCHES, entropy_schedule=entropy_schedule() if entropy_schedule_points is None else tuple(entropy_schedule_points),
                        temperature=temperature)
 
 
@@ -94,14 +95,15 @@ def belief_targets(belief):
 
 
 def run_condition(context, *, variant, architecture, total_env_steps=TOTAL_ENV_STEPS, study=STUDY,
-                  continue_from=None, entropy_schedule_points=None, temperature=1.0):
+                  continue_from=None, entropy_schedule_points=None, temperature=1.0,
+                  num_envs=NUM_ENVS):
     if architecture not in ARCHITECTURES:
         raise ValueError(f"architecture must be one of {ARCHITECTURES}")
     process = ladder_process(variant)
     return run_study(
         context, study=study, condition=f"variant_{variant}", architecture=architecture,
         process=process, spec=model_spec(architecture, process),
-        config=train_config(context.smoke, total_env_steps, entropy_schedule_points, temperature), targets=belief_targets,
+        config=train_config(context.smoke, total_env_steps, entropy_schedule_points, temperature, num_envs), targets=belief_targets,
         representation="embedding", continue_from=continue_from,
         recipe_extra={
             "source_study": SOURCE_STUDY,
