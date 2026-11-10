@@ -21,13 +21,39 @@ AGENTS = [("20261002T191712Z-7f1dc1ef", 3),
 SEEDS = dict(fit=41101, test=51203, tune=61307, confirm=71411, null=81517)
 GRID = [.5, 1, 1.5, 2, 3]
 VARIANTS = ("encoder", "calibrated_encoder", "min_norm_decoder")
-CONFIRM_SEED = 91423
+V3_VARIANTS = ("calibrated_encoder", "nuisance_controlled_encoder")
+CONFIRM_SEED = 101429
 
 
 def affine(x, y):
     design = np.column_stack((x, np.ones(len(x))))
     coef = np.linalg.lstsq(design, y, rcond=1e-6)[0]
     return coef[:-1], coef[-1]
+
+
+def nuisance_features(rows, env):
+    n, horizon = rows["valid"].shape
+    position = rows["position"]
+    cell = position[:, :, 0] + env.n * position[:, :, 1]
+    time = np.broadcast_to(np.arange(horizon), (n, horizon))
+    previous = np.full((n, horizon), env.num_actions)
+    previous[:, 1:] = rows["action"][:, :-1]
+    symbol = rows["obs"][:, :, 2 + 2*env.k:2 + 2*env.k + rs.NUM_SYMBOLS]
+    picked = ((rows["action"] == 4)[:, :, None] & rows["valid"][:, :, None] &
+              np.all(position[:, :, None] == np.asarray(env.rocks), axis=-1))
+    sampled = np.zeros_like(picked)
+    sampled[:, 1:] = np.maximum.accumulate(picked[:, :-1], axis=1)
+    features = np.concatenate((np.eye(env.n**2)[cell][:, :, :-1],
+        np.eye(env.episode_length)[time][:, :, 1:],
+        np.eye(env.num_actions + 1)[previous][:, :, :env.num_actions],
+        symbol[:, :, :-1], sampled), axis=-1)
+    return features[rows["valid"]]
+
+
+def nuisance_encoder(beliefs, nuisance, activations):
+    design = np.column_stack((beliefs, nuisance))
+    coefficients, _ = affine(design, activations)
+    return coefficients[:beliefs.shape[1]]
 
 
 @partial(jax.jit, static_argnames=("spec",))
@@ -47,17 +73,21 @@ def replay(spec, params, observations):
 
 def maps(spec, env, params, episodes):
     streams = []
+    nuisance = None
     for seed in (SEEDS["fit"], SEEDS["test"]):
         rows = bp.collect(spec, env, params, params, episodes=episodes, key_seed=seed)
         targets = bp.targets(rows, env).marginals
         features = np.asarray(replay(spec, params, rows["obs"]))[rows["valid"]]
+        if seed == SEEDS["fit"]:
+            nuisance = nuisance_features(rows, env)
         streams.append((features.astype(np.float64), targets))
     (x, y), (xt, yt) = streams
-    decoders, offsets, encoders, scores, nulls = [], [], [], [], []
+    decoders, offsets, encoders, scores, nulls, controlled = [], [], [], [], [], []
     rng = np.random.default_rng(SEEDS["null"])
     for site in range(spec.n_layers + 1):
         d, b = affine(x[:, site], y)
         e, _ = affine(y, x[:, site])
+        controlled.append(nuisance_encoder(y, nuisance, x[:, site]))
         residual = yt - (xt[:, site] @ d + b)
         scores.append((1 - (residual**2).sum(0) /
                        ((yt - yt.mean(0))**2).sum(0)).tolist())
@@ -67,8 +97,14 @@ def maps(spec, env, params, episodes):
         random -= (random @ basis) @ basis.T
         random /= np.linalg.norm(random, axis=1, keepdims=True)
         decoders.append(d); offsets.append(b); encoders.append(e); nulls.append(random)
-    return tuple(jnp.asarray(v, dtype=jnp.float32) for v in
-                 (decoders, offsets, encoders, nulls)), scores
+    nuisance_coef, nuisance_bias = affine(nuisance, y)
+    residual_beliefs = y - (nuisance @ nuisance_coef + nuisance_bias)
+    return (tuple(jnp.asarray(v, dtype=jnp.float32) for v in
+                  (decoders, offsets, encoders, nulls)), scores,
+            jnp.asarray(controlled, dtype=jnp.float32),
+            dict(nuisance_columns=nuisance.shape[1],
+                 residual_belief_singular_values=np.linalg.svd(residual_beliefs, compute_uv=False).tolist(),
+                 residual_belief_std=residual_beliefs.std(0).tolist()))
 
 
 def shift(h, d, b, e, null, rock, target, strength, control, active):
@@ -236,10 +272,10 @@ def pooled(rows, direction, condition):
 
 def tune(spec, env, params, variants, episodes):
     evidence = {}
-    intact = evaluate(spec, env, params, variants["encoder"], episodes, SEEDS["tune"], 2, 0.)
+    intact = evaluate(spec, env, params, variants[next(iter(variants))], episodes, SEEDS["tune"], 2, 0.)
     for variant, fitted in variants.items():
         records = []
-        for strength in ([2.] if variant == "encoder" else GRID):
+        for strength in GRID:
             print(f"Tune {variant} λ={strength}", flush=True)
             rows = []
             for rock in range(env.k):
@@ -258,27 +294,27 @@ def tune(spec, env, params, variants, episodes):
             records.append(dict(strength=strength, good=g, bad=b,
                                 selection_score=b["target"]-g["target"]-drift))
         eligible = [r for r in records if r["good"]["target"] <= .10 and r["bad"]["target"] >= .5]
-        strength = (2. if variant == "encoder" else
-                    min(r["strength"] for r in eligible) if eligible else 1.)
+        strength = min(r["strength"] for r in eligible) if eligible else 1.
         selected = next(r for r in records if r["strength"] == strength)
         evidence[variant] = dict(strength=strength, selection_succeeded=bool(eligible),
                                 selected_score=selected["selection_score"], sweep=records)
-    return evidence, max(VARIANTS, key=lambda name: evidence[name]["selected_score"])
+    return evidence, max(variants, key=lambda name: evidence[name]["selected_score"])
 
 
 def write_report(output, report):
     best = report["best_variant"]
-    lines = ["# RockSample r7 endpoint-calibrated steering (v2)", "", report["protocol"], "",
+    lines = ["# RockSample r7 nuisance-controlled steering (v3)", "", report["protocol"], "",
+             report["nuisance_features"], "",
              f"Displayed variant: **{best}**, chosen using tuning only.", "",
              "Fit/test: 256/256 episodes per agent; tuning: 128; confirmation: 1,024 per",
-             "rock/direction/condition/variant/site (smoke uses 8). Fresh confirmation seed 91423.",
+             f"rock/direction/condition/variant/site (smoke uses 8). Fresh confirmation seed {CONFIRM_SEED}.",
              "Endpoints are measured at the intervened site, before downstream nonlinearities.",
              "Sites 0–2 = post-block pre-final-LN; site 3 = post-final-LN.", "",
              "## Tuning evidence", "",
              "| Variant | λ | Good→Bad pickup | Bad→Good pickup |",
              "|---|---:|---:|---:|"]
-    for variant, tuning in report["tuning"].items():
-        if variant != VARIANTS[0]:
+    for index, (variant, tuning) in enumerate(report["tuning"].items()):
+        if index:
             lines += ["| Variant | λ | Good→Bad pickup | Bad→Good pickup |",
                       "|---|---:|---:|---:|"]
         for row in tuning["sweep"]:
@@ -287,12 +323,14 @@ def write_report(output, report):
                   f"{tuning['selection_succeeded']}; tuning score={tuning['selected_score']:.4f}.", ""]
     primary = report["agents"][0]
     lines += ["## Primary-agent variant comparison (site 2)", "",
-              "| Variant | λ | G→B pickup | B→G pickup | G→B decoded after | B→G decoded after |",
-              "|---|---:|---:|---:|---:|---:|"]
+              "| Variant | λ | Direction | Target pickup | Other Good | Other Bad | Return | Decoded after |",
+              "|---|---:|---|---:|---:|---:|---:|---:|"]
     for variant, sites in primary["variants"].items():
-        g, b = [pooled(sites["2"], d, "steered") for d in ("Good→Bad", "Bad→Good")]
-        lines.append(f"| {variant} | {report['tuning'][variant]['strength']} | {g['target']:.4f} | "
-                     f"{b['target']:.4f} | {g['decoded_before_after'][1]:.6f} | {b['decoded_before_after'][1]:.6f} |")
+        for direction in ("Good→Bad", "Bad→Good"):
+            p = pooled(sites["2"], direction, "steered")
+            lines.append(f"| {variant} | {report['tuning'][variant]['strength']} | {direction} | "
+                         f"{p['target']:.4f} | {p['nontarget_good']:.4f} | {p['nontarget_bad']:.4f} | "
+                         f"{p['mean_return']:.2f} | {p['decoded_before_after'][1]:.6f} |")
     lines += ["", "## Primary-agent selectivity, return and endpoint sanity (site 2)", "",
               "| Variant | Direction | Condition | Other Good | Other Bad | Return | Decoded before→after | Max endpoint error | Max other-coordinate change |",
               "|---|---|---|---:|---:|---:|---|---:|---:|"]
@@ -345,7 +383,15 @@ def write_report(output, report):
               "Controls are decoder-null random directions with the counterfactual shift norm on",
               "their own current history, not a copied norm from a diverged steering trajectory.",
               "Intact episodes are reused across variants/sites because they are identical.",
-              "Steering can still be off-manifold; endpoint calibration alone does not ensure selectivity."]
+              "Steering can still be off-manifold; endpoint calibration alone does not ensure selectivity.",
+              "", "## Overall conclusion across v1–v3", "",
+              "v1 demonstrated causal activation effects but had endpoint overshoot and broad disruption.",
+              "v2 calibrated the decoder endpoints; min-norm shifts preserved nontarget behavior but",
+              "barely changed target pickup, whereas calibrated-encoder shifts remained disruptive.",
+              "v3 tests conditional encoder coefficients rather than assuming that marginal regression",
+              "directions isolate beliefs. This is statistical nuisance adjustment, not proof of a",
+              "causal internal Bayesian model. The tables and held-out rollout evidence above bound",
+              "which target effects and behavioral selectivity were actually demonstrated."]
     (output / "findings.md").write_text("\n".join(lines)+"\n")
     import matplotlib
     matplotlib.use("Agg")
@@ -382,22 +428,33 @@ def main():
     if args.output.exists():
         raise FileExistsError(args.output)
     args.output.mkdir(parents=True)
-    report = dict(schema=2, smoke=args.smoke, seeds={**SEEDS, "confirm": CONFIRM_SEED}, grid=GRID,
+    report = dict(schema=3, smoke=args.smoke, seeds={**SEEDS, "confirm": CONFIRM_SEED}, grid=GRID,
         fit_episodes=8 if args.smoke else 256, test_episodes=8 if args.smoke else 256,
         tune_episodes=8 if args.smoke else 128, confirmation_episodes=8 if args.smoke else 1024,
         experiment_revision=bp.revision(bp.ROOT),
         harness_revision=bp.revision(bp.ROOT.parents[2] / "rl-harness"),
         jax_version=jax.__version__, sources={p.name: bp.sha256(p) for p in
             (Path(__file__), bp.ROOT / "model.py", bp.ROOT / "env.py", bp.ROOT / "belief_probe.py")},
+        nuisance_features="Nuisance design: 25-cell rover-position one-hot (24 reference-coded columns), "
+        "100-step decision-index one-hot (99 columns; reset reference), previous-action one-hot "
+        "(12 columns plus reset reference), current sensor-symbol one-hot (2 columns plus NONE "
+        "reference), and 7 already-sampled indicators computed from preceding executed actions "
+        "and observed positions. Total 144 nuisance columns, plus 7 beliefs and an intercept. "
+        "No reward, hidden quality, or future event enters the regression. No additional nuisance "
+        "features; fixed layout is constant. One-hot reference coding avoids dummy/intercept redundancy. "
+        "Counterfactual sensor-pair replay skipped to keep the final CPU iteration focused.",
+        historical_reports={name: bp.sha256(bp.ROOT / "results" / name / "results.json")
+                            for name in ("belief_steering_r7_20261110", "belief_steering_r7_20261110_v2")},
         agents=[], protocol="Frozen r7 update-29 sampled policies, 7 current-Good marginals, fair-prior "
         "action/observation Bayesian targets; independent own-policy fit/test streams, all valid rows "
         "including reset, no warmup exclusion. Separate affine least squares (rcond 1e-6). "
-        "Calibrated encoder = solve(EW,E); min-norm decoder = pseudoinverse(W). "
+        "Compare v2 calibrated encoder = solve(EW,E) with nuisance-controlled encoder "
+        "E_nc from joint activation regression on [beliefs,nuisance], calibrated as solve(E_nc W,E_nc). "
         "For each calibrated variant choose the smallest tuning λ with pooled Good→Bad pickup ≤0.10 "
-        "AND Bad→Good pickup ≥0.5, else λ=1. Original encoder retains historical fallback λ=2. "
+        "AND Bad→Good pickup ≥0.5, else λ=1. "
         "Choose displayed variant on tuning only by (Bad→Good pickup minus Good→Bad pickup minus "
         "maximum absolute nontarget conditional-rate drift from intact across directions/qualities); "
-        "ties follow encoder, calibrated encoder, min-norm order. Freeze across agents/sites. "
+        "ties favor v2 calibrated encoder. Freeze across agents/sites. "
         "Matched environment/action RNG across conditions; Bad→Good stops at first target pickup, "
         "Good→Bad continues every decision step. Cached K/V propagation preserved.")
     for run, seed in AGENTS[:1] if args.smoke else AGENTS:
@@ -409,16 +466,20 @@ def main():
         env = rs.RockSampleParams.from_instance()
         spec = tm.TransformerSpec(env.obs_dim, env.num_actions, arm["d_model"],
                                  arm["n_layers"], arm["n_heads"], arm["context_len"])
-        fitted, r2 = maps(spec, env, params, report["fit_episodes"])
-        variants, calibration = calibrated_maps(fitted)
+        fitted, r2, controlled, nuisance_diagnostics = maps(spec, env, params, report["fit_episodes"])
+        original, original_calibration = calibrated_maps(fitted)
+        controlled_maps, controlled_calibration = calibrated_maps((fitted[0], fitted[1], controlled, fitted[3]))
+        variants = dict(zip(V3_VARIANTS, (original["calibrated_encoder"], controlled_maps["calibrated_encoder"])))
+        calibration = dict(zip(V3_VARIANTS, (original_calibration, controlled_calibration)))
         if not report["agents"]:
             report["tuning"], report["best_variant"] = tune(spec, env, params, variants, report["tune_episodes"])
         agent = dict(run_id=run, seed=seed, checkpoint=provenance, r2=r2,
-                     calibration=calibration, variants={})
+                     calibration=calibration, nuisance_design=nuisance_diagnostics, variants={})
         scratch = bp.ROOT / "artifacts" / args.output.name / f"{run}_seed{seed}"
         scratch.mkdir(parents=True, exist_ok=False)
         np.savez_compressed(scratch / "maps.npz", decoder=np.asarray(fitted[0]),
-            bias=np.asarray(fitted[1]), encoder=np.asarray(fitted[2]), null=np.asarray(fitted[3]))
+            bias=np.asarray(fitted[1]), encoder=np.asarray(fitted[2]), null=np.asarray(fitted[3]),
+            nuisance_controlled_encoder=np.asarray(controlled))
         intact_rows = None
         for variant, fitted in variants.items():
             agent["variants"][variant] = {}

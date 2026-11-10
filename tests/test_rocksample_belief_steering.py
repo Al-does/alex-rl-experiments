@@ -114,3 +114,33 @@ def test_conditional_selectivity():
     assert result["nontarget"]["good"] == dict(picked=1, count=2, probability=.5)
     assert result["nontarget"]["bad"] == dict(picked=1, count=2, probability=.5)
     assert result["visit_without_pickup_probability"] == .5
+
+
+def test_nuisance_encoder_recovers_conditional_belief_coefficients():
+    rng = np.random.default_rng(31)
+    beliefs = rng.normal(size=(500, 7))
+    nuisance = beliefs @ rng.normal(size=(7, 5)) + rng.normal(size=(500, 5))
+    belief_directions = rng.normal(size=(7, 16))
+    nuisance_directions = rng.normal(size=(5, 16))
+    activations = beliefs @ belief_directions + nuisance @ nuisance_directions + 2
+    controlled = bs.nuisance_encoder(beliefs, nuisance, activations)
+    ordinary, _ = bs.affine(beliefs, activations)
+    np.testing.assert_allclose(controlled, belief_directions, atol=1e-10)
+    assert np.linalg.norm(ordinary-belief_directions) > 1
+    no_nuisance = bs.nuisance_encoder(beliefs, np.empty((500, 0)), activations)
+    np.testing.assert_allclose(no_nuisance, ordinary, atol=1e-10)
+
+
+def test_nuisance_features_use_past_samples_not_current_or_truth():
+    env = rs.RockSampleParams.from_instance(episode_length=3)
+    obs = np.zeros((1, 3, env.obs_dim))
+    obs[:, :, 2+2*env.k] = 1
+    rows = dict(valid=np.ones((1, 3), bool), obs=obs,
+        position=np.broadcast_to(env.rocks[0], (1, 3, 2)),
+        action=np.array([[4, 5, 4]]))
+    features = bs.nuisance_features(rows, env)
+    assert features.shape == (3, 24+2+12+2+7)
+    np.testing.assert_array_equal(features[:, -7], [0, 1, 1])
+    np.testing.assert_array_equal(features[:, -6:], 0)
+    rows["valid"] = np.zeros((1, 3), bool)
+    assert bs.nuisance_features(rows, env).shape == (0, features.shape[1])
