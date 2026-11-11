@@ -900,7 +900,7 @@ Both primary early sites meet the descriptive pooled ≤0.10/≥0.5 thresholds
 at frozen λ=1. This is not perfect selectivity: intact nontarget Good pickup
 remains about 0.98, and not every rock is strongly suppressed. At primary
 site 0, Good→Bad rock-index 6 remains 0.315 and rock-index 4 worsens
-0.027→0.147; Bad→Good reaches at least 0.812 for every rock.
+0.027→0.147; Bad→Good exceeds 0.81 for every rock.
 
 The early-site result is not uniform across agents. At V4 site 0, run 1 seed 2
 has weaker Good→Bad suppression (0.1438→0.3686), but higher Bad→Good pickup
@@ -924,7 +924,7 @@ Good→Bad remains above the uniform-random confirmation baseline 0.1967;
 Bad→Good remains below 0.5. Some target effects grow, especially marginal
 site 1, but they do not amount to consistently more selective steering.
 At primary site 2, marginal Good→Bad nontarget Good pickup drops
-0.5610→0.3361, and the control target pickup at update 316 (0.2800) is
+0.5610→0.3361, and the control target pickup at update 316 (0.2804) is
 essentially the same as steered (0.2826). Joint does not consistently beat
 marginal, and its null-control family also changes as the fitted decoder
 null space changes.
