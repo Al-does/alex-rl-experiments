@@ -38,12 +38,15 @@ class TrainConfig:
     num_minibatches: int = 1
     entropy_schedule: tuple[tuple[int, float], ...] = ((0, 0.0),)
     temperature: float = 1.0  # softmax temperature for sampling and the PPO likelihoods
+    epsilon: float = 0.0  # epsilon-greedy mixing weight of the uniform policy (sampling and PPO)
 
     def __post_init__(self):
         if self.num_envs % self.num_minibatches:
             raise ValueError("num_envs must be divisible by num_minibatches")
         if self.temperature <= 0:
             raise ValueError("temperature must be positive")
+        if not 0 <= self.epsilon < 1:
+            raise ValueError("epsilon must be in [0, 1)")
 
     @property
     def batch_steps(self) -> int:
@@ -61,12 +64,23 @@ def entropy_coefficient(schedule, steps):
     return float(np.interp(steps, points[:, 0], points[:, 1]))
 
 
+def policy_log_probs(logits, temperature=1.0, epsilon=0.0):
+    """Log-probabilities of ``(1 - epsilon) * softmax(logits / temperature) + epsilon / n``."""
+
+    log_probs = jax.nn.log_softmax(logits / temperature)
+    if epsilon == 0:
+        return log_probs
+    uniform = jnp.log(epsilon / logits.shape[-1])
+    return jnp.logaddexp(jnp.log1p(-epsilon) + log_probs, uniform)
+
+
 def rollout(spec, process, params, key, num_envs, episode_length, *, greedy=False,
-            track_belief=False, temperature=1.0):
+            track_belief=False, temperature=1.0, epsilon=0.0):
     """Sample ``num_envs`` synchronized episodes with ``lax.scan``.
 
-    Actions are drawn from ``softmax(logits / temperature)`` and ``logp`` is
-    recorded under that same tempered policy; greedy rollouts ignore it."""
+    Actions are drawn from ``policy_log_probs(logits, temperature, epsilon)``
+    (tempered softmax mixed with a uniform policy) and ``logp`` is recorded
+    under that same policy; greedy rollouts take ``argmax(logits)``."""
 
     reset_key, key = jax.random.split(key)
     env_state = jax.vmap(hmm.reset, (None, 0))(process, jax.random.split(reset_key, num_envs))
@@ -81,12 +95,12 @@ def rollout(spec, process, params, key, num_envs, episode_length, *, greedy=Fals
         key, action_key, step_key = jax.random.split(key, 3)
         obs = jax.vmap(hmm.observe, (None, 0))(process, env_state)
         logits, residual, embedding, carry = models.step(spec, params, carry, obs, t)
-        logits = logits / temperature
+        log_probs = policy_log_probs(logits, temperature, epsilon)
         if greedy:
             action = jnp.argmax(logits, -1)
         else:
-            action = jax.random.categorical(action_key, logits, -1)
-        log_probs = jax.nn.log_softmax(logits)
+            sample_logits = logits / temperature if epsilon == 0 else log_probs
+            action = jax.random.categorical(action_key, sample_logits, -1)
         logp = jnp.take_along_axis(log_probs, action[:, None], -1)[:, 0]
         next_env, reward, components = jax.vmap(hmm.step, (None, 0, 0, 0))(
             process, jax.random.split(step_key, num_envs), env_state, action
@@ -135,7 +149,7 @@ def standardized_advantages(rewards, gamma):
 
 def surrogate_loss(spec, config, params, batch, entropy_coeff):
     logits, _, _ = models.sequence(spec, params, batch["obs"], batch.get("chunk_starts"))
-    log_probs = jax.nn.log_softmax(logits / config.temperature)
+    log_probs = policy_log_probs(logits, config.temperature, config.epsilon)
     logp = jnp.take_along_axis(log_probs, batch["action"][..., None], -1)[..., 0]
     ratio = jnp.exp(logp - batch["logp"])
     advantages = batch["advantages"]
@@ -174,7 +188,7 @@ def make_iteration(spec, process, config: TrainConfig, optimizer):
     def iteration(params, opt_state, key, entropy_coeff):
         rollout_key, update_key = jax.random.split(key)
         records = rollout(spec, process, params, rollout_key, config.num_envs, config.episode_length,
-                          temperature=config.temperature)
+                          temperature=config.temperature, epsilon=config.epsilon)
         batch = {name: records[name] for name in ("obs", "action", "logp")}
         if spec.kind == "gru":
             batch["chunk_starts"] = records["chunk_starts"]
