@@ -21,6 +21,7 @@ critic (`ppo.py`). The source and historical studies are unchanged.
 | value loss | - | 0.5 x MSE, unclipped |
 | PPO clip | .2 | .2 |
 | entropy | .015 constant | .015 constant |
+| KL penalty | none | off (`use_kl_loss=False`); when on, RLlib adaptive `kl_coeff` 0.2, `kl_target` .01 |
 
 The critic regresses (1 - gamma)-scaled returns (per-step reward units) so its
 targets are O(1) on the shared torso; standardized advantages are invariant to
