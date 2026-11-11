@@ -29,3 +29,13 @@ def test_packages(pkg, nenv, total, entropy_on):
         assert entropy_coefficient(cfg.temperature_schedule, total) == 1.0
         assert entropy_coefficient(cfg.entropy_schedule, start) == (0.015 if entropy_on else 0.0)
         assert entropy_coefficient(cfg.entropy_schedule, total) == 0.0
+
+
+def test_weight_decay_package_uses_adamw():
+    import optax
+    from experiments.belief_quotient_history_jax_lumped_b2m_anneal_wd_2026_11 import shared as wd
+    leaf = "variant_2_transformer"
+    cfg = wd.base.train_config(False, wd.TOTAL_ENV_STEPS, wd.entropy_schedule(leaf), wd.TEMPERATURE_START, wd.NUM_ENVS, wd.temperature_schedule(leaf), wd.WEIGHT_DECAY)
+    assert cfg.weight_decay == 1e-2 and cfg.num_envs == 1_920 and cfg.total_env_steps == 4_000_000_000
+    assert b2m.base.train_config(False).weight_decay == 0.0
+    assert optax.adamw(1e-3, weight_decay=1e-2) is not None
