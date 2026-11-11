@@ -1,4 +1,6 @@
 """Persistent-nuisance ladder with the PR #195 training recipe."""
+from dataclasses import replace
+
 import numpy as np
 
 from experiments.belief_quotient_history_jax_2026_11 import shared as source
@@ -53,14 +55,19 @@ def environment_metadata():
 
 
 def run_condition(context, *, variant, architecture, total_env_steps=TOTAL_ENV_STEPS,
-                  study=STUDY, continue_from=None):
+                  study=STUDY, continue_from=None, entropy_schedule_points=None,
+                  temperature=1.0):
     if architecture not in ARCHITECTURES:
         raise ValueError(f"architecture must be one of {ARCHITECTURES}")
     process = ladder_process(variant)
+    config = train_config(context.smoke, total_env_steps)
+    if entropy_schedule_points is not None:
+        config = replace(config, entropy_schedule=tuple(entropy_schedule_points))
+    config = replace(config, temperature=temperature)
     return run_study(
         context, study=study, condition=f"variant_{variant}", architecture=architecture,
         process=process, spec=model_spec(architecture, process),
-        config=train_config(context.smoke, total_env_steps), targets=belief_targets,
+        config=config, targets=belief_targets,
         representation="embedding", continue_from=continue_from,
         recipe_extra={**environment_metadata(), "variant": variant,
                       "condition_name": CONDITION_NAMES[variant],
