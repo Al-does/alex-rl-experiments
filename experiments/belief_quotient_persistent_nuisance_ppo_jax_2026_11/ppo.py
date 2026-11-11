@@ -11,7 +11,11 @@ the PPO components:
   critic's value of the next observation;
 - several epochs of shuffled whole-episode minibatches, clipped surrogate,
   unclipped squared-error value loss, entropy bonus, global-norm gradient
-  clipping and Adam.
+  clipping and Adam;
+- optional RLlib-style adaptive KL penalty ``kl_coeff * KL(old || new)``,
+  off by default (``use_kl_loss=False``). When on, the coefficient is x1.5
+  if the epoch-averaged KL exceeds 2 x ``kl_target`` and x0.5 below half of it,
+  updated once per rollout.
 
 The critic regresses (1 - gamma)-scaled returns (per-step reward units), so
 value targets stay O(1) on the shared torso; standardized advantages are
@@ -50,6 +54,9 @@ class PPOConfig:
     entropy_coeff: float = 0.015
     max_grad_norm: float = 0.5
     temperature: float = 1.0  # softmax temperature for sampling and the PPO likelihoods
+    use_kl_loss: bool = False
+    kl_coeff: float = 0.2  # initial coefficient (RLlib default); unused unless use_kl_loss
+    kl_target: float = 0.01
 
     def __post_init__(self):
         if self.num_envs % self.num_minibatches:
@@ -83,10 +90,12 @@ def value(params, embedding):
     return models._dense(params["value"], embedding)[..., 0]
 
 
-def rollout(spec, process, params, key, num_envs, episode_length, *, temperature=1.0):
+def rollout(spec, process, params, key, num_envs, episode_length, *, temperature=1.0,
+            record_log_probs=False):
     """Sample synchronized episodes; same RNG stream and actions as
     ``reinforce.rollout`` for the same key. Also returns per-step critic values
-    and the bootstrap value of the observation after the last step."""
+    and the bootstrap value of the observation after the last step;
+    ``record_log_probs`` keeps the full behaviour distribution for the KL term."""
 
     reset_key, key = jax.random.split(key)
     env_state = jax.vmap(hmm.reset, (None, 0))(process, jax.random.split(reset_key, num_envs))
@@ -110,6 +119,8 @@ def rollout(spec, process, params, key, num_envs, episode_length, *, temperature
         record = {"obs": obs, "action": action, "logp": logp, "reward": reward,
                   "components": components, "value": value(params, embedding),
                   "entropy": -(jnp.exp(log_probs) * log_probs).sum(-1)}
+        if record_log_probs:
+            record["log_probs"] = log_probs
         return (next_env, carry, key), record
 
     def chunk_body(state, chunk_index):
@@ -147,7 +158,7 @@ def gae(rewards, values, bootstrap, gamma, gae_lambda):
     return advantages, advantages + values
 
 
-def ppo_loss(spec, config, params, batch):
+def ppo_loss(spec, config, params, batch, kl_coeff):
     logits, _, embedding = models.sequence(spec, params, batch["obs"], batch.get("chunk_starts"))
     log_probs = jax.nn.log_softmax(logits / config.temperature)
     logp = jnp.take_along_axis(log_probs, batch["action"][..., None], -1)[..., 0]
@@ -160,11 +171,21 @@ def ppo_loss(spec, config, params, batch):
     entropy = -(jnp.exp(log_probs) * log_probs).sum(-1)
     policy_loss = -surrogate.mean()
     loss = policy_loss + config.vf_coeff * vf_loss - config.entropy_coeff * entropy.mean()
-    return loss, {
+    info = {
         "policy_loss": policy_loss, "vf_loss": vf_loss, "entropy": entropy.mean(),
         "approx_kl": jnp.mean(ratio - 1 - log_ratio),
         "clip_fraction": jnp.mean(jnp.abs(ratio - 1) > config.clip_param),
     }
+    if config.use_kl_loss:
+        old = batch["log_probs"]
+        info["kl"] = (jnp.exp(old) * (old - log_probs)).sum(-1).mean()
+        loss = loss + kl_coeff * info["kl"]
+    return loss, info
+
+
+def adapt_kl_coeff(config, kl_coeff, kl):
+    return jnp.where(kl > 2 * config.kl_target, kl_coeff * 1.5,
+                     jnp.where(kl < .5 * config.kl_target, kl_coeff * .5, kl_coeff))
 
 
 def make_optimizer(config: PPOConfig):
@@ -175,13 +196,13 @@ def make_optimizer(config: PPOConfig):
 def make_iteration(spec, process, config: PPOConfig, optimizer):
     n, size = config.num_envs, config.num_envs // config.num_minibatches
 
-    def update(params, opt_state, batch, key):
+    def update(params, opt_state, batch, kl_coeff, key):
         def epoch(carry, epoch_key):
             def minibatch(carry, indices):
                 params, opt_state = carry
                 sub = jax.tree_util.tree_map(lambda a: a[indices], batch)
                 (_, info), grads = jax.value_and_grad(
-                    partial(ppo_loss, spec, config), has_aux=True)(params, sub)
+                    partial(ppo_loss, spec, config), has_aux=True)(params, sub, kl_coeff)
                 updates, opt_state = optimizer.update(grads, opt_state, params)
                 info["grad_norm"] = optax.tree.norm(grads)
                 return (optax.apply_updates(params, updates), opt_state), info
@@ -195,21 +216,25 @@ def make_iteration(spec, process, config: PPOConfig, optimizer):
         last = jax.tree_util.tree_map(lambda a: a[-1, -1], info)
         last["approx_kl_mean"] = info["approx_kl"].mean()
         last["clip_fraction_mean"] = info["clip_fraction"].mean()
+        if config.use_kl_loss:
+            last["kl_mean"] = info["kl"].mean()
         return params, opt_state, last
 
     @jax.jit
-    def iteration(params, opt_state, key):
+    def iteration(params, opt_state, kl_coeff, key):
         rollout_key, update_key = jax.random.split(key)
         records = rollout(spec, process, params, rollout_key, n, config.episode_length,
-                          temperature=config.temperature)
+                          temperature=config.temperature, record_log_probs=config.use_kl_loss)
         advantages, targets = gae(records["reward"] * config.value_scale, records["value"],
                                   records["bootstrap_value"], config.gamma, config.gae_lambda)
         batch = {name: records[name] for name in ("obs", "action", "logp")}
         if spec.kind == "gru":
             batch["chunk_starts"] = records["chunk_starts"]
+        if config.use_kl_loss:
+            batch["log_probs"] = records["log_probs"]
         batch["advantages"] = (advantages - advantages.mean()) / jnp.maximum(1e-8, advantages.std())
         batch["value_targets"] = targets
-        params, opt_state, info = update(params, opt_state, batch, update_key)
+        params, opt_state, info = update(params, opt_state, batch, kl_coeff, update_key)
         residual = targets - records["value"]
         metrics = {
             **info,
@@ -220,8 +245,11 @@ def make_iteration(spec, process, config: PPOConfig, optimizer):
             "action_fractions": jax.nn.one_hot(records["action"], spec.n_actions).mean((0, 1)),
             "value_mean": records["value"].mean(),
             "explained_variance": 1 - residual.var() / jnp.maximum(1e-12, targets.var()),
+            "kl_coeff": kl_coeff,
         }
-        return params, opt_state, metrics
+        if config.use_kl_loss:
+            kl_coeff = adapt_kl_coeff(config, kl_coeff, info["kl_mean"])
+        return params, opt_state, kl_coeff, metrics
 
     return iteration
 
@@ -236,6 +264,7 @@ def train(spec, process, config: PPOConfig, *, seed: int, checkpoint_steps=(),
     params = init_params(spec, jax.random.fold_in(root, 0))
     optimizer = make_optimizer(config)
     opt_state = optimizer.init(params)
+    kl_coeff = jnp.float32(config.kl_coeff if config.use_kl_loss else 0.0)
     iteration = make_iteration(spec, process, config, optimizer)
     if on_checkpoint:
         on_checkpoint(0, params)
@@ -245,10 +274,10 @@ def train(spec, process, config: PPOConfig, *, seed: int, checkpoint_steps=(),
         key = jax.random.fold_in(jax.random.fold_in(root, 1), index)
         start = time.perf_counter()
         if index == 0:
-            compiled = iteration.lower(params, opt_state, key).compile()
+            compiled = iteration.lower(params, opt_state, kl_coeff, key).compile()
             compile_seconds = time.perf_counter() - start
             start = time.perf_counter()
-        params, opt_state, metrics = compiled(params, opt_state, key)
+        params, opt_state, kl_coeff, metrics = compiled(params, opt_state, kl_coeff, key)
         metrics = jax.device_get(metrics)
         elapsed = time.perf_counter() - start
         train_seconds += elapsed

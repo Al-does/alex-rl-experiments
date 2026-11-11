@@ -69,6 +69,7 @@ def test_ppo_coefficients_and_inherited_geometry():
         assert old.entropy_schedule == ((0, config.entropy_coeff),)
         assert (config.num_epochs, config.lr, config.gae_lambda, config.vf_coeff,
                 config.max_grad_norm, config.adam_eps) == (4, 3e-4, .95, .5, .5, 1e-5)
+        assert not config.use_kl_loss
     assert ladder.TOTAL_ENV_STEPS == 200_000_000
 
 
@@ -109,3 +110,25 @@ def test_single_iteration_updates_actor_and_critic():
     record = curves[-1]
     for name in ("vf_loss", "policy_loss", "approx_kl_mean", "explained_variance", "grad_norm"):
         assert np.isfinite(record[name])
+
+
+def test_kl_penalty_flag_and_adaptation():
+    process = ladder.ladder_process(2)
+    spec = ladder.model_spec("memoryless", process)
+    base = replace(ladder.train_config(True), num_envs=4, num_minibatches=2,
+                   episode_length=64, total_env_steps=512)
+    runs = {}
+    for use_kl in (False, True):
+        config = replace(base, use_kl_loss=use_kl, kl_target=1e-6)
+        params, curves, _ = ppo.train(spec, process, config, seed=0)
+        runs[use_kl] = (params, curves)
+    off, on = runs[False][1], runs[True][1]
+    assert all(r["kl_coeff"] == 0 and "kl_mean" not in r for r in off)
+    assert on[0]["kl_coeff"] == pytest.approx(.2) and np.isfinite(on[0]["kl_mean"])
+    assert on[1]["kl_coeff"] == pytest.approx(.3)  # KL above 2 x target -> x1.5
+    # Same rollout for iteration 1; the penalty changes the update.
+    assert off[0]["reward_per_step"] == on[0]["reward_per_step"]
+    assert not np.allclose(runs[False][0]["policy"]["w"], runs[True][0]["policy"]["w"])
+    config = replace(base, use_kl_loss=True)
+    assert ppo.adapt_kl_coeff(config, .2, .001) == pytest.approx(.1)
+    assert ppo.adapt_kl_coeff(config, .2, .01) == pytest.approx(.2)
