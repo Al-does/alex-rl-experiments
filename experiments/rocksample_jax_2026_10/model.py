@@ -173,6 +173,8 @@ def encode_step(
     params: dict,
     cache: KVCache,
     obs: jax.Array,
+    *,
+    residual_transform=None,
 ) -> tuple[jax.Array, KVCache]:
     """Embed one observation for one env, updating its KV cache."""
 
@@ -198,7 +200,11 @@ def encode_step(
         attention = jax.nn.softmax(scores, axis=-1) @ v_cache
         x = x + _dense(block["proj"], attention.transpose(1, 0, 2).reshape(1, -1))
         x = _mlp(block, x)
+        if residual_transform is not None:
+            x = residual_transform(layer, x)
         new_k.append(k_cache)
         new_v.append(v_cache)
     embedding = _layer_norm(params["final_norm"], x)[0]
+    if residual_transform is not None:
+        embedding = residual_transform(spec.n_layers, embedding)
     return embedding, KVCache(jnp.stack(new_k), jnp.stack(new_v), length)
