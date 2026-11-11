@@ -151,3 +151,14 @@ def test_historical_studies_untouched():
              "experiments/belief_quotient_history_jax_lumped_2026_11",
              "experiments/reward_factors_history_jax_lumped_2026_11"]
     assert subprocess.check_output(["git", "diff", "HEAD", "--", *paths], cwd=root) == b""
+
+
+def test_epsilon_greedy_policy_log_probs():
+    from experiments.belief_quotient_history_jax_2026_11.reinforce import policy_log_probs
+
+    logits = jnp.array([[2.0, -1.0, 0.5], [0.0, 0.0, 9.0]])
+    assert jnp.array_equal(policy_log_probs(logits, 1.5), jax.nn.log_softmax(logits / 1.5))
+    mixed = jnp.exp(policy_log_probs(logits, 1.0, 0.2))
+    expected = 0.8 * jax.nn.softmax(logits) + 0.2 / 3
+    np.testing.assert_allclose(mixed, expected, rtol=1e-6)
+    np.testing.assert_allclose(mixed.sum(-1), 1.0, rtol=1e-6)
