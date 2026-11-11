@@ -39,10 +39,10 @@ def retained_mask(valid):
     return valid & (np.arange(valid.shape[1])[None, :] >= WARMUP)
 
 
-def fit_maps(spec, env, params, episodes):
+def fit_maps(spec, env, params, episodes, *, greedy=False):
     streams = []
     for seed in (bs.SEEDS["fit"], bs.SEEDS["test"]):
-        rows = bs.bp.collect(spec, env, params, params, episodes=episodes, key_seed=seed)
+        rows = bs.bp.collect(spec, env, params, params, episodes=episodes, key_seed=seed, greedy=greedy)
         targets = bs.bp.targets(rows, env)
         mask = retained_mask(rows["valid"])
         if not mask.any():
@@ -66,7 +66,8 @@ def fit_maps(spec, env, params, episodes):
             residual = full_yt-prediction
             sst = ((full_yt-full_yt.mean(0))**2).sum(0)
             score.append(float(1-(residual**2).sum()/sst.sum()) if representation == "joint"
-                         else (1-(residual**2).sum(0)/sst).tolist())
+                         else [float(1-error/variance) if variance > 0 else None
+                               for error, variance in zip((residual**2).sum(0), sst)])
             u, s, _ = np.linalg.svd(d, full_matrices=False)
             basis = u[:, s > s[0]*1e-6]
             random = rng.normal(size=(env.k, spec.d_model))
@@ -105,9 +106,9 @@ def shift(h, d, b, e, null, rock, target, strength, control, active, representat
     return h+delta, diagnostic
 
 
-@partial(jax.jit, static_argnames=("spec", "env", "episodes", "site", "representation", "random_actions"))
+@partial(jax.jit, static_argnames=("spec", "env", "episodes", "site", "representation", "random_actions", "greedy"))
 def rollout(spec, env, params, fitted, *, episodes, seed, rock, good, site,
-            representation, strength, control, random_actions=False):
+            representation, strength, control, random_actions=False, greedy=False):
     d, b, e, null = fitted
     obs, state = jax.vmap(partial(bs.rs.reset, env))(
         jax.random.split(jax.random.key(seed), episodes))
@@ -135,7 +136,8 @@ def rollout(spec, env, params, fitted, *, episodes, seed, rock, good, site,
             z, cache, diagnostic = jax.vmap(encode)(cache, obs, active)
             logits, _ = bs.tm.heads(params, z)
         key, ak, ek = jax.random.split(key, 3)
-        action = jax.random.categorical(ak, logits).astype(jnp.int32)
+        action = (jnp.argmax(logits, axis=-1).astype(jnp.int32) if greedy and not random_actions
+                  else jax.random.categorical(ak, logits).astype(jnp.int32))
         out = jax.vmap(partial(bs.rs.step, env))(jax.random.split(ek, episodes), state, action)
         valid = ~done
         picked = ((action == 4)[:, None] & valid[:, None] &
@@ -166,7 +168,7 @@ def pooled(rows, direction, condition):
 
 
 def evaluate(spec, env, params, fitted, representation, episodes, seed, site, strengths,
-             conditions=CONDITIONS, baselines=None, scratch=None):
+             conditions=CONDITIONS, baselines=None, scratch=None, *, greedy=False):
     rows = []
     for rock in range(env.k):
         row = {}
@@ -179,7 +181,7 @@ def evaluate(spec, env, params, fitted, representation, episodes, seed, site, st
                 values = rollout(spec, env, params, fitted, episodes=episodes, seed=seed, rock=rock,
                     good=good, site=site, representation=representation,
                     strength=0. if condition in ("intact", "random") else strengths[direction],
-                    control=condition == "control", random_actions=condition == "random")
+                    control=condition == "control", random_actions=condition == "random", greedy=greedy)
                 cell = bs.summarize(values, rock)
                 if condition in ("intact", "random"):
                     cell = {k: v for k, v in cell.items() if not k.startswith(("decoded_", "shift_"))}
@@ -200,9 +202,9 @@ def select_strength(records, direction, random_good):
                 selection_succeeded=bool(eligible), sweep=records)
 
 
-def tune(spec, env, params, fitted, episodes):
+def tune(spec, env, params, fitted, episodes, *, greedy=False):
     baseline = evaluate(spec, env, params, fitted["marginal"], "marginal", episodes, TUNE_SEED,
-        2, dict.fromkeys(DIRECTIONS, 0.), conditions=("intact", "random"))
+        2, dict.fromkeys(DIRECTIONS, 0.), conditions=("intact", "random"), greedy=greedy)
     random_good = pooled(baseline, "Good→Bad", "random")["target"]
     evidence = {}
     for representation in REPRESENTATIONS:
@@ -210,7 +212,7 @@ def tune(spec, env, params, fitted, episodes):
         for strength in GRID:
             print(f"Tune {representation} λ={strength}", flush=True)
             rows = evaluate(spec, env, params, fitted[representation], representation, episodes,
-                TUNE_SEED, 2, dict.fromkeys(DIRECTIONS, strength), conditions=("steered",)) if strength else baseline
+                TUNE_SEED, 2, dict.fromkeys(DIRECTIONS, strength), conditions=("steered",), greedy=greedy) if strength else baseline
             for direction in DIRECTIONS:
                 records[direction].append(dict(strength=strength,
                     metrics=pooled(rows, direction, "steered" if strength else "intact")))

@@ -178,7 +178,7 @@ def check_route(env: rs.RockSampleParams) -> np.ndarray:
     )
 
 
-@partial(jax.jit, static_argnames=("spec", "env", "episodes", "key_seed", "scripted"))
+@partial(jax.jit, static_argnames=("spec", "env", "episodes", "key_seed", "scripted", "greedy"))
 def collect_device(
     spec: tm.TransformerSpec,
     env: rs.RockSampleParams,
@@ -188,6 +188,7 @@ def collect_device(
     episodes: int,
     key_seed: int,
     scripted: bool = False,
+    greedy: bool = False,
 ) -> dict[str, jax.Array]:
     """Complete episodes, both encoders seeing exactly the same input histories."""
     obs, state = jax.vmap(partial(rs.reset, env))(
@@ -209,7 +210,8 @@ def collect_device(
         action = (
             jnp.full((episodes,), route[t])
             if scripted
-            else jax.random.categorical(action_key, logits).astype(jnp.int32)
+            else (jnp.argmax(logits, axis=-1).astype(jnp.int32) if greedy
+                  else jax.random.categorical(action_key, logits).astype(jnp.int32))
         )
         out = jax.vmap(partial(rs.step, env))(
             jax.random.split(env_key, episodes), state, action
@@ -251,12 +253,13 @@ def collect(
     episodes: int,
     key_seed: int,
     scripted: bool = False,
+    greedy: bool = False,
 ) -> dict[str, np.ndarray]:
     return {
         name: np.asarray(value)
         for name, value in collect_device(
             spec, env, params, init_params,
-            episodes=episodes, key_seed=key_seed, scripted=scripted,
+            episodes=episodes, key_seed=key_seed, scripted=scripted, greedy=greedy,
         ).items()
     }
 
