@@ -58,3 +58,41 @@ def test_temp15_recipe_constants(pkg):
     assert pkg.TOTAL_ENV_STEPS == 4_000_000_000
     assert pkg.ENTROPY_SCHEDULE == ((0, 0.0),)
     assert pkg.TEMPERATURE == 1.5
+
+
+def test_epsilon_mixture_logp_and_on_policy_ratio():
+    from experiments.belief_quotient_history_jax_2026_11.reinforce import behaviour_log_probs
+
+    logits = jnp.array([[2.0, -1.0, 0.5]])
+    want = 0.95 * jax.nn.softmax(logits / 1.5) + 0.05 / 3
+    np.testing.assert_allclose(jnp.exp(behaviour_log_probs(logits, 1.5, 0.05)), want, rtol=1e-6)
+    np.testing.assert_array_equal(behaviour_log_probs(logits, 1.5, 0.0), jax.nn.log_softmax(logits / 1.5))
+    process, spec, params = _setup()
+    config = TrainConfig(total_env_steps=256, num_envs=8, episode_length=16, temperature=1.5,
+                         exploration_epsilon=0.05)
+    records = rollout(spec, process, params, jax.random.PRNGKey(3), 8, 16, temperature=1.5, epsilon=0.05)
+    logits0, *_ = models.step(spec, params, models.init_carry(spec, 8), records["obs"][0], 0)
+    expected = jnp.take_along_axis(behaviour_log_probs(logits0, 1.5, 0.05), records["action"][0][:, None], -1)[:, 0]
+    np.testing.assert_allclose(records["logp"][0], expected, rtol=1e-5, atol=1e-5)
+    batch = {"obs": records["obs"], "action": records["action"], "logp": records["logp"],
+             "advantages": jnp.ones_like(records["logp"])}
+    _, info = surrogate_loss(spec, config, params, batch, 0.0)
+    assert info["policy_loss"] == pytest.approx(-1.0, abs=1e-5)
+    with pytest.raises(ValueError):
+        TrainConfig(total_env_steps=1, exploration_epsilon=1.0)
+
+
+def test_zero_epsilon_rollout_is_unchanged():
+    process, spec, params = _setup()
+    key = jax.random.PRNGKey(4)
+    a = rollout(spec, process, params, key, 8, 16, temperature=1.5)
+    b = rollout(spec, process, params, key, 8, 16, temperature=1.5, epsilon=0.0)
+    np.testing.assert_array_equal(a["action"], b["action"])
+
+
+def test_eps05_recipe_constants():
+    from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_eps05_2026_11 import shared as eps05
+
+    assert eps05.EXPLORATION_EPSILON == 0.05
+    assert eps05.TOTAL_ENV_STEPS == 2_000_000_000
+    assert eps05.ENTROPY_SCHEDULE == ((0, 0.0),) and eps05.TEMPERATURE == 1.5

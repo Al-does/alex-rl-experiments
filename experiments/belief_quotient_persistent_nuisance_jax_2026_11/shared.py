@@ -56,14 +56,14 @@ def environment_metadata():
 
 def run_condition(context, *, variant, architecture, total_env_steps=TOTAL_ENV_STEPS,
                   study=STUDY, continue_from=None, entropy_schedule_points=None,
-                  temperature=1.0, environment=None):
+                  temperature=1.0, environment=None, exploration_epsilon=0.0):
     if architecture not in ARCHITECTURES:
         raise ValueError(f"architecture must be one of {ARCHITECTURES}")
     process = ladder_process(variant) if environment is None else environment.ladder_process(variant)
     config = train_config(context.smoke, total_env_steps)
     if entropy_schedule_points is not None:
         config = replace(config, entropy_schedule=tuple(entropy_schedule_points))
-    config = replace(config, temperature=temperature)
+    config = replace(config, temperature=temperature, exploration_epsilon=exploration_epsilon)
     return run_study(
         context, study=study, condition=f"variant_{variant}", architecture=architecture,
         process=process, spec=model_spec(architecture, process),

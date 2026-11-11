@@ -38,12 +38,15 @@ class TrainConfig:
     num_minibatches: int = 1
     entropy_schedule: tuple[tuple[int, float], ...] = ((0, 0.0),)
     temperature: float = 1.0  # softmax temperature for sampling and the PPO likelihoods
+    exploration_epsilon: float = 0.0  # uniform-action mixture weight in sampling and the PPO likelihoods
 
     def __post_init__(self):
         if self.num_envs % self.num_minibatches:
             raise ValueError("num_envs must be divisible by num_minibatches")
         if self.temperature <= 0:
             raise ValueError("temperature must be positive")
+        if not 0 <= self.exploration_epsilon < 1:
+            raise ValueError("exploration_epsilon must be in [0, 1)")
 
     @property
     def batch_steps(self) -> int:
@@ -61,12 +64,23 @@ def entropy_coefficient(schedule, steps):
     return float(np.interp(steps, points[:, 0], points[:, 1]))
 
 
+def behaviour_log_probs(logits, temperature, epsilon):
+    """Log-probabilities of ``(1 - epsilon) * softmax(logits / temperature) + epsilon / A``."""
+
+    log_probs = jax.nn.log_softmax(logits / temperature)
+    if not epsilon:
+        return log_probs
+    return jnp.logaddexp(jnp.log1p(-epsilon) + log_probs, jnp.log(epsilon / logits.shape[-1]))
+
+
 def rollout(spec, process, params, key, num_envs, episode_length, *, greedy=False,
-            track_belief=False, temperature=1.0):
+            track_belief=False, temperature=1.0, epsilon=0.0):
     """Sample ``num_envs`` synchronized episodes with ``lax.scan``.
 
-    Actions are drawn from ``softmax(logits / temperature)`` and ``logp`` is
-    recorded under that same tempered policy; greedy rollouts ignore it."""
+    Actions are drawn from the epsilon-greedy mixture of ``softmax(logits /
+    temperature)`` with the uniform policy and ``logp`` is recorded under that
+    same behaviour policy; greedy rollouts ignore both. ``entropy`` is that of
+    the tempered softmax."""
 
     reset_key, key = jax.random.split(key)
     env_state = jax.vmap(hmm.reset, (None, 0))(process, jax.random.split(reset_key, num_envs))
@@ -81,13 +95,13 @@ def rollout(spec, process, params, key, num_envs, episode_length, *, greedy=Fals
         key, action_key, step_key = jax.random.split(key, 3)
         obs = jax.vmap(hmm.observe, (None, 0))(process, env_state)
         logits, residual, embedding, carry = models.step(spec, params, carry, obs, t)
-        logits = logits / temperature
+        log_probs = jax.nn.log_softmax(logits / temperature)
+        behaviour = behaviour_log_probs(logits, temperature, epsilon)
         if greedy:
             action = jnp.argmax(logits, -1)
         else:
-            action = jax.random.categorical(action_key, logits, -1)
-        log_probs = jax.nn.log_softmax(logits)
-        logp = jnp.take_along_axis(log_probs, action[:, None], -1)[:, 0]
+            action = jax.random.categorical(action_key, behaviour if epsilon else logits / temperature, -1)
+        logp = jnp.take_along_axis(behaviour, action[:, None], -1)[:, 0]
         next_env, reward, components = jax.vmap(hmm.step, (None, 0, 0, 0))(
             process, jax.random.split(step_key, num_envs), env_state, action
         )
@@ -136,7 +150,8 @@ def standardized_advantages(rewards, gamma):
 def surrogate_loss(spec, config, params, batch, entropy_coeff):
     logits, _, _ = models.sequence(spec, params, batch["obs"], batch.get("chunk_starts"))
     log_probs = jax.nn.log_softmax(logits / config.temperature)
-    logp = jnp.take_along_axis(log_probs, batch["action"][..., None], -1)[..., 0]
+    behaviour = behaviour_log_probs(logits, config.temperature, config.exploration_epsilon)
+    logp = jnp.take_along_axis(behaviour, batch["action"][..., None], -1)[..., 0]
     ratio = jnp.exp(logp - batch["logp"])
     advantages = batch["advantages"]
     clipped = jnp.clip(ratio, 1 - config.clip_param, 1 + config.clip_param)
@@ -174,7 +189,7 @@ def make_iteration(spec, process, config: TrainConfig, optimizer):
     def iteration(params, opt_state, key, entropy_coeff):
         rollout_key, update_key = jax.random.split(key)
         records = rollout(spec, process, params, rollout_key, config.num_envs, config.episode_length,
-                          temperature=config.temperature)
+                          temperature=config.temperature, epsilon=config.exploration_epsilon)
         batch = {name: records[name] for name in ("obs", "action", "logp")}
         if spec.kind == "gru":
             batch["chunk_starts"] = records["chunk_starts"]
