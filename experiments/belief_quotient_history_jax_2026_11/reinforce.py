@@ -40,6 +40,7 @@ class TrainConfig:
     temperature: float = 1.0  # softmax temperature for sampling and the PPO likelihoods
     # Optional piecewise-linear (step, temperature) schedule; overrides ``temperature`` when set.
     temperature_schedule: tuple[tuple[int, float], ...] | None = None
+    weight_decay: float = 0.0  # AdamW decoupled weight decay on all parameters (0 = plain Adam)
 
     def __post_init__(self):
         if self.num_envs % self.num_minibatches:
@@ -211,7 +212,8 @@ def train(spec, process, config: TrainConfig, *, seed: int, checkpoint_steps=(),
     root = jax.random.PRNGKey(seed)
     params = initial_params if initial_params is not None else models.init_params(
         spec, jax.random.fold_in(root, 0))
-    optimizer = optax.adam(config.lr)
+    optimizer = (optax.adamw(config.lr, weight_decay=config.weight_decay) if config.weight_decay > 0
+                 else optax.adam(config.lr))
     opt_state = optimizer.init(params)
     iteration = make_iteration(spec, process, config, optimizer)
     if step_offset % config.batch_steps:
