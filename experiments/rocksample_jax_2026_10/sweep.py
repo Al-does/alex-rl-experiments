@@ -89,6 +89,17 @@ class SweepRecipe:
     num_checkpoints: int = 1
     """Trainer states saved per seed at log-spaced updates (final always
     included); 1 keeps only the final state."""
+    checkpoint_at: tuple[int, ...] | None = None
+    """Explicit 1-indexed (lifetime) updates to checkpoint, replacing the
+    log-spaced ``num_checkpoints`` schedule; the final state is always saved."""
+    upload_checkpoints: bool = False
+    """Upload each intermediate checkpoint's seed directory to B2 as soon as it
+    is saved (when the run uploads artifacts), not only at the end of the run."""
+
+    def checkpoint_schedule(self, num_updates: int) -> tuple[int, ...]:
+        if self.checkpoint_at is None:
+            return checkpoint_updates(num_updates, self.num_checkpoints)
+        return tuple(sorted({u for u in self.checkpoint_at if u < num_updates} | {num_updates}))
 
     def __post_init__(self) -> None:
         if self.first_seed < 0:
@@ -165,6 +176,20 @@ def load_state(path: Path) -> ppo.RunnerState:
     return state._replace(key=jax.random.wrap_key_data(state.key))
 
 
+def _upload_now(context, directory: Path) -> None:
+    from harness.storage.b2 import is_b2_configured, upload_artifact_directory
+
+    policy = context.upload_artifacts
+    if not (is_b2_configured() if policy is None else policy):
+        return
+    try:
+        summary = upload_artifact_directory(context, directory)
+    except Exception as exc:  # the end-of-run upload still retries every file
+        print(f"  checkpoint upload failed: {type(exc).__name__}: {exc}", flush=True)
+        return
+    print(f"  uploaded {summary['file_count']} files to {summary['base_uri']}", flush=True)
+
+
 def run(context, recipe: SweepRecipe):
     if context.seed is None:
         raise ValueError("RockSample JAX PPO requires a resolved seed")
@@ -181,8 +206,9 @@ def run(context, recipe: SweepRecipe):
             "num_seeds": recipe.num_seeds,
             "first_seed": recipe.first_seed,
             "num_checkpoints": recipe.num_checkpoints,
+            "checkpoint_at": recipe.checkpoint_at,
             "checkpoint_updates": {
-                arm.name: checkpoint_updates(arm.num_updates(budget), recipe.num_checkpoints)
+                arm.name: recipe.checkpoint_schedule(arm.num_updates(budget))
                 for arm in recipe.arms
             },
             "tail_fraction": TAIL_FRACTION,
@@ -196,7 +222,7 @@ def run(context, recipe: SweepRecipe):
     summary: dict = {"env_steps_per_seed": budget, "arms": {}}
     for arm in recipe.arms:
         updates = arm.num_updates(budget)
-        ckpt_updates = set(checkpoint_updates(updates, recipe.num_checkpoints))
+        ckpt_updates = set(recipe.checkpoint_schedule(updates))
         spec = ppo.make_spec(
             env_params,
             d_model=arm.d_model,
@@ -252,6 +278,8 @@ def run(context, recipe: SweepRecipe):
                             "env_steps": row["env_steps"],
                             "path": str(path.relative_to(outputs.artifacts_dir)),
                         })
+                        if recipe.upload_checkpoints:
+                            _upload_now(context, path.parent)
                 jax.block_until_ready(state)
                 path = outputs.artifacts_dir / arm.name / f"seed{seed_index}.pkl"
                 save_state(path, state)
