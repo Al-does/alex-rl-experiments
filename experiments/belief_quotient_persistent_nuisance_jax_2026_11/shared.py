@@ -53,7 +53,7 @@ def environment_metadata():
 
 
 def run_condition(context, *, variant, architecture, total_env_steps=TOTAL_ENV_STEPS,
-                  study=STUDY):
+                  study=STUDY, continue_from=None):
     if architecture not in ARCHITECTURES:
         raise ValueError(f"architecture must be one of {ARCHITECTURES}")
     process = ladder_process(variant)
@@ -61,7 +61,7 @@ def run_condition(context, *, variant, architecture, total_env_steps=TOTAL_ENV_S
         context, study=study, condition=f"variant_{variant}", architecture=architecture,
         process=process, spec=model_spec(architecture, process),
         config=train_config(context.smoke, total_env_steps), targets=belief_targets,
-        representation="embedding",
+        representation="embedding", continue_from=continue_from,
         recipe_extra={**environment_metadata(), "variant": variant,
                       "condition_name": CONDITION_NAMES[variant],
                       "reward": "pre-transition state-2 occupancy",
