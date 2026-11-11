@@ -38,6 +38,9 @@ class TrainConfig:
     num_minibatches: int = 1
     entropy_schedule: tuple[tuple[int, float], ...] = ((0, 0.0),)
     temperature: float = 1.0  # softmax temperature for sampling and the PPO likelihoods
+    # Optional piecewise-linear (step, temperature) schedule; overrides ``temperature`` when set.
+    temperature_schedule: tuple[tuple[int, float], ...] | None = None
+    weight_decay: float = 0.0  # AdamW decoupled weight decay on all parameters (0 = plain Adam)
 
     def __post_init__(self):
         if self.num_envs % self.num_minibatches:
@@ -133,9 +136,10 @@ def standardized_advantages(rewards, gamma):
     return (returns - returns.mean()) / jnp.maximum(1e-4, returns.std())
 
 
-def surrogate_loss(spec, config, params, batch, entropy_coeff):
+def surrogate_loss(spec, config, params, batch, entropy_coeff, temperature=None):
     logits, _, _ = models.sequence(spec, params, batch["obs"], batch.get("chunk_starts"))
-    log_probs = jax.nn.log_softmax(logits / config.temperature)
+    temperature = config.temperature if temperature is None else temperature
+    log_probs = jax.nn.log_softmax(logits / temperature)
     logp = jnp.take_along_axis(log_probs, batch["action"][..., None], -1)[..., 0]
     ratio = jnp.exp(logp - batch["logp"])
     advantages = batch["advantages"]
@@ -147,7 +151,7 @@ def surrogate_loss(spec, config, params, batch, entropy_coeff):
 
 
 def make_iteration(spec, process, config: TrainConfig, optimizer):
-    def update(params, opt_state, batch, entropy_coeff, key):
+    def update(params, opt_state, batch, entropy_coeff, temperature, key):
         n = config.num_envs
         size = n // config.num_minibatches
 
@@ -157,7 +161,7 @@ def make_iteration(spec, process, config: TrainConfig, optimizer):
                 sub = jax.tree_util.tree_map(lambda a: a[indices], batch)
                 (_, info), grads = jax.value_and_grad(
                     partial(surrogate_loss, spec, config), has_aux=True
-                )(params, sub, entropy_coeff)
+                )(params, sub, entropy_coeff, temperature)
                 updates, opt_state = optimizer.update(grads, opt_state, params)
                 info["grad_norm"] = optax.tree.norm(grads)
                 return (optax.apply_updates(params, updates), opt_state), info
@@ -171,15 +175,15 @@ def make_iteration(spec, process, config: TrainConfig, optimizer):
         return params, opt_state, jax.tree_util.tree_map(lambda a: a[-1, -1], info)
 
     @jax.jit
-    def iteration(params, opt_state, key, entropy_coeff):
+    def iteration(params, opt_state, key, entropy_coeff, temperature):
         rollout_key, update_key = jax.random.split(key)
         records = rollout(spec, process, params, rollout_key, config.num_envs, config.episode_length,
-                          temperature=config.temperature)
+                          temperature=temperature)
         batch = {name: records[name] for name in ("obs", "action", "logp")}
         if spec.kind == "gru":
             batch["chunk_starts"] = records["chunk_starts"]
         batch["advantages"] = standardized_advantages(records["reward"], config.gamma)
-        params, opt_state, info = update(params, opt_state, batch, entropy_coeff, update_key)
+        params, opt_state, info = update(params, opt_state, batch, entropy_coeff, temperature, update_key)
         actions = jax.nn.one_hot(records["action"], spec.n_actions).mean((0, 1))
         metrics = {
             **info,
@@ -208,7 +212,8 @@ def train(spec, process, config: TrainConfig, *, seed: int, checkpoint_steps=(),
     root = jax.random.PRNGKey(seed)
     params = initial_params if initial_params is not None else models.init_params(
         spec, jax.random.fold_in(root, 0))
-    optimizer = optax.adam(config.lr)
+    optimizer = (optax.adamw(config.lr, weight_decay=config.weight_decay) if config.weight_decay > 0
+                 else optax.adam(config.lr))
     opt_state = optimizer.init(params)
     iteration = make_iteration(spec, process, config, optimizer)
     if step_offset % config.batch_steps:
@@ -220,20 +225,22 @@ def train(spec, process, config: TrainConfig, *, seed: int, checkpoint_steps=(),
     curves, steps, compile_seconds, train_seconds = [], step_offset, None, 0.0
     for index in range(config.iterations):
         coeff = jnp.float32(entropy_coefficient(config.entropy_schedule, steps))
+        temp = jnp.float32(entropy_coefficient(config.temperature_schedule, steps)
+                           if config.temperature_schedule else config.temperature)
         key = jax.random.fold_in(jax.random.fold_in(root, 1), first_index + index)
         start = time.perf_counter()
         if index == 0:
-            compiled = iteration.lower(params, opt_state, key, coeff).compile()
+            compiled = iteration.lower(params, opt_state, key, coeff, temp).compile()
             compile_seconds = time.perf_counter() - start
             start = time.perf_counter()
-        params, opt_state, metrics = compiled(params, opt_state, key, coeff)
+        params, opt_state, metrics = compiled(params, opt_state, key, coeff, temp)
         metrics = jax.device_get(metrics)
         elapsed = time.perf_counter() - start
         train_seconds += elapsed
         steps += config.batch_steps
         record = {
             "iteration": index + 1, "env_steps": steps, "iteration_seconds": elapsed,
-            "entropy_coeff": float(coeff),
+            "entropy_coeff": float(coeff), "temperature": float(temp),
             **{name: np.asarray(value).tolist() for name, value in metrics.items()},
         }
         curves.append(record)
