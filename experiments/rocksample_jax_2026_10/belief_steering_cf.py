@@ -221,13 +221,18 @@ def intervention(fitted, rock, good, *, encoder=None, space="prob", sites=(), st
             for k, v in iv.items()}
 
 
-@partial(jax.jit, static_argnames=("spec", "env", "episodes"))
-def rollout(spec, env, params, iv, *, episodes, seed, rock, good, random_policy=False):
+@partial(jax.jit, static_argnames=("spec", "env", "episodes", "trace"))
+def rollout(spec, env, params, iv, *, episodes, seed, rock, good, random_policy=False,
+            onset=None, trace=False):
     """Closed-loop episodes with one rock's quality fixed and an optional intervention.
 
     A never-intervened twin model sees the same history with the target rock's
     sensor symbols flipped; ``iv['patch']`` moves activations towards the twin.
+    ``onset`` gives each episode's first intervened step (default: the first step);
+    the twin's history is flipped from the first step regardless. ``trace`` adds
+    per-step observations and post-intervention activations at every site.
     """
+    onset = jnp.zeros(episodes, jnp.int32) if onset is None else onset
     obs, state = jax.vmap(partial(rs.reset, env))(
         jax.random.split(jax.random.key(seed), episodes))
     state = state._replace(qualities=state.qualities.at[:, rock].set(jnp.asarray(good, bool)))
@@ -236,13 +241,13 @@ def rollout(spec, env, params, iv, *, episodes, seed, rock, good, random_policy=
     column = check_index(env, rock)
     rocks = jnp.asarray(env.rocks)
 
-    def encode(c, tc, o, active):
+    def encode(c, tc, o, active, unsampled):
         is_check = o[column] > .5
         twin_sites = []
         def capture(_, x):
             twin_sites.append(x.reshape(-1))
             return x
-        _, tc = tm.encode_step(spec, params, tc, flip_symbols(o, active & is_check, env),
+        _, tc = tm.encode_step(spec, params, tc, flip_symbols(o, unsampled & is_check, env),
                                residual_transform=capture)
         tw = jnp.stack(twin_sites)
         gp = jnp.where(is_check, iv["gate_patch"][0], iv["gate_patch"][1]) * active
@@ -259,15 +264,18 @@ def rollout(spec, env, params, iv, *, episodes, seed, rock, good, random_policy=
             after = (h + delta) @ iv["d"][i] + iv["b"][i]
             stats.append(jnp.stack((before, after, jnp.linalg.norm(delta))))
             readout.append((h + delta) @ iv["ro_w"] + iv["ro_b"])
+            after_sites.append(h + delta)
             return (h + delta).reshape(x.shape)
-        readout = []
+        readout, after_sites = [], []
         z, c = tm.encode_step(spec, params, c, o, residual_transform=transform)
-        return z, c, tc, jnp.stack(stats), readout[-1]
+        return z, c, tc, jnp.stack(stats), readout[-1], jnp.stack(after_sites)
 
-    def advance(carry, _):
+    def advance(carry, t):
         obs, state, cache, tcache, done, sampled, key = carry
-        active = ~sampled[:, rock]
-        z, cache, tcache, stats, readout = jax.vmap(encode)(cache, tcache, obs, active)
+        unsampled_target = ~sampled[:, rock]
+        active = unsampled_target & (t >= onset)
+        z, cache, tcache, stats, readout, sites = jax.vmap(encode)(
+            cache, tcache, obs, active, unsampled_target)
         key, ak, ek = jax.random.split(key, 3)
         logits, _ = tm.heads(params, z)
         logits = jnp.where(random_policy, jnp.zeros_like(logits), logits)
@@ -280,15 +288,20 @@ def rollout(spec, env, params, iv, *, episodes, seed, rock, good, random_policy=
         unsampled = valid[:, None] & ~sampled
         row = (readout * unsampled, unsampled, picked, (action == 5 + rock) & live, out.reward * valid,
                stats * live[:, None, None], live,
-               jnp.all(state.rover == rocks[rock], axis=-1) & live, out.terminated & valid, valid)
+               jnp.all(state.rover == rocks[rock], axis=-1) & live, out.terminated & valid, valid,
+               action, state.rover, (obs, sites) if trace else ())
         return (out.obs, out.state, cache, tcache, done | out.terminated | out.truncated,
                 sampled | picked, key), row
 
     carry = (obs, state, cache, cache, jnp.zeros(episodes, bool),
              jnp.zeros((episodes, env.k), bool), jax.random.key(seed + 1))
     _, rows = jax.lax.scan(advance, carry, jnp.arange(env.episode_length))
-    readout, unsampled, picked, checks, rewards, stats, live, visits, exits, valid = rows
-    return dict(readout=readout.sum(0), readout_steps=unsampled.sum(0),
+    (readout, unsampled, picked, checks, rewards, stats, live, visits, exits, valid, actions,
+     rovers, traced) = rows
+    extra = dict(actions=actions, valid_steps=valid, picked_steps=picked, rover_steps=rovers)
+    if trace:
+        extra.update(obs_steps=traced[0], site_steps=traced[1])
+    return dict(**extra, readout=readout.sum(0), readout_steps=unsampled.sum(0),
                 readout_time=readout[:, :, rock].sum(1), readout_time_steps=unsampled[:, :, rock].sum(1),
                 picked=picked.any(0), checks=checks.sum(0), returns=rewards.sum(0),
                 stats=stats.sum((0, 1)), live=live.sum(), initial_good=initial_good,
