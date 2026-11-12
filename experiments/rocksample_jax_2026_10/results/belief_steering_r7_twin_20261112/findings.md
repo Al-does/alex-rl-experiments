@@ -86,7 +86,8 @@ Wilson 95% half-widths are at most 0.007).
 - Strength 1.25 was selected on the tuning seed; at strength 1 Bad→Good is
   0.81 (30M) and 0.89 (330M).
 - Rock (0,3) is the weakest Bad→Good cell (0.76 at 30M, 0.79 at 330M pooled;
-  0.50 for agent 1 at 330M). Its affine displacement fit is also the worst.
+  0.50 for agent 1 at 330M). Its affine displacement fit is the worst of the
+  seven rocks in four of the six agent-checkpoints.
 - Three agents, one environment layout; intervals are over episodes, not
   training seeds. Reruns on GPU differ by at most 0.003 per cell.
 
@@ -102,8 +103,9 @@ Wilson 95% half-widths are at most 0.007).
 - **Training length.** At 330M a single direction suffices (rank 1:
   0.011/0.846) and block 2 matches block 1; at 30M rank 1 gives 0.116/0.436 and
   rank ≥ 4 is needed. Ranks 4, 8, and 128 are equivalent.
-- **Predictability of the displacement.** Per rock, the affine fit R² of the
-  twin displacement (0.49–0.98) tracks Bad→Good success; true-twin interchange
+- **Predictability of the displacement.** The affine fit R² of the twin
+  displacement varies by rock (0.49–0.98) and is lowest where Bad→Good is
+  weakest (rock (0,3)); this was not tested beyond that. True-twin interchange
   in the same rank-4 subspace reaches 0.96–0.98, so the gap is the affine
   predictor, not the subspace.
 - **Token-typed maps** (separate maps for post-Check and other decisions) add
