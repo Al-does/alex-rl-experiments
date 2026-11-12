@@ -59,7 +59,7 @@ def sampled_history(rows, env):
     return sampled
 
 
-def fit(spec, env, params, episodes, seed, *, ranks=(1, 2, 4, 8)):
+def fit(spec, env, params, episodes, seed, *, ranks=(1, 2, 4, 8, 16, 128)):
     """Probe decoders plus twin-difference encoders and subspaces at every site."""
     rows = bp.collect(spec, env, params, params, episodes=episodes, key_seed=seed)
     data = bp.targets(rows, env)
@@ -84,8 +84,7 @@ def fit(spec, env, params, episodes, seed, *, ranks=(1, 2, 4, 8)):
     basis = np.zeros((SITES, env.k, max(ranks), spec.d_model))
     basis_all = np.zeros_like(basis)
     proto = np.zeros((2, SITES, env.k, spec.d_model))
-    reflect = {b: np.zeros((SITES, env.k, len(ranks), spec.d_model + 1, spec.d_model))
-               for b in ("pca", "pca_all")}
+    reflect = np.zeros((2, SITES, env.k, 2, spec.d_model + 1, spec.d_model))
     mid = np.zeros((SITES, env.k, spec.d_model))
     diag = []
     for rock in range(env.k):
@@ -116,17 +115,24 @@ def fit(spec, env, params, episodes, seed, *, ranks=(1, 2, 4, 8)):
             _, sv, vt = np.linalg.svd(dh[other, s], full_matrices=False)
             basis[s, rock] = vt[:max(ranks)]
             basis_all[s, rock] = np.linalg.svd(dh[rel, s], full_matrices=False)[2][:max(ranks)]
-            x = np.concatenate((h[rel, s], hcf[rel, s]))
-            design = np.column_stack((x, np.ones(len(x))))
-            for b, u_all in (("pca", basis[s, rock]), ("pca_all", basis_all[s, rock])):
-                for j, rank in enumerate(ranks):
-                    u = u_all[:rank]
-                    y = dh[rel, s] @ u.T
-                    y = np.concatenate((y, -y))
+            # Affine maps from an activation to its twin displacement, fitted on real and
+            # twin rows together; index 0 pools tokens, index 1 splits target-check tokens.
+            for typed, masks in enumerate(((rel, rel), (rel & check[valid], other))):
+                err = np.zeros(len(ranks))
+                for t, mask in enumerate(masks):
+                    x = np.concatenate((h[mask, s], hcf[mask, s]))
+                    design = np.column_stack((x, np.ones(len(x))))
+                    y = np.concatenate((dh[mask, s], -dh[mask, s]))
                     coef = np.linalg.lstsq(design, y, rcond=1e-6)[0]
-                    reflect[b][s, rock, j] = coef @ u
-                    row[f"reflect_{b}{rank}_r2_site{s}"] = float(
-                        1 - ((design @ coef - y)**2).sum() / (y**2).sum())
+                    reflect[typed, s, rock, t] = coef
+                    if typed == 0 and t == 1:
+                        continue
+                    resid = (design @ coef - y) @ basis_all[s, rock].T
+                    err += np.array([(resid[:, :r]**2).sum() for r in ranks])
+                total = np.concatenate((dh[rel, s], -dh[rel, s])) @ basis_all[s, rock].T
+                for j, rank in enumerate(ranks):
+                    row[f"reflect{'_typed' if typed else ''}_pca_all{rank}_r2_site{s}"] = float(
+                        1 - err[j] / (total[:, :rank]**2).sum())
             row[f"proto_gap_site{s}"] = float(np.linalg.norm(
                 basis[s, rock] @ (proto[1, s, rock] - proto[0, s, rock])))
             row[f"spectrum_site{s}"] = (sv[:8]**2 / (sv**2).sum()).tolist()
@@ -157,7 +163,7 @@ def intervention(fitted, rock, good, *, encoder=None, space="prob", sites=(), st
                  add=0., patch=None, patch_sites=(), rank=0, gate_patch=(1., 1.),
                  gate_steer=(1., 1.), control=False, null_seed=0, target=None,
                  source="twin", basis_rock=None, proto_scale=1.,
-                 reflect=None, reflect_sites=(), reflect_scale=1., mirror=False):
+                 reflect=None, reflect_sites=(), reflect_scale=1., mirror=False, typed=False):
     """Array-only description of one intervention; every field has a fixed shape."""
     d_model = fitted["decoder"]["prob"].shape[1]
     w = fitted["decoder"][space]
@@ -168,17 +174,17 @@ def intervention(fitted, rock, good, *, encoder=None, space="prob", sites=(), st
               null=np.zeros((SITES, d_model)), use_proto=np.asarray(source == "proto"))
     other = fitted["proto"][int(bool(good)), :, rock]
     iv["proto"] = other + proto_scale * (fitted["proto"][int(not good), :, rock] - other)
-    iv["lin"] = np.zeros((SITES, d_model, d_model))
-    iv["off"] = np.zeros((SITES, d_model))
+    iv["lin"] = np.zeros((2, SITES, d_model, d_model))
+    iv["off"] = np.zeros((2, SITES, d_model))
     iv["ro_w"], iv["ro_b"] = w[SITES - 1], fitted["offset"][space][SITES - 1]
     for s in reflect_sites:
+        u = fitted["basis" if reflect == "pca" else "basis_all"][s, rock, :rank]
+        p = reflect_scale * u.T @ u
         if mirror:
-            u = fitted["basis" if reflect == "pca" else "basis_all"][s, rock, :rank]
-            p = u.T @ u
-            iv["lin"][s], iv["off"][s] = -2 * reflect_scale * p, 2 * reflect_scale * fitted["mid"][s, rock] @ p
+            iv["lin"][:, s], iv["off"][:, s] = -2 * p, 2 * fitted["mid"][s, rock] @ p
         else:
-            m = fitted["reflect"][reflect][s, rock, fitted["ranks"].index(rank)]
-            iv["lin"][s], iv["off"][s] = reflect_scale * m[:-1], reflect_scale * m[-1]
+            m = fitted["reflect"][int(typed), s, rock] @ p
+            iv["lin"][:, s], iv["off"][:, s] = m[:, :-1], m[:, -1]
     if target is None:
         target = (0. if good else 1.) if space == "prob" else float(
             logit(np.asarray(0. if good else 1.)))
@@ -242,11 +248,12 @@ def rollout(spec, env, params, iv, *, episodes, seed, rock, good, random_policy=
         gp = jnp.where(is_check, iv["gate_patch"][0], iv["gate_patch"][1]) * active
         gs = jnp.where(is_check, iv["gate_steer"][0], iv["gate_steer"][1]) * active
         stats = []
+        kind = jnp.where(is_check, 0, 1)
         def transform(i, x):
             h = x.reshape(-1)
             before = h @ iv["d"][i] + iv["b"][i]
             delta = (gs * (iv["lam"][i] * (iv["target"] - before) * iv["e"][i] + iv["add"][i]
-                           + h @ iv["lin"][i] + iv["off"][i])
+                           + h @ iv["lin"][kind, i] + iv["off"][kind, i])
                      + gp * (iv["patch"][i] @ (jnp.where(iv["use_proto"], iv["proto"][i], tw[i]) - h)))
             delta = jnp.where(iv["control"], jnp.linalg.norm(delta) * iv["null"][i], delta)
             after = (h + delta) @ iv["d"][i] + iv["b"][i]

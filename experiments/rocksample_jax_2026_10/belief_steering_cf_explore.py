@@ -88,7 +88,28 @@ def explore4():
     return variants
 
 
-SUITES = dict(explore1=explore1, explore2=explore2, explore3=explore3, explore4=explore4)
+def explore5():
+    variants = dict(intact={}, random=dict(random_policy=True),
+                    twin_policy=dict(patch="full", patch_sites=(3,)))
+    for s in range(cf.SITES):
+        for rank in (1, 2, 4, 8, 16, 128):
+            for typed in (False, True):
+                name = f"reflect{'_typed' if typed else ''}{rank}_s{s}"
+                options = dict(reflect="pca_all", rank=rank, reflect_sites=(s,), typed=typed)
+                variants[name] = options
+                if rank in (4, 8, 128):
+                    for scale in (1.25, 1.5):
+                        variants[f"{name}_x{scale}"] = dict(options, reflect_scale=scale)
+                if rank in (4, 128):
+                    variants[f"control_{name}"] = dict(options, control=True)
+                    variants[f"{name}_belieftokens"] = dict(options, gate_steer=(0., 1.))
+                    variants[f"{name}_evidencetokens"] = dict(options, gate_steer=(1., 0.))
+            variants[f"twin{rank}_s{s}"] = dict(patch="pca_all", rank=rank, patch_sites=(s,))
+    return variants
+
+
+SUITES = dict(explore1=explore1, explore2=explore2, explore3=explore3, explore4=explore4,
+              explore5=explore5)
 
 
 def jsonable(fitted):
