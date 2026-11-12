@@ -24,6 +24,7 @@ from experiments.rocksample_jax_2026_10 import model as tm
 
 SITES = 4
 LOGIT_CLIP = 0.02
+PROTO_MARGIN = 0.1
 Z95 = 1.959963984540054
 
 
@@ -81,13 +82,24 @@ def fit(spec, env, params, episodes, seed, *, ranks=(1, 2, 4, 8)):
     twin = {k: np.zeros((SITES, env.k, spec.d_model)) for k in
             ("twin_prob", "twin_logit", "twinbelief_prob", "twinbelief_logit", "twin_mean")}
     basis = np.zeros((SITES, env.k, max(ranks), spec.d_model))
+    basis_all = np.zeros_like(basis)
+    proto = np.zeros((2, SITES, env.k, spec.d_model))
+    reflect = {b: np.zeros((SITES, env.k, len(ranks), spec.d_model + 1, spec.d_model))
+               for b in ("pca", "pca_all")}
+    mid = np.zeros((SITES, env.k, spec.d_model))
     diag = []
     for rock in range(env.k):
         check = rows["obs"][:, :, check_index(env, rock)] > .5
         gate = check & ~sampled[:, :, rock]
         hcf = np.asarray(bs.replay(spec, params, flip_symbols(rows["obs"], gate, env)))
-        dh = hcf[valid].astype(np.float64) - h
+        hcf = hcf[valid].astype(np.float64)
+        dh = hcf - h
         rel = relevant[:, rock]
+        for quality, low in ((0, True), (1, False)):
+            real = rel & ((m[:, rock] < PROTO_MARGIN) if low else (m[:, rock] > 1 - PROTO_MARGIN))
+            cf = rel & ((m[:, rock] > 1 - PROTO_MARGIN) if low else (m[:, rock] < PROTO_MARGIN))
+            proto[quality, :, rock] = np.concatenate((h[real], hcf[cf])).mean(0)
+        mid[:, rock] = (h[rel] + hcf[rel]).mean(0) / 2
         other = rel & ~check[valid]
         dm = (1 - 2 * m[:, rock])
         dl = -2 * targets["logit"][:, rock]
@@ -103,12 +115,31 @@ def fit(spec, env, params, episodes, seed, *, ranks=(1, 2, 4, 8)):
             twin["twin_mean"][s, rock] = (sign[:, None] * dh[other, s]).mean(0)
             _, sv, vt = np.linalg.svd(dh[other, s], full_matrices=False)
             basis[s, rock] = vt[:max(ranks)]
+            basis_all[s, rock] = np.linalg.svd(dh[rel, s], full_matrices=False)[2][:max(ranks)]
+            x = np.concatenate((h[rel, s], hcf[rel, s]))
+            design = np.column_stack((x, np.ones(len(x))))
+            for b, u_all in (("pca", basis[s, rock]), ("pca_all", basis_all[s, rock])):
+                for j, rank in enumerate(ranks):
+                    u = u_all[:rank]
+                    y = dh[rel, s] @ u.T
+                    y = np.concatenate((y, -y))
+                    coef = np.linalg.lstsq(design, y, rcond=1e-6)[0]
+                    reflect[b][s, rock, j] = coef @ u
+                    row[f"reflect_{b}{rank}_r2_site{s}"] = float(
+                        1 - ((design @ coef - y)**2).sum() / (y**2).sum())
+            row[f"proto_gap_site{s}"] = float(np.linalg.norm(
+                basis[s, rock] @ (proto[1, s, rock] - proto[0, s, rock])))
             row[f"spectrum_site{s}"] = (sv[:8]**2 / (sv**2).sum()).tolist()
             row[f"twin_norm_site{s}"] = float(np.linalg.norm(dh[other, s], axis=1).mean())
             row[f"h_norm_site{s}"] = float(np.linalg.norm(h[:, s], axis=1).mean())
         diag.append(row)
     out["encoder"].update(twin)
     out["basis"] = basis
+    out["basis_all"] = basis_all
+    out["proto"] = proto
+    out["reflect"] = reflect
+    out["mid"] = mid
+    out["ranks"] = tuple(ranks)
     out["diagnostics"] = diag
     for name, y in targets.items():
         pred = np.einsum("nsd,sdk->nsk", h, out["decoder"][name]) + out["offset"][name]
@@ -124,7 +155,9 @@ def calibrate(encoder, decoder):
 
 def intervention(fitted, rock, good, *, encoder=None, space="prob", sites=(), strength=1.,
                  add=0., patch=None, patch_sites=(), rank=0, gate_patch=(1., 1.),
-                 gate_steer=(1., 1.), control=False, null_seed=0, target=None):
+                 gate_steer=(1., 1.), control=False, null_seed=0, target=None,
+                 source="twin", basis_rock=None, proto_scale=1.,
+                 reflect=None, reflect_sites=(), reflect_scale=1., mirror=False):
     """Array-only description of one intervention; every field has a fixed shape."""
     d_model = fitted["decoder"]["prob"].shape[1]
     w = fitted["decoder"][space]
@@ -132,7 +165,20 @@ def intervention(fitted, rock, good, *, encoder=None, space="prob", sites=(), st
               e=np.zeros((SITES, d_model)), lam=np.zeros(SITES), add=np.zeros((SITES, d_model)),
               patch=np.zeros((SITES, d_model, d_model)), gate_patch=np.asarray(gate_patch),
               gate_steer=np.asarray(gate_steer), control=np.asarray(control),
-              null=np.zeros((SITES, d_model)))
+              null=np.zeros((SITES, d_model)), use_proto=np.asarray(source == "proto"))
+    other = fitted["proto"][int(bool(good)), :, rock]
+    iv["proto"] = other + proto_scale * (fitted["proto"][int(not good), :, rock] - other)
+    iv["lin"] = np.zeros((SITES, d_model, d_model))
+    iv["off"] = np.zeros((SITES, d_model))
+    iv["ro_w"], iv["ro_b"] = w[SITES - 1], fitted["offset"][space][SITES - 1]
+    for s in reflect_sites:
+        if mirror:
+            u = fitted["basis" if reflect == "pca" else "basis_all"][s, rock, :rank]
+            p = u.T @ u
+            iv["lin"][s], iv["off"][s] = -2 * reflect_scale * p, 2 * reflect_scale * fitted["mid"][s, rock] @ p
+        else:
+            m = fitted["reflect"][reflect][s, rock, fitted["ranks"].index(rank)]
+            iv["lin"][s], iv["off"][s] = reflect_scale * m[:-1], reflect_scale * m[-1]
     if target is None:
         target = (0. if good else 1.) if space == "prob" else float(
             logit(np.asarray(0. if good else 1.)))
@@ -148,8 +194,12 @@ def intervention(fitted, rock, good, *, encoder=None, space="prob", sites=(), st
     for s in patch_sites:
         if patch == "full":
             iv["patch"][s] = np.eye(d_model)
-        elif patch == "pca":
-            u = fitted["basis"][s, rock, :rank]
+        elif patch in ("pca", "pca_all"):
+            u = fitted["basis" if patch == "pca" else "basis_all"][s, rock, :rank]
+            iv["patch"][s] = u.T @ u
+        elif patch == "random":
+            u = np.linalg.qr(np.random.default_rng(null_seed + 104729 * rock + s).normal(
+                size=(d_model, rank)))[0].T
             iv["patch"][s] = u.T @ u
         elif patch == "encoder":
             u = fitted["encoder"][encoder][s, rock]
@@ -161,7 +211,8 @@ def intervention(fitted, rock, good, *, encoder=None, space="prob", sites=(), st
         z = rng.normal(size=d_model)
         z -= q @ (q.T @ z)
         iv["null"][s] = z / np.linalg.norm(z)
-    return {k: jnp.asarray(v, dtype=bool if k == "control" else jnp.float32) for k, v in iv.items()}
+    return {k: jnp.asarray(v, dtype=bool if k in ("control", "use_proto") else jnp.float32)
+            for k, v in iv.items()}
 
 
 @partial(jax.jit, static_argnames=("spec", "env", "episodes"))
@@ -194,19 +245,22 @@ def rollout(spec, env, params, iv, *, episodes, seed, rock, good, random_policy=
         def transform(i, x):
             h = x.reshape(-1)
             before = h @ iv["d"][i] + iv["b"][i]
-            delta = (gs * (iv["lam"][i] * (iv["target"] - before) * iv["e"][i] + iv["add"][i])
-                     + gp * (iv["patch"][i] @ (tw[i] - h)))
+            delta = (gs * (iv["lam"][i] * (iv["target"] - before) * iv["e"][i] + iv["add"][i]
+                           + h @ iv["lin"][i] + iv["off"][i])
+                     + gp * (iv["patch"][i] @ (jnp.where(iv["use_proto"], iv["proto"][i], tw[i]) - h)))
             delta = jnp.where(iv["control"], jnp.linalg.norm(delta) * iv["null"][i], delta)
             after = (h + delta) @ iv["d"][i] + iv["b"][i]
             stats.append(jnp.stack((before, after, jnp.linalg.norm(delta))))
+            readout.append((h + delta) @ iv["ro_w"] + iv["ro_b"])
             return (h + delta).reshape(x.shape)
+        readout = []
         z, c = tm.encode_step(spec, params, c, o, residual_transform=transform)
-        return z, c, tc, jnp.stack(stats)
+        return z, c, tc, jnp.stack(stats), readout[-1]
 
     def advance(carry, _):
         obs, state, cache, tcache, done, sampled, key = carry
         active = ~sampled[:, rock]
-        z, cache, tcache, stats = jax.vmap(encode)(cache, tcache, obs, active)
+        z, cache, tcache, stats, readout = jax.vmap(encode)(cache, tcache, obs, active)
         key, ak, ek = jax.random.split(key, 3)
         logits, _ = tm.heads(params, z)
         logits = jnp.where(random_policy, jnp.zeros_like(logits), logits)
@@ -216,7 +270,8 @@ def rollout(spec, env, params, iv, *, episodes, seed, rock, good, random_policy=
         picked = ((action == 4)[:, None] & jnp.all(state.rover[:, None] == rocks, axis=-1)
                   & valid[:, None])
         live = valid & active
-        row = (picked, (action == 5 + rock) & live, out.reward * valid,
+        unsampled = valid[:, None] & ~sampled
+        row = (readout * unsampled, unsampled, picked, (action == 5 + rock) & live, out.reward * valid,
                stats * live[:, None, None], live,
                jnp.all(state.rover == rocks[rock], axis=-1) & live, out.terminated & valid, valid)
         return (out.obs, out.state, cache, tcache, done | out.terminated | out.truncated,
@@ -225,8 +280,10 @@ def rollout(spec, env, params, iv, *, episodes, seed, rock, good, random_policy=
     carry = (obs, state, cache, cache, jnp.zeros(episodes, bool),
              jnp.zeros((episodes, env.k), bool), jax.random.key(seed + 1))
     _, rows = jax.lax.scan(advance, carry, jnp.arange(env.episode_length))
-    picked, checks, rewards, stats, live, visits, exits, valid = rows
-    return dict(picked=picked.any(0), checks=checks.sum(0), returns=rewards.sum(0),
+    readout, unsampled, picked, checks, rewards, stats, live, visits, exits, valid = rows
+    return dict(readout=readout.sum(0), readout_steps=unsampled.sum(0),
+                readout_time=readout[:, :, rock].sum(1), readout_time_steps=unsampled[:, :, rock].sum(1),
+                picked=picked.any(0), checks=checks.sum(0), returns=rewards.sum(0),
                 stats=stats.sum((0, 1)), live=live.sum(), initial_good=initial_good,
                 visits=visits.any(0), exits=exits.any(0), length=valid.sum(0))
 
@@ -246,6 +303,9 @@ def summarize(values, rock):
     picked = v["picked"][:, other]
     live = max(int(v["live"]), 1)
     target = int(v["picked"][:, rock].sum())
+    read = lambda mask: float((v["readout"] * mask).sum() / max((v["readout_steps"] * mask).sum(), 1))
+    full = np.ones_like(v["initial_good"])
+    full[:, rock] = False
     return dict(episodes=n, target=target / n, target_ci95=wilson(target, n),
                 other_good=float((picked & good).sum() / good.sum()),
                 other_bad=float((picked & ~good).sum() / (~good).sum()),
@@ -254,6 +314,10 @@ def summarize(values, rock):
                 mean_return=float(v["returns"].mean()), checks=float(v["checks"].mean()),
                 visit=float(v["visits"].mean()), exit=float(v["exits"].mean()),
                 length=float(v["length"].mean()),
+                readout_target=read(~full), readout_other_good=read(full & v["initial_good"]),
+                readout_other_bad=read(full & ~v["initial_good"]),
+                readout_time=(v["readout_time"] / np.maximum(v["readout_time_steps"], 1)).tolist(),
+                readout_time_steps=v["readout_time_steps"].tolist(),
                 decoded_before=(v["stats"][:, 0] / live).tolist(),
                 decoded_after=(v["stats"][:, 1] / live).tolist(),
                 shift_norm=(v["stats"][:, 2] / live).tolist())

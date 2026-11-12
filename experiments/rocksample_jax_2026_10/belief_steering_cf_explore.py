@@ -52,7 +52,43 @@ def explore2():
     return variants
 
 
-SUITES = dict(explore1=explore1, explore2=explore2)
+def explore3():
+    variants = dict(intact={}, twin_policy=dict(patch="full", patch_sites=(3,)))
+    for s in range(cf.SITES):
+        for rank in (1, 2, 4, 8):
+            for basis in ("pca", "pca_all"):
+                variants[f"proto_{basis}{rank}_s{s}"] = dict(
+                    patch=basis, rank=rank, patch_sites=(s,), source="proto")
+            variants[f"twin_pca_all{rank}_s{s}"] = dict(patch="pca_all", rank=rank, patch_sites=(s,))
+        for scale in (1.5, 2.):
+            variants[f"proto_pca2_s{s}_x{scale}"] = dict(
+                patch="pca", rank=2, patch_sites=(s,), source="proto", proto_scale=scale)
+        variants[f"proto_full_s{s}"] = dict(patch="full", patch_sites=(s,), source="proto")
+        variants[f"proto_random8_s{s}"] = dict(patch="random", rank=8, patch_sites=(s,),
+                                               source="proto")
+    return variants
+
+
+def explore4():
+    variants = dict(intact={}, twin_policy=dict(patch="full", patch_sites=(3,)))
+    for s in range(cf.SITES):
+        for rank in (1, 2, 4, 8):
+            for basis in ("pca", "pca_all"):
+                variants[f"reflect_{basis}{rank}_s{s}"] = dict(
+                    reflect=basis, rank=rank, reflect_sites=(s,))
+                variants[f"mirror_{basis}{rank}_s{s}"] = dict(
+                    reflect=basis, rank=rank, reflect_sites=(s,), mirror=True)
+            variants[f"reflect_pca_all{rank}_s{s}_belieftokens"] = dict(
+                reflect="pca_all", rank=rank, reflect_sites=(s,), gate_steer=(0., 1.))
+            variants[f"reflect_pca_all{rank}_s{s}_evidencetokens"] = dict(
+                reflect="pca_all", rank=rank, reflect_sites=(s,), gate_steer=(1., 0.))
+            variants[f"twin_pca_all{rank}_s{s}"] = dict(patch="pca_all", rank=rank, patch_sites=(s,))
+            variants[f"control_reflect_pca_all{rank}_s{s}"] = dict(
+                reflect="pca_all", rank=rank, reflect_sites=(s,), control=True)
+    return variants
+
+
+SUITES = dict(explore1=explore1, explore2=explore2, explore3=explore3, explore4=explore4)
 
 
 def jsonable(fitted):
@@ -71,6 +107,7 @@ def main():
     parser.add_argument("--episodes", type=int, default=512)
     parser.add_argument("--seed", type=int, default=TUNE_SEED)
     parser.add_argument("--rocks", type=int, nargs="*")
+    parser.add_argument("--only", nargs="*", help="substrings selecting variants")
     args = parser.parse_args()
     mapping = continuation.mappings()[args.agent]
     params, env, spec, provenance = continuation.load(mapping, args.update)
@@ -84,6 +121,8 @@ def main():
     fitted = cf.fit(spec, env, params, args.fit_episodes, FIT_SEED)
     state["fit"] = jsonable(fitted)
     variants = SUITES[args.suite]()
+    if args.only:
+        variants = {k: v for k, v in variants.items() if any(x in k for x in args.only)}
     start = time.time()
     for rock in (args.rocks or range(env.k)):
         for good, direction in DIRECTIONS:
