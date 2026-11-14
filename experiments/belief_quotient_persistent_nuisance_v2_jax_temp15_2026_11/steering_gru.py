@@ -32,19 +32,26 @@ def decode(h, maps, site):
     return jnp.concatenate((y, 1-y.sum(-1, keepdims=True)), -1)
 
 
-def step(spec, params, carry, obs, maps, site=NONE, mode=0, strength=0., orthogonal=False, reference=None):
-    """Match models.step for GRUs; `reference` holds the shadow's site activations."""
-    stats = jnp.zeros((obs.shape[0], 3))
+def step(spec, params, carry, obs, maps, site=NONE, mode=0, strength=0., orthogonal=False, reference=None, forced_norm=None):
+    """Match models.step for GRUs; `reference` holds the shadow's site activations.
+
+    The returned statistics are (shift norm, activation norm, ratio) of the last written site,
+    followed by the shift norm at every site. `forced_norm` sets the size of an orthogonal write
+    per site, so a control can reuse the norms of a belief write made on another copy.
+    """
+    stats = jnp.zeros((obs.shape[0], 3+spec.n_layers+1))
 
     def install(x, index, stats):
         source = x if reference is None else reference[:, index]
         shift = jnp.matmul(target(decode(source, maps, index), mode)[..., :2]-decode(x, maps, index)[..., :2],
                            maps['encoder'][index], precision=HIGHEST)*strength
         norm = jnp.linalg.norm(shift, axis=-1)
+        if forced_norm is not None:
+            norm = jnp.where(orthogonal, forced_norm[:, index], norm)
         shift = jnp.where(orthogonal, norm[:, None]*maps['orthogonal'][index], shift)
         hnorm = jnp.linalg.norm(x, axis=-1)
         active = (site == index) | ((site == ALL_HIDDEN) & (index < spec.n_layers))
-        new_stats = jnp.stack((norm, hnorm, norm/jnp.maximum(hnorm, 1e-12)), -1)
+        new_stats = stats.at[:, :3].set(jnp.stack((norm, hnorm, norm/jnp.maximum(hnorm, 1e-12)), -1)).at[:, 3+index].set(norm)
         return jnp.where(active, x+shift, x), jnp.where(active, new_stats, stats)
 
     x = models._dense(params['input'], obs)
@@ -131,8 +138,12 @@ def carries(spec, params, maps, observations, times):
 
 
 @partial(jax.jit, static_argnums=(0,))
-def pulse_branch(spec, params, maps, carry, observations, site, mode, orthogonal):
-    """One write at lag 0, then identical inputs for the intact and written copies."""
+def pulse_branch(spec, params, maps, carry, observations, site, mode, orthogonal, forced_norm):
+    """One write at lag 0, then identical inputs for the intact and written copies.
+
+    The last output holds the per-site shift norms; pass a belief write's lag-0 norms as
+    `forced_norm` to give the orthogonal control the same size at every written layer.
+    """
     readout = spec.n_layers-1
 
     def body(loop, item):
@@ -140,10 +151,10 @@ def pulse_branch(spec, params, maps, carry, observations, site, mode, orthogonal
         k, obs = item
         logits_i, intact, sites_i, _ = step(spec, params, intact, obs, maps)
         logits_b, branch, sites_b, stats = step(spec, params, branch, obs, maps, site, mode,
-                                                jnp.where(k == 0, 1., 0.), orthogonal, sites_i)
+                                                jnp.where(k == 0, 1., 0.), orthogonal, sites_i, forced_norm)
         out = (decode(sites_b[:, readout], maps, readout)-decode(sites_i[:, readout], maps, readout),
                jnp.abs(jax.nn.softmax(logits_b)-jax.nn.softmax(logits_i)).sum(-1)/2,
-               jnp.argmax(logits_b, -1) != jnp.argmax(logits_i, -1), stats[:, 2])
+               jnp.argmax(logits_b, -1) != jnp.argmax(logits_i, -1), stats[:, 2], stats[:, 3:])
         return (intact, branch), out
     return jax.lax.scan(body, (carry, carry), (jnp.arange(len(observations)), observations))[1]
 
@@ -170,9 +181,12 @@ def run_pulse(spec, params, maps, records, variant, times=(256, 512, 768), horiz
         coarse = (np.concatenate([exact_trace(b, o, variant, mode, coarse=True) for b, o in zip(beliefs, windows)], 1)
                   if variant == 2 else None)
         for name, site in sites:
+            norms = [jnp.zeros((observations.shape[1], spec.n_layers+1))]*len(times)
             for control in (False, True):
-                parts = [pulse_branch(spec, params, maps, saved[i], observations[t:t+horizon+1], site, mode_index, control)
+                parts = [pulse_branch(spec, params, maps, saved[i], observations[t:t+horizon+1], site, mode_index, control, norms[i])
                          for i, t in enumerate(times)]
+                if not control:
+                    norms = [p[4][0] for p in parts]
                 diff, tv, disagree, relative = (np.concatenate([np.asarray(p[j]) for p in parts], 1) for j in range(4))
                 measured = coordinates(diff)
                 result = dict(measured=summarize(measured), tv=tv.mean(1).tolist(),
