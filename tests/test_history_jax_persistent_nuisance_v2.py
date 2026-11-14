@@ -36,9 +36,10 @@ def test_design():
         assert np.isfinite(belief_reset(env.ladder_process(2), token)).all()
 
 
-CASES = [(ladder, f"variant_{v}_transformer") for v in (1, 2, 3)] + [
+ARCHITECTURES = ("transformer", "memoryless", "gru128", "gru92")
+CASES = [(ladder, f"variant_{v}_{a}") for v in (1, 2, 3) for a in ARCHITECTURES] + [
     (factors, f"{c}_{a}") for c in ("reward_both", "reward_factor_1")
-    for a in ("transformer", "memoryless", "gru128", "gru92")
+    for a in ARCHITECTURES
 ]
 
 
