@@ -84,7 +84,11 @@ def run(study, variant, architecture, smoke=False):
     def confirm(condition, site=gru.NONE, mode=0, strength=0., orthogonal=False, random=False):
         records = gru.rollout(spec, process, params, maps, jax.random.PRNGKey(2042), episodes, length,
                               site, mode, strength, orthogonal, random)
-        confirmation.append(dict(condition=condition, site=site, mode=MODES[mode], strength=float(strength), metrics=metrics(records)))
+        result = metrics(records)
+        # A write carried in the hidden state can compound until the state overflows.
+        diverged = not bool(np.isfinite(np.asarray(records['norms'])).all())
+        confirmation.append(dict(condition=condition, site=site, mode=MODES[mode], strength=float(strength),
+                                 diverged=diverged, metrics=result))
 
     top, final = spec.n_layers-1, spec.n_layers
     confirm('intact')

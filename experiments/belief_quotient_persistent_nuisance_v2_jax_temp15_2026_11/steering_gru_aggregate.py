@@ -30,17 +30,20 @@ def markdown(reports):
              '| Study | Arch | Variant | Sites (layer 1 … top, final norm) |', '|---|---|---:|---|']
     for label, arch, variant, r in reports:
         lines.append(f"| {label} | {arch} | {variant} | "+'; '.join(f"{fmt(s['rho'])} / {fmt(s['delta'])}" for s in r['probes']['exclusion_8'])+' |')
-    lines += ['', '## Sustained steering, λ = 1: occupancy (fraction of actions changed)', '',
-              '| Study | Arch | Variant | Intact | Random | Target | Final norm | Top hidden | All hidden | Orthogonal final / top |',
-              '|---|---|---:|---:|---:|---|---:|---:|---:|---|']
+    lines += ['', '## Sustained steering at the final LayerNorm, λ = 1: occupancy (fraction of actions changed)', '',
+              'Writes repeated at every step into a carried hidden state compound until the state overflows (`diverged` in the',
+              'per-agent results), for belief and control writes alike, so hidden-state sites are not tabulated.', '',
+              '| Study | Arch | Variant | Intact | Random | Target | Final norm | Orthogonal control | Hidden-site runs diverged |',
+              '|---|---|---:|---:|---:|---|---:|---:|---:|']
     for label, arch, variant, r in reports:
         top = len(r['probes']['exclusion_8'])-2
         table = {(c['condition'], c['site'], c['mode']): c['metrics'] for c in r['confirmation']}
         cell = lambda m: f"{fmt(m['occupancy'])} ({m['action_change']*100:.0f}%)"
         for mode in ('point', 'mirror', 'rho_flip', 'rho_point'):
             lines.append(f"| {label} | {arch} | {variant} | {fmt(table[('intact', -1, 'point')]['occupancy'])} | {fmt(table[('random', -1, 'point')]['occupancy'])} | {mode} | "
-                         f"{cell(table[('curve_'+mode, top+1, mode)])} | {cell(table[('curve_'+mode, top, mode)])} | {cell(table[('site_'+mode, -2, mode)])} | "
-                         f"{fmt(table[('orthogonal_'+mode, top+1, mode)]['occupancy'])} / {fmt(table[('orthogonal_'+mode, top, mode)]['occupancy'])} |")
+                         f"{cell(table[('curve_'+mode, top+1, mode)])} | {fmt(table[('orthogonal_'+mode, top+1, mode)]['occupancy'])} | "
+                         f"{sum(c['diverged'] for c in r['confirmation'] if c['mode'] == mode and c['strength'] == 1 and c['site'] not in (-1, top+1))}/"
+                         f"{sum(1 for c in r['confirmation'] if c['mode'] == mode and c['strength'] == 1 and c['site'] not in (-1, top+1))} |")
     lines += ['', '## Single-write pulse into all hidden layers: mean |change| in the written coordinate by lag', '',
               'Measured = decoded at the top hidden layer; filter = exact filter restarted from the written belief; r / slope = agreement of the',
               'signed measured change with the filter\'s across the 96 branches; control = decoder-orthogonal write of the same norm.', '',

@@ -125,14 +125,16 @@ shadow network on the executed inputs, so a carried write is not re-targeted
 from the already steered state; at the final LayerNorm this is identical to the
 transformer protocol. Sustained λ=1 steering is reported at every site with the
 full λ grid at the top hidden layer and final LayerNorm. Sustained writes into a
-carried hidden state are not interpretable: the norm-matched decoder-orthogonal
-control accumulates and also drives occupancy to the random level.
+carried hidden state are not interpretable: belief and control writes alike
+compound from step to step until the hidden state overflows. Those runs are
+flagged `diverged`, their norms are null, and the aggregate omits them.
 
 Pulses write once (λ=1) into one hidden layer or all of them at steps
 256/512/768 of seed-3042 episodes and follow 128 lags on the intact inputs.
 The readout is the top hidden layer's decoder. Each pulse is compared with the
 exact filter restarted from the written belief (and the quotient filter for
-variant 2), with a norm-matched decoder-orthogonal pulse, and by `tracking`:
+variant 2), with a decoder-orthogonal pulse given the belief write's shift norm at every
+written layer, and by `tracking`:
 the per-lag correlation and regression slope of the signed measured change on
 the filter's change across the 96 branches. Full payloads are in ignored
 `artifacts/` and on B2 (key and SHA256 in each compact result's `full_report`);
