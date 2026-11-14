@@ -331,7 +331,7 @@ def run_arm(exploration, architecture, variant, smoke=False):
     result = HERE / (".smoke" if smoke else "results") / "paper_probes" / f"{arm}.json"
     process = environment.ladder_process(variant)
     spec = models.ModelSpec(**recipe["model"])
-    checkpoints = Checkpoints(manifest, cache / "checkpoints")
+    checkpoints = Checkpoints(manifest, HERE / "artifacts" / "paper_probe_checkpoints" / arm)
     archived = summary["checkpoint_reports"]
     chosen = [archived[0], archived[-1]] if smoke else archived
     steps = [int(p["checkpoint_step"]) for p in chosen]
@@ -390,12 +390,28 @@ def main():
     parser.add_argument("--exploration", choices=STUDIES, nargs="+", default=list(STUDIES))
     parser.add_argument("--variant", choices=(1, 2, 3), type=int, nargs="+", default=[1, 2, 3])
     parser.add_argument("--smoke", action="store_true")
+    parser.add_argument("--upload", action="store_true", help="Archive raw geometry and restart caches after successful analysis")
     args = parser.parse_args()
     jax.config.update("jax_default_matmul_precision", "highest")
     for architecture in args.architecture:
         for exploration in args.exploration:
             for variant in args.variant:
                 print(run_arm(exploration, architecture, variant, args.smoke), flush=True)
+    if args.upload:
+        if args.smoke:
+            raise ValueError("smoke artifacts are not campaign results")
+        from harness.artifacts import finish_run_manifest, start_run_manifest, update_run_manifest
+        from harness.context import RunContext
+        from harness.storage.b2 import upload_run_artifacts
+
+        context = RunContext(experiment_dir=HERE, results_dir=HERE / "results" / "paper_probes",
+                             artifacts_dir=HERE / "artifacts" / "paper_probes",
+                             run_id="paper-probes-pr219-20261114", seed=42)
+        start_run_manifest(context, experiment_module=__name__, experiment_file=Path(__file__))
+        summary = upload_run_artifacts(context, experiment_module=__name__)
+        update_run_manifest(context, remote_artifacts=summary)
+        finish_run_manifest(context, status="completed")
+        print("Raw probe artifacts durably uploaded", flush=True)
 
 
 if __name__ == "__main__":
