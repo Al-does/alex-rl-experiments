@@ -47,7 +47,7 @@ def step(spec, params, carry, obs, maps, site=NONE, mode=0, strength=0., orthogo
                            maps['encoder'][index], precision=HIGHEST)*strength
         norm = jnp.linalg.norm(shift, axis=-1)
         if forced_norm is not None:
-            norm = jnp.where(orthogonal, forced_norm[:, index], norm)
+            norm = jnp.where(orthogonal, forced_norm[:, index]*strength, norm)
         shift = jnp.where(orthogonal, norm[:, None]*maps['orthogonal'][index], shift)
         hnorm = jnp.linalg.norm(x, axis=-1)
         active = (site == index) | ((site == ALL_HIDDEN) & (index < spec.n_layers))

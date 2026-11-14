@@ -58,6 +58,7 @@ def test_pulse_writes_once_and_zero_shift_is_identity():
     diff, tv, _, relative, norms = gru.pulse_branch(spec, params, maps, saved[1], observations[4:], gru.ALL_HIDDEN, 1, False, none)
     control = gru.pulse_branch(spec, params, maps, saved[1], observations[4:], gru.ALL_HIDDEN, 1, True, norms[0])
     np.testing.assert_allclose(control[4][0], norms[0], rtol=1e-5)
+    np.testing.assert_allclose(control[4][1:], 0)
     assert float(norms[0, :, :spec.n_layers].min()) > 0
     assert float(jnp.abs(diff[0]).max()) > 1e-4 and float(relative[0].min()) > 0
     np.testing.assert_allclose(relative[1:], 0)
