@@ -84,3 +84,24 @@ def test_full_history_replay_matches_real_rollout(architecture):
     logits, embedding = p.replay(spec, params, records["obs"])
     np.testing.assert_allclose(embedding, records["embedding"], atol=1e-6)
     np.testing.assert_equal(np.asarray(logits).argmax(-1), records["action"])
+
+
+def test_missing_or_corrupt_geometry_invalidates_cache(tmp_path, monkeypatch):
+    monkeypatch.setattr(p, "HERE", tmp_path)
+    geometry = tmp_path / "simplex.npz"
+    geometry.write_bytes(b"geometry")
+    cache = tmp_path / "checkpoint.json"
+    report = {"geometry": {"file": geometry.name, "sha256": p.sha256(geometry)}}
+    p.write_json(cache, report)
+    assert p.cached_report(cache) == report
+    geometry.write_bytes(b"corrupt")
+    assert p.cached_report(cache) is None
+    geometry.unlink()
+    assert p.cached_report(cache) is None
+
+
+def test_intermediate_report_cache_needs_no_geometry(tmp_path):
+    cache = tmp_path / "checkpoint.json"
+    assert p.cached_report(cache) is None
+    p.write_json(cache, {"checkpoint_step": 0})
+    assert p.cached_report(cache) == {"checkpoint_step": 0}

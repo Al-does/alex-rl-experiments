@@ -62,6 +62,17 @@ def revision(path):
     return subprocess.check_output(["git", "-C", str(path), "rev-parse", "HEAD"], text=True).strip()
 
 
+def cached_report(path):
+    if not path.exists():
+        return None
+    report = json.loads(path.read_text())
+    if "geometry" in report:
+        geometry = HERE / report["geometry"]["file"]
+        if not geometry.exists() or sha256(geometry) != report["geometry"]["sha256"]:
+            return None
+    return report
+
+
 def discover(exploration, architecture, variant):
     leaf = ROOT / "experiments" / STUDIES[exploration] / f"variant_{variant}_{architecture}"
     runs = []
@@ -346,9 +357,8 @@ def run_arm(exploration, architecture, variant, smoke=False):
         step = int(archived_report["checkpoint_step"])
         path, weight_hash = checkpoints.get(step)
         cached = cache / f"{fingerprint}_{step}.json"
-        if cached.exists():
-            report = json.loads(cached.read_text())
-        else:
+        report = cached_report(cached)
+        if report is None:
             params = load_params(path, spec)
             report, geometry = analyze_checkpoint(
                 spec, process, params, variant=variant, epsilon=epsilon,
