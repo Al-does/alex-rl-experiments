@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import jax
 
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_eps05_2026_11 import paper_probes as p
 
@@ -71,3 +72,15 @@ def test_ridge_scores_known_affine_target():
 
 def test_episode_interval_is_reproducible():
     assert p.episode_interval([1, 2, 3]) == p.episode_interval([1, 2, 3])
+
+
+@pytest.mark.parametrize("architecture", p.ARCHITECTURES)
+def test_full_history_replay_matches_real_rollout(architecture):
+    process = p.environment.ladder_process(2)
+    spec = p.models.architecture_spec(architecture, obs_dim=6, n_actions=3,
+                                     n_tokens=3, context_len=32)
+    params = p.models.init_params(spec, jax.random.PRNGKey(3))
+    records = p.collect(spec, process, params, jax.random.PRNGKey(4), 2, 256)
+    logits, embedding = p.replay(spec, params, records["obs"])
+    np.testing.assert_allclose(embedding, records["embedding"], atol=1e-6)
+    np.testing.assert_equal(np.asarray(logits).argmax(-1), records["action"])
