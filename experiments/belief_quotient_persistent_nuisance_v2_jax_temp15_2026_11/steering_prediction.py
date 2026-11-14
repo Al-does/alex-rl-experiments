@@ -29,7 +29,7 @@ def target(b, mode):
 class Policy:
     def __init__(self, variant, n=100, gamma=.995, tolerance=1e-9, max_iterations=10000):
         self.transitions = action_transitions(variant)
-        self.n, self.gamma = n, gamma
+        self.n, self.gamma, self.variant = n, gamma, variant
         self.grid = np.array([(i/n, j/n, 1-(i+j)/n) for i in range(n+1) for j in range(n+1-i)])
         self.lookup = np.full((n+1, n+1), -1, int)
         ij = np.rint(self.grid[:, :2]*n).astype(int)
@@ -40,8 +40,16 @@ class Policy:
         posterior = np.divide(weights, probability[..., None], out=np.full_like(weights, 1/3), where=probability[..., None] > 0)
         nxt = self.nearest(posterior)
         value = np.zeros(len(self.grid))
+        reward = self.grid[:, 2]
+        if variant == 2:
+            rho = np.arange(n+1)/n
+            r = (1-rho[:, None])*self.transitions[None, :, 0, 2]+rho[:, None]*self.transitions[None, :, 2, 2]
+            probability = np.stack((.15*(1-r), r+.85*(1-r)), -1)
+            posterior_rho = np.stack((np.zeros_like(r), r/probability[..., 1]), -1)
+            nxt = np.rint(posterior_rho*n).astype(int)
+            value, reward = np.zeros(n+1), rho
         for iteration in range(max_iterations):
-            q = self.grid[:, 2, None]+gamma*(probability*value[nxt]).sum(-1)
+            q = reward[:, None]+gamma*(probability*value[nxt]).sum(-1)
             new_value = q.max(-1)
             residual = float(np.max(np.abs(new_value-value)))
             value = new_value
@@ -50,7 +58,8 @@ class Policy:
         self.actions = q.argmax(-1)
         self.convergence = dict(iterations=iteration+1, bellman_residual=residual,
                                 value_error_bound=residual/(1-gamma), converged=residual < tolerance,
-                                n=n, gamma=gamma, tolerance=tolerance)
+                                n=n, gamma=gamma, tolerance=tolerance,
+                                belief_grid='exact reward-state quotient' if variant == 2 else 'full simplex')
 
     def nearest(self, b):
         b = np.maximum(np.asarray(b), 0)
@@ -62,6 +71,8 @@ class Policy:
         return self.lookup[i, j]
 
     def __call__(self, b):
+        if self.variant == 2:
+            return self.actions[np.rint(np.clip(np.asarray(b)[..., 2], 0, 1)*self.n).astype(int)]
         return self.actions[self.nearest(b)]
 
 
@@ -90,7 +101,7 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--smoke', action='store_true')
     args = parser.parse_args()
-    if args.output.exists():
+    if args.output.exists() or args.output.with_suffix('.md').exists():
         raise FileExistsError(args.output)
     results = {}
     for v in (1, 2, 3):
@@ -114,7 +125,8 @@ def main():
     args.output.parent.mkdir(parents=True, exist_ok=True)
     report = dict(schema=1, shared_across_epsilon=True, seed=2042,
         episodes=2 if args.smoke else 32, episode_length=32 if args.smoke else 1024,
-        headline='g0.995_n100; see separate Bellman and grid convergence diagnostics; no optimality certificate',
+        headline={f'v{v}': dict(candidate='g0.995_n100',
+            converged_at_tested_resolution=sensitivity[f'v{v}_g0.995']['bellman_converged'] and sensitivity[f'v{v}_g0.995']['grid_agreement_within_005']) for v in (1, 2, 3)},
         grid_sensitivity=sensitivity, results=results)
     args.output.write_text(json.dumps(report, indent=2))
     lines = ['# V2 numerical reference sensitivity', '',

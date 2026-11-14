@@ -10,6 +10,7 @@ import shutil
 
 import jax
 import numpy as np
+import analysis
 
 from harness.storage.b2 import B2StorageConfig
 from harness.storage.b2 import upload_run_artifacts
@@ -180,7 +181,6 @@ def run(study, variant, smoke=False):
     pulse_records = rollout(spec, process, params, maps, jax.random.PRNGKey(3042), confirm_episodes, length, capture=True)
     pulse = run_pulse(spec, params, maps, pulse_records, variant,
                       times=(32, 80, 128) if smoke else (256, 512, 768), horizon=16 if smoke else 128)
-    import analysis
     harness_root = Path(analysis.__file__).resolve().parents[1]
     sources = {p.name: sha256(p) for p in Path(__file__).parent.glob('steering_*.py')}
     sources[Path(__file__).name] = sha256(__file__)

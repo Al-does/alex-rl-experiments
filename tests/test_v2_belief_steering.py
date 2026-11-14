@@ -73,6 +73,8 @@ def test_zero_emissions_and_quotient():
     policy = Policy(2, n=10, max_iterations=4000)
     assert policy.convergence['converged']
     assert np.isfinite(policy.actions).all()
+    full_policy = Policy(3, n=10, max_iterations=4000)
+    assert full_policy.convergence['converged']
     b = np.array([[.8, .1, .1], [.1, .3, .6]])
     observations = np.tile(np.array([[[0, 0, 1, 0, 1, 0]]]), (12, 2, 1))
     full = exact_trace(b, observations, 2, 'rho_flip')
@@ -80,6 +82,12 @@ def test_zero_emissions_and_quotient():
     np.testing.assert_allclose(full[..., 0], coarse[..., 0], atol=1e-12)
     null = exact_trace(b, observations, 2, 'mirror')
     np.testing.assert_allclose(null[..., 0], 0, atol=1e-12)
+    rng = np.random.default_rng(11)
+    beliefs = rng.dirichlet(np.ones(3), 1000)
+    for mode in ('point', 'mirror'):
+        for strength in core.LAMBDAS:
+            installed = (1-strength)*beliefs+strength*target(beliefs, mode)
+            np.testing.assert_array_equal(policy(installed), policy(beliefs))
     with pytest.raises(ValueError):
         aggregate([])
 

@@ -56,6 +56,8 @@ This computes variants 1/2/3 × gamma .97/.99/.995 × grids 60/100, all four
 targets and λ values, with exact filtering and zero-probability-safe Bellman
 updates. Predictions are shared across epsilon conditions because their physical
 processes are identical. The runner's reference-action agreement uses .995/100.
+Variant 2 uses the exact scalar reward-state quotient grid and rho-only policy
+lookup: full-simplex coordinate rounding must not introduce spurious δ effects.
 Bellman tolerance is 1e-9, cap 10k iterations. Bellman convergence is not grid
 convergence or an optimality certificate; compare both grids and all discounts.
 For norm-matched extrapolations λ>1, reference lookup projects negative installed

@@ -3,6 +3,8 @@ import argparse
 import json
 from pathlib import Path
 
+import numpy as np
+
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.belief_steering import STUDIES
 
 
@@ -38,7 +40,6 @@ def aggregate(paths):
 
 
 def np_difference(left, right):
-    import numpy as np
     delta = np.asarray(right)-left
     return dict(occupancy_difference=float(delta.mean()), paired_episode_se=float(delta.std(ddof=1)/np.sqrt(len(delta))))
 
