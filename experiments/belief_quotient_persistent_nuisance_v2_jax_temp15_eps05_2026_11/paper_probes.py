@@ -42,7 +42,7 @@ PROTOCOL = {
     "fit_test_streams": [510, 511], "control_streams": [1100, 1101],
     "ab_stream": 1200, "primary_policy": "greedy",
     "ab_policy": "sampled_training_behaviour_T1.5_with_arm_epsilon",
-    "uncertainty": "episode bootstrap for A/B TV only; one training seed",
+    "uncertainty": "episode bootstrap for A/B statistics and paired rewards; one training seed",
 }
 
 
