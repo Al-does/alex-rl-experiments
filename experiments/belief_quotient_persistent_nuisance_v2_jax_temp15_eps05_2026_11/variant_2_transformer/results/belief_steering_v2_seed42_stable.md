@@ -119,6 +119,8 @@ Checkpoint SHA256: `45f0c4beff3558efd15f1ded412bbf00bef4e656fba54938664086bd31e8
 | normmatched_point | 4 | 26.676 | 0.305115 ± 0.027482 | 0.38184 | 20.12 | 2.1281 |
 | normmatched_mirror | 4 | 32.414 | 0.300690 ± 0.024221 | 0.34729 | 21.764 | 2.3029 |
 
-Full curves, tuning, 8/128-exclusion probes, calibration diagnostics, pulse curves/rates and numerical reference convergence are in the companion JSON.
+The compact companion JSON contains headline findings; its full_report entry points to the full archived payload (curves, tuning, episode samples and pulse lag curves).
 Reference policies are discounted nearest-grid numerical approximations, not certified optima. Raw affine decoded beliefs are not clipped. Norm-matched δ uses tuning-only scalar calibration; achieved confirmation norms are reported, not assumed.
 Pulse rates fit lags 1..K above numerical floor; inspect lag 0/1 amplitudes and fit R² before interpreting a rate.
+
+Full payload: `s3://slop-bucket/experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_eps05_2026_11/variant_2_transformer/belief_steering_v2_seed42_stable/full-reports/f9506a325e6beef5f599a1f2131799194d606aafb3df59831c1188775d006c07/belief_steering_v2_seed42_stable.json`; SHA256 `f9506a325e6beef5f599a1f2131799194d606aafb3df59831c1188775d006c07`.

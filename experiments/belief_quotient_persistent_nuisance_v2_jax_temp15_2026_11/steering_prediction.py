@@ -7,6 +7,7 @@ import numpy as np
 
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.environment import action_transitions, EMISSION_MATRIX
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_core import LAMBDAS, MODES
+from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_storage import require_artifacts
 
 
 def target(b, mode):
@@ -101,6 +102,7 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--smoke', action='store_true')
     args = parser.parse_args()
+    require_artifacts(args.output)
     if args.output.exists() or args.output.with_suffix('.md').exists():
         raise FileExistsError(args.output)
     results = {}

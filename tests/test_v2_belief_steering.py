@@ -11,6 +11,7 @@ from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steer
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_pulse import exact_trace
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_aggregate import aggregate
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.belief_steering import restore, persist, STUDIES
+from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_storage import compact, pulse_summary, require_artifacts, upload_full, write_summary
 
 
 @pytest.mark.parametrize('mode', core.MODES)
@@ -117,8 +118,68 @@ def test_aggregate_complete_and_duplicate(tmp_path):
     assert len(result['probes']) == 6
     assert len(result['norm_matching']) == 6
     assert all(x['occupancy_difference'] == 0 for x in result['epsilon_minus_no_epsilon'])
+    reference = {'sha256': 'full-payload-hash', 'key': 'test/full.json'}
+    output = tmp_path/'results'/'summary.json'
+    summary = write_summary(output, result, reference)
+    assert summary == compact(aggregate(paths), reference)
+    assert 'episode_occupancy' not in summary['table'][0]['metrics']
+    assert len(output.read_text().splitlines()) < 3000
     with pytest.raises(ValueError):
         aggregate(paths[:-1]+[paths[0]])
+    paths[0].write_text(json.dumps(summary))
+    with pytest.raises(ValueError, match='full artifacts'):
+        aggregate(paths)
+
+
+def test_compact_agent_and_empty_pulse(tmp_path):
+    trace = dict(absolute=[[float(k), 0.] for k in range(129)], signed=[[0., 0.]]*129,
+                 decay={'rho': {'multiplier': .9}, 'delta': {'multiplier': None}})
+    report = dict(study=STUDIES[0], variant=1, selected={'mirror': .5}, probes={}, norm_matching={},
+        confirmation=[dict(condition='curve_mirror', strength=lam, site=3,
+            metrics={'occupancy': .4, 'episode_occupancy': [.3, .5]}) for lam in (0., .5, 1.)],
+        tuning={'large': [0]*10000}, pulse=dict(horizon=128, conditions={'mirror_block1':
+            dict(measured=trace, full_filter=trace, tv=[0.]*129, action_disagreement=[0.]*129)}))
+    result = compact(report, {'sha256': 'x'})
+    assert len(result['confirmation']) == 1 and 'tuning' not in result
+    assert 'episode_occupancy' not in result['confirmation'][0]['metrics']
+    measured = result['pulse']['conditions']['mirror_block1']['measured']
+    assert measured['last_nonzero_lag'] == 128 and measured['absolute_at_lag']['128'] == [128., 0.]
+    assert 'signed' not in measured and 'absolute' not in measured
+    assert pulse_summary({'measured': dict(absolute=[], decay={})})['measured']['last_nonzero_lag'] is None
+    with pytest.raises(ValueError, match='compact summary'):
+        compact(result, {})
+    with pytest.raises(ValueError, match='unrecognized'):
+        compact({}, {})
+    with pytest.raises(ValueError, match='artifacts'):
+        require_artifacts(tmp_path/'results/full.json')
+    require_artifacts(tmp_path/'artifacts/full.json')
+
+
+def test_full_payload_upload_hash_verification(tmp_path):
+    path = tmp_path/'full.json'
+    path.write_text('{"full": true}')
+    client = Mock()
+    client.get_object.return_value = {'Body': Mock(read=path.read_bytes)}
+    storage = Mock(bucket='test-bucket', s3_client=lambda: client)
+    with patch('harness.storage.b2.B2StorageConfig.from_env', return_value=storage):
+        reference = upload_full(path, 'analysis/full.json')
+        assert reference['uri'] == 's3://test-bucket/analysis/full.json'
+        client.upload_file.assert_called_once()
+        client.get_object.return_value = {'Body': Mock(read=lambda: b'wrong bytes')}
+        with pytest.raises(ValueError, match='B2 SHA256 mismatch'):
+            upload_full(path, 'analysis/full.json')
+
+
+def test_compact_predictions():
+    point = dict(occupancy=.5, occupancy_se=.02, action_fractions=[1., 0., 0.])
+    full = dict(headline={'v3': {'candidate': 'g0.995_n300'}}, results={
+        'v3_g0.995_n300': dict(convergence={'converged': True}, curves={'mirror': {'1.0': point}}),
+        'v3_g0.995_n100': dict(convergence={'converged': True}, curves={'mirror': {'1.0': point}})})
+    summary = compact(full, {'key': 'predictions/full.json'})
+    assert len(summary['convergence']) == 2
+    assert list(summary['headline_curves']) == ['v3_g0.995_n300']
+    assert summary['headline_curves']['v3_g0.995_n300']['mirror']['1.0'] == dict(occupancy=.5, occupancy_se=.02)
+    assert compact(dict(headline={}, results={}), {})['headline_curves'] == {}
 
 
 def test_remote_durability_contract(tmp_path):

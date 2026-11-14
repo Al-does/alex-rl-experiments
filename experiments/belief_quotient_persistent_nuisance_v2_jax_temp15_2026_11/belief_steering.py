@@ -21,6 +21,7 @@ from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.envir
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_core import AFFINE_RCOND, LAMBDAS, MODES, empty_maps, fit_maps, metrics, probe_scores, rollout
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_prediction import Policy, target
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_pulse import run_pulse
+from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_storage import local_reference, write_summary
 
 STUDIES = tuple(f'belief_quotient_persistent_nuisance_v2_jax_temp15{s}_2026_11' for s in ('', '_eps05'))
 ANALYSIS_TAG = 'seed42_stable'
@@ -64,7 +65,8 @@ def persist(leaf, raw, report_path, report):
     metadata = leaf/'results'/f'{run_id}_run'
     metadata.mkdir(parents=True, exist_ok=True)
     for source in (report_path, report_path.with_suffix('.md')):
-        shutil.copyfile(source, raw/source.name)
+        if source.resolve() != (raw/source.name).resolve():
+            shutil.copyfile(source, raw/source.name)
     manifest_path = metadata/'run_manifest.json'
     manifest = dict(status='completed', run_id=run_id,
                     git=report['provenance'], checkpoint=report['checkpoint'])
@@ -85,7 +87,7 @@ def markdown(report):
     for item in report['confirmation']:
         m = item['metrics']
         lines.append(f"| {item['condition']} | {item['site']} | {item['strength']:.5g} | {m['occupancy']:.6f} ± {m['occupancy_se']:.6f} | {m['action_change']:.5f} | {m['shift_norm']:.5g} | {m['relative_shift']:.5g} |")
-    lines += ['', 'Full curves, tuning, 8/128-exclusion probes, calibration diagnostics, pulse curves/rates and numerical reference convergence are in the companion JSON.',
+    lines += ['', 'The compact companion JSON records headline findings and a full_report B2 URI/SHA256 for full curves, tuning, episode samples and pulse lag curves. Probes use both exclusions 8/128.',
               'Reference policies are discounted nearest-grid numerical approximations, not certified optima. Raw affine decoded beliefs are not clipped. Norm-matched δ uses tuning-only scalar calibration; achieved confirmation norms are reported, not assumed.',
               'Pulse rates fit lags 1..K above numerical floor; inspect lag 0/1 amplitudes and fit R² before interpreting a rate.']
     return '\n'.join(lines)+'\n'
@@ -96,10 +98,10 @@ def run(study, variant, smoke=False):
     leaf = root/'experiments'/study/f'variant_{variant}_transformer'
     tag = 'smoke_stable' if smoke else ANALYSIS_TAG
     raw = leaf/'artifacts'/f'belief_steering_v2_{tag}'
-    output = raw if smoke else leaf/'results'
+    output = raw
     output.mkdir(parents=True, exist_ok=True)
     path = output/f'belief_steering_v2_{tag}.json'
-    if path.exists() or path.with_suffix('.md').exists():
+    if path.exists() or path.with_suffix('.md').exists() or (not smoke and (leaf/'results'/path.name).exists()):
         raise FileExistsError(f'refusing to overwrite {path}')
     start = time.perf_counter()
     checkpoint_path, checkpoint = restore(leaf, study, raw)
@@ -203,6 +205,12 @@ def run(study, variant, smoke=False):
     path.with_suffix('.md').write_text(markdown(report))
     if not smoke:
         persist(leaf, raw, path, report)
+        manifest = json.loads((leaf/'results'/f'belief_steering_v2_{tag}_run'/'run_manifest.json').read_text())
+        remote = manifest['remote_artifacts']
+        key = remote['prefix']+'/'+path.name
+        reference = dict(local_reference(path), bucket=remote['bucket'], key=key, uri=f"s3://{remote['bucket']}/{key}")
+        write_summary(leaf/'results'/path.name, report, reference)
+        shutil.copyfile(path.with_suffix('.md'), leaf/'results'/path.with_suffix('.md').name)
     steady = timings[1:]
     throughput = sum(x['decisions'] for x in steady)/sum(x['seconds'] for x in steady)
     print(f'Wrote {path}\nInstrumented throughput: {throughput:.1f} decisions/s\nTotal seconds: {report["total_seconds"]:.3f}', flush=True)

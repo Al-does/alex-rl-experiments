@@ -4,6 +4,7 @@ N = no ε training; E = ε=.05 training. Variants 1/2/3 are Trivial/Reward-State
 
 ## Important qualifications
 
+- Tracked companion JSONs are compact findings, not full analysis payloads. Full per-agent reports, original/reproduced aggregates and prediction payloads live under ignored `artifacts/full_reports/` and on B2. Each compact JSON's `full_report` records its B2 key, SHA256, byte count and local path; the campaign audit inventories all archives and invalidated-file hashes.
 - The first GPU campaign is superseded: reduced GPU affine-matmul precision caused catastrophic post-LN cancellation. Stable runs explicitly use HIGHEST affine matmul precision and least-squares rcond=1e-6. Never mix original seed42 reports with seed42_stable.
 - Scalar norm calibration is not guaranteed. Some attempted `normmatched` conditions fail even on tuning data; others fail on confirmation. Ratios below compare achieved confirmation norm with the same-agent/site rho_flip λ=1 confirmation norm. Large departures are NOT equal-strength controls.
 - All six GPU confirmation occupancy vectors exactly match fresh CPU evaluations. No-ε FSQ has one different action among 32768 (GPU Noop −1, Y +1); the other five action-share vectors match exactly. This is not bitwise policy equivalence.

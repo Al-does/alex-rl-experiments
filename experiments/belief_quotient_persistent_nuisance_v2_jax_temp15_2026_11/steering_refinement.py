@@ -10,6 +10,7 @@ import numpy as np
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.environment import action_transitions, EMISSION_MATRIX
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_core import LAMBDAS, MODES
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_prediction import simulate
+from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_storage import require_artifacts
 
 
 class InterpolatedPolicy:
@@ -66,8 +67,10 @@ def main():
     parser.add_argument('--input', type=Path, help='Reuse a completed refinement calculation')
     parser.add_argument('--base', type=Path, help='Include original references for variants 1/2')
     args = parser.parse_args()
+    require_artifacts(args.output)
     if args.output.exists() or args.output.with_suffix('.md').exists():
         raise FileExistsError(args.output)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
     if args.input:
         publish(json.loads(args.input.read_text()), args.base, args.output)
         return

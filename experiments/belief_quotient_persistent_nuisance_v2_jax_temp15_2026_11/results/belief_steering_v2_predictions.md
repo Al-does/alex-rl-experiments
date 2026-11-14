@@ -72,3 +72,5 @@ Grid sensitivity (maximum occupancy difference across targets and λ, common ran
 }
 
 Full curves are in the companion JSON and apply to both epsilon studies. Bellman convergence alone does not demonstrate grid convergence.
+
+Full payload: `s3://slop-bucket/experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11/belief_steering_v2_seed42_stable/full-reports/d8d9f6b8a36134bf021918f9f9c2ae90adb758fb90712dc33b91a18c26e6d6f1/belief_steering_v2_predictions.json`; SHA256 `d8d9f6b8a36134bf021918f9f9c2ae90adb758fb90712dc33b91a18c26e6d6f1`.

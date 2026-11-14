@@ -533,3 +533,5 @@ The reported amplitude is mean absolute effect on δ for mirror and ρ for rho_f
 | 3 | normmatched_mirror | 3 | 0.006561 | 0.026046 |
 | 3 | normmatched_point | 4 | -0.015472 | 0.024852 |
 | 3 | normmatched_mirror | 4 | -0.009186 | 0.027986 |
+
+Full payload: `s3://slop-bucket/experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11/belief_steering_v2_seed42_stable/full-reports/compact-source/belief_steering_v2_six_agents.json`; SHA256 `3137dfc12b69473b7f4e9a5be50af7018a78e1b72dbe395d3a8262bbdb0bd2de`.

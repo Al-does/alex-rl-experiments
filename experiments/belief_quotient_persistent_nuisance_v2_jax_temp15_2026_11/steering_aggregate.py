@@ -7,10 +7,13 @@ from pathlib import Path
 import numpy as np
 
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.belief_steering import STUDIES
+from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_storage import local_reference, require_artifacts, upload_full, write_summary
 
 
 def aggregate(paths):
     reports = [json.loads(Path(p).read_text()) for p in paths]
+    if any(r.get('payload_kind') == 'compact_summary' for r in reports):
+        raise ValueError('aggregation requires full artifacts payloads, not compact results summaries')
     expected = {(s, v) for s in STUDIES for v in (1, 2, 3)}
     keys = [(r['study'], r['variant']) for r in reports]
     if len(keys) != 6 or set(keys) != expected or any(r['smoke'] for r in reports):
@@ -64,9 +67,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('inputs', type=Path, nargs=6)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--full-output', type=Path, required=True)
+    parser.add_argument('--archive-key', help='Upload full output to this B2 key and verify its SHA256')
     parser.add_argument('--predictions', type=Path)
     args = parser.parse_args()
-    if args.output.exists() or args.output.with_suffix('.md').exists():
+    require_artifacts(args.full_output)
+    if args.output.exists() or args.output.with_suffix('.md').exists() or args.full_output.exists():
         raise FileExistsError(args.output)
     report = aggregate(args.inputs)
     if args.predictions:
@@ -112,7 +118,11 @@ def main():
         if c['condition'].startswith('selected_') or c['condition'].startswith('normmatched_') or c['condition'] == 'intact':
             lines.append(f"| {c['variant']} | {c['condition']} | {c['site']} | {c['occupancy_difference']:.6f} | {c['paired_episode_se']:.6f} |")
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(report, indent=2, allow_nan=False))
+    args.full_output.parent.mkdir(parents=True, exist_ok=True)
+    args.full_output.write_text(json.dumps(report, indent=2, allow_nan=False))
+    reference = upload_full(args.full_output, args.archive_key) if args.archive_key else local_reference(args.full_output)
+    write_summary(args.output, report, reference)
+    lines += ['', f"Full payload: `{reference.get('uri', reference['local_path'])}`; SHA256 `{reference['sha256']}`."]
     args.output.with_suffix('.md').write_text('\n'.join(lines)+'\n')
 
 

@@ -30,3 +30,5 @@ All γ/N solves have span Bellman residual below 1e-8. Prior nearest-grid refere
 Matched 32 complete 1024-step reference episodes, seed 2042; resolution agreement is empirical, not an optimality certificate.
 
 At mirror λ=.5, installed b1=b2 exactly: numerical X/Y ties must not become a history-dependent arbitrary policy. A fixed lowest-index tie rule removes that artifact. Discount sensitivity and finite-episode uncertainty remain distinct from grid sensitivity.
+
+Full payload: `s3://slop-bucket/experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11/belief_steering_v2_seed42_stable/full-reports/c01e5a224910a8f4efa07a01f47bde5209fd9fbd22f3732d6ce314fd1268b23c/belief_steering_v2_predictions_refined.json`; SHA256 `c01e5a224910a8f4efa07a01f47bde5209fd9fbd22f3732d6ce314fd1268b23c`.
