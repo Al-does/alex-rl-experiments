@@ -24,7 +24,7 @@ final checkpoints at 2,012,217,344 steps). No agent is retrained.
   combine the two factor actions.
 - **Steering:** identical to PR #207. Affine factored (4-d) and joint (8-d)
   decoders and embeddings are fit on 60K greedy unsteered rows (seed 42, 64
-  warmup steps dropped). Probe R² is reported on 80K held-out rows (seed 43).
+  warmup steps dropped). Probe R² (`probe_r2`, pooled over all decoded coordinates of both factors) is reported on 80K held-out rows (seed 43).
   The update is \(h' = h + \lambda(y^* - D(h))E\). \(y^*\) keeps decoded factor
   1 and puts factor 2 on the state where the agent most often takes the
   map's action. This gives Tilt X → state 1, Tilt Y → state 2, Noop → state 3
@@ -105,8 +105,9 @@ Steering changes factor-2 reward by at most 0.03 for these agents
 (`v2_moved_reward_steering_reward_factor_1.pdf`). Their factor-2 actions do
 not track the factor-2 belief the way the Joint Reward agents' actions do:
 
-- **Seed 42 (both ε):** factor 2 is poorly encoded (block-4 factored R²
-  0.60–0.62), and the factor-2 action barely depends on the belief. Unsteered
+- **Seed 42 (both ε):** factor 2 is poorly encoded (factor-2 R² 0.33–0.34 in
+  PR #225's probes; this study's factored R² of 0.60–0.62 covers both factors
+  together), and the factor-2 action barely depends on the belief. Unsteered
   factor-2 reward is 0.29–0.30 and stays there under steering.
 - **Seed 43 (both ε):** the agent almost always takes Tilt Y on factor 2,
   which happens to be the moved-reward optimum. Unsteered factor-2 reward is

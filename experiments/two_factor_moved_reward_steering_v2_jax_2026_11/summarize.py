@@ -37,7 +37,7 @@ def main() -> None:
             rows[name] = {"factor_reward": entry["factor_reward"], "factor_reward_se": entry["factor_reward_se"],
                           **({"strength": entry["strength"]} if "strength" in entry else {})}
         agents[path.stem] = {"condition": path.stem.split("__")[1], "rows": rows,
-                             "factor_2_probe_r2_block_4": report["probe_r2"]["block_4"],
+                             "both_factor_probe_r2_block_4": report["probe_r2"]["block_4"],
                              "factor_2_anchor_state_by_action_noop_x_y":
                                  report["factor_2_anchor_state_by_action_noop_x_y"]}
         grouped.setdefault(agents[path.stem]["condition"], []).append(rows)
