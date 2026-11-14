@@ -105,3 +105,16 @@ def test_intermediate_report_cache_needs_no_geometry(tmp_path):
     assert p.cached_report(cache) is None
     p.write_json(cache, {"checkpoint_step": 0})
     assert p.cached_report(cache) == {"checkpoint_step": 0}
+
+
+def test_closed_loop_uses_paired_environment_innovations():
+    process = p.environment.ladder_process(2)
+    spec = p.models.architecture_spec("memoryless", obs_dim=6, n_actions=3,
+                                     n_tokens=3, context_len=32)
+    params = p.models.init_params(spec, jax.random.PRNGKey(3))
+    params["policy"] = jax.tree_util.tree_map(lambda x: x * 0, params["policy"])
+    key = jax.random.PRNGKey(4)
+    factual = p.collect(spec, process, params, key, 4, 256)
+    actions, rewards = p.ab_closed_loop(spec, process, params, key, 4, 256)
+    np.testing.assert_array_equal(actions, factual["action"])
+    np.testing.assert_array_equal(rewards, factual["reward"])
