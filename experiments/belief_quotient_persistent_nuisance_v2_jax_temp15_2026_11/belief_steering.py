@@ -18,11 +18,12 @@ from harness.context import RunContext
 from experiments.belief_quotient_history_jax_2026_11.continuation import locate_parent_run, load_params
 from experiments.belief_quotient_history_jax_2026_11.shared import model_spec
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.environment import ladder_process
-from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_core import LAMBDAS, MODES, empty_maps, fit_maps, metrics, probe_scores, rollout
+from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_core import AFFINE_RCOND, LAMBDAS, MODES, empty_maps, fit_maps, metrics, probe_scores, rollout
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_prediction import Policy, target
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_pulse import run_pulse
 
 STUDIES = tuple(f'belief_quotient_persistent_nuisance_v2_jax_temp15{s}_2026_11' for s in ('', '_eps05'))
+ANALYSIS_TAG = 'seed42_stable'
 
 
 def sha256(path):
@@ -59,16 +60,17 @@ def revision(directory):
 
 def persist(leaf, raw, report_path, report):
     """Satisfy Vast's required-durability teardown contract without training."""
-    metadata = leaf/'results'/'belief_steering_v2_seed42_run'
+    run_id = f'belief_steering_v2_{ANALYSIS_TAG}'
+    metadata = leaf/'results'/f'{run_id}_run'
     metadata.mkdir(parents=True, exist_ok=True)
     for source in (report_path, report_path.with_suffix('.md')):
         shutil.copyfile(source, raw/source.name)
     manifest_path = metadata/'run_manifest.json'
-    manifest = dict(status='completed', run_id='belief_steering_v2_seed42',
+    manifest = dict(status='completed', run_id=run_id,
                     git=report['provenance'], checkpoint=report['checkpoint'])
     manifest_path.write_text(json.dumps(manifest, indent=2))
     context = RunContext(experiment_dir=leaf, results_dir=metadata, artifacts_dir=raw,
-                         seed=42, run_id='belief_steering_v2_seed42', upload_artifacts=True)
+                         seed=42, run_id=run_id, upload_artifacts=True)
     manifest['remote_artifacts'] = upload_run_artifacts(context,
         experiment_module=f"experiments.{report['study']}.variant_{report['variant']}_transformer.belief_steering")
     manifest_path.write_text(json.dumps(manifest, indent=2))
@@ -92,7 +94,7 @@ def markdown(report):
 def run(study, variant, smoke=False):
     root = Path(__file__).resolve().parents[2]
     leaf = root/'experiments'/study/f'variant_{variant}_transformer'
-    tag = 'smoke' if smoke else 'seed42'
+    tag = 'smoke_stable' if smoke else ANALYSIS_TAG
     raw = leaf/'artifacts'/f'belief_steering_v2_{tag}'
     output = raw if smoke else leaf/'results'
     output.mkdir(parents=True, exist_ok=True)
@@ -191,6 +193,7 @@ def run(study, variant, smoke=False):
         provenance=dict(experiment_revision=revision(root), harness_revision=revision(harness_root),
                         source_sha256=sources, jax=jax.__version__, python=platform.python_version(), devices=[str(x) for x in jax.devices()]),
         protocol=dict(fit_rows=rows, test_rows=rows, fit_seed=42, test_seed=43, exclusion=8, supplemental_exclusion=128,
+                      affine_rcond=AFFINE_RCOND, affine_matmul_precision='HIGHEST',
                       tune_seed=1042, tune_episodes=tune_episodes, confirm_seed=2042, confirm_episodes=confirm_episodes,
                       episode_length=length, lambdas=LAMBDAS, shadow='independent unsteered carry on executed trajectory inputs'),
         probes=probes, tuning=tuning, tuning_random=random_tune, selected=selected, confirmation=confirmation,

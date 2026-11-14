@@ -129,7 +129,31 @@ def test_remote_durability_contract(tmp_path):
     with patch('experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.belief_steering.upload_run_artifacts', return_value=remote) as upload:
         persist(tmp_path, raw, report_path, report)
     assert upload.call_count == 1
-    manifest = json.loads((tmp_path/'results/belief_steering_v2_seed42_run/run_manifest.json').read_text())
+    manifest = json.loads((tmp_path/'results/belief_steering_v2_seed42_stable_run/run_manifest.json').read_text())
     assert manifest['status'] == 'completed'
     assert manifest['remote_artifacts']['status'] == 'completed'
     assert (raw/'report.json').exists()
+
+
+def test_affine_discards_float32_null_directions():
+    rng = np.random.default_rng(13)
+    z = rng.normal(size=(2000, 3))
+    x = np.column_stack((z, z.sum(-1)+rng.normal(scale=1e-8, size=len(z))))
+    y = z @ np.array([[.2, .1], [.1, -.2], [.3, .4]])+rng.normal(scale=.001, size=(len(z), 2))
+    weight, bias = core.affine(x, y)
+    assert np.linalg.norm(weight) < 2
+    np.testing.assert_allclose(x.astype(np.float32) @ weight.astype(np.float32)+bias, y, atol=.005)
+
+
+def test_decoder_requests_full_precision(monkeypatch):
+    original = jnp.matmul
+    calls = []
+
+    def matmul(*args, **kwargs):
+        calls.append(kwargs.get('precision'))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(jnp, 'matmul', matmul)
+    belief = core.decode(jnp.ones((2, 64)), core.empty_maps(), 4)
+    np.testing.assert_allclose(belief, [[0, 0, 1], [0, 0, 1]])
+    assert calls == [jax.lax.Precision.HIGHEST]
