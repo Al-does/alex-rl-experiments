@@ -14,9 +14,9 @@ from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steer
 
 
 class InterpolatedPolicy:
-    def __init__(self, n, gamma, tolerance=1e-8, cap=6000):
-        self.n, self.gamma = n, gamma
-        self.transitions = action_transitions(3)
+    def __init__(self, n, gamma, tolerance=1e-8, cap=6000, variant=3):
+        self.n, self.gamma, self.variant = n, gamma, variant
+        self.transitions = action_transitions(variant)
         self.grid = np.array([(i/n, j/n, 1-(i+j)/n) for i in range(n+1) for j in range(n+1-i)])
         self.lookup = np.full((n+1, n+1), -1, int)
         ij = np.rint(self.grid[:, :2]*n).astype(int)
@@ -38,7 +38,7 @@ class InterpolatedPolicy:
             if residual < tolerance:
                 break
         self.q = q-q[0].max()
-        self.convergence = dict(method='barycentric interpolation, relative-value iteration', n=n, gamma=gamma,
+        self.convergence = dict(method='barycentric interpolation, relative-value iteration', variant=variant, n=n, gamma=gamma,
             iterations=iteration+1, span_bellman_residual=residual, relative_value_error_bound=residual/(1-gamma),
             converged=residual < tolerance, seconds=time.perf_counter()-start)
 
