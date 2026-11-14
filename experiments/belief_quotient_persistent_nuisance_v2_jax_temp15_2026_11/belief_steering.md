@@ -15,13 +15,20 @@ overwriting. `--smoke` reduces episode lengths/budgets, pulse times/horizon, and
 norm-calibration iterations; smoke reports remain under ignored `artifacts/`.
 Scientific runs also use the harness B2 uploader to persist maps, checkpoint and
 report copies and emit a terminal manifest under
-`results/belief_steering_v2_seed42_run/`, satisfying Vast's default required
+`results/belief_steering_v2_seed42_stable_run/`, satisfying Vast's default required
 durability/self-destruct contract. Upload failures propagate; they do not report
 successful durability. The CLI itself never commits, pushes or destroys boxes.
 
 Scientific protocol: 12k retained fit/test rows, seeds 42/43; affine decoder and
 encoder at blocks 1–4 and final LayerNorm; exclusion 8 plus independently fitted
 128-exclusion supplementary probes. Raw decoded beliefs are not clipped.
+Float64 least squares uses numerical-rank cutoff 1e-6, discarding near-null
+LayerNorm directions before float32 installation. Decoder and encoder matmuls
+request HIGHEST precision explicitly; default GPU reduced-precision matmul can
+otherwise amplify cancellation into catastrophic probe errors. Model operations
+are unchanged. Scientific outputs use `belief_steering_v2_seed42_stable.*` and
+a separate B2 prefix. Earlier `seed42` reports are superseded and must not be
+aggregated with the stable reports.
 Tune at block 4, seed 1042, 16 complete 1024-step episodes; smallest λ at or below
 the tuning random baseline, otherwise lowest occupancy (ties choose smallest λ).
 Confirm seed 2042, 32 complete episodes; full ten-point grid at block 4 and final
@@ -62,6 +69,16 @@ Bellman tolerance is 1e-9, cap 10k iterations. Bellman convergence is not grid
 convergence or an optimality certificate; compare both grids and all discounts.
 For norm-matched extrapolations λ>1, reference lookup projects negative installed
 coordinates to zero and renormalizes; such agreement is supplementary.
+
+Refine FSQ references with barycentric interpolation and deterministic action ties:
+
+```sh
+python -m experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_refinement --base experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11/results/belief_steering_v2_predictions.json --output NEW_REFINED_PREDICTIONS.json
+```
+
+This evaluates N=150/200/300 at all three discounts. `--input` can reuse the
+complete ignored calculation JSON when publishing the combined reference report.
+The fixed X/Y tie rule matters at mirror λ=.5, where installed b1=b2 exactly.
 
 Aggregate six completed JSON files explicitly:
 
