@@ -113,3 +113,27 @@ the compact aggregate is regenerated from them, not from compact per-agent files
 Matched episode differences quantify evaluation uncertainty only: there is one
 training seed per arm. Nuisance-only is not a fifth independent belief target:
 the S1/S2 distinction is δ itself and is reward-relevant in variant 3.
+
+## GRU arms
+
+`belief_steering_gru.py --study STUDY --variant {1,2,3} --architecture {gru128,gru92}`
+runs the same offline battery on the GRU agents (CPU is enough; about a minute
+per agent). Sites are the hidden state of each GRU layer after the cell update
+(the value carried to the next step), all hidden layers at once, and the final
+LayerNorm embedding (not carried). The target belief is built from an unsteered
+shadow network on the executed inputs, so a carried write is not re-targeted
+from the already steered state; at the final LayerNorm this is identical to the
+transformer protocol. Sustained λ=1 steering is reported at every site with the
+full λ grid at the top hidden layer and final LayerNorm. Sustained writes into a
+carried hidden state are not interpretable: the norm-matched decoder-orthogonal
+control accumulates and also drives occupancy to the random level.
+
+Pulses write once (λ=1) into one hidden layer or all of them at steps
+256/512/768 of seed-3042 episodes and follow 128 lags on the intact inputs.
+The readout is the top hidden layer's decoder. Each pulse is compared with the
+exact filter restarted from the written belief (and the quotient filter for
+variant 2), with a norm-matched decoder-orthogonal pulse, and by `tracking`:
+the per-lag correlation and regression slope of the signed measured change on
+the filter's change across the 96 branches. Full payloads are in ignored
+`artifacts/` and on B2 (key and SHA256 in each compact result's `full_report`);
+`steering_gru_aggregate.py` writes `results/belief_steering_gru_twelve_agents.md`.
