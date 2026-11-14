@@ -1,0 +1,2982 @@
+{
+ "source": {
+  "study": "reward_factors_persistent_nuisance_v2_jax_temp15_ctx32_2026_11",
+  "leaf": "reward_factor_1_transformer",
+  "condition": "reward_factor_1",
+  "seed": 43,
+  "run_id": "20261114T011234Z-da844d8b",
+  "results": "/home/ubuntu/repos/alex-rl-experiments/experiments/reward_factors_persistent_nuisance_v2_jax_temp15_ctx32_2026_11/reward_factor_1_transformer/results/20261114T011234Z-da844d8b",
+  "remote_prefix": "experiments/reward_factors_persistent_nuisance_v2_jax_temp15_ctx32_2026_11/reward_factor_1_transformer/20261114T011234Z-da844d8b"
+ },
+ "checkpoint": "ctx32_2026_11__reward_factor_1_transformer__seed43__20261114T011234Z-da844d8b__step_2012217344.npz",
+ "checkpoint_sha256": "2e4397150686656b2196605a901c13397f91a1f22515bb87e9d18d3bce74dc47",
+ "model": {
+  "chunk_len": 32,
+  "context_len": 32,
+  "feature_count": null,
+  "kind": "transformer",
+  "n_actions": 9,
+  "n_heads": 1,
+  "n_layers": 4,
+  "obs_dim": 18,
+  "width": 64
+ },
+ "source_reward_states_code": [
+  2,
+  2
+ ],
+ "moved_reward_states_code": [
+  2,
+  0
+ ],
+ "policy_mode": "greedy",
+ "episode_horizon": 1024,
+ "fit_seed": 42,
+ "test_seed": 43,
+ "fit_rows": 60000,
+ "test_rows": 80000,
+ "warmup": 64,
+ "tune_seed": 1042,
+ "tune_episodes": 64,
+ "confirm_seed": 2042,
+ "confirm_episodes": 256,
+ "probe_r2": {
+  "block_1": {
+   "marginal": 0.7305539225089612,
+   "joint": 0.7761324501651371
+  },
+  "block_2": {
+   "marginal": 0.7265741995305743,
+   "joint": 0.7713476150941558
+  },
+  "block_3": {
+   "marginal": 0.7451960074889452,
+   "joint": 0.8002332790677031
+  },
+  "block_4": {
+   "marginal": 0.7428778889897641,
+   "joint": 0.8009787201289043
+  },
+  "post_final_norm": {
+   "marginal": 0.7372578771114027,
+   "joint": 0.7989822415033874
+  }
+ },
+ "learned_action_map_rows_argmax_state_cols_noop_x_y": {
+  "factor_1": [
+   [
+    0.28505855352203846,
+    0.6246689813452598,
+    0.0902724651327017
+   ],
+   [
+    0.2835465432770822,
+    0.027218290691344585,
+    0.6892351660315732
+   ],
+   [
+    1.0,
+    0.0,
+    0.0
+   ]
+  ],
+  "factor_2": [
+   [
+    5.6708631053646363e-05,
+    0.0,
+    0.9999432913689463
+   ],
+   [
+    0.0001508978421608571,
+    0.0,
+    0.9998491021578392
+   ],
+   [
+    0.0,
+    0.0,
+    1.0
+   ]
+  ]
+ },
+ "factor_2_anchor_state_by_action_noop_x_y": [
+  1,
+  0,
+  2
+ ],
+ "analytic_factor_occupancy": {
+  "uniform_random": [
+   0.44905463542616186,
+   0.44905463542613133,
+   0.10189072914770676
+  ],
+  "state_known_myopic_policy_reward_state_0": [
+   0.4992506052929248,
+   0.49925060529288806,
+   0.001498789414187165
+  ],
+  "state_known_myopic_policy_reward_state_2": [
+   0.14778913726157927,
+   0.14778913726157392,
+   0.7044217254768468
+  ],
+  "state_known_discounted_policy_reward_state_0": [
+   0.8193674959055929,
+   0.1473531946471093,
+   0.03327930944729785
+  ],
+  "state_known_discounted_policy_reward_state_2": [
+   0.14778913726157927,
+   0.14778913726157392,
+   0.7044217254768468
+  ]
+ },
+ "action_tables_factor_2": {
+  "myopic": [
+   [
+    0.995505,
+    0.9737275941187926,
+    0.99733593924008
+   ],
+   [
+    0.002495,
+    0.002499588820150576,
+    0.0024404200353854446
+   ],
+   [
+    0.005,
+    0.054786025779423875,
+    0.054786025779423875
+   ]
+  ],
+  "discounted": [
+   [
+    89.02752449036673,
+    88.44804913462734,
+    89.07624398309558
+   ],
+   [
+    46.37192091270991,
+    46.34402714969464,
+    46.70369259876067
+   ],
+   [
+    61.594844900208855,
+    62.15971249273418,
+    62.15971249273418
+   ]
+  ]
+ },
+ "strength_tuning": {
+  "intact": {
+   "factor_reward": [
+    0.48406982421875,
+    0.80816650390625
+   ],
+   "factor_reward_se": [
+    0.01577032528231879,
+    0.015575540691820499
+   ],
+   "source_reward_state_occupancy": [
+    0.48406982421875,
+    0.034393310546875
+   ],
+   "source_reward_state_occupancy_se": [
+    0.01577032528231879,
+    0.002970932462643856
+   ],
+   "expected_next_step_reward": [
+    0.48630709922872484,
+    0.8007269287481904
+   ],
+   "expected_next_step_reward_se": [
+    0.012427305715992504,
+    0.009439411064120983
+   ],
+   "factor_action_agrees_with_action_map": [
+    0.953765869140625,
+    0.9980316162109375
+   ],
+   "factor_action_change_fraction": [
+    0.0,
+    0.0
+   ]
+  },
+  "grid": {
+   "myopic_marginal": {
+    "0.0": {
+     "factor_reward": [
+      0.48406982421875,
+      0.80816650390625
+     ],
+     "factor_reward_se": [
+      0.01577032528231879,
+      0.015575540691820499
+     ],
+     "source_reward_state_occupancy": [
+      0.48406982421875,
+      0.034393310546875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01577032528231879,
+      0.002970932462643856
+     ],
+     "expected_next_step_reward": [
+      0.48630709922872484,
+      0.8007269287481904
+     ],
+     "expected_next_step_reward_se": [
+      0.012427305715992504,
+      0.009439411064120983
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.953765869140625,
+      0.9980316162109375
+     ],
+     "factor_action_change_fraction": [
+      0.0,
+      0.0
+     ]
+    },
+    "0.25": {
+     "factor_reward": [
+      0.4834747314453125,
+      0.809051513671875
+     ],
+     "factor_reward_se": [
+      0.01587681928058898,
+      0.01516134043872337
+     ],
+     "source_reward_state_occupancy": [
+      0.4834747314453125,
+      0.03436279296875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01587681928058898,
+      0.002965546204191726
+     ],
+     "expected_next_step_reward": [
+      0.48592605208978057,
+      0.8014741763472557
+     ],
+     "expected_next_step_reward_se": [
+      0.012461938944251657,
+      0.009128082708017663
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9531402587890625,
+      0.9980316162109375
+     ],
+     "factor_action_change_fraction": [
+      0.0008087158203125,
+      3.0517578125e-05
+     ]
+    },
+    "0.5": {
+     "factor_reward": [
+      0.483184814453125,
+      0.809051513671875
+     ],
+     "factor_reward_se": [
+      0.01584789404842959,
+      0.01516134043872337
+     ],
+     "source_reward_state_occupancy": [
+      0.483184814453125,
+      0.03436279296875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01584789404842959,
+      0.002965546204191726
+     ],
+     "expected_next_step_reward": [
+      0.4856348696630448,
+      0.8014847794547677
+     ],
+     "expected_next_step_reward_se": [
+      0.01244905809078479,
+      0.009127346055281017
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.952362060546875,
+      0.9980926513671875
+     ],
+     "factor_action_change_fraction": [
+      0.001953125,
+      7.62939453125e-05
+     ]
+    },
+    "0.75": {
+     "factor_reward": [
+      0.481903076171875,
+      0.8093719482421875
+     ],
+     "factor_reward_se": [
+      0.015687860996735623,
+      0.015164915850740673
+     ],
+     "source_reward_state_occupancy": [
+      0.481903076171875,
+      0.034149169921875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015687860996735623,
+      0.0029220860883185586
+     ],
+     "expected_next_step_reward": [
+      0.4849108373746276,
+      0.8016074169427156
+     ],
+     "expected_next_step_reward_se": [
+      0.012312288356992414,
+      0.009126624626263713
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.951385498046875,
+      0.9980926513671875
+     ],
+     "factor_action_change_fraction": [
+      0.0027923583984375,
+      7.62939453125e-05
+     ]
+    },
+    "0.8": {
+     "factor_reward": [
+      0.48187255859375,
+      0.8093719482421875
+     ],
+     "factor_reward_se": [
+      0.015684285919534198,
+      0.015164915850740673
+     ],
+     "source_reward_state_occupancy": [
+      0.48187255859375,
+      0.034149169921875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015684285919534198,
+      0.0029220860883185586
+     ],
+     "expected_next_step_reward": [
+      0.48490932676941156,
+      0.8016074160113931
+     ],
+     "expected_next_step_reward_se": [
+      0.012312818959334474,
+      0.009126624525556567
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9512481689453125,
+      0.9980926513671875
+     ],
+     "factor_action_change_fraction": [
+      0.0029296875,
+      7.62939453125e-05
+     ]
+    },
+    "0.85": {
+     "factor_reward": [
+      0.48187255859375,
+      0.8093719482421875
+     ],
+     "factor_reward_se": [
+      0.015684285919534198,
+      0.015164915850740673
+     ],
+     "source_reward_state_occupancy": [
+      0.48187255859375,
+      0.034149169921875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015684285919534198,
+      0.0029220860883185586
+     ],
+     "expected_next_step_reward": [
+      0.48490690533071756,
+      0.8016074169427156
+     ],
+     "expected_next_step_reward_se": [
+      0.012313031618405282,
+      0.009126624626263713
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.951171875,
+      0.9980926513671875
+     ],
+     "factor_action_change_fraction": [
+      0.003021240234375,
+      7.62939453125e-05
+     ]
+    },
+    "0.9": {
+     "factor_reward": [
+      0.4821319580078125,
+      0.8115081787109375
+     ],
+     "factor_reward_se": [
+      0.015702971623409813,
+      0.014739954505628136
+     ],
+     "source_reward_state_occupancy": [
+      0.4821319580078125,
+      0.0341033935546875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015702971623409813,
+      0.0029224370368998048
+     ],
+     "expected_next_step_reward": [
+      0.4852269724942744,
+      0.802874549292028
+     ],
+     "expected_next_step_reward_se": [
+      0.01233565870571928,
+      0.008923112137863988
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9512786865234375,
+      0.99810791015625
+     ],
+     "factor_action_change_fraction": [
+      0.003204345703125,
+      9.1552734375e-05
+     ]
+    },
+    "0.95": {
+     "factor_reward": [
+      0.4821319580078125,
+      0.8115081787109375
+     ],
+     "factor_reward_se": [
+      0.015702971623409813,
+      0.014739954505628136
+     ],
+     "source_reward_state_occupancy": [
+      0.4821319580078125,
+      0.0341033935546875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015702971623409813,
+      0.0029224370368998048
+     ],
+     "expected_next_step_reward": [
+      0.48522056406363845,
+      0.802874549292028
+     ],
+     "expected_next_step_reward_se": [
+      0.012335894663639014,
+      0.008923112137863988
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9511871337890625,
+      0.99810791015625
+     ],
+     "factor_action_change_fraction": [
+      0.0033111572265625,
+      9.1552734375e-05
+     ]
+    },
+    "1.0": {
+     "factor_reward": [
+      0.4821319580078125,
+      0.8115081787109375
+     ],
+     "factor_reward_se": [
+      0.015702971623409813,
+      0.014739954505628136
+     ],
+     "source_reward_state_occupancy": [
+      0.4821319580078125,
+      0.0341033935546875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015702971623409813,
+      0.0029224370368998048
+     ],
+     "expected_next_step_reward": [
+      0.485219553578645,
+      0.8028745502233505
+     ],
+     "expected_next_step_reward_se": [
+      0.012335634227253879,
+      0.008923112023347805
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9510955810546875,
+      0.99810791015625
+     ],
+     "factor_action_change_fraction": [
+      0.0034332275390625,
+      9.1552734375e-05
+     ]
+    },
+    "1.25": {
+     "factor_reward": [
+      0.482879638671875,
+      0.813079833984375
+     ],
+     "factor_reward_se": [
+      0.015807523329196813,
+      0.014629981610393607
+     ],
+     "source_reward_state_occupancy": [
+      0.482879638671875,
+      0.034027099609375
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015807523329196813,
+      0.002921782531227073
+     ],
+     "expected_next_step_reward": [
+      0.4857769152149558,
+      0.8041290650144219
+     ],
+     "expected_next_step_reward_se": [
+      0.012417813160446491,
+      0.008858872713895884
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.950592041015625,
+      0.998199462890625
+     ],
+     "factor_action_change_fraction": [
+      0.0041656494140625,
+      7.62939453125e-05
+     ]
+    },
+    "1.5": {
+     "factor_reward": [
+      0.483428955078125,
+      0.81390380859375
+     ],
+     "factor_reward_se": [
+      0.01590252161224566,
+      0.014620361468063612
+     ],
+     "source_reward_state_occupancy": [
+      0.483428955078125,
+      0.0340576171875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01590252161224566,
+      0.0029195377595175945
+     ],
+     "expected_next_step_reward": [
+      0.4862551260739565,
+      0.8050029659643769
+     ],
+     "expected_next_step_reward_se": [
+      0.012468427343615604,
+      0.008800795310157285
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9506683349609375,
+      0.998199462890625
+     ],
+     "factor_action_change_fraction": [
+      0.0048828125,
+      7.62939453125e-05
+     ]
+    },
+    "2.0": {
+     "factor_reward": [
+      0.483428955078125,
+      0.81390380859375
+     ],
+     "factor_reward_se": [
+      0.01590252161224566,
+      0.014620361468063612
+     ],
+     "source_reward_state_occupancy": [
+      0.483428955078125,
+      0.0340576171875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01590252161224566,
+      0.0029195377595175945
+     ],
+     "expected_next_step_reward": [
+      0.4862037282437086,
+      0.805002317763865
+     ],
+     "expected_next_step_reward_se": [
+      0.012476588019922222,
+      0.00880085856861524
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9499969482421875,
+      0.9981842041015625
+     ],
+     "factor_action_change_fraction": [
+      0.0061492919921875,
+      9.1552734375e-05
+     ]
+    },
+    "3.0": {
+     "factor_reward": [
+      0.48248291015625,
+      0.8147430419921875
+     ],
+     "factor_reward_se": [
+      0.015630688842698567,
+      0.014652274779635552
+     ],
+     "source_reward_state_occupancy": [
+      0.48248291015625,
+      0.0340118408203125
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015630688842698567,
+      0.002923023754091296
+     ],
+     "expected_next_step_reward": [
+      0.4853495052084327,
+      0.8056328557431698
+     ],
+     "expected_next_step_reward_se": [
+      0.012168289772534091,
+      0.008809726761727055
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9480438232421875,
+      0.998199462890625
+     ],
+     "factor_action_change_fraction": [
+      0.0083465576171875,
+      7.62939453125e-05
+     ]
+    }
+   },
+   "myopic_joint": {
+    "0.0": {
+     "factor_reward": [
+      0.48406982421875,
+      0.80816650390625
+     ],
+     "factor_reward_se": [
+      0.01577032528231879,
+      0.015575540691820499
+     ],
+     "source_reward_state_occupancy": [
+      0.48406982421875,
+      0.034393310546875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01577032528231879,
+      0.002970932462643856
+     ],
+     "expected_next_step_reward": [
+      0.48630709922872484,
+      0.8007269287481904
+     ],
+     "expected_next_step_reward_se": [
+      0.012427305715992504,
+      0.009439411064120983
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.953765869140625,
+      0.9980316162109375
+     ],
+     "factor_action_change_fraction": [
+      0.0,
+      0.0
+     ]
+    },
+    "0.25": {
+     "factor_reward": [
+      0.480926513671875,
+      0.8124847412109375
+     ],
+     "factor_reward_se": [
+      0.01566963735851705,
+      0.015099099162414073
+     ],
+     "source_reward_state_occupancy": [
+      0.480926513671875,
+      0.034027099609375
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01566963735851705,
+      0.0029601451510027008
+     ],
+     "expected_next_step_reward": [
+      0.4842218484263867,
+      0.805308660492301
+     ],
+     "expected_next_step_reward_se": [
+      0.01218776264038915,
+      0.008972164972873784
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.950531005859375,
+      0.998138427734375
+     ],
+     "factor_action_change_fraction": [
+      0.00518798828125,
+      7.62939453125e-05
+     ]
+    },
+    "0.5": {
+     "factor_reward": [
+      0.48272705078125,
+      0.8184661865234375
+     ],
+     "factor_reward_se": [
+      0.01589225417903925,
+      0.014640056770966687
+     ],
+     "source_reward_state_occupancy": [
+      0.48272705078125,
+      0.033050537109375
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01589225417903925,
+      0.0029400209315905107
+     ],
+     "expected_next_step_reward": [
+      0.4859264953993261,
+      0.8094719992950559
+     ],
+     "expected_next_step_reward_se": [
+      0.012291376197451302,
+      0.008828928795991979
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9485015869140625,
+      0.99822998046875
+     ],
+     "factor_action_change_fraction": [
+      0.0084686279296875,
+      7.62939453125e-05
+     ]
+    },
+    "0.75": {
+     "factor_reward": [
+      0.4806976318359375,
+      0.8157501220703125
+     ],
+     "factor_reward_se": [
+      0.015657236393275473,
+      0.015086805997644833
+     ],
+     "source_reward_state_occupancy": [
+      0.4806976318359375,
+      0.0335845947265625
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015657236393275473,
+      0.0029489693816434686
+     ],
+     "expected_next_step_reward": [
+      0.4846751452423632,
+      0.8080635480582714
+     ],
+     "expected_next_step_reward_se": [
+      0.011998614463337762,
+      0.009181392358299158
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9458160400390625,
+      0.998199462890625
+     ],
+     "factor_action_change_fraction": [
+      0.0119781494140625,
+      9.1552734375e-05
+     ]
+    },
+    "0.8": {
+     "factor_reward": [
+      0.4803466796875,
+      0.8157501220703125
+     ],
+     "factor_reward_se": [
+      0.01571742228963803,
+      0.015086805997644833
+     ],
+     "source_reward_state_occupancy": [
+      0.4803466796875,
+      0.034149169921875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01571742228963803,
+      0.0030188319234705154
+     ],
+     "expected_next_step_reward": [
+      0.4842088541481644,
+      0.8080675350502133
+     ],
+     "expected_next_step_reward_se": [
+      0.012099147527747958,
+      0.009181233292375902
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9451904296875,
+      0.998199462890625
+     ],
+     "factor_action_change_fraction": [
+      0.012664794921875,
+      9.1552734375e-05
+     ]
+    },
+    "0.85": {
+     "factor_reward": [
+      0.476318359375,
+      0.8157501220703125
+     ],
+     "factor_reward_se": [
+      0.01575233406231903,
+      0.015086805997644833
+     ],
+     "source_reward_state_occupancy": [
+      0.476318359375,
+      0.034149169921875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01575233406231903,
+      0.0030188319234705154
+     ],
+     "expected_next_step_reward": [
+      0.481151465093717,
+      0.8080827631056309
+     ],
+     "expected_next_step_reward_se": [
+      0.012158173282337878,
+      0.009183009848329789
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9445037841796875,
+      0.998199462890625
+     ],
+     "factor_action_change_fraction": [
+      0.0135345458984375,
+      9.1552734375e-05
+     ]
+    },
+    "0.9": {
+     "factor_reward": [
+      0.476318359375,
+      0.8157501220703125
+     ],
+     "factor_reward_se": [
+      0.01575233406231903,
+      0.015086805997644833
+     ],
+     "source_reward_state_occupancy": [
+      0.476318359375,
+      0.034149169921875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01575233406231903,
+      0.0030188319234705154
+     ],
+     "expected_next_step_reward": [
+      0.48111144243739545,
+      0.8080827658995986
+     ],
+     "expected_next_step_reward_se": [
+      0.012160229334925072,
+      0.009183009439098768
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9439697265625,
+      0.998199462890625
+     ],
+     "factor_action_change_fraction": [
+      0.014373779296875,
+      9.1552734375e-05
+     ]
+    },
+    "0.95": {
+     "factor_reward": [
+      0.4757232666015625,
+      0.8157501220703125
+     ],
+     "factor_reward_se": [
+      0.01572908620996478,
+      0.015086805997644833
+     ],
+     "source_reward_state_occupancy": [
+      0.4757232666015625,
+      0.034149169921875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01572908620996478,
+      0.0030188319234705154
+     ],
+     "expected_next_step_reward": [
+      0.4802913134917617,
+      0.80797113571316
+     ],
+     "expected_next_step_reward_se": [
+      0.012130276792561784,
+      0.009194398020376846
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9429473876953125,
+      0.998199462890625
+     ],
+     "factor_action_change_fraction": [
+      0.0152587890625,
+      9.1552734375e-05
+     ]
+    },
+    "1.0": {
+     "factor_reward": [
+      0.4723358154296875,
+      0.8131561279296875
+     ],
+     "factor_reward_se": [
+      0.016020375235705438,
+      0.014942191642835473
+     ],
+     "source_reward_state_occupancy": [
+      0.4723358154296875,
+      0.034210205078125
+     ],
+     "source_reward_state_occupancy_se": [
+      0.016020375235705438,
+      0.003015696283234137
+     ],
+     "expected_next_step_reward": [
+      0.47721580881625414,
+      0.8062427071854472
+     ],
+     "expected_next_step_reward_se": [
+      0.012441089005856141,
+      0.00902098319242041
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.94195556640625,
+      0.9981231689453125
+     ],
+     "factor_action_change_fraction": [
+      0.01629638671875,
+      9.1552734375e-05
+     ]
+    },
+    "1.25": {
+     "factor_reward": [
+      0.4729766845703125,
+      0.8113861083984375
+     ],
+     "factor_reward_se": [
+      0.015263772665323133,
+      0.01530170315807949
+     ],
+     "source_reward_state_occupancy": [
+      0.4729766845703125,
+      0.0335235595703125
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015263772665323133,
+      0.0029396054504464064
+     ],
+     "expected_next_step_reward": [
+      0.4772832312155515,
+      0.8052172902971506
+     ],
+     "expected_next_step_reward_se": [
+      0.01191678347385161,
+      0.009185238370964013
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9380340576171875,
+      0.9981536865234375
+     ],
+     "factor_action_change_fraction": [
+      0.0207977294921875,
+      9.1552734375e-05
+     ]
+    },
+    "1.5": {
+     "factor_reward": [
+      0.47216796875,
+      0.8113861083984375
+     ],
+     "factor_reward_se": [
+      0.015470941145882563,
+      0.01530170315807949
+     ],
+     "source_reward_state_occupancy": [
+      0.47216796875,
+      0.0335235595703125
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015470941145882563,
+      0.0029396054504464064
+     ],
+     "expected_next_step_reward": [
+      0.476734523428604,
+      0.805117323063314
+     ],
+     "expected_next_step_reward_se": [
+      0.012019863373756825,
+      0.00917389953321748
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.935638427734375,
+      0.9981536865234375
+     ],
+     "factor_action_change_fraction": [
+      0.0239105224609375,
+      0.0001068115234375
+     ]
+    },
+    "2.0": {
+     "factor_reward": [
+      0.4854278564453125,
+      0.8114166259765625
+     ],
+     "factor_reward_se": [
+      0.016527057584354892,
+      0.015411908711430935
+     ],
+     "source_reward_state_occupancy": [
+      0.4854278564453125,
+      0.03546142578125
+     ],
+     "source_reward_state_occupancy_se": [
+      0.016527057584354892,
+      0.003264993764345185
+     ],
+     "expected_next_step_reward": [
+      0.48627095902338624,
+      0.8036611033603549
+     ],
+     "expected_next_step_reward_se": [
+      0.012915361249079993,
+      0.009028377015268025
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.930633544921875,
+      0.998138427734375
+     ],
+     "factor_action_change_fraction": [
+      0.031646728515625,
+      0.000152587890625
+     ]
+    },
+    "3.0": {
+     "factor_reward": [
+      0.472686767578125,
+      0.8088531494140625
+     ],
+     "factor_reward_se": [
+      0.015944899281106803,
+      0.015765980715314355
+     ],
+     "source_reward_state_occupancy": [
+      0.472686767578125,
+      0.0369415283203125
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015944899281106803,
+      0.003341090812176266
+     ],
+     "expected_next_step_reward": [
+      0.4740134300664067,
+      0.8026859341189265
+     ],
+     "expected_next_step_reward_se": [
+      0.012699675345244682,
+      0.009045860510964678
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.913665771484375,
+      0.998138427734375
+     ],
+     "factor_action_change_fraction": [
+      0.0520172119140625,
+      9.1552734375e-05
+     ]
+    }
+   },
+   "discounted_marginal": {
+    "0.0": {
+     "factor_reward": [
+      0.48406982421875,
+      0.80816650390625
+     ],
+     "factor_reward_se": [
+      0.01577032528231879,
+      0.015575540691820499
+     ],
+     "source_reward_state_occupancy": [
+      0.48406982421875,
+      0.034393310546875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01577032528231879,
+      0.002970932462643856
+     ],
+     "expected_next_step_reward": [
+      0.48630709922872484,
+      0.8007269287481904
+     ],
+     "expected_next_step_reward_se": [
+      0.012427305715992504,
+      0.009439411064120983
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.953765869140625,
+      0.9998779296875
+     ],
+     "factor_action_change_fraction": [
+      0.0,
+      0.0
+     ]
+    },
+    "0.25": {
+     "factor_reward": [
+      0.4834747314453125,
+      0.809051513671875
+     ],
+     "factor_reward_se": [
+      0.01587681928058898,
+      0.01516134043872337
+     ],
+     "source_reward_state_occupancy": [
+      0.4834747314453125,
+      0.03436279296875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01587681928058898,
+      0.002965546204191726
+     ],
+     "expected_next_step_reward": [
+      0.4859255803748965,
+      0.8014772497117519
+     ],
+     "expected_next_step_reward_se": [
+      0.012461973934866474,
+      0.00912735302461214
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9532012939453125,
+      0.999908447265625
+     ],
+     "factor_action_change_fraction": [
+      0.0008087158203125,
+      3.0517578125e-05
+     ]
+    },
+    "0.5": {
+     "factor_reward": [
+      0.483184814453125,
+      0.809051513671875
+     ],
+     "factor_reward_se": [
+      0.01584789404842959,
+      0.01516134043872337
+     ],
+     "source_reward_state_occupancy": [
+      0.483184814453125,
+      0.03436279296875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01584789404842959,
+      0.002965546204191726
+     ],
+     "expected_next_step_reward": [
+      0.4856351271737367,
+      0.8014878556132317
+     ],
+     "expected_next_step_reward_se": [
+      0.012448941516472434,
+      0.009126615949462714
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.95245361328125,
+      0.999969482421875
+     ],
+     "factor_action_change_fraction": [
+      0.001953125,
+      7.62939453125e-05
+     ]
+    },
+    "0.75": {
+     "factor_reward": [
+      0.481903076171875,
+      0.8093719482421875
+     ],
+     "factor_reward_se": [
+      0.015687860996735623,
+      0.015164915850740673
+     ],
+     "source_reward_state_occupancy": [
+      0.481903076171875,
+      0.034149169921875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015687860996735623,
+      0.0029220860883185586
+     ],
+     "expected_next_step_reward": [
+      0.4849098906852305,
+      0.8016104893758893
+     ],
+     "expected_next_step_reward_se": [
+      0.01231221874250086,
+      0.009125894459223755
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.951446533203125,
+      0.999969482421875
+     ],
+     "factor_action_change_fraction": [
+      0.002838134765625,
+      7.62939453125e-05
+     ]
+    },
+    "0.8": {
+     "factor_reward": [
+      0.48187255859375,
+      0.8093719482421875
+     ],
+     "factor_reward_se": [
+      0.015684285919534198,
+      0.015164915850740673
+     ],
+     "source_reward_state_occupancy": [
+      0.48187255859375,
+      0.034149169921875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015684285919534198,
+      0.0029220860883185586
+     ],
+     "expected_next_step_reward": [
+      0.4849083898589015,
+      0.8016104893758893
+     ],
+     "expected_next_step_reward_se": [
+      0.012312748715921975,
+      0.009125894302052245
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9513092041015625,
+      0.999969482421875
+     ],
+     "factor_action_change_fraction": [
+      0.0029754638671875,
+      7.62939453125e-05
+     ]
+    },
+    "0.85": {
+     "factor_reward": [
+      0.48187255859375,
+      0.8093719482421875
+     ],
+     "factor_reward_se": [
+      0.015684285919534198,
+      0.015164915850740673
+     ],
+     "source_reward_state_occupancy": [
+      0.48187255859375,
+      0.034149169921875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015684285919534198,
+      0.0029220860883185586
+     ],
+     "expected_next_step_reward": [
+      0.48490610206499696,
+      0.8016104903072119
+     ],
+     "expected_next_step_reward_se": [
+      0.012312921005510985,
+      0.009125894402762482
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9512481689453125,
+      0.999969482421875
+     ],
+     "factor_action_change_fraction": [
+      0.003082275390625,
+      7.62939453125e-05
+     ]
+    },
+    "0.9": {
+     "factor_reward": [
+      0.4821319580078125,
+      0.8115081787109375
+     ],
+     "factor_reward_se": [
+      0.015702971623409813,
+      0.014739954505628136
+     ],
+     "source_reward_state_occupancy": [
+      0.4821319580078125,
+      0.0341033935546875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015702971623409813,
+      0.0029224370368998048
+     ],
+     "expected_next_step_reward": [
+      0.48522542137652636,
+      0.8028776226565242
+     ],
+     "expected_next_step_reward_se": [
+      0.012335615785511591,
+      0.00892235833040128
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9513397216796875,
+      0.9999847412109375
+     ],
+     "factor_action_change_fraction": [
+      0.003265380859375,
+      9.1552734375e-05
+     ]
+    },
+    "0.95": {
+     "factor_reward": [
+      0.4821319580078125,
+      0.8115081787109375
+     ],
+     "factor_reward_se": [
+      0.015702971623409813,
+      0.014739954505628136
+     ],
+     "source_reward_state_occupancy": [
+      0.4821319580078125,
+      0.0341033935546875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015702971623409813,
+      0.0029224370368998048
+     ],
+     "expected_next_step_reward": [
+      0.48521932028234005,
+      0.8028776226565242
+     ],
+     "expected_next_step_reward_se": [
+      0.012335862556063622,
+      0.00892235833040128
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.951263427734375,
+      0.9999847412109375
+     ],
+     "factor_action_change_fraction": [
+      0.00335693359375,
+      9.1552734375e-05
+     ]
+    },
+    "1.0": {
+     "factor_reward": [
+      0.4821319580078125,
+      0.8115081787109375
+     ],
+     "factor_reward_se": [
+      0.015702971623409813,
+      0.014739954505628136
+     ],
+     "source_reward_state_occupancy": [
+      0.4821319580078125,
+      0.0341033935546875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015702971623409813,
+      0.0029224370368998048
+     ],
+     "expected_next_step_reward": [
+      0.48521727230399847,
+      0.8028776235878468
+     ],
+     "expected_next_step_reward_se": [
+      0.012335572777182594,
+      0.008922358215870323
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9511566162109375,
+      0.9999847412109375
+     ],
+     "factor_action_change_fraction": [
+      0.0035247802734375,
+      9.1552734375e-05
+     ]
+    },
+    "1.25": {
+     "factor_reward": [
+      0.4834747314453125,
+      0.813079833984375
+     ],
+     "factor_reward_se": [
+      0.01577523537129526,
+      0.014629981610393607
+     ],
+     "source_reward_state_occupancy": [
+      0.4834747314453125,
+      0.034027099609375
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01577523537129526,
+      0.002921782531227073
+     ],
+     "expected_next_step_reward": [
+      0.486220745369792,
+      0.8041367996484041
+     ],
+     "expected_next_step_reward_se": [
+      0.012400056022490976,
+      0.008859005003327494
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.950958251953125,
+      1.0
+     ],
+     "factor_action_change_fraction": [
+      0.0042877197265625,
+      7.62939453125e-05
+     ]
+    },
+    "1.5": {
+     "factor_reward": [
+      0.4840240478515625,
+      0.81390380859375
+     ],
+     "factor_reward_se": [
+      0.015870099976061935,
+      0.014620361468063612
+     ],
+     "source_reward_state_occupancy": [
+      0.4840240478515625,
+      0.0340576171875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015870099976061935,
+      0.0029195377595175945
+     ],
+     "expected_next_step_reward": [
+      0.4866884481161833,
+      0.8050107005983591
+     ],
+     "expected_next_step_reward_se": [
+      0.012451916086455532,
+      0.008800916281738989
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9506988525390625,
+      1.0
+     ],
+     "factor_action_change_fraction": [
+      0.0050201416015625,
+      7.62939453125e-05
+     ]
+    },
+    "2.0": {
+     "factor_reward": [
+      0.4840240478515625,
+      0.81390380859375
+     ],
+     "factor_reward_se": [
+      0.015870099976061935,
+      0.014620361468063612
+     ],
+     "source_reward_state_occupancy": [
+      0.4840240478515625,
+      0.0340576171875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015870099976061935,
+      0.0029195377595175945
+     ],
+     "expected_next_step_reward": [
+      0.486634420696646,
+      0.8050107024610043
+     ],
+     "expected_next_step_reward_se": [
+      0.012459835172755968,
+      0.008800916726459555
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9500732421875,
+      1.0
+     ],
+     "factor_action_change_fraction": [
+      0.0062713623046875,
+      7.62939453125e-05
+     ]
+    },
+    "3.0": {
+     "factor_reward": [
+      0.482208251953125,
+      0.8147430419921875
+     ],
+     "factor_reward_se": [
+      0.015646366901205647,
+      0.014652274779635552
+     ],
+     "source_reward_state_occupancy": [
+      0.482208251953125,
+      0.0340118408203125
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015646366901205647,
+      0.002923023754091296
+     ],
+     "expected_next_step_reward": [
+      0.48514383542351425,
+      0.8056466830894351
+     ],
+     "expected_next_step_reward_se": [
+      0.01217566832138838,
+      0.0088099531243015
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9481353759765625,
+      1.0
+     ],
+     "factor_action_change_fraction": [
+      0.0084686279296875,
+      7.62939453125e-05
+     ]
+    }
+   },
+   "discounted_joint": {
+    "0.0": {
+     "factor_reward": [
+      0.48406982421875,
+      0.80816650390625
+     ],
+     "factor_reward_se": [
+      0.01577032528231879,
+      0.015575540691820499
+     ],
+     "source_reward_state_occupancy": [
+      0.48406982421875,
+      0.034393310546875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01577032528231879,
+      0.002970932462643856
+     ],
+     "expected_next_step_reward": [
+      0.48630709922872484,
+      0.8007269287481904
+     ],
+     "expected_next_step_reward_se": [
+      0.012427305715992504,
+      0.009439411064120983
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.953765869140625,
+      0.9998779296875
+     ],
+     "factor_action_change_fraction": [
+      0.0,
+      0.0
+     ]
+    },
+    "0.25": {
+     "factor_reward": [
+      0.480926513671875,
+      0.8124847412109375
+     ],
+     "factor_reward_se": [
+      0.01566963735851705,
+      0.015099099162414073
+     ],
+     "source_reward_state_occupancy": [
+      0.480926513671875,
+      0.034027099609375
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01566963735851705,
+      0.0029601451510027008
+     ],
+     "expected_next_step_reward": [
+      0.48421727307140827,
+      0.8053117338567972
+     ],
+     "expected_next_step_reward_se": [
+      0.012187323790232425,
+      0.008971401738819768
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9505767822265625,
+      0.99993896484375
+     ],
+     "factor_action_change_fraction": [
+      0.0052337646484375,
+      7.62939453125e-05
+     ]
+    },
+    "0.5": {
+     "factor_reward": [
+      0.4815826416015625,
+      0.8184661865234375
+     ],
+     "factor_reward_se": [
+      0.015809691281155627,
+      0.014640056770966687
+     ],
+     "source_reward_state_occupancy": [
+      0.4815826416015625,
+      0.033050537109375
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015809691281155627,
+      0.0029400209315905107
+     ],
+     "expected_next_step_reward": [
+      0.4850428986828774,
+      0.8094663070514798
+     ],
+     "expected_next_step_reward_se": [
+      0.01221605934476414,
+      0.008828501104500992
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.94842529296875,
+      0.9999847412109375
+     ],
+     "factor_action_change_fraction": [
+      0.008544921875,
+      9.1552734375e-05
+     ]
+    },
+    "0.75": {
+     "factor_reward": [
+      0.4801483154296875,
+      0.8157501220703125
+     ],
+     "factor_reward_se": [
+      0.01554030297650104,
+      0.015086805997644833
+     ],
+     "source_reward_state_occupancy": [
+      0.4801483154296875,
+      0.0335845947265625
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01554030297650104,
+      0.0029489693816434686
+     ],
+     "expected_next_step_reward": [
+      0.48421976203098893,
+      0.8080630265176296
+     ],
+     "expected_next_step_reward_se": [
+      0.011904495033742121,
+      0.009181783008745427
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9457244873046875,
+      1.0
+     ],
+     "factor_action_change_fraction": [
+      0.01202392578125,
+      0.0001068115234375
+     ]
+    },
+    "0.8": {
+     "factor_reward": [
+      0.47979736328125,
+      0.8157501220703125
+     ],
+     "factor_reward_se": [
+      0.015600743842444547,
+      0.015086805997644833
+     ],
+     "source_reward_state_occupancy": [
+      0.47979736328125,
+      0.034149169921875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015600743842444547,
+      0.0030188319234705154
+     ],
+     "expected_next_step_reward": [
+      0.4837546746712178,
+      0.8080670163035393
+     ],
+     "expected_next_step_reward_se": [
+      0.012005691973503794,
+      0.009181624569634337
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9450531005859375,
+      1.0
+     ],
+     "factor_action_change_fraction": [
+      0.0127105712890625,
+      0.0001068115234375
+     ]
+    },
+    "0.85": {
+     "factor_reward": [
+      0.47576904296875,
+      0.8157501220703125
+     ],
+     "factor_reward_se": [
+      0.01563366959758057,
+      0.015086805997644833
+     ],
+     "source_reward_state_occupancy": [
+      0.47576904296875,
+      0.034149169921875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01563366959758057,
+      0.0030188319234705154
+     ],
+     "expected_next_step_reward": [
+      0.4806960851419717,
+      0.808082246221602
+     ],
+     "expected_next_step_reward_se": [
+      0.012063584002560674,
+      0.009183400848300173
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9443359375,
+      1.0
+     ],
+     "factor_action_change_fraction": [
+      0.013641357421875,
+      0.0001068115234375
+     ]
+    },
+    "0.9": {
+     "factor_reward": [
+      0.47576904296875,
+      0.8157501220703125
+     ],
+     "factor_reward_se": [
+      0.01563366959758057,
+      0.015086805997644833
+     ],
+     "source_reward_state_occupancy": [
+      0.47576904296875,
+      0.034149169921875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01563366959758057,
+      0.0030188319234705154
+     ],
+     "expected_next_step_reward": [
+      0.4806541681755334,
+      0.8080822490155697
+     ],
+     "expected_next_step_reward_se": [
+      0.012066025307745957,
+      0.00918340043878949
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.94378662109375,
+      1.0
+     ],
+     "factor_action_change_fraction": [
+      0.0144500732421875,
+      0.0001068115234375
+     ]
+    },
+    "0.95": {
+     "factor_reward": [
+      0.4753570556640625,
+      0.8157501220703125
+     ],
+     "factor_reward_se": [
+      0.01566395735255204,
+      0.015086805997644833
+     ],
+     "source_reward_state_occupancy": [
+      0.4753570556640625,
+      0.034149169921875
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01566395735255204,
+      0.0030188319234705154
+     ],
+     "expected_next_step_reward": [
+      0.4800627650693059,
+      0.8079706197604537
+     ],
+     "expected_next_step_reward_se": [
+      0.012064861430378309,
+      0.009194788918937265
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9428253173828125,
+      1.0
+     ],
+     "factor_action_change_fraction": [
+      0.015289306640625,
+      0.0001068115234375
+     ]
+    },
+    "1.0": {
+     "factor_reward": [
+      0.4719696044921875,
+      0.8131561279296875
+     ],
+     "factor_reward_se": [
+      0.015955201283423877,
+      0.014942191642835473
+     ],
+     "source_reward_state_occupancy": [
+      0.4719696044921875,
+      0.034210205078125
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015955201283423877,
+      0.003015696283234137
+     ],
+     "expected_next_step_reward": [
+      0.476985608227551,
+      0.8062421893700957
+     ],
+     "expected_next_step_reward_se": [
+      0.012375533768886915,
+      0.009021379856734934
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9417572021484375,
+      1.0
+     ],
+     "factor_action_change_fraction": [
+      0.0162353515625,
+      0.0001068115234375
+     ]
+    },
+    "1.25": {
+     "factor_reward": [
+      0.4721221923828125,
+      0.8113861083984375
+     ],
+     "factor_reward_se": [
+      0.01522431357200155,
+      0.01530170315807949
+     ],
+     "source_reward_state_occupancy": [
+      0.4721221923828125,
+      0.0335235595703125
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01522431357200155,
+      0.0029396054504464064
+     ],
+     "expected_next_step_reward": [
+      0.4767007799819112,
+      0.8052239716053009
+     ],
+     "expected_next_step_reward_se": [
+      0.01186667731999198,
+      0.009185142992984806
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9378662109375,
+      1.0
+     ],
+     "factor_action_change_fraction": [
+      0.0207672119140625,
+      0.0001068115234375
+     ]
+    },
+    "1.5": {
+     "factor_reward": [
+      0.4713134765625,
+      0.8113861083984375
+     ],
+     "factor_reward_se": [
+      0.015431300978163847,
+      0.01530170315807949
+     ],
+     "source_reward_state_occupancy": [
+      0.4713134765625,
+      0.0335235595703125
+     ],
+     "source_reward_state_occupancy_se": [
+      0.015431300978163847,
+      0.0029396054504464064
+     ],
+     "expected_next_step_reward": [
+      0.47617853875271976,
+      0.8051240053027868
+     ],
+     "expected_next_step_reward_se": [
+      0.011969532485570195,
+      0.009173806225299123
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9357757568359375,
+      1.0
+     ],
+     "factor_action_change_fraction": [
+      0.0237884521484375,
+      0.0001373291015625
+     ]
+    },
+    "2.0": {
+     "factor_reward": [
+      0.4848480224609375,
+      0.8110198974609375
+     ],
+     "factor_reward_se": [
+      0.016502318700473292,
+      0.015449644877300267
+     ],
+     "source_reward_state_occupancy": [
+      0.4848480224609375,
+      0.0354156494140625
+     ],
+     "source_reward_state_occupancy_se": [
+      0.016502318700473292,
+      0.003256678816768489
+     ],
+     "expected_next_step_reward": [
+      0.4858372735325247,
+      0.803240024484694
+     ],
+     "expected_next_step_reward_se": [
+      0.012832072552120306,
+      0.009057280460995654
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.931793212890625,
+      1.0
+     ],
+     "factor_action_change_fraction": [
+      0.0301055908203125,
+      0.0001373291015625
+     ]
+    },
+    "3.0": {
+     "factor_reward": [
+      0.474853515625,
+      0.8084259033203125
+     ],
+     "factor_reward_se": [
+      0.01658161863821819,
+      0.015882572432949355
+     ],
+     "source_reward_state_occupancy": [
+      0.474853515625,
+      0.035675048828125
+     ],
+     "source_reward_state_occupancy_se": [
+      0.01658161863821819,
+      0.0032921982794930247
+     ],
+     "expected_next_step_reward": [
+      0.476843447657302,
+      0.8020703280344605
+     ],
+     "expected_next_step_reward_se": [
+      0.013017301816040234,
+      0.009101012963592984
+     ],
+     "factor_action_agrees_with_action_map": [
+      0.9186553955078125,
+      0.9999847412109375
+     ],
+     "factor_action_change_fraction": [
+      0.045318603515625,
+      0.0001220703125
+     ]
+    }
+   }
+  },
+  "selected_strength": {
+   "myopic_marginal": 3.0,
+   "myopic_joint": 0.5,
+   "discounted_marginal": 3.0,
+   "discounted_joint": 0.5
+  },
+  "selection": "smallest grid strength maximizing tuning factor-2 reward"
+ },
+ "confirmation": {
+  "intact": {
+   "factor_reward": [
+    0.4728507995605469,
+    0.7971115112304688
+   ],
+   "factor_reward_se": [
+    0.009281159111316767,
+    0.008958400262365676
+   ],
+   "source_reward_state_occupancy": [
+    0.4728507995605469,
+    0.03987884521484375
+   ],
+   "source_reward_state_occupancy_se": [
+    0.009281159111316767,
+    0.0019314294314956846
+   ],
+   "expected_next_step_reward": [
+    0.4724584075738676,
+    0.7980206432985142
+   ],
+   "expected_next_step_reward_se": [
+    0.007052177293127252,
+    0.0057864659509225865
+   ],
+   "factor_action_agrees_with_action_map": [
+    0.9534950256347656,
+    0.9977569580078125
+   ],
+   "factor_action_change_fraction": [
+    0.0,
+    0.0
+   ]
+  },
+  "random": {
+   "factor_reward": [
+    0.098358154296875,
+    0.422027587890625
+   ],
+   "factor_reward_se": [
+    0.0026561735454586916,
+    0.01126302291946193
+   ],
+   "source_reward_state_occupancy": [
+    0.098358154296875,
+    0.10581588745117188
+   ],
+   "source_reward_state_occupancy_se": [
+    0.0026561735454586916,
+    0.0027640145510176425
+   ],
+   "expected_next_step_reward": [
+    0.10269546892959625,
+    0.4339805407507811
+   ],
+   "expected_next_step_reward_se": [
+    0.0010145835404067067,
+    0.007769663525943084
+   ],
+   "factor_action_agrees_with_action_map": [
+    0.33342742919921875,
+    0.3340110778808594
+   ],
+   "factor_action_change_fraction": [
+    0.6654510498046875,
+    0.6662979125976562
+   ]
+  },
+  "exact_belief_myopic_map": {
+   "factor_reward": [
+    0.4794044494628906,
+    0.7905845642089844
+   ],
+   "factor_reward_se": [
+    0.00924319106211814,
+    0.00908331955078648
+   ],
+   "source_reward_state_occupancy": [
+    0.4794044494628906,
+    0.04070281982421875
+   ],
+   "source_reward_state_occupancy_se": [
+    0.00924319106211814,
+    0.0019667272733700893
+   ],
+   "expected_next_step_reward": [
+    0.4777718468103558,
+    0.7941385911544785
+   ],
+   "expected_next_step_reward_se": [
+    0.007045429411375097,
+    0.005809091963769691
+   ],
+   "factor_action_agrees_with_action_map": [
+    1.0,
+    1.0
+   ],
+   "factor_action_change_fraction": [
+    0.032039642333984375,
+    0.00228118896484375
+   ]
+  },
+  "exact_belief_discounted_map": {
+   "factor_reward": [
+    0.4798088073730469,
+    0.7930526733398438
+   ],
+   "factor_reward_se": [
+    0.00925630566966563,
+    0.00903219722560924
+   ],
+   "source_reward_state_occupancy": [
+    0.4798088073730469,
+    0.040584564208984375
+   ],
+   "source_reward_state_occupancy_se": [
+    0.00925630566966563,
+    0.0019792533950990453
+   ],
+   "expected_next_step_reward": [
+    0.47805269772652537,
+    0.7962437366368249
+   ],
+   "expected_next_step_reward_se": [
+    0.007046602163984549,
+    0.005694691566401717
+   ],
+   "factor_action_agrees_with_action_map": [
+    1.0,
+    1.0
+   ],
+   "factor_action_change_fraction": [
+    0.03192901611328125,
+    8.0108642578125e-05
+   ]
+  },
+  "comparisons": {
+   "myopic_marginal_block_1": {
+    "strength": 3.0,
+    "factor_reward": [
+     0.4696388244628906,
+     0.7938461303710938
+    ],
+    "factor_reward_se": [
+     0.009283332689624248,
+     0.008762383419651477
+    ],
+    "source_reward_state_occupancy": [
+     0.4696388244628906,
+     0.040897369384765625
+    ],
+    "source_reward_state_occupancy_se": [
+     0.009283332689624248,
+     0.0019320198361541753
+    ],
+    "expected_next_step_reward": [
+     0.46882374794222414,
+     0.7972006546333432
+    ],
+    "expected_next_step_reward_se": [
+     0.007085346418553494,
+     0.0054835200714646445
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9351730346679688,
+     0.9978752136230469
+    ],
+    "factor_action_change_fraction": [
+     0.024242401123046875,
+     0.000926971435546875
+    ]
+   },
+   "myopic_marginal_block_2": {
+    "strength": 3.0,
+    "factor_reward": [
+     0.47274017333984375,
+     0.7941627502441406
+    ],
+    "factor_reward_se": [
+     0.00929220963867735,
+     0.009094329290239601
+    ],
+    "source_reward_state_occupancy": [
+     0.47274017333984375,
+     0.04029083251953125
+    ],
+    "source_reward_state_occupancy_se": [
+     0.00929220963867735,
+     0.001973250368967847
+    ],
+    "expected_next_step_reward": [
+     0.4722092483425513,
+     0.7967896522022784
+    ],
+    "expected_next_step_reward_se": [
+     0.007022196550738185,
+     0.005730930502375305
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9523887634277344,
+     0.9978866577148438
+    ],
+    "factor_action_change_fraction": [
+     0.01576995849609375,
+     0.000537872314453125
+    ]
+   },
+   "myopic_marginal_block_3": {
+    "strength": 3.0,
+    "factor_reward": [
+     0.4719505310058594,
+     0.7958946228027344
+    ],
+    "factor_reward_se": [
+     0.00934793119581371,
+     0.008866587781180773
+    ],
+    "source_reward_state_occupancy": [
+     0.4719505310058594,
+     0.039501190185546875
+    ],
+    "source_reward_state_occupancy_se": [
+     0.00934793119581371,
+     0.0019246791448490623
+    ],
+    "expected_next_step_reward": [
+     0.4709309602039866,
+     0.7965358790243044
+    ],
+    "expected_next_step_reward_se": [
+     0.00709530698760587,
+     0.005731797665610857
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9451408386230469,
+     0.997711181640625
+    ],
+    "factor_action_change_fraction": [
+     0.0118255615234375,
+     0.00037384033203125
+    ]
+   },
+   "myopic_marginal_block_4": {
+    "strength": 3.0,
+    "factor_reward": [
+     0.47196197509765625,
+     0.7954483032226562
+    ],
+    "factor_reward_se": [
+     0.00905496343345004,
+     0.008884646200848133
+    ],
+    "source_reward_state_occupancy": [
+     0.47196197509765625,
+     0.040019989013671875
+    ],
+    "source_reward_state_occupancy_se": [
+     0.00905496343345004,
+     0.0019400623634685686
+    ],
+    "expected_next_step_reward": [
+     0.4712019158178009,
+     0.7969405995681882
+    ],
+    "expected_next_step_reward_se": [
+     0.006854792992180629,
+     0.005712861997912652
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9473915100097656,
+     0.9978485107421875
+    ],
+    "factor_action_change_fraction": [
+     0.00885772705078125,
+     0.00012969970703125
+    ]
+   },
+   "myopic_marginal_post_final_norm": {
+    "strength": 3.0,
+    "factor_reward": [
+     0.46356201171875,
+     0.7964439392089844
+    ],
+    "factor_reward_se": [
+     0.008840176255068036,
+     0.008728785644040055
+    ],
+    "source_reward_state_occupancy": [
+     0.46356201171875,
+     0.039302825927734375
+    ],
+    "source_reward_state_occupancy_se": [
+     0.008840176255068036,
+     0.0018943603948048408
+    ],
+    "expected_next_step_reward": [
+     0.4645512973656878,
+     0.7981704336125404
+    ],
+    "expected_next_step_reward_se": [
+     0.006758799326730017,
+     0.005509583089514135
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9315643310546875,
+     0.9979095458984375
+    ],
+    "factor_action_change_fraction": [
+     0.025516510009765625,
+     0.000164031982421875
+    ]
+   },
+   "myopic_joint_block_1": {
+    "strength": 0.5,
+    "factor_reward": [
+     0.4702491760253906,
+     0.7913970947265625
+    ],
+    "factor_reward_se": [
+     0.009236815247815285,
+     0.009039258468775733
+    ],
+    "source_reward_state_occupancy": [
+     0.4702491760253906,
+     0.0407257080078125
+    ],
+    "source_reward_state_occupancy_se": [
+     0.009236815247815285,
+     0.001963908914067019
+    ],
+    "expected_next_step_reward": [
+     0.4706360246636905,
+     0.7956478390842676
+    ],
+    "expected_next_step_reward_se": [
+     0.007047354607435329,
+     0.005694459289431231
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9517707824707031,
+     0.9978904724121094
+    ],
+    "factor_action_change_fraction": [
+     0.013965606689453125,
+     0.000194549560546875
+    ]
+   },
+   "myopic_joint_block_2": {
+    "strength": 0.5,
+    "factor_reward": [
+     0.47115325927734375,
+     0.7937850952148438
+    ],
+    "factor_reward_se": [
+     0.009215641715860189,
+     0.009199516442257735
+    ],
+    "source_reward_state_occupancy": [
+     0.47115325927734375,
+     0.04001617431640625
+    ],
+    "source_reward_state_occupancy_se": [
+     0.009215641715860189,
+     0.001945194747641098
+    ],
+    "expected_next_step_reward": [
+     0.4710799369495362,
+     0.7958090201718733
+    ],
+    "expected_next_step_reward_se": [
+     0.006993792945645742,
+     0.005853271748733732
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9509620666503906,
+     0.9978675842285156
+    ],
+    "factor_action_change_fraction": [
+     0.0118560791015625,
+     0.000255584716796875
+    ]
+   },
+   "myopic_joint_block_3": {
+    "strength": 0.5,
+    "factor_reward": [
+     0.4727516174316406,
+     0.7959747314453125
+    ],
+    "factor_reward_se": [
+     0.009176088341789804,
+     0.008956013699822844
+    ],
+    "source_reward_state_occupancy": [
+     0.4727516174316406,
+     0.039798736572265625
+    ],
+    "source_reward_state_occupancy_se": [
+     0.009176088341789804,
+     0.0019411034818219578
+    ],
+    "expected_next_step_reward": [
+     0.47237792325904593,
+     0.7971842057304457
+    ],
+    "expected_next_step_reward_se": [
+     0.006958561745237304,
+     0.005734887342313991
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9499893188476562,
+     0.9978485107421875
+    ],
+    "factor_action_change_fraction": [
+     0.00928497314453125,
+     0.00014495849609375
+    ]
+   },
+   "myopic_joint_block_4": {
+    "strength": 0.5,
+    "factor_reward": [
+     0.4696006774902344,
+     0.7961921691894531
+    ],
+    "factor_reward_se": [
+     0.009104959295054057,
+     0.00900443151435783
+    ],
+    "source_reward_state_occupancy": [
+     0.4696006774902344,
+     0.039905548095703125
+    ],
+    "source_reward_state_occupancy_se": [
+     0.009104959295054057,
+     0.0019387038704015344
+    ],
+    "expected_next_step_reward": [
+     0.46999431820586324,
+     0.797458358691074
+    ],
+    "expected_next_step_reward_se": [
+     0.00691512983500819,
+     0.005791252232955538
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9485359191894531,
+     0.9978713989257812
+    ],
+    "factor_action_change_fraction": [
+     0.009143829345703125,
+     8.392333984375e-05
+    ]
+   },
+   "myopic_joint_post_final_norm": {
+    "strength": 0.5,
+    "factor_reward": [
+     0.4689979553222656,
+     0.7969284057617188
+    ],
+    "factor_reward_se": [
+     0.00912081547810376,
+     0.00895686416061642
+    ],
+    "source_reward_state_occupancy": [
+     0.4689979553222656,
+     0.039829254150390625
+    ],
+    "source_reward_state_occupancy_se": [
+     0.00912081547810376,
+     0.0019302191220190684
+    ],
+    "expected_next_step_reward": [
+     0.46950130350887775,
+     0.7978816760005429
+    ],
+    "expected_next_step_reward_se": [
+     0.006934916033406922,
+     0.005770792994119586
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9475135803222656,
+     0.9978981018066406
+    ],
+    "factor_action_change_fraction": [
+     0.00937652587890625,
+     8.7738037109375e-05
+    ]
+   },
+   "discounted_marginal_block_1": {
+    "strength": 3.0,
+    "factor_reward": [
+     0.4682655334472656,
+     0.7938194274902344
+    ],
+    "factor_reward_se": [
+     0.00925377685616881,
+     0.008762704679518294
+    ],
+    "source_reward_state_occupancy": [
+     0.4682655334472656,
+     0.0409393310546875
+    ],
+    "source_reward_state_occupancy_se": [
+     0.00925377685616881,
+     0.001932939064239557
+    ],
+    "expected_next_step_reward": [
+     0.46796891116537154,
+     0.7973053181776777
+    ],
+    "expected_next_step_reward_se": [
+     0.007064606013495549,
+     0.005466679658158677
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9357528686523438,
+     0.99993896484375
+    ],
+    "factor_action_change_fraction": [
+     0.024677276611328125,
+     0.0010528564453125
+    ]
+   },
+   "discounted_marginal_block_2": {
+    "strength": 3.0,
+    "factor_reward": [
+     0.472564697265625,
+     0.7937278747558594
+    ],
+    "factor_reward_se": [
+     0.00921033926741029,
+     0.009129098859561268
+    ],
+    "source_reward_state_occupancy": [
+     0.472564697265625,
+     0.040348052978515625
+    ],
+    "source_reward_state_occupancy_se": [
+     0.00921033926741029,
+     0.001980597213858808
+    ],
+    "expected_next_step_reward": [
+     0.4720252648112364,
+     0.796352754579857
+    ],
+    "expected_next_step_reward_se": [
+     0.006975280231866466,
+     0.005751664906166202
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9524002075195312,
+     0.9999961853027344
+    ],
+    "factor_action_change_fraction": [
+     0.015727996826171875,
+     0.000579833984375
+    ]
+   },
+   "discounted_marginal_block_3": {
+    "strength": 3.0,
+    "factor_reward": [
+     0.4717597961425781,
+     0.7945327758789062
+    ],
+    "factor_reward_se": [
+     0.009364081299184684,
+     0.008960021394755035
+    ],
+    "source_reward_state_occupancy": [
+     0.4717597961425781,
+     0.03955841064453125
+    ],
+    "source_reward_state_occupancy_se": [
+     0.009364081299184684,
+     0.001925963930692946
+    ],
+    "expected_next_step_reward": [
+     0.4709526785300113,
+     0.7960066852392629
+    ],
+    "expected_next_step_reward_se": [
+     0.007101278133275529,
+     0.005775756942116266
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9449501037597656,
+     0.9999961853027344
+    ],
+    "factor_action_change_fraction": [
+     0.01206207275390625,
+     0.0004119873046875
+    ]
+   },
+   "discounted_marginal_block_4": {
+    "strength": 3.0,
+    "factor_reward": [
+     0.471954345703125,
+     0.7954483032226562
+    ],
+    "factor_reward_se": [
+     0.009041954495440915,
+     0.008884646200848133
+    ],
+    "source_reward_state_occupancy": [
+     0.471954345703125,
+     0.040019989013671875
+    ],
+    "source_reward_state_occupancy_se": [
+     0.009041954495440915,
+     0.0019400623634685686
+    ],
+    "expected_next_step_reward": [
+     0.4711808331194334,
+     0.7969373085070401
+    ],
+    "expected_next_step_reward_se": [
+     0.006841590582472123,
+     0.005712793015623058
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9471664428710938,
+     0.9999923706054688
+    ],
+    "factor_action_change_fraction": [
+     0.00888824462890625,
+     0.000141143798828125
+    ]
+   },
+   "discounted_marginal_post_final_norm": {
+    "strength": 3.0,
+    "factor_reward": [
+     0.4627838134765625,
+     0.7976837158203125
+    ],
+    "factor_reward_se": [
+     0.008886917774114638,
+     0.008754978651431168
+    ],
+    "source_reward_state_occupancy": [
+     0.4627838134765625,
+     0.0390167236328125
+    ],
+    "source_reward_state_occupancy_se": [
+     0.008886917774114638,
+     0.001900596485196567
+    ],
+    "expected_next_step_reward": [
+     0.46400572528364137,
+     0.7987516659777611
+    ],
+    "expected_next_step_reward_se": [
+     0.006791270297077127,
+     0.005514142133639616
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9312934875488281,
+     0.9999923706054688
+    ],
+    "factor_action_change_fraction": [
+     0.025753021240234375,
+     0.00016021728515625
+    ]
+   },
+   "discounted_joint_block_1": {
+    "strength": 0.5,
+    "factor_reward": [
+     0.4713478088378906,
+     0.7908439636230469
+    ],
+    "factor_reward_se": [
+     0.009159473474915643,
+     0.009033032575770207
+    ],
+    "source_reward_state_occupancy": [
+     0.4713478088378906,
+     0.04077911376953125
+    ],
+    "source_reward_state_occupancy_se": [
+     0.009159473474915643,
+     0.0019662118837058067
+    ],
+    "expected_next_step_reward": [
+     0.4715288369334303,
+     0.7953578152228147
+    ],
+    "expected_next_step_reward_se": [
+     0.006991110998157537,
+     0.00568761875442049
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9522666931152344,
+     0.9999580383300781
+    ],
+    "factor_action_change_fraction": [
+     0.01398468017578125,
+     0.000232696533203125
+    ]
+   },
+   "discounted_joint_block_2": {
+    "strength": 0.5,
+    "factor_reward": [
+     0.4711570739746094,
+     0.7930679321289062
+    ],
+    "factor_reward_se": [
+     0.00920384957403641,
+     0.009245220554194683
+    ],
+    "source_reward_state_occupancy": [
+     0.4711570739746094,
+     0.04009246826171875
+    ],
+    "source_reward_state_occupancy_se": [
+     0.00920384957403641,
+     0.0019535858297851294
+    ],
+    "expected_next_step_reward": [
+     0.47102054714923725,
+     0.7953659357735887
+    ],
+    "expected_next_step_reward_se": [
+     0.006991270778261025,
+     0.005871068043227633
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9507217407226562,
+     0.9999885559082031
+    ],
+    "factor_action_change_fraction": [
+     0.012020111083984375,
+     0.000274658203125
+    ]
+   },
+   "discounted_joint_block_3": {
+    "strength": 0.5,
+    "factor_reward": [
+     0.4726829528808594,
+     0.7959747314453125
+    ],
+    "factor_reward_se": [
+     0.009169095093437161,
+     0.008956013699822844
+    ],
+    "source_reward_state_occupancy": [
+     0.4726829528808594,
+     0.039798736572265625
+    ],
+    "source_reward_state_occupancy_se": [
+     0.009169095093437161,
+     0.0019411034818219578
+    ],
+    "expected_next_step_reward": [
+     0.47230539296288043,
+     0.7971818273654208
+    ],
+    "expected_next_step_reward_se": [
+     0.0069509901730302436,
+     0.005734680263056573
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9497718811035156,
+     0.9999885559082031
+    ],
+    "factor_action_change_fraction": [
+     0.00925445556640625,
+     0.000171661376953125
+    ]
+   },
+   "discounted_joint_block_4": {
+    "strength": 0.5,
+    "factor_reward": [
+     0.4696311950683594,
+     0.7961921691894531
+    ],
+    "factor_reward_se": [
+     0.009084195596421898,
+     0.00900443151435783
+    ],
+    "source_reward_state_occupancy": [
+     0.4696311950683594,
+     0.039905548095703125
+    ],
+    "source_reward_state_occupancy_se": [
+     0.009084195596421898,
+     0.0019387038704015344
+    ],
+    "expected_next_step_reward": [
+     0.47003561962628737,
+     0.7974615715211257
+    ],
+    "expected_next_step_reward_se": [
+     0.006897608314857098,
+     0.005791480007101443
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9484329223632812,
+     0.9999885559082031
+    ],
+    "factor_action_change_fraction": [
+     0.00921630859375,
+     0.0001068115234375
+    ]
+   },
+   "discounted_joint_post_final_norm": {
+    "strength": 0.5,
+    "factor_reward": [
+     0.469879150390625,
+     0.7970848083496094
+    ],
+    "factor_reward_se": [
+     0.009103360265385708,
+     0.008943771998862973
+    ],
+    "source_reward_state_occupancy": [
+     0.469879150390625,
+     0.039794921875
+    ],
+    "source_reward_state_occupancy_se": [
+     0.009103360265385708,
+     0.0019285336865336314
+    ],
+    "expected_next_step_reward": [
+     0.4702711727586575,
+     0.7980098797706887
+    ],
+    "expected_next_step_reward_se": [
+     0.006929321654270373,
+     0.005761475481818028
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.94769287109375,
+     0.9999923706054688
+    ],
+    "factor_action_change_fraction": [
+     0.009441375732421875,
+     0.0001068115234375
+    ]
+   }
+  },
+  "matched_null": {
+   "myopic_marginal": {
+    "strength": 3.0,
+    "factor_reward": [
+     0.4721412658691406,
+     0.7926597595214844
+    ],
+    "factor_reward_se": [
+     0.009122043363175781,
+     0.009220826965592717
+    ],
+    "source_reward_state_occupancy": [
+     0.4721412658691406,
+     0.040195465087890625
+    ],
+    "source_reward_state_occupancy_se": [
+     0.009122043363175781,
+     0.0019507990192370317
+    ],
+    "expected_next_step_reward": [
+     0.47162911301711574,
+     0.7955422479426488
+    ],
+    "expected_next_step_reward_se": [
+     0.006918552503307305,
+     0.00590354290288295
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9454765319824219,
+     0.9974822998046875
+    ],
+    "factor_action_change_fraction": [
+     0.016506195068359375,
+     0.0004730224609375
+    ]
+   },
+   "myopic_joint": {
+    "strength": 0.5,
+    "factor_reward": [
+     0.4714508056640625,
+     0.7958259582519531
+    ],
+    "factor_reward_se": [
+     0.009189817147503752,
+     0.008910570141618163
+    ],
+    "source_reward_state_occupancy": [
+     0.4714508056640625,
+     0.03992462158203125
+    ],
+    "source_reward_state_occupancy_se": [
+     0.009189817147503752,
+     0.0019325537495086444
+    ],
+    "expected_next_step_reward": [
+     0.47128503979183733,
+     0.7971945611061528
+    ],
+    "expected_next_step_reward_se": [
+     0.00695519444956262,
+     0.005760457550310424
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9505195617675781,
+     0.9977874755859375
+    ],
+    "factor_action_change_fraction": [
+     0.007404327392578125,
+     9.5367431640625e-05
+    ]
+   },
+   "discounted_marginal": {
+    "strength": 3.0,
+    "factor_reward": [
+     0.4718780517578125,
+     0.7928504943847656
+    ],
+    "factor_reward_se": [
+     0.009098412707376203,
+     0.00922329969933307
+    ],
+    "source_reward_state_occupancy": [
+     0.4718780517578125,
+     0.040195465087890625
+    ],
+    "source_reward_state_occupancy_se": [
+     0.009098412707376203,
+     0.0019507990192370317
+    ],
+    "expected_next_step_reward": [
+     0.47153665858786553,
+     0.7956153940176591
+    ],
+    "expected_next_step_reward_se": [
+     0.006902546822185911,
+     0.005904295573431064
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.945404052734375,
+     0.9996070861816406
+    ],
+    "factor_action_change_fraction": [
+     0.0166015625,
+     0.00048065185546875
+    ]
+   },
+   "discounted_joint": {
+    "strength": 0.5,
+    "factor_reward": [
+     0.47138214111328125,
+     0.7958259582519531
+    ],
+    "factor_reward_se": [
+     0.009182796210000399,
+     0.008910570141618163
+    ],
+    "source_reward_state_occupancy": [
+     0.47138214111328125,
+     0.03992462158203125
+    ],
+    "source_reward_state_occupancy_se": [
+     0.009182796210000399,
+     0.0019325537495086444
+    ],
+    "expected_next_step_reward": [
+     0.4712170899147168,
+     0.797190853045322
+    ],
+    "expected_next_step_reward_se": [
+     0.006947547895880052,
+     0.00576039131175324
+    ],
+    "factor_action_agrees_with_action_map": [
+     0.9504547119140625,
+     0.9999198913574219
+    ],
+    "factor_action_change_fraction": [
+     0.007450103759765625,
+     0.000118255615234375
+    ]
+   }
+  }
+ },
+ "revisions": {
+  "experiment": {
+   "commit": "c6319e6764e12031f677d3e32c67b9b56982faa7",
+   "dirty": true
+  },
+  "harness": {
+   "commit": "27f1bebe41b4f78f1ec524390fb64fda39e2e754",
+   "dirty": false
+  }
+ }
+}
