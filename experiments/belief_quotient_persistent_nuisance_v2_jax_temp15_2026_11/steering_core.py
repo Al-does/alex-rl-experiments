@@ -10,6 +10,7 @@ from experiments.belief_quotient_history_jax_2026_11 import env, models
 
 MODES = ('point', 'mirror', 'rho_flip', 'rho_point')
 LAMBDAS = (0., .25, .4, .45, .5, .55, .6, .75, .9, 1.)
+AFFINE_RCOND = 1e-6
 
 
 def target(b, mode):
@@ -31,7 +32,7 @@ def empty_maps(width=64):
 
 
 def decode(h, maps, site):
-    y = h @ maps['decoder'][site] + maps['bias'][site]
+    y = jnp.matmul(h, maps['decoder'][site], precision=jax.lax.Precision.HIGHEST) + maps['bias'][site]
     return jnp.concatenate((y, 1-y.sum(-1, keepdims=True)), -1)
 
 
@@ -49,7 +50,7 @@ def instrumented_step(spec, params, carry, obs, t, maps, site=-1, mode=0,
     def install(x, index, stats):
         def apply(x):
             belief = decode(x, maps, index)
-            shift = (target(belief, mode)[..., :2]-belief[..., :2]) @ maps['encoder'][index]
+            shift = jnp.matmul(target(belief, mode)[..., :2]-belief[..., :2], maps['encoder'][index], precision=jax.lax.Precision.HIGHEST)
             shift = strength*shift
             norm = jnp.linalg.norm(shift, axis=-1)
             shift = jnp.where(orthogonal, norm[:, None]*maps['orthogonal'][index], shift)
@@ -107,7 +108,7 @@ def rollout(spec, process, params, maps, key, episodes, length, site=-1, mode=0,
 
 def affine(x, y):
     x, y = np.asarray(x, float), np.asarray(y, float)
-    coef = np.linalg.lstsq(np.column_stack((x, np.ones(len(x)))), y, rcond=None)[0]
+    coef = np.linalg.lstsq(np.column_stack((x, np.ones(len(x)))), y, rcond=AFFINE_RCOND)[0]
     return coef[:-1], coef[-1]
 
 
