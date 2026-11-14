@@ -12,3 +12,12 @@ unchanged. Everything else is inherited from the parent study.
 ```bash
 uv run --group jax rl-harness experiments.reward_factors_persistent_nuisance_v2_jax_temp15_ctx32_eps05_2026_11.reward_both_transformer.experiment --smoke --hardware-profile cpu --no-upload-artifacts
 ```
+
+`plot_training_curves.py` reads the committed results of this study and of the no-epsilon
+parent study and regenerates `results/figures/training_curves_{no_eps,eps05}.png` (one panel
+per condition and seed; linear env steps on x; factor 1, factor 2 and joint 1−R² on a log left
+axis shared across all eight panels; reward per step on the right):
+
+```bash
+uv run python -m experiments.reward_factors_persistent_nuisance_v2_jax_temp15_ctx32_eps05_2026_11.plot_training_curves
+```
