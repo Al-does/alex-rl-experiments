@@ -1,9 +1,10 @@
-"""Training curves and final action shares for the v2 temp15 transformer arms, with and without epsilon-greedy.
+"""Training curves and final action shares for the v2 temp15 arms, with and without epsilon-greedy.
 
 Reads the committed ``results/<run-id>/`` folders of both studies and writes, under
-``results/figures/``: one PNG per study (variants 1-3 side by side; belief 1-R^2 on a
-log left axis shared across all six subplots, reward per step on the right axis) and
-``action_shares.md``.
+``results/figures/``: one PNG per study and architecture (variants 1-3 side by side; belief
+1-R^2 on a log left axis shared across the six subplots of that architecture, reward per
+step on the right axis) and ``action_shares.md``. Transformer figures keep their original
+``training_curves_<study>.png`` names.
 
     uv run python -m experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_eps05_2026_11.plot_training_curves
 """
@@ -23,11 +24,12 @@ STUDIES = {
     "belief_quotient_persistent_nuisance_v2_jax_temp15_eps05_2026_11": ("eps05", "ε=0.05", "Entropy 0, T=1.5, ε-greedy ε=0.05"),
 }
 VARIANTS = (1, 2, 3)
+ARCHITECTURES = ("transformer", "memoryless", "gru128", "gru92")
 ACTIONS = ("Noop", "Tilt X", "Tilt Y")
 
 
-def load(study, variant):
-    (run,) = sorted((EXPERIMENTS / study / f"variant_{variant}_transformer" / "results").glob("2026*"))
+def load(study, variant, architecture):
+    (run,) = sorted((EXPERIMENTS / study / f"variant_{variant}_{architecture}" / "results").glob("2026*"))
     summary = json.loads((run / "condition_summary.json").read_text())
     curves = [json.loads(line) for line in (run / "training_curves.jsonl").read_text().splitlines()]
     reports = summary["checkpoint_reports"]
@@ -43,7 +45,7 @@ def load(study, variant):
     }
 
 
-def plot(data):
+def plot(data, architecture):
     errors = [e for runs in data.values() for run in runs.values() for e in run["belief_error"]]
     ylim = (min(errors) / 1.3, max(errors) * 1.3)
     billions = lambda steps: [s / 1e9 for s in steps]
@@ -60,7 +62,7 @@ def plot(data):
             ax.set_ylabel("belief 1−R² (log)", color="tab:blue")
             ax.tick_params(axis="y", colors="tab:blue")
             ax.grid(alpha=0.3, which="both")
-            ax.set_title(f"Variant {variant} — transformer")
+            ax.set_title(f"Variant {variant} — {architecture}")
             right = ax.twinx()
             right.plot(billions(run["checkpoint_steps"]), run["greedy_reward"], color="tab:red", lw=1.6,
                        label="reward/step (greedy eval)")
@@ -75,7 +77,8 @@ def plot(data):
         fig.legend(handles, labels, loc="lower center", ncol=3, frameon=False)
         fig.suptitle(f"Persistent-nuisance v2, seed 42, 2B steps — {title}")
         fig.tight_layout(rect=(0, 0.07, 1, 1))
-        fig.savefig(OUT / f"training_curves_{slug}.png", dpi=150)
+        suffix = "" if architecture == "transformer" else f"_{architecture}"
+        fig.savefig(OUT / f"training_curves_{slug}{suffix}.png", dpi=150)
         plt.close(fig)
 
 
@@ -88,20 +91,27 @@ def action_table(data):
             "sampled is the last training iteration's rollouts (T=1.5, plus the ε mixture in the ε arms)."
         ),
         "",
-        f"| Arm | Greedy {' / '.join(ACTIONS)} | Sampled {' / '.join(ACTIONS)} |",
-        "|---|---|---|",
+        f"| Architecture | Arm | Greedy {' / '.join(ACTIONS)} | Sampled {' / '.join(ACTIONS)} |",
+        "|---|---|---|---|",
     ]
-    for study, (_, label, _) in STUDIES.items():
-        for variant in VARIANTS:
-            run = data[study][variant]
-            lines.append(f"| {label} v{variant} | {fmt(run['greedy_actions'])} | {fmt(run['sampled_actions'])} |")
+    for architecture in ARCHITECTURES:
+        for study, (_, label, _) in STUDIES.items():
+            for variant in VARIANTS:
+                run = data[architecture][study][variant]
+                lines.append(
+                    f"| {architecture} | {label} v{variant} | {fmt(run['greedy_actions'])} | {fmt(run['sampled_actions'])} |"
+                )
     (OUT / "action_shares.md").write_text("\n".join(lines) + "\n")
 
 
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
-    data = {study: {v: load(study, v) for v in VARIANTS} for study in STUDIES}
-    plot(data)
+    data = {
+        architecture: {study: {v: load(study, v, architecture) for v in VARIANTS} for study in STUDIES}
+        for architecture in ARCHITECTURES
+    }
+    for architecture, runs in data.items():
+        plot(runs, architecture)
     action_table(data)
 
 
