@@ -17,7 +17,7 @@ uv run --group jax rl-harness experiments.belief_quotient_persistent_nuisance_v2
 
 `plot_training_curves.py` reads the committed results of this study and of the no-epsilon
 parent study and regenerates `results/figures/` (training curves per study; belief 1−R² on a
-log axis shared across all six panels, reward per step on the right) and `action_shares.md`:
+log axis shared across the six panels of each architecture, reward per step on the right) and `action_shares.md`:
 
 ```bash
 uv run python -m experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_eps05_2026_11.plot_training_curves
