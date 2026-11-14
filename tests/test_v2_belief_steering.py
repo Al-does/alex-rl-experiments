@@ -107,12 +107,15 @@ def test_aggregate_complete_and_duplicate(tmp_path):
     paths = []
     for i, (study, variant) in enumerate((s, v) for s in STUDIES for v in (1, 2, 3)):
         report = dict(study=study, variant=variant, smoke=False, protocol={}, checkpoint={'sha256': str(i)}, provenance={},
-            confirmation=[dict(condition='intact', site=-1, strength=0., metrics={'episode_occupancy': [.1, .3]})], pulse={'conditions': {}})
+            confirmation=[dict(condition='intact', site=-1, strength=0., metrics={'episode_occupancy': [.1, .3]})], pulse={'conditions': {}},
+            probes={'exclusion_8': [dict(b1=.8, b2=.9, rho=.99, delta=.7)]}, norm_matching={'point_site3': {'effective_lambda': 2}})
         path = tmp_path/f'{i}.json'
         path.write_text(json.dumps(report))
         paths.append(path)
     result = aggregate(paths)
     assert len(result['table']) == 6
+    assert len(result['probes']) == 6
+    assert len(result['norm_matching']) == 6
     assert all(x['occupancy_difference'] == 0 for x in result['epsilon_minus_no_epsilon'])
     with pytest.raises(ValueError):
         aggregate(paths[:-1]+[paths[0]])
