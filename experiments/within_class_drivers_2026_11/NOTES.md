@@ -44,3 +44,4 @@ Hypotheses
   Optimal policy uses only Noop+Tilt X for lam>=0 and all kappa; 3 actions only at lam<0. So decision relevance of delta is a STEP between lam 0 and -.5, not gradual.
   quotient_policy (exact rho, Q at symmetric belief) is a worse delta-blind policy at lam=0 (.040) -> report lumped as the delta-blind agent; both are upper bounds on the best delta-blind loss.
 - probe.py --trajectory added (14 checkpoints replayed on final-policy histories -> artifacts/probe/<run>/trajectory.json). PR219 RSQ seed42: delta .885 init -> .917 @100M (policy all Tilt X, reward .17) -> .873 @2B; rho .970 -> .997 by 160M and stays.
+- report.py written+works (reads artifacts/probe/*/analysis.json + trajectory.json -> results/dose_probe.json, dose_trajectory.json, dose_table.md, fig_within_class_symmetry_dose.{pdf,png}). Uncommitted results regenerate; rerun after all probes.
