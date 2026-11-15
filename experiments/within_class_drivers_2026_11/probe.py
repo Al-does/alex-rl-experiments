@@ -28,6 +28,7 @@ BASELINE = HERE.parent / "belief_quotient_persistent_nuisance_v2_jax_temp15_2026
 COUNTS = (60000, 80000)
 TARGETS = {"belief": slice(0, 3), "delta": slice(3, 4), "rho": slice(4, 5), "q_contrast": slice(5, 7)}
 FEATURES = ("full_h", "head_blind", "logits")
+TRAJECTORY_STEPS = (0, 20e6, 40e6, 60e6, 100e6, 160e6, 220e6, 300e6, 400e6, 500e6, 700e6, 1e9, 1.5e9, 2e9)
 
 
 def completed_runs():
@@ -179,14 +180,48 @@ def analyze_run(run, lam, kappa, *, bootstrap_draws=2000):
     return result
 
 
+def trajectory(run, lam, kappa):
+    """Within-final-class resolution of saved checkpoints replayed on the final policy's histories."""
+    raw = RAW / run.name
+    output = raw / "trajectory.json"
+    if output.exists():
+        return json.loads(output.read_text())
+    points = json.loads((run / "condition_summary.json").read_text())["checkpoint_reports"]
+    steps = np.array([p["checkpoint_step"] for p in points])
+    final = int(steps[-1])
+    spec, process, params, _ = restore(run, final, raw_root=raw)
+    data = histories(run, final, spec, process, params, raw_root=raw)
+    classes = [rows(d, "action", n) for d, n in zip(data, COUNTS)]
+    belief = [rows(d, "belief", n).astype(float) for d, n in zip(data, COUNTS)]
+    q = solve(kernels_for(lam), emission_for(kappa))
+    targets = [np.concatenate([b, b[:, 0:1] - b[:, 1:2], b[:, 2:3], v[:, 1:] - v[:, :1]], axis=1)
+               for b, v in zip(belief, (q(b) for b in belief))]
+    out = []
+    for index in sorted({int(np.abs(steps - target).argmin()) for target in TRAJECTORY_STEPS}):
+        step = int(steps[index])
+        _, _, checkpoint, _ = restore(run, step, raw_root=raw)
+        h = [rows({"h": np.asarray(replay(spec, checkpoint, d["obs"]))}, "h", n) for d, n in zip(data, COUNTS)]
+        prediction = refit(h[0], targets[0], h[1], *classes)
+        out.append({"step": step, "archived_policy": points[index]["policy"],
+                    "within_final_class_r2": summarize(targets[1], prediction, classes[1])})
+    result = {"run_id": run.name, "arm": run.parent.parent.name, "lam": lam, "kappa": kappa,
+              "history_policy_step": final, "points": out}
+    output.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
+    jax.clear_caches()
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--shard", type=int, default=0)
     parser.add_argument("--shards", type=int, default=1)
+    parser.add_argument("--trajectory", action="store_true")
     args = parser.parse_args()
     for index, (run, lam, kappa) in enumerate(completed_runs()):
         if index % args.shards == args.shard:
             result = analyze_run(run, lam, kappa)
+            if args.trajectory:
+                trajectory(run, lam, kappa)
             print("DONE", result["arm"], result["seed"], result["reward"]["expected_per_step"],
                   result["paired_differences"]["full_h"]["delta"]["difference"], flush=True)
 

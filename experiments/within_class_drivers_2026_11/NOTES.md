@@ -40,3 +40,7 @@ Hypotheses
   NEW: q_contrast full_h .9973 vs init .9731 (+.024); logits->q_contrast .887 vs .649; logit-margin vs Q-margin Spearman .61 trained vs .16 init; policy agrees with belief-MDP greedy 94%;
   reward .509+-.013 (CPU) / .501 (GPU archived) vs theory optimum .5337/.5316 -> ~95%.
 - analysis.json keys: trained/matched_init[feature][target], paired_differences[feature][target]{difference,ci95}, reward, test_class_counts, logit_margin_vs_q_margin_spearman, by_q_margin_tercile, global_trained.
+- theory.json (2048 ep) DONE. Key: delta-blind loss (lumped filter) lam 1:0, .75:.0006, .5:.0010, 0:.0026, -.5:.095, -1:.243; kappa .05:.003, .1:.018 (optimum .53/.46/.39/.31/.36/.49; .52/.49).
+  Optimal policy uses only Noop+Tilt X for lam>=0 and all kappa; 3 actions only at lam<0. So decision relevance of delta is a STEP between lam 0 and -.5, not gradual.
+  quotient_policy (exact rho, Q at symmetric belief) is a worse delta-blind policy at lam=0 (.040) -> report lumped as the delta-blind agent; both are upper bounds on the best delta-blind loss.
+- probe.py --trajectory added (14 checkpoints replayed on final-policy histories -> artifacts/probe/<run>/trajectory.json). PR219 RSQ seed42: delta .885 init -> .917 @100M (policy all Tilt X, reward .17) -> .873 @2B; rho .970 -> .997 by 160M and stays.
