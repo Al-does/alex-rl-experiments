@@ -21,7 +21,7 @@ from experiments.within_class_belief_probes_2026_11.temp15 import TOLERANCE_REAS
 HERE = Path(__file__).resolve().parent
 EXPERIMENTS = HERE.parent
 REPO = EXPERIMENTS.parent
-RAW = REPO / "artifacts/within_class_exploration_sweep"
+RAW = HERE / "artifacts"
 OUTPUT = HERE / "results/within_class_exploration_sweep.json"
 PR219 = {"belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11": (0., 0.),
          "belief_quotient_persistent_nuisance_v2_jax_temp15_eps05_2026_11": (.05, 0.)}
