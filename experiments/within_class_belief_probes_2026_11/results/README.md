@@ -295,3 +295,130 @@ Matched initialization replays exact final-policy token/previous-action streams 
 Protocol: post-final-LayerNorm 64-D embeddings, 60K fit / 80K test rows, 64-step warmup, 1024-step episodes, ridge 1e−6, original split(fold_in(PRNGKey(42),2)) streams. Head-blinding removes two action-logit-difference directions (62 remain), retaining common logit shifts; each encoder uses its own head. Episode bootstrap recomputes class means but holds probes fixed, conditioning on the CPU histories and one seed. Last scored episodes are truncated to the row budgets. No training-seed or between-epsilon causal inference is supported. Accessibility does not establish causal use or Bayesian computation.
 
 Source: PR219 branch `devin/1794431156-v2-temp15-eps-greedy` at `58a26c8c6c2bc1fda82845db4727a6c7397842a4`. Imported selected transformer records and recipe/environment sources using git archive, no merge/rebase. The JSON includes hashes/bytes and source/runtime provenance, init/intermediate/final per-class/scalar/control scores, matched-init metrics and paired intervals. Checkpoint caches are separated by study to avoid collisions between epsilon settings.
+
+## PR219 checkpoint trajectories: own histories versus fixed final histories
+
+All six seed-42 transformer runs have 102 durable checkpoints. The full per-run inventory (step, B2 key, bytes, SHA-256 and selection flag) is in the trajectory JSON. Twelve checkpoints per run are analyzed using a prespecified hybrid of early geometric and late even index spacing, including init, saved midpoint and final. No decoding values were used to choose the sampling grid. Peaks refer only to sampled checkpoints; an unsampled peak or drop cannot be ruled out.
+
+### B2 inventory
+
+Each prefix below contains `metadata/durability_manifest.json`; checkpoint keys, hashes and byte counts come from that canonical manifest. All selected checkpoint files are verified before restoration.
+
+| Quotient | Epsilon | Saved / analyzed | B2 prefix |
+|---|---:|---:|---|
+| Trivial Quotient | 0.00 | 102 / 12 | `s3://slop-bucket/experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11/variant_1_transformer/20261111T210842Z-052519d0/` |
+| Reward-State Quotient | 0.00 | 102 / 12 | `s3://slop-bucket/experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11/variant_2_transformer/20261111T210836Z-f0ecb162/` |
+| Full-State Quotient | 0.00 | 102 / 12 | `s3://slop-bucket/experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11/variant_3_transformer/20261111T210841Z-f5aebec9/` |
+| Trivial Quotient | 0.05 | 102 / 12 | `s3://slop-bucket/experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_eps05_2026_11/variant_1_transformer/20261111T210836Z-35ca5c85/` |
+| Reward-State Quotient | 0.05 | 102 / 12 | `s3://slop-bucket/experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_eps05_2026_11/variant_2_transformer/20261111T210838Z-f38d4c4c/` |
+| Full-State Quotient | 0.05 | 102 / 12 | `s3://slop-bucket/experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_eps05_2026_11/variant_3_transformer/20261111T211013Z-047a55e1/` |
+
+Every run has the following saved steps (shared inventory; each run's corresponding B2 objects are enumerated separately in JSON):
+
+```text
+0, 19922944, 39845888, 59768832, 79691776, 99614720, 119537664, 139460608, 159383552, 179306496, 199229440, 219152384, 239075328, 258998272, 278921216, 298844160, 318767104, 338690048, 358612992, 378535936, 398458880, 418381824, 438304768, 458227712, 478150656, 498073600, 517996544, 537919488, 557842432, 577765376, 597688320, 617611264, 637534208, 657457152, 677380096, 697303040, 717225984, 737148928, 757071872, 776994816, 796917760, 816840704, 836763648, 856686592, 876609536, 896532480, 916455424, 936378368, 956301312, 976224256, 996147200, 1016070144, 1035993088, 1055916032, 1075838976, 1095761920, 1115684864, 1135607808, 1155530752, 1175453696, 1195376640, 1215299584, 1235222528, 1255145472, 1275068416, 1294991360, 1314914304, 1334837248, 1354760192, 1374683136, 1394606080, 1414529024, 1434451968, 1454374912, 1474297856, 1494220800, 1514143744, 1534066688, 1553989632, 1573912576, 1593835520, 1613758464, 1633681408, 1653604352, 1673527296, 1693450240, 1713373184, 1733296128, 1753219072, 1773142016, 1793064960, 1812987904, 1832910848, 1852833792, 1872756736, 1892679680, 1912602624, 1932525568, 1952448512, 1972371456, 1992294400, 2012217344
+```
+
+### Sampled trajectories
+
+R² values below are pooled class-centred within-greedy-class full-h belief scores. Own histories use each checkpoint's policy streams/classes; fixed histories use final-policy streams/targets/classes and refit the probe for every encoder. Reward is the realized greedy reward per scored own-policy step, not a reward earned by an encoder on fixed actions. JSON also includes global R², head-blind, logits, delta/rho, class counts, one-class flags and pointwise episode-bootstrap intervals for all scores and reward.
+
+| Quotient | Epsilon | Steps | Own-history R² | Fixed-history R² | Greedy reward | One-class own |
+|---|---:|---:|---:|---:|---:|---|
+| Trivial Quotient | 0.00 | 0 | 0.833117 | 0.900899 | 0.087362 | No |
+| Trivial Quotient | 0.00 | 19922944 | 0.922380 | 0.922380 | 0.965163 | Yes |
+| Trivial Quotient | 0.00 | 39845888 | 0.925220 | 0.925220 | 0.965163 | Yes |
+| Trivial Quotient | 0.00 | 99614720 | 0.939596 | 0.939596 | 0.965163 | Yes |
+| Trivial Quotient | 0.00 | 219152384 | 0.970401 | 0.970401 | 0.965163 | Yes |
+| Trivial Quotient | 0.00 | 498073600 | 0.966967 | 0.966967 | 0.965163 | Yes |
+| Trivial Quotient | 0.00 | 796917760 | 0.974811 | 0.974811 | 0.965163 | Yes |
+| Trivial Quotient | 0.00 | 996147200 | 0.973116 | 0.973116 | 0.965163 | Yes |
+| Trivial Quotient | 0.00 | 1115684864 | 0.969468 | 0.969468 | 0.965163 | Yes |
+| Trivial Quotient | 0.00 | 1414529024 | 0.964401 | 0.964401 | 0.965163 | Yes |
+| Trivial Quotient | 0.00 | 1713373184 | 0.958737 | 0.958737 | 0.965163 | Yes |
+| Trivial Quotient | 0.00 | 2012217344 | 0.959598 | 0.959598 | 0.965163 | Yes |
+| Reward-State Quotient | 0.00 | 0 | 0.864559 | 0.915188 | 0.051488 | No |
+| Reward-State Quotient | 0.00 | 19922944 | 0.897409 | 0.926689 | 0.172725 | Yes |
+| Reward-State Quotient | 0.00 | 39845888 | 0.906467 | 0.932369 | 0.172725 | Yes |
+| Reward-State Quotient | 0.00 | 99614720 | 0.939250 | 0.942844 | 0.172725 | Yes |
+| Reward-State Quotient | 0.00 | 219152384 | 0.940165 | 0.938273 | 0.172725 | Yes |
+| Reward-State Quotient | 0.00 | 498073600 | 0.939672 | 0.939759 | 0.499250 | No |
+| Reward-State Quotient | 0.00 | 796917760 | 0.935131 | 0.935045 | 0.501238 | No |
+| Reward-State Quotient | 0.00 | 996147200 | 0.934345 | 0.934195 | 0.501238 | No |
+| Reward-State Quotient | 0.00 | 1115684864 | 0.930879 | 0.930659 | 0.501238 | No |
+| Reward-State Quotient | 0.00 | 1414529024 | 0.930014 | 0.930014 | 0.501113 | No |
+| Reward-State Quotient | 0.00 | 1713373184 | 0.931615 | 0.931615 | 0.501113 | No |
+| Reward-State Quotient | 0.00 | 2012217344 | 0.917327 | 0.917327 | 0.501113 | No |
+| Full-State Quotient | 0.00 | 0 | 0.867052 | 0.917478 | 0.070662 | No |
+| Full-State Quotient | 0.00 | 19922944 | 0.805209 | 0.927627 | 0.038863 | No |
+| Full-State Quotient | 0.00 | 39845888 | 0.645191 | 0.930724 | 0.086675 | No |
+| Full-State Quotient | 0.00 | 99614720 | 0.878554 | 0.947304 | 0.130275 | No |
+| Full-State Quotient | 0.00 | 219152384 | 0.956675 | 0.962517 | 0.429112 | No |
+| Full-State Quotient | 0.00 | 498073600 | 0.958770 | 0.965077 | 0.463313 | No |
+| Full-State Quotient | 0.00 | 796917760 | 0.964280 | 0.967384 | 0.458025 | No |
+| Full-State Quotient | 0.00 | 996147200 | 0.963038 | 0.967798 | 0.455213 | No |
+| Full-State Quotient | 0.00 | 1115684864 | 0.966168 | 0.969590 | 0.449313 | No |
+| Full-State Quotient | 0.00 | 1414529024 | 0.969655 | 0.971206 | 0.454275 | No |
+| Full-State Quotient | 0.00 | 1713373184 | 0.971982 | 0.971938 | 0.463575 | No |
+| Full-State Quotient | 0.00 | 2012217344 | 0.969721 | 0.969721 | 0.465250 | No |
+| Trivial Quotient | 0.05 | 0 | 0.833117 | 0.900899 | 0.087362 | No |
+| Trivial Quotient | 0.05 | 19922944 | 0.924894 | 0.924894 | 0.965163 | Yes |
+| Trivial Quotient | 0.05 | 39845888 | 0.930224 | 0.930224 | 0.965163 | Yes |
+| Trivial Quotient | 0.05 | 99614720 | 0.944117 | 0.944117 | 0.965163 | Yes |
+| Trivial Quotient | 0.05 | 219152384 | 0.973949 | 0.973949 | 0.965163 | Yes |
+| Trivial Quotient | 0.05 | 498073600 | 0.971550 | 0.971550 | 0.965163 | Yes |
+| Trivial Quotient | 0.05 | 796917760 | 0.970413 | 0.970413 | 0.965163 | Yes |
+| Trivial Quotient | 0.05 | 996147200 | 0.970056 | 0.970056 | 0.965163 | Yes |
+| Trivial Quotient | 0.05 | 1115684864 | 0.969839 | 0.969839 | 0.965163 | Yes |
+| Trivial Quotient | 0.05 | 1414529024 | 0.969015 | 0.969015 | 0.965163 | Yes |
+| Trivial Quotient | 0.05 | 1713373184 | 0.968076 | 0.968076 | 0.965163 | Yes |
+| Trivial Quotient | 0.05 | 2012217344 | 0.967503 | 0.967503 | 0.965163 | Yes |
+| Reward-State Quotient | 0.05 | 0 | 0.864559 | 0.918074 | 0.051488 | No |
+| Reward-State Quotient | 0.05 | 19922944 | 0.900588 | 0.929910 | 0.172725 | Yes |
+| Reward-State Quotient | 0.05 | 39845888 | 0.909995 | 0.935779 | 0.172725 | Yes |
+| Reward-State Quotient | 0.05 | 99614720 | 0.947633 | 0.940714 | 0.172725 | Yes |
+| Reward-State Quotient | 0.05 | 219152384 | 0.941447 | 0.938514 | 0.172725 | Yes |
+| Reward-State Quotient | 0.05 | 498073600 | 0.928982 | 0.932313 | 0.490137 | No |
+| Reward-State Quotient | 0.05 | 796917760 | 0.936920 | 0.940114 | 0.497375 | No |
+| Reward-State Quotient | 0.05 | 996147200 | 0.938905 | 0.939867 | 0.503663 | No |
+| Reward-State Quotient | 0.05 | 1115684864 | 0.938909 | 0.939092 | 0.505463 | No |
+| Reward-State Quotient | 0.05 | 1414529024 | 0.938961 | 0.938960 | 0.505463 | No |
+| Reward-State Quotient | 0.05 | 1713373184 | 0.936624 | 0.936002 | 0.508438 | No |
+| Reward-State Quotient | 0.05 | 2012217344 | 0.938354 | 0.938354 | 0.505463 | No |
+| Full-State Quotient | 0.05 | 0 | 0.867052 | 0.914324 | 0.070662 | No |
+| Full-State Quotient | 0.05 | 19922944 | 0.860679 | 0.923244 | 0.090650 | No |
+| Full-State Quotient | 0.05 | 39845888 | 0.884475 | 0.930459 | 0.036150 | Yes |
+| Full-State Quotient | 0.05 | 99614720 | 0.926966 | 0.958601 | 0.130912 | No |
+| Full-State Quotient | 0.05 | 219152384 | 0.959082 | 0.964592 | 0.377400 | No |
+| Full-State Quotient | 0.05 | 498073600 | 0.958153 | 0.964563 | 0.424200 | No |
+| Full-State Quotient | 0.05 | 796917760 | 0.957325 | 0.959753 | 0.446788 | No |
+| Full-State Quotient | 0.05 | 996147200 | 0.955557 | 0.958031 | 0.446988 | No |
+| Full-State Quotient | 0.05 | 1115684864 | 0.956625 | 0.959249 | 0.457475 | No |
+| Full-State Quotient | 0.05 | 1414529024 | 0.956722 | 0.956369 | 0.461163 | No |
+| Full-State Quotient | 0.05 | 1713373184 | 0.955528 | 0.954879 | 0.468250 | No |
+| Full-State Quotient | 0.05 | 2012217344 | 0.954003 | 0.954003 | 0.470987 | No |
+
+### Fixed-history peak minus final
+
+Exploratory paired intervals condition on the observed selected peak and fitted probes; they are **not corrected for choosing the maximum**, do not cover unsampled checkpoints, and are not training-seed intervals. A final-checkpoint peak has exactly zero paired difference by construction.
+
+| Quotient | Epsilon | Peak checkpoint steps | Peak − final | Paired 95% CI |
+|---|---:|---:|---:|---|
+| Trivial Quotient | 0.00 | 796917760 | +0.015214 | [+0.013129, +0.017664] |
+| Reward-State Quotient | 0.00 | 99614720 | +0.025518 | [+0.021456, +0.029656] |
+| Full-State Quotient | 0.00 | 1713373184 | +0.002217 | [+0.001761, +0.002677] |
+| Trivial Quotient | 0.05 | 219152384 | +0.006446 | [+0.003911, +0.009626] |
+| Reward-State Quotient | 0.05 | 99614720 | +0.002359 | [+0.000181, +0.004520] |
+| Full-State Quotient | 0.05 | 219152384 | +0.010589 | [+0.008892, +0.012212] |
+
+Descriptively, 6/6 sampled fixed-history trajectories peak before final. This is not a claim of monotonic decline, statistical confirmation after maximum selection, or loss of causally used belief information. Own-history changes additionally reflect visitation and action-class changes; reward is a separate measure.
+
+**One-class own-history points:** Trivial Quotient, epsilon 0.00, step 19922944; Trivial Quotient, epsilon 0.00, step 39845888; Trivial Quotient, epsilon 0.00, step 99614720; Trivial Quotient, epsilon 0.00, step 219152384; Trivial Quotient, epsilon 0.00, step 498073600; Trivial Quotient, epsilon 0.00, step 796917760; Trivial Quotient, epsilon 0.00, step 996147200; Trivial Quotient, epsilon 0.00, step 1115684864; Trivial Quotient, epsilon 0.00, step 1414529024; Trivial Quotient, epsilon 0.00, step 1713373184; Trivial Quotient, epsilon 0.00, step 2012217344; Reward-State Quotient, epsilon 0.00, step 19922944; Reward-State Quotient, epsilon 0.00, step 39845888; Reward-State Quotient, epsilon 0.00, step 99614720; Reward-State Quotient, epsilon 0.00, step 219152384; Trivial Quotient, epsilon 0.05, step 19922944; Trivial Quotient, epsilon 0.05, step 39845888; Trivial Quotient, epsilon 0.05, step 99614720; Trivial Quotient, epsilon 0.05, step 219152384; Trivial Quotient, epsilon 0.05, step 498073600; Trivial Quotient, epsilon 0.05, step 796917760; Trivial Quotient, epsilon 0.05, step 996147200; Trivial Quotient, epsilon 0.05, step 1115684864; Trivial Quotient, epsilon 0.05, step 1414529024; Trivial Quotient, epsilon 0.05, step 1713373184; Trivial Quotient, epsilon 0.05, step 2012217344; Reward-State Quotient, epsilon 0.05, step 19922944; Reward-State Quotient, epsilon 0.05, step 39845888; Reward-State Quotient, epsilon 0.05, step 99614720; Reward-State Quotient, epsilon 0.05, step 219152384; Full-State Quotient, epsilon 0.05, step 39845888.
+
+A one-class within-class score equals the corresponding global affine score. All fixed-history points inherit their final policy's classes, so both Trivial fixed-history tracks are one-class throughout. Class changes make the own-history denominator vary; fixed-history tracks keep that denominator and visitation fixed.
+
+**Excluded predictions:** None.
+
+Uncertainty: 2000 pointwise whole-test-episode bootstrap resamples; 10000 paired peak-minus-final resamples; probes held fixed and class means recomputed. The final scored episode is truncated to the 80K-row budget. One training seed only; no fit-data, seed-to-seed, simultaneous-curve or selected-peak correction. The observation/action streams and post-warmup scoring follow the original probe protocol. Affine accessibility does not establish causal use or Bayesian computation.
+
+Reproduce with CPU-only environment variables and `uv run python -m experiments.within_class_belief_probes_2026_11.trajectory`, then `uv run python -m experiments.within_class_belief_probes_2026_11.trajectory_report`. Flags `--points`, `--bootstrap`, and `--peak-bootstrap` set the sampling budget and bootstrap counts. Caches are parameterized by points/bootstrap under each study/arm's ignored artifact directory. No new training or paid compute.

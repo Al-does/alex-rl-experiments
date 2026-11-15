@@ -322,3 +322,84 @@ appended results README section; raw artifacts/logs remain ignored under
 provenance are recorded. All uncertainty is conditional on one training seed and
 fixed fit probes; one-class within-class R² is global R², not new conditional
 evidence. These are descriptive accessibility comparisons, not causal claims.
+
+### PR219 trajectories and fresh-clone reproduction
+
+Existing within-class analyses were committed and pushed as
+`8215944b52c7ccfea59cc6cff7a8eb0aded74086` on
+`devin/1793991541-within-class-probes`, without a PR. Runtime run records
+(`condition_summary.json`, `resolved_recipe.json`, `run_manifest.json`) and
+recipe/environment Python dependencies are included. Imported training curves,
+training leaf entrypoints, upstream AGENTS files and unrelated architectures are
+not needed by offline analysis and were left out. Checkpoints/raw histories are
+never committed.
+
+From a fresh parent directory, with `uv` installed:
+
+```bash
+git clone --branch devin/1793991541-within-class-probes https://github.com/Al-does/alex-rl-experiments.git
+git clone https://github.com/Al-does/RL-Harness.git rl-harness
+git -C rl-harness checkout 9e1bff5516684ac64943bbbf59c00f0510057c95
+cd alex-rl-experiments
+uv sync --group dev --group jax
+export CUDA_VISIBLE_DEVICES='' JAX_PLATFORMS=cpu OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
+uv run python -m experiments.within_class_belief_probes_2026_11.nuisance_v2
+uv run python -m experiments.within_class_belief_probes_2026_11.nuisance_v2_report
+uv run python -m experiments.within_class_belief_probes_2026_11.trajectory
+uv run python -m experiments.within_class_belief_probes_2026_11.trajectory_report
+```
+
+B2 access needs `B2_BUCKET`, `B2_ENDPOINT`, `B2_APPLICATION_KEY_ID`,
+`B2_APPLICATION_KEY` and the existing `B2_PREFIX` setting if configured. Set these
+in the environment, never in Git. Each run manifest supplies the canonical
+durability-manifest key/bucket and checkpoint object keys. Downloads are checked
+for SHA-256 and byte count before NPZ restoration. Ignored caches are under
+`artifacts/nuisance_v2_temp15/<study>/<arm>/`; the two epsilon studies never share
+a cache. `nuisance_v2` replays initialized weights on final-policy exact streams
+and classes; it skips cached `analysis.json`. Use a different `RAW` root for a
+fresh recomputation. `trajectory` refits every selected encoder on the same
+final-policy streams, not only initialization. Report modules do not restore
+checkpoints.
+
+Run records are committed, so a separate import is unnecessary. To reproduce
+the selected-record import from upstream instead:
+
+```bash
+git fetch origin devin/1794431156-v2-temp15-eps-greedy
+src=58a26c8c6c2bc1fda82845db4727a6c7397842a4
+for study in belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11 belief_quotient_persistent_nuisance_v2_jax_temp15_eps05_2026_11; do
+  for arm in variant_1_transformer variant_2_transformer variant_3_transformer; do
+    git ls-tree -r --name-only "$src" "experiments/$study/$arm/results" |
+    while IFS= read -r path; do
+      case "$path" in
+        */condition_summary.json|*/resolved_recipe.json|*/run_manifest.json)
+          git archive "$src" "$path" | tar -x ;;
+      esac
+    done
+  done
+done
+git archive "$src" experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11/environment.py experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11/shared.py experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_eps05_2026_11/shared.py | tar -x
+```
+
+For new #219-style runs, change `STUDIES`, the arm/result-directory glob in
+`selected_runs()`, expected run count in `nuisance_v2.main()`, and the validator's
+study-to-epsilon mapping. Change `RAW`, `OUTPUT` and `REF` for separate caches,
+reports and provenance. A new run ID requires a fresh `RAW` root: caches are
+keyed by study/arm, not run ID. Select only one run per arm, or also add run-ID
+namespacing to the cache paths. Deliberately update validation if the scientific recipe
+changes; do not bypass it. Renderers assume the three named quotient conditions
+and two epsilon values. Trajectories reuse this run selector and validator;
+`--points` (default 12), `--bootstrap` (2000), and `--peak-bootstrap` (10000)
+control checkpoint sampling and uncertainty. Point caches are separated by
+points/bootstrap settings; final-policy histories stay fixed within each run.
+
+The trajectory JSON lists every durable checkpoint (102 per run here), B2 keys,
+sizes and hashes. Twelve checkpoints per run are selected by indices before
+decoding: early geometric / late even spacing plus init, saved midpoint and
+final. Outputs are `results/ladder_nuisance_v2_temp15_trajectory.{json,png,pdf}`
+and an appended results README section. Pointwise intervals hold fitted probes
+fixed. Paired peak-minus-final intervals use the best sampled fixed-history
+checkpoint; they condition on that observed choice and are not corrected for
+peak selection, unobserved checkpoints, simultaneous comparisons or training
+seeds. One-class scores equal global scores. All conclusions remain descriptive
+affine accessibility, not causal information use.
