@@ -1,0 +1,2760 @@
+{
+  "protocol": {
+    "episodes": 4096,
+    "episode_length": 1024,
+    "warmup": 64,
+    "policy": "greedy (argmax logits), as in the probe rollouts",
+    "gate": "final greedy reward >= 95% of the belief-grid reference",
+    "rollout_key": "fold_in(PRNGKey(42), 3), shared across arms (common random numbers)",
+    "checkpoint_rewards": "checkpoints screened with 84-episode probe-stream rewards; those >= 80% of reference re-evaluated with 1024 fresh episodes (same key)",
+    "gated_peak": "max fixed-history full-h R\u00b2 over gate-passing sampled checkpoints; exploratory (selected after inspection)"
+  },
+  "arms": [
+    {
+      "variant": 2,
+      "training_epsilon": 0.0,
+      "training_entropy": 0.0,
+      "run_id": "20261111T210836Z-f0ecb162",
+      "final_step": 2012217344,
+      "episodes": 4096,
+      "reward_mean": 0.5175831913948059,
+      "reward_ci95": [
+        0.5130263909697532,
+        0.5218406692147255
+      ],
+      "reference_mean": 0.5334462483723958,
+      "fraction_of_reference": 0.9702630639076233,
+      "fraction_ci95": [
+        0.9585917654059177,
+        0.9824300338771152
+      ],
+      "passes_gate": true,
+      "checkpoints": [
+        {
+          "step": 0,
+          "greedy_reward_84ep": 0.051487501710653305,
+          "screen_fraction": 0.09651863119807746,
+          "fixed_history_full_h_r2": 0.9151878090586171,
+          "own_history_full_h_r2": 0.8645592844510561,
+          "fraction_of_reference": 0.09651863119807746,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 19922944,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9266893533252165,
+          "own_history_full_h_r2": 0.8974085420613411,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 39845888,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9323688341609875,
+          "own_history_full_h_r2": 0.9064674419165273,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 99614720,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9428444300226931,
+          "own_history_full_h_r2": 0.9392497082259782,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 219152384,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9382727734310675,
+          "own_history_full_h_r2": 0.9401648669495012,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 498073600,
+          "greedy_reward_84ep": 0.49924999475479126,
+          "screen_fraction": 0.9358955963755652,
+          "fixed_history_full_h_r2": 0.9397590374157025,
+          "own_history_full_h_r2": 0.9396723712488617,
+          "reward_mean": 0.5120137929916382,
+          "reward_ci95": [
+            0.5026729792356491,
+            0.5207208722829819
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9598226547241211,
+          "passes_gate": true
+        },
+        {
+          "step": 796917760,
+          "greedy_reward_84ep": 0.5012375116348267,
+          "screen_fraction": 0.9396214017141528,
+          "fixed_history_full_h_r2": 0.9350447971540414,
+          "own_history_full_h_r2": 0.9351310902350602,
+          "reward_mean": 0.5123138427734375,
+          "reward_ci95": [
+            0.503120693564415,
+            0.5210991576313972
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9603851437568665,
+          "passes_gate": true
+        },
+        {
+          "step": 996147200,
+          "greedy_reward_84ep": 0.5012375116348267,
+          "screen_fraction": 0.9396214017141528,
+          "fixed_history_full_h_r2": 0.9341951019087749,
+          "own_history_full_h_r2": 0.9343454392780002,
+          "reward_mean": 0.5124094486236572,
+          "reward_ci95": [
+            0.5031105384230614,
+            0.5210726425051689
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9605643153190613,
+          "passes_gate": true
+        },
+        {
+          "step": 1115684864,
+          "greedy_reward_84ep": 0.5012375116348267,
+          "screen_fraction": 0.9396214017141528,
+          "fixed_history_full_h_r2": 0.9306585763726413,
+          "own_history_full_h_r2": 0.9308792601813447,
+          "reward_mean": 0.5124094486236572,
+          "reward_ci95": [
+            0.5031105384230614,
+            0.5210726425051689
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9605643153190613,
+          "passes_gate": true
+        },
+        {
+          "step": 1414529024,
+          "greedy_reward_84ep": 0.5011125206947327,
+          "screen_fraction": 0.9393870933082442,
+          "fixed_history_full_h_r2": 0.9300138875223883,
+          "own_history_full_h_r2": 0.9300138875223883,
+          "reward_mean": 0.5121134519577026,
+          "reward_ci95": [
+            0.5029587343335151,
+            0.5208426743745804
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9600094556808472,
+          "passes_gate": true
+        },
+        {
+          "step": 1713373184,
+          "greedy_reward_84ep": 0.5011125206947327,
+          "screen_fraction": 0.9393870933082442,
+          "fixed_history_full_h_r2": 0.9316153872508929,
+          "own_history_full_h_r2": 0.9316154554304384,
+          "reward_mean": 0.5121134519577026,
+          "reward_ci95": [
+            0.5029587343335151,
+            0.5208426743745804
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9600094556808472,
+          "passes_gate": true
+        },
+        {
+          "step": 2012217344,
+          "greedy_reward_84ep": 0.5011125206947327,
+          "screen_fraction": 0.9393870933082442,
+          "fixed_history_full_h_r2": 0.9173267898516031,
+          "own_history_full_h_r2": 0.9173267898516031,
+          "reward_mean": 0.5121134519577026,
+          "reward_ci95": [
+            0.5029587343335151,
+            0.5208426743745804
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9600094556808472,
+          "passes_gate": true
+        }
+      ],
+      "first_gated_step": 498073600,
+      "gated_peak": {
+        "step": 498073600,
+        "fixed_history_full_h_r2": 0.9397590374157025,
+        "minus_final": 0.02243224756409945
+      },
+      "minus_best_arm": {
+        "best": [
+          0.0,
+          0.002
+        ],
+        "mean": -0.00978495366871357,
+        "ci95": [
+          -0.012594948196783662,
+          -0.006952165323309603
+        ]
+      }
+    },
+    {
+      "variant": 3,
+      "training_epsilon": 0.0,
+      "training_entropy": 0.0,
+      "run_id": "20261111T210841Z-f5aebec9",
+      "final_step": 2012217344,
+      "episodes": 4096,
+      "reward_mean": 0.47699713706970215,
+      "reward_ci95": [
+        0.4723931662738323,
+        0.48162282481789587
+      ],
+      "reference_mean": 0.4902933756510417,
+      "fraction_of_reference": 0.972881019115448,
+      "fraction_ci95": [
+        0.9602534681690761,
+        0.9866559337031718
+      ],
+      "passes_gate": true,
+      "checkpoints": [
+        {
+          "step": 0,
+          "greedy_reward_84ep": 0.0706624984741211,
+          "screen_fraction": 0.14412289046388008,
+          "fixed_history_full_h_r2": 0.9174780633085343,
+          "own_history_full_h_r2": 0.8670518920742516,
+          "fraction_of_reference": 0.14412289046388008,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 19922944,
+          "greedy_reward_84ep": 0.038862500339746475,
+          "screen_fraction": 0.07926376791883524,
+          "fixed_history_full_h_r2": 0.9276265694177384,
+          "own_history_full_h_r2": 0.8052093514801953,
+          "fraction_of_reference": 0.07926376791883524,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 39845888,
+          "greedy_reward_84ep": 0.0866750031709671,
+          "screen_fraction": 0.17678191767505466,
+          "fixed_history_full_h_r2": 0.9307238865124708,
+          "own_history_full_h_r2": 0.6451914457284873,
+          "fraction_of_reference": 0.17678191767505466,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 99614720,
+          "greedy_reward_84ep": 0.13027499616146088,
+          "screen_fraction": 0.2657082527139465,
+          "fixed_history_full_h_r2": 0.947303504656729,
+          "own_history_full_h_r2": 0.8785537212413055,
+          "fraction_of_reference": 0.2657082527139465,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 219152384,
+          "greedy_reward_84ep": 0.4291124939918518,
+          "screen_fraction": 0.8752157693789965,
+          "fixed_history_full_h_r2": 0.962517111758713,
+          "own_history_full_h_r2": 0.9566752370312376,
+          "reward_mean": 0.4430735111236572,
+          "reward_ci95": [
+            0.43307043984532356,
+            0.4525535605847835
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9036905765533447,
+          "passes_gate": false
+        },
+        {
+          "step": 498073600,
+          "greedy_reward_84ep": 0.4633125066757202,
+          "screen_fraction": 0.9449699500029046,
+          "fixed_history_full_h_r2": 0.9650768492406361,
+          "own_history_full_h_r2": 0.9587702505003287,
+          "reward_mean": 0.4683675169944763,
+          "reward_ci95": [
+            0.45858619213104246,
+            0.47748020589351653
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9552801251411438,
+          "passes_gate": true
+        },
+        {
+          "step": 796917760,
+          "greedy_reward_84ep": 0.4580250084400177,
+          "screen_fraction": 0.934185594149266,
+          "fixed_history_full_h_r2": 0.9673836774522977,
+          "own_history_full_h_r2": 0.9642801939612897,
+          "reward_mean": 0.46858417987823486,
+          "reward_ci95": [
+            0.4590952180325985,
+            0.4781391069293022
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9557220339775085,
+          "passes_gate": true
+        },
+        {
+          "step": 996147200,
+          "greedy_reward_84ep": 0.4552125036716461,
+          "screen_fraction": 0.9284492230130317,
+          "fixed_history_full_h_r2": 0.9677980328168306,
+          "own_history_full_h_r2": 0.963037629542545,
+          "reward_mean": 0.4691009521484375,
+          "reward_ci95": [
+            0.45957852303981783,
+            0.47848515808582304
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9567760229110718,
+          "passes_gate": true
+        },
+        {
+          "step": 1115684864,
+          "greedy_reward_84ep": 0.4493125081062317,
+          "screen_fraction": 0.9164156205651502,
+          "fixed_history_full_h_r2": 0.9695903181582108,
+          "own_history_full_h_r2": 0.9661679982473814,
+          "reward_mean": 0.4669840335845947,
+          "reward_ci95": [
+            0.457569582015276,
+            0.4762789212167263
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.952458381652832,
+          "passes_gate": true
+        },
+        {
+          "step": 1414529024,
+          "greedy_reward_84ep": 0.4542750120162964,
+          "screen_fraction": 0.9265371195625111,
+          "fixed_history_full_h_r2": 0.9712059321255362,
+          "own_history_full_h_r2": 0.9696546156572692,
+          "reward_mean": 0.4702616333961487,
+          "reward_ci95": [
+            0.46054527536034584,
+            0.47947599589824674
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.959143340587616,
+          "passes_gate": true
+        },
+        {
+          "step": 1713373184,
+          "greedy_reward_84ep": 0.46357500553131104,
+          "screen_fraction": 0.9455053414004373,
+          "fixed_history_full_h_r2": 0.97193849417841,
+          "own_history_full_h_r2": 0.9719818114602748,
+          "reward_mean": 0.47067058086395264,
+          "reward_ci95": [
+            0.46125813126564025,
+            0.48014187887310983
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9599774479866028,
+          "passes_gate": true
+        },
+        {
+          "step": 2012217344,
+          "greedy_reward_84ep": 0.4652499854564667,
+          "screen_fraction": 0.9489216223626907,
+          "fixed_history_full_h_r2": 0.9697213605001608,
+          "own_history_full_h_r2": 0.9697213605001608,
+          "reward_mean": 0.4723469913005829,
+          "reward_ci95": [
+            0.4628872245550156,
+            0.48180929720401766
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9633966088294983,
+          "passes_gate": true
+        }
+      ],
+      "first_gated_step": 498073600,
+      "gated_peak": {
+        "step": 1713373184,
+        "fixed_history_full_h_r2": 0.97193849417841,
+        "minus_final": 0.0022171336782492723
+      },
+      "minus_best_arm": {
+        "best": [
+          0.0,
+          0.002
+        ],
+        "mean": -0.0032002769876271486,
+        "ci95": [
+          -0.005472157441545278,
+          -0.0010262617055559538
+        ]
+      }
+    },
+    {
+      "variant": 2,
+      "training_epsilon": 0.05,
+      "training_entropy": 0.0,
+      "run_id": "20261111T210838Z-f38d4c4c",
+      "final_step": 2012217344,
+      "episodes": 4096,
+      "reward_mean": 0.5232086181640625,
+      "reward_ci95": [
+        0.5188257619738579,
+        0.5275185286998749
+      ],
+      "reference_mean": 0.5334462483723958,
+      "fraction_of_reference": 0.9808084964752197,
+      "fraction_ci95": [
+        0.9694779585768712,
+        0.9932805199021595
+      ],
+      "passes_gate": true,
+      "checkpoints": [
+        {
+          "step": 0,
+          "greedy_reward_84ep": 0.051487501710653305,
+          "screen_fraction": 0.09651863119807746,
+          "fixed_history_full_h_r2": 0.9180736076811441,
+          "own_history_full_h_r2": 0.8645592844510561,
+          "fraction_of_reference": 0.09651863119807746,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 19922944,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9299100222604255,
+          "own_history_full_h_r2": 0.9005884505698385,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 39845888,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9357789845818107,
+          "own_history_full_h_r2": 0.9099953285113122,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 99614720,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9407136434094683,
+          "own_history_full_h_r2": 0.947633092712482,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 219152384,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9385144620109507,
+          "own_history_full_h_r2": 0.9414467841272749,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 498073600,
+          "greedy_reward_84ep": 0.4901374876499176,
+          "screen_fraction": 0.9188132621522447,
+          "fixed_history_full_h_r2": 0.9323134326307561,
+          "own_history_full_h_r2": 0.9289819432081884,
+          "reward_mean": 0.5084848999977112,
+          "reward_ci95": [
+            0.4990014337003231,
+            0.5174784317612648
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9532073736190796,
+          "passes_gate": true
+        },
+        {
+          "step": 796917760,
+          "greedy_reward_84ep": 0.4973750114440918,
+          "screen_fraction": 0.9323807468168321,
+          "fixed_history_full_h_r2": 0.94011441202792,
+          "own_history_full_h_r2": 0.9369200508862384,
+          "reward_mean": 0.5119130611419678,
+          "reward_ci95": [
+            0.5025618270039558,
+            0.5207514017820358
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9596338272094727,
+          "passes_gate": true
+        },
+        {
+          "step": 996147200,
+          "greedy_reward_84ep": 0.5036625266075134,
+          "screen_fraction": 0.9441673423409465,
+          "fixed_history_full_h_r2": 0.9398672381751686,
+          "own_history_full_h_r2": 0.9389050461189935,
+          "reward_mean": 0.5187784433364868,
+          "reward_ci95": [
+            0.5098572760820389,
+            0.5273222550749779
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.972503662109375,
+          "passes_gate": true
+        },
+        {
+          "step": 1115684864,
+          "greedy_reward_84ep": 0.5054625272750854,
+          "screen_fraction": 0.9475416292031449,
+          "fixed_history_full_h_r2": 0.9390916601078244,
+          "own_history_full_h_r2": 0.9389086191940862,
+          "reward_mean": 0.5205271244049072,
+          "reward_ci95": [
+            0.5114091396331787,
+            0.5292108580470085
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9757817387580872,
+          "passes_gate": true
+        },
+        {
+          "step": 1414529024,
+          "greedy_reward_84ep": 0.5054625272750854,
+          "screen_fraction": 0.9475416292031449,
+          "fixed_history_full_h_r2": 0.9389604909659449,
+          "own_history_full_h_r2": 0.9389606085988741,
+          "reward_mean": 0.520458996295929,
+          "reward_ci95": [
+            0.5111906200647354,
+            0.52919602394104
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9756540656089783,
+          "passes_gate": true
+        },
+        {
+          "step": 1713373184,
+          "greedy_reward_84ep": 0.5084375143051147,
+          "screen_fraction": 0.9531185491629465,
+          "fixed_history_full_h_r2": 0.9360022917399633,
+          "own_history_full_h_r2": 0.9366240101305039,
+          "reward_mean": 0.5208495855331421,
+          "reward_ci95": [
+            0.5114089533686638,
+            0.5298493340611458
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9763862490653992,
+          "passes_gate": true
+        },
+        {
+          "step": 2012217344,
+          "greedy_reward_84ep": 0.5054625272750854,
+          "screen_fraction": 0.9475416292031449,
+          "fixed_history_full_h_r2": 0.938354366966415,
+          "own_history_full_h_r2": 0.938354366966415,
+          "reward_mean": 0.520458996295929,
+          "reward_ci95": [
+            0.5111906200647354,
+            0.52919602394104
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9756540656089783,
+          "passes_gate": true
+        }
+      ],
+      "first_gated_step": 498073600,
+      "gated_peak": {
+        "step": 796917760,
+        "fixed_history_full_h_r2": 0.94011441202792,
+        "minus_final": 0.0017600450615049557
+      },
+      "minus_best_arm": {
+        "best": [
+          0.0,
+          0.002
+        ],
+        "mean": -0.004159546457231045,
+        "ci95": [
+          -0.006390998186543584,
+          -0.001863613055320458
+        ]
+      }
+    },
+    {
+      "variant": 3,
+      "training_epsilon": 0.05,
+      "training_entropy": 0.0,
+      "run_id": "20261111T211013Z-047a55e1",
+      "final_step": 2012217344,
+      "episodes": 4096,
+      "reward_mean": 0.4764605164527893,
+      "reward_ci95": [
+        0.471660840511322,
+        0.480961536616087
+      ],
+      "reference_mean": 0.4902933756510417,
+      "fraction_of_reference": 0.9717865586280823,
+      "fraction_ci95": [
+        0.9589617177468083,
+        0.9857870230723155
+      ],
+      "passes_gate": true,
+      "checkpoints": [
+        {
+          "step": 0,
+          "greedy_reward_84ep": 0.0706624984741211,
+          "screen_fraction": 0.14412289046388008,
+          "fixed_history_full_h_r2": 0.9143237201277127,
+          "own_history_full_h_r2": 0.8670518920742516,
+          "fraction_of_reference": 0.14412289046388008,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 19922944,
+          "greedy_reward_84ep": 0.09064999967813492,
+          "screen_fraction": 0.18488930134486167,
+          "fixed_history_full_h_r2": 0.9232437352837388,
+          "own_history_full_h_r2": 0.8606793842755934,
+          "fraction_of_reference": 0.18488930134486167,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 39845888,
+          "greedy_reward_84ep": 0.0361500009894371,
+          "screen_fraction": 0.07373136735007874,
+          "fixed_history_full_h_r2": 0.9304587505145469,
+          "own_history_full_h_r2": 0.8844745720543838,
+          "fraction_of_reference": 0.07373136735007874,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 99614720,
+          "greedy_reward_84ep": 0.13091249763965607,
+          "screen_fraction": 0.2670084976486219,
+          "fixed_history_full_h_r2": 0.9586012332843178,
+          "own_history_full_h_r2": 0.9269660833532557,
+          "fraction_of_reference": 0.2670084976486219,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 219152384,
+          "greedy_reward_84ep": 0.3774000108242035,
+          "screen_fraction": 0.7697432385723518,
+          "fixed_history_full_h_r2": 0.964591922671212,
+          "own_history_full_h_r2": 0.9590815186075038,
+          "fraction_of_reference": 0.7697432385723518,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 498073600,
+          "greedy_reward_84ep": 0.42419999837875366,
+          "screen_fraction": 0.8651962670625007,
+          "fixed_history_full_h_r2": 0.9645632951071484,
+          "own_history_full_h_r2": 0.9581530123618243,
+          "reward_mean": 0.43999022245407104,
+          "reward_ci95": [
+            0.42994633615016936,
+            0.44978568255901336
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.8974019289016724,
+          "passes_gate": false
+        },
+        {
+          "step": 796917760,
+          "greedy_reward_84ep": 0.4467875063419342,
+          "screen_fraction": 0.911265639166881,
+          "fixed_history_full_h_r2": 0.9597534884057741,
+          "own_history_full_h_r2": 0.9573253059400404,
+          "reward_mean": 0.46142882108688354,
+          "reward_ci95": [
+            0.4519596010446548,
+            0.470860406011343
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9411279559135437,
+          "passes_gate": false
+        },
+        {
+          "step": 996147200,
+          "greedy_reward_84ep": 0.446987509727478,
+          "screen_fraction": 0.9116735651056687,
+          "fixed_history_full_h_r2": 0.9580311546745768,
+          "own_history_full_h_r2": 0.9555571064031843,
+          "reward_mean": 0.4652862548828125,
+          "reward_ci95": [
+            0.4553272560238838,
+            0.47474873811006546
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9489955902099609,
+          "passes_gate": false
+        },
+        {
+          "step": 1115684864,
+          "greedy_reward_84ep": 0.4574750065803528,
+          "screen_fraction": 0.9330638130137682,
+          "fixed_history_full_h_r2": 0.9592485351892802,
+          "own_history_full_h_r2": 0.9566254020173092,
+          "reward_mean": 0.466696172952652,
+          "reward_ci95": [
+            0.45661295354366305,
+            0.4759452037513256
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9518712162971497,
+          "passes_gate": true
+        },
+        {
+          "step": 1414529024,
+          "greedy_reward_84ep": 0.4611625075340271,
+          "screen_fraction": 0.9405848221417782,
+          "fixed_history_full_h_r2": 0.9563691739093096,
+          "own_history_full_h_r2": 0.95672228164352,
+          "reward_mean": 0.47121483087539673,
+          "reward_ci95": [
+            0.4616400867700577,
+            0.4804128833115101
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9610874652862549,
+          "passes_gate": true
+        },
+        {
+          "step": 1713373184,
+          "greedy_reward_84ep": 0.46825000643730164,
+          "screen_fraction": 0.955040450659833,
+          "fixed_history_full_h_r2": 0.9548793886790462,
+          "own_history_full_h_r2": 0.9555284799186251,
+          "reward_mean": 0.4740142822265625,
+          "reward_ci95": [
+            0.46432228460907937,
+            0.483532951772213
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9667972326278687,
+          "passes_gate": true
+        },
+        {
+          "step": 2012217344,
+          "greedy_reward_84ep": 0.4709874987602234,
+          "screen_fraction": 0.9606238267747698,
+          "fixed_history_full_h_r2": 0.9540028911269911,
+          "own_history_full_h_r2": 0.9540028911269911,
+          "reward_mean": 0.47318828105926514,
+          "reward_ci95": [
+            0.4634933412075043,
+            0.4826514512300491
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9651125073432922,
+          "passes_gate": true
+        }
+      ],
+      "first_gated_step": 1115684864,
+      "gated_peak": {
+        "step": 1115684864,
+        "fixed_history_full_h_r2": 0.9592485351892802,
+        "minus_final": 0.005245644062289112
+      },
+      "minus_best_arm": {
+        "best": [
+          0.0,
+          0.002
+        ],
+        "mean": -0.00373687781393528,
+        "ci95": [
+          -0.0061150170164182786,
+          -0.0012758895143633723
+        ]
+      }
+    },
+    {
+      "variant": 2,
+      "training_epsilon": 0.0,
+      "training_entropy": 0.002,
+      "run_id": "20261115T005314Z-a2996101",
+      "final_step": 2012217344,
+      "episodes": 4096,
+      "reward_mean": 0.5273681879043579,
+      "reward_ci95": [
+        0.5228309839963913,
+        0.5317225843667984
+      ],
+      "reference_mean": 0.5334462483723958,
+      "fraction_of_reference": 0.9886060357093811,
+      "fraction_ci95": [
+        0.9766973240258268,
+        1.0012339222446798
+      ],
+      "passes_gate": true,
+      "checkpoints": [
+        {
+          "step": 0,
+          "greedy_reward_84ep": 0.051487501710653305,
+          "screen_fraction": 0.09651863119807746,
+          "fixed_history_full_h_r2": 0.9227610077203929,
+          "own_history_full_h_r2": 0.8645592844510561,
+          "fraction_of_reference": 0.09651863119807746,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 19922944,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9318419987364575,
+          "own_history_full_h_r2": 0.8968425397404484,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 39845888,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9361548470246668,
+          "own_history_full_h_r2": 0.9048021270982259,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 99614720,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9425945495075995,
+          "own_history_full_h_r2": 0.947771872552754,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 219152384,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9375154481444608,
+          "own_history_full_h_r2": 0.937737610237517,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 498073600,
+          "greedy_reward_84ep": 0.5016999840736389,
+          "screen_fraction": 0.9404883539895194,
+          "fixed_history_full_h_r2": 0.937614157553893,
+          "own_history_full_h_r2": 0.933977500126589,
+          "reward_mean": 0.5147196054458618,
+          "reward_ci95": [
+            0.505868349969387,
+            0.5235604599118233
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9648949503898621,
+          "passes_gate": true
+        },
+        {
+          "step": 796917760,
+          "greedy_reward_84ep": 0.5083875060081482,
+          "screen_fraction": 0.9530248034535725,
+          "fixed_history_full_h_r2": 0.9259945964861368,
+          "own_history_full_h_r2": 0.9228463186302344,
+          "reward_mean": 0.5221618413925171,
+          "reward_ci95": [
+            0.5127602756023407,
+            0.530939656496048
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9788461923599243,
+          "passes_gate": true
+        },
+        {
+          "step": 996147200,
+          "greedy_reward_84ep": 0.5085124969482422,
+          "screen_fraction": 0.953259111859481,
+          "fixed_history_full_h_r2": 0.925415339233153,
+          "own_history_full_h_r2": 0.9218367352045448,
+          "reward_mean": 0.5214498043060303,
+          "reward_ci95": [
+            0.5121041461825371,
+            0.5303142935037612
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9775114059448242,
+          "passes_gate": true
+        },
+        {
+          "step": 1115684864,
+          "greedy_reward_84ep": 0.5083875060081482,
+          "screen_fraction": 0.9530248034535725,
+          "fixed_history_full_h_r2": 0.9200989121191527,
+          "own_history_full_h_r2": 0.9161450729210963,
+          "reward_mean": 0.5221618413925171,
+          "reward_ci95": [
+            0.5127602756023407,
+            0.530939656496048
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9788461923599243,
+          "passes_gate": true
+        },
+        {
+          "step": 1414529024,
+          "greedy_reward_84ep": 0.5083875060081482,
+          "screen_fraction": 0.9530248034535725,
+          "fixed_history_full_h_r2": 0.9103119086854179,
+          "own_history_full_h_r2": 0.9061953334991334,
+          "reward_mean": 0.5221618413925171,
+          "reward_ci95": [
+            0.5127602756023407,
+            0.530939656496048
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9788461923599243,
+          "passes_gate": true
+        },
+        {
+          "step": 1713373184,
+          "greedy_reward_84ep": 0.5083875060081482,
+          "screen_fraction": 0.9530248034535725,
+          "fixed_history_full_h_r2": 0.8928069324600597,
+          "own_history_full_h_r2": 0.8820814948675612,
+          "reward_mean": 0.5221618413925171,
+          "reward_ci95": [
+            0.5127602756023407,
+            0.530939656496048
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9788461923599243,
+          "passes_gate": true
+        },
+        {
+          "step": 2012217344,
+          "greedy_reward_84ep": 0.5151000022888184,
+          "screen_fraction": 0.9656080699047862,
+          "fixed_history_full_h_r2": 0.8773049792407057,
+          "own_history_full_h_r2": 0.8773049792407057,
+          "reward_mean": 0.5226999521255493,
+          "reward_ci95": [
+            0.5130226373672485,
+            0.5314597994089126
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.979854941368103,
+          "passes_gate": true
+        }
+      ],
+      "first_gated_step": 498073600,
+      "gated_peak": {
+        "step": 498073600,
+        "fixed_history_full_h_r2": 0.937614157553893,
+        "minus_final": 0.06030917831318727
+      },
+      "minus_best_arm": {
+        "best": [
+          0.0,
+          0.002
+        ],
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "variant": 2,
+      "training_epsilon": 0.0,
+      "training_entropy": 0.004,
+      "run_id": "20261115T001530Z-93690259",
+      "final_step": 2012217344,
+      "episodes": 4096,
+      "reward_mean": 0.5273681879043579,
+      "reward_ci95": [
+        0.5228309839963913,
+        0.5317225843667984
+      ],
+      "reference_mean": 0.5334462483723958,
+      "fraction_of_reference": 0.9886060357093811,
+      "fraction_ci95": [
+        0.9766973240258268,
+        1.0012339222446798
+      ],
+      "passes_gate": true,
+      "checkpoints": [
+        {
+          "step": 0,
+          "greedy_reward_84ep": 0.051487501710653305,
+          "screen_fraction": 0.09651863119807746,
+          "fixed_history_full_h_r2": 0.9227610077203929,
+          "own_history_full_h_r2": 0.8645592844510561,
+          "fraction_of_reference": 0.09651863119807746,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 19922944,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9315947050647665,
+          "own_history_full_h_r2": 0.8964437978846138,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 39845888,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9356001531295927,
+          "own_history_full_h_r2": 0.9035773411897818,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 99614720,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9420105973483653,
+          "own_history_full_h_r2": 0.9471114488904033,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 219152384,
+          "greedy_reward_84ep": 0.4913625121116638,
+          "screen_fraction": 0.9211096968267483,
+          "fixed_history_full_h_r2": 0.9338720735772272,
+          "own_history_full_h_r2": 0.9304629500561454,
+          "reward_mean": 0.5104898810386658,
+          "reward_ci95": [
+            0.5007964462041855,
+            0.5196822732686996
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9569659233093262,
+          "passes_gate": true
+        },
+        {
+          "step": 498073600,
+          "greedy_reward_84ep": 0.5097749829292297,
+          "screen_fraction": 0.9556257720147254,
+          "fixed_history_full_h_r2": 0.9438859987445837,
+          "own_history_full_h_r2": 0.9422031152823128,
+          "reward_mean": 0.5226837396621704,
+          "reward_ci95": [
+            0.513429544866085,
+            0.531653393805027
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9798245429992676,
+          "passes_gate": true
+        },
+        {
+          "step": 796917760,
+          "greedy_reward_84ep": 0.5200625061988831,
+          "screen_fraction": 0.9749107952031754,
+          "fixed_history_full_h_r2": 0.9381884337613124,
+          "own_history_full_h_r2": 0.9376385899087218,
+          "reward_mean": 0.5239531993865967,
+          "reward_ci95": [
+            0.514495798945427,
+            0.53293516933918
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9822043180465698,
+          "passes_gate": true
+        },
+        {
+          "step": 996147200,
+          "greedy_reward_84ep": 0.5081499814987183,
+          "screen_fraction": 0.9525795392678094,
+          "fixed_history_full_h_r2": 0.9326333456468006,
+          "own_history_full_h_r2": 0.9280267047323666,
+          "reward_mean": 0.5220682621002197,
+          "reward_ci95": [
+            0.5126436039805412,
+            0.5308545127511024
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9786707758903503,
+          "passes_gate": true
+        },
+        {
+          "step": 1115684864,
+          "greedy_reward_84ep": 0.5108500123023987,
+          "screen_fraction": 0.9576410254286335,
+          "fixed_history_full_h_r2": 0.9347148108899073,
+          "own_history_full_h_r2": 0.9325165378834595,
+          "reward_mean": 0.5227396488189697,
+          "reward_ci95": [
+            0.5134422183036804,
+            0.5317736014723777
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9799293875694275,
+          "passes_gate": true
+        },
+        {
+          "step": 1414529024,
+          "greedy_reward_84ep": 0.517425000667572,
+          "screen_fraction": 0.969966519112832,
+          "fixed_history_full_h_r2": 0.9308555019089647,
+          "own_history_full_h_r2": 0.9296875477489475,
+          "reward_mean": 0.5231119990348816,
+          "reward_ci95": [
+            0.5133254885673523,
+            0.5320810973644257
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9806273579597473,
+          "passes_gate": true
+        },
+        {
+          "step": 1713373184,
+          "greedy_reward_84ep": 0.5197374820709229,
+          "screen_fraction": 0.9743015039597711,
+          "fixed_history_full_h_r2": 0.9310458031846847,
+          "own_history_full_h_r2": 0.9304712815844391,
+          "reward_mean": 0.5226938724517822,
+          "reward_ci95": [
+            0.5129767417907715,
+            0.5314153403043747
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9798435568809509,
+          "passes_gate": true
+        },
+        {
+          "step": 2012217344,
+          "greedy_reward_84ep": 0.5151000022888184,
+          "screen_fraction": 0.9656080699047862,
+          "fixed_history_full_h_r2": 0.9129777710489254,
+          "own_history_full_h_r2": 0.9129777710489254,
+          "reward_mean": 0.5226999521255493,
+          "reward_ci95": [
+            0.5130226373672485,
+            0.5314597994089126
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.979854941368103,
+          "passes_gate": true
+        }
+      ],
+      "first_gated_step": 219152384,
+      "gated_peak": {
+        "step": 498073600,
+        "fixed_history_full_h_r2": 0.9438859987445837,
+        "minus_final": 0.030908227695658264
+      },
+      "minus_best_arm": {
+        "best": [
+          0.0,
+          0.002
+        ],
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "variant": 2,
+      "training_epsilon": 0.0,
+      "training_entropy": 0.008,
+      "run_id": "20261115T003748Z-953906dd",
+      "final_step": 2012217344,
+      "episodes": 4096,
+      "reward_mean": 0.5273211002349854,
+      "reward_ci95": [
+        0.5229522287845612,
+        0.531683799624443
+      ],
+      "reference_mean": 0.5334462483723958,
+      "fraction_of_reference": 0.9885177612304688,
+      "fraction_ci95": [
+        0.9767720641230618,
+        1.0010157995644064
+      ],
+      "passes_gate": true,
+      "checkpoints": [
+        {
+          "step": 0,
+          "greedy_reward_84ep": 0.051487501710653305,
+          "screen_fraction": 0.09651863119807746,
+          "fixed_history_full_h_r2": 0.9206471095989682,
+          "own_history_full_h_r2": 0.8645592844510561,
+          "fraction_of_reference": 0.09651863119807746,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 19922944,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9288940302012646,
+          "own_history_full_h_r2": 0.8933195368568128,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 39845888,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9336435005092234,
+          "own_history_full_h_r2": 0.8990181037114138,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 99614720,
+          "greedy_reward_84ep": 0.21744999289512634,
+          "screen_fraction": 0.40763243449286707,
+          "fixed_history_full_h_r2": 0.9388664327191689,
+          "own_history_full_h_r2": 0.9363123600686944,
+          "fraction_of_reference": 0.40763243449286707,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 219152384,
+          "greedy_reward_84ep": 0.508899986743927,
+          "screen_fraction": 0.9539855014383132,
+          "fixed_history_full_h_r2": 0.9328286268641841,
+          "own_history_full_h_r2": 0.9315901964865179,
+          "reward_mean": 0.5171478390693665,
+          "reward_ci95": [
+            0.507822285592556,
+            0.5261611193418503
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9694469571113586,
+          "passes_gate": true
+        },
+        {
+          "step": 498073600,
+          "greedy_reward_84ep": 0.5065249800682068,
+          "screen_fraction": 0.9495333065208934,
+          "fixed_history_full_h_r2": 0.9315486598581095,
+          "own_history_full_h_r2": 0.9302245766719693,
+          "reward_mean": 0.5181233286857605,
+          "reward_ci95": [
+            0.5088419869542122,
+            0.5270454674959183
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9712756276130676,
+          "passes_gate": true
+        },
+        {
+          "step": 796917760,
+          "greedy_reward_84ep": 0.5074999928474426,
+          "screen_fraction": 0.9513610685160536,
+          "fixed_history_full_h_r2": 0.9244595636464621,
+          "own_history_full_h_r2": 0.9236947388617777,
+          "reward_mean": 0.5213816165924072,
+          "reward_ci95": [
+            0.5120381936430931,
+            0.5302504539489746
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9773836135864258,
+          "passes_gate": true
+        },
+        {
+          "step": 996147200,
+          "greedy_reward_84ep": 0.5083875060081482,
+          "screen_fraction": 0.9530248034535725,
+          "fixed_history_full_h_r2": 0.9067394412553318,
+          "own_history_full_h_r2": 0.906397969590701,
+          "reward_mean": 0.5221303105354309,
+          "reward_ci95": [
+            0.5127594858407974,
+            0.5308769255876541
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9787871241569519,
+          "passes_gate": true
+        },
+        {
+          "step": 1115684864,
+          "greedy_reward_84ep": 0.5083875060081482,
+          "screen_fraction": 0.9530248034535725,
+          "fixed_history_full_h_r2": 0.8980494957971412,
+          "own_history_full_h_r2": 0.8970864450118794,
+          "reward_mean": 0.5221140384674072,
+          "reward_ci95": [
+            0.5127682566642762,
+            0.530866602063179
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9787566065788269,
+          "passes_gate": true
+        },
+        {
+          "step": 1414529024,
+          "greedy_reward_84ep": 0.5083875060081482,
+          "screen_fraction": 0.9530248034535725,
+          "fixed_history_full_h_r2": 0.8935490320020306,
+          "own_history_full_h_r2": 0.8922380522940897,
+          "reward_mean": 0.5221933722496033,
+          "reward_ci95": [
+            0.5127653434872628,
+            0.5309695914387703
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9789053201675415,
+          "passes_gate": true
+        },
+        {
+          "step": 1713373184,
+          "greedy_reward_84ep": 0.5095499753952026,
+          "screen_fraction": 0.955203972190069,
+          "fixed_history_full_h_r2": 0.8739381440986888,
+          "own_history_full_h_r2": 0.8829153030466143,
+          "reward_mean": 0.5221527218818665,
+          "reward_ci95": [
+            0.5126158982515335,
+            0.5308135867118835
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9788290858268738,
+          "passes_gate": true
+        },
+        {
+          "step": 2012217344,
+          "greedy_reward_84ep": 0.5062124729156494,
+          "screen_fraction": 0.9489474796385958,
+          "fixed_history_full_h_r2": 0.86877274539641,
+          "own_history_full_h_r2": 0.86877274539641,
+          "reward_mean": 0.5221719741821289,
+          "reward_ci95": [
+            0.5128408029675484,
+            0.5311261057853699
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9788652062416077,
+          "passes_gate": true
+        }
+      ],
+      "first_gated_step": 219152384,
+      "gated_peak": {
+        "step": 219152384,
+        "fixed_history_full_h_r2": 0.9328286268641841,
+        "minus_final": 0.06405588146777408
+      },
+      "minus_best_arm": {
+        "best": [
+          0.0,
+          0.002
+        ],
+        "mean": -4.704805905930698e-05,
+        "ci95": [
+          -0.0018489017093088478,
+          0.0017609340517083165
+        ]
+      }
+    },
+    {
+      "variant": 2,
+      "training_epsilon": 0.075,
+      "training_entropy": 0.0,
+      "run_id": "20261115T000933Z-5119ed58",
+      "final_step": 2012217344,
+      "episodes": 4096,
+      "reward_mean": 0.5180354118347168,
+      "reward_ci95": [
+        0.5135868713259697,
+        0.522279192507267
+      ],
+      "reference_mean": 0.5334462483723958,
+      "fraction_of_reference": 0.9711107611656189,
+      "fraction_ci95": [
+        0.9594029032963699,
+        0.9834902659806227
+      ],
+      "passes_gate": true,
+      "checkpoints": [
+        {
+          "step": 0,
+          "greedy_reward_84ep": 0.051487501710653305,
+          "screen_fraction": 0.09651863119807746,
+          "fixed_history_full_h_r2": 0.9164472053930666,
+          "own_history_full_h_r2": 0.8645592844510561,
+          "fraction_of_reference": 0.09651863119807746,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 19922944,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9278546977679004,
+          "own_history_full_h_r2": 0.8971209257856793,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 39845888,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9312735766072568,
+          "own_history_full_h_r2": 0.9041127010605342,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 99614720,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9427642032369894,
+          "own_history_full_h_r2": 0.9335057518536566,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 219152384,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9348514116084883,
+          "own_history_full_h_r2": 0.9412988119296973,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 498073600,
+          "greedy_reward_84ep": 0.476500004529953,
+          "screen_fraction": 0.8932483937862676,
+          "fixed_history_full_h_r2": 0.9348917279120406,
+          "own_history_full_h_r2": 0.9249759038121109,
+          "reward_mean": 0.4764353334903717,
+          "reward_ci95": [
+            0.4670674756169319,
+            0.48564665541052815
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.8931271433830261,
+          "passes_gate": false
+        },
+        {
+          "step": 796917760,
+          "greedy_reward_84ep": 0.4843375086784363,
+          "screen_fraction": 0.907940603493237,
+          "fixed_history_full_h_r2": 0.9206306282419302,
+          "own_history_full_h_r2": 0.9139564681621192,
+          "reward_mean": 0.4989674687385559,
+          "reward_ci95": [
+            0.48965063616633414,
+            0.5076764121651649
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9353659749031067,
+          "passes_gate": false
+        },
+        {
+          "step": 996147200,
+          "greedy_reward_84ep": 0.48348748683929443,
+          "screen_fraction": 0.9063471499039853,
+          "fixed_history_full_h_r2": 0.9262320596029043,
+          "own_history_full_h_r2": 0.9207202865515662,
+          "reward_mean": 0.49904176592826843,
+          "reward_ci95": [
+            0.48960556760430335,
+            0.507780385017395
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9355052709579468,
+          "passes_gate": false
+        },
+        {
+          "step": 1115684864,
+          "greedy_reward_84ep": 0.5005000233650208,
+          "screen_fraction": 0.9382389039047557,
+          "fixed_history_full_h_r2": 0.9239398807038639,
+          "own_history_full_h_r2": 0.9204608160535084,
+          "reward_mean": 0.5051686763763428,
+          "reward_ci95": [
+            0.4955160155892372,
+            0.5142005577683448
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9469907879829407,
+          "passes_gate": false
+        },
+        {
+          "step": 1414529024,
+          "greedy_reward_84ep": 0.4981749951839447,
+          "screen_fraction": 0.9338803988291835,
+          "fixed_history_full_h_r2": 0.9181724215361693,
+          "own_history_full_h_r2": 0.9175738316233533,
+          "reward_mean": 0.5123525261878967,
+          "reward_ci95": [
+            0.5029440492391586,
+            0.5211232855916024
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9604576230049133,
+          "passes_gate": true
+        },
+        {
+          "step": 1713373184,
+          "greedy_reward_84ep": 0.4984999895095825,
+          "screen_fraction": 0.9344896342050614,
+          "fixed_history_full_h_r2": 0.9097308423860008,
+          "own_history_full_h_r2": 0.9097308423860008,
+          "reward_mean": 0.5127034187316895,
+          "reward_ci95": [
+            0.5032953381538391,
+            0.5215072691440582
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9611154198646545,
+          "passes_gate": true
+        },
+        {
+          "step": 2012217344,
+          "greedy_reward_84ep": 0.4984999895095825,
+          "screen_fraction": 0.9344896342050614,
+          "fixed_history_full_h_r2": 0.9030463670617231,
+          "own_history_full_h_r2": 0.9030463670617231,
+          "reward_mean": 0.5127034187316895,
+          "reward_ci95": [
+            0.5032953381538391,
+            0.5215072691440582
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9611154198646545,
+          "passes_gate": true
+        }
+      ],
+      "first_gated_step": 1414529024,
+      "gated_peak": {
+        "step": 1414529024,
+        "fixed_history_full_h_r2": 0.9181724215361693,
+        "minus_final": 0.015126054474446149
+      },
+      "minus_best_arm": {
+        "best": [
+          0.0,
+          0.002
+        ],
+        "mean": -0.00933278538286686,
+        "ci95": [
+          -0.012093702726997436,
+          -0.006496868468821049
+        ]
+      }
+    },
+    {
+      "variant": 2,
+      "training_epsilon": 0.1,
+      "training_entropy": 0.0,
+      "run_id": "20261115T003122Z-9e6c61f0",
+      "final_step": 2012217344,
+      "episodes": 4096,
+      "reward_mean": 0.521141529083252,
+      "reward_ci95": [
+        0.5166417837142945,
+        0.525333258509636
+      ],
+      "reference_mean": 0.5334462483723958,
+      "fraction_of_reference": 0.9769335389137268,
+      "fraction_ci95": [
+        0.9653633919899692,
+        0.989381574639251
+      ],
+      "passes_gate": true,
+      "checkpoints": [
+        {
+          "step": 0,
+          "greedy_reward_84ep": 0.051487501710653305,
+          "screen_fraction": 0.09651863119807746,
+          "fixed_history_full_h_r2": 0.9175306453562219,
+          "own_history_full_h_r2": 0.8645592844510561,
+          "fraction_of_reference": 0.09651863119807746,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 19922944,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9291550154680812,
+          "own_history_full_h_r2": 0.8984442680391838,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 39845888,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9344381198201159,
+          "own_history_full_h_r2": 0.9083006415118006,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 99614720,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9447101062328284,
+          "own_history_full_h_r2": 0.9472860059071431,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 219152384,
+          "greedy_reward_84ep": 0.17272500693798065,
+          "screen_fraction": 0.32379083640569967,
+          "fixed_history_full_h_r2": 0.9349428992360421,
+          "own_history_full_h_r2": 0.9383899987808523,
+          "fraction_of_reference": 0.32379083640569967,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 498073600,
+          "greedy_reward_84ep": 0.4951375126838684,
+          "screen_fraction": 0.9281863246664276,
+          "fixed_history_full_h_r2": 0.9372948428411072,
+          "own_history_full_h_r2": 0.9352964489693893,
+          "reward_mean": 0.5109660029411316,
+          "reward_ci95": [
+            0.5018873393535614,
+            0.5198837071657181
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9578584432601929,
+          "passes_gate": true
+        },
+        {
+          "step": 796917760,
+          "greedy_reward_84ep": 0.5040749907493591,
+          "screen_fraction": 0.9449405489069391,
+          "fixed_history_full_h_r2": 0.9376929724088924,
+          "own_history_full_h_r2": 0.9364640046357848,
+          "reward_mean": 0.51446533203125,
+          "reward_ci95": [
+            0.5053122907876968,
+            0.5233329698443413
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9644182920455933,
+          "passes_gate": true
+        },
+        {
+          "step": 996147200,
+          "greedy_reward_84ep": 0.5040624737739563,
+          "screen_fraction": 0.9449170845458325,
+          "fixed_history_full_h_r2": 0.935019338951874,
+          "own_history_full_h_r2": 0.9349526405856188,
+          "reward_mean": 0.5163605213165283,
+          "reward_ci95": [
+            0.5072191804647446,
+            0.5252294540405273
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9679710268974304,
+          "passes_gate": true
+        },
+        {
+          "step": 1115684864,
+          "greedy_reward_84ep": 0.5072749853134155,
+          "screen_fraction": 0.9509392686913972,
+          "fixed_history_full_h_r2": 0.9341227665574783,
+          "own_history_full_h_r2": 0.9329674077037252,
+          "reward_mean": 0.517987072467804,
+          "reward_ci95": [
+            0.5086817175149918,
+            0.5265625298023224
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9710201621055603,
+          "passes_gate": true
+        },
+        {
+          "step": 1414529024,
+          "greedy_reward_84ep": 0.5047500133514404,
+          "screen_fraction": 0.9462059483809084,
+          "fixed_history_full_h_r2": 0.9296166483939339,
+          "own_history_full_h_r2": 0.9293730562283324,
+          "reward_mean": 0.5169382691383362,
+          "reward_ci95": [
+            0.5077760696411133,
+            0.5256909802556038
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.969054102897644,
+          "passes_gate": true
+        },
+        {
+          "step": 1713373184,
+          "greedy_reward_84ep": 0.5040624737739563,
+          "screen_fraction": 0.9449170845458325,
+          "fixed_history_full_h_r2": 0.9240231412101294,
+          "own_history_full_h_r2": 0.9240231412101294,
+          "reward_mean": 0.5163208246231079,
+          "reward_ci95": [
+            0.507247693836689,
+            0.5251832604408264
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9678966403007507,
+          "passes_gate": true
+        },
+        {
+          "step": 2012217344,
+          "greedy_reward_84ep": 0.5040624737739563,
+          "screen_fraction": 0.9449170845458325,
+          "fixed_history_full_h_r2": 0.9230084621561421,
+          "own_history_full_h_r2": 0.9230084621561421,
+          "reward_mean": 0.5163208246231079,
+          "reward_ci95": [
+            0.507247693836689,
+            0.5251832604408264
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9678966403007507,
+          "passes_gate": true
+        }
+      ],
+      "first_gated_step": 498073600,
+      "gated_peak": {
+        "step": 796917760,
+        "fixed_history_full_h_r2": 0.9376929724088924,
+        "minus_final": 0.014684510252750305
+      },
+      "minus_best_arm": {
+        "best": [
+          0.0,
+          0.002
+        ],
+        "mean": -0.006226603407412767,
+        "ci95": [
+          -0.008742102980613708,
+          -0.0037101748806890114
+        ]
+      }
+    },
+    {
+      "variant": 3,
+      "training_epsilon": 0.0,
+      "training_entropy": 0.002,
+      "run_id": "20261115T005340Z-7415c6c0",
+      "final_step": 2012217344,
+      "episodes": 4096,
+      "reward_mean": 0.48019739985466003,
+      "reward_ci95": [
+        0.4755394995212555,
+        0.4849372372031212
+      ],
+      "reference_mean": 0.4902933756510417,
+      "fraction_of_reference": 0.9794082641601562,
+      "fraction_ci95": [
+        0.9664997435221598,
+        0.9941340184376278
+      ],
+      "passes_gate": true,
+      "checkpoints": [
+        {
+          "step": 0,
+          "greedy_reward_84ep": 0.0706624984741211,
+          "screen_fraction": 0.14412289046388008,
+          "fixed_history_full_h_r2": 0.9217534135273429,
+          "own_history_full_h_r2": 0.8670518920742516,
+          "fraction_of_reference": 0.14412289046388008,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 19922944,
+          "greedy_reward_84ep": 0.055674999952316284,
+          "screen_fraction": 0.11355446089474,
+          "fixed_history_full_h_r2": 0.9292288469656367,
+          "own_history_full_h_r2": 0.8352939898310463,
+          "fraction_of_reference": 0.11355446089474,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 39845888,
+          "greedy_reward_84ep": 0.030150000005960464,
+          "screen_fraction": 0.061493794334719375,
+          "fixed_history_full_h_r2": 0.9325277771432077,
+          "own_history_full_h_r2": 0.8675763482824386,
+          "fraction_of_reference": 0.061493794334719375,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 99614720,
+          "greedy_reward_84ep": 0.12296249717473984,
+          "screen_fraction": 0.25079371511283965,
+          "fixed_history_full_h_r2": 0.9533412001670842,
+          "own_history_full_h_r2": 0.8959920123488755,
+          "fraction_of_reference": 0.25079371511283965,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 219152384,
+          "greedy_reward_84ep": 0.39410001039505005,
+          "screen_fraction": 0.8038044770067305,
+          "fixed_history_full_h_r2": 0.9622004066139143,
+          "own_history_full_h_r2": 0.951730202016075,
+          "reward_mean": 0.4154714047908783,
+          "reward_ci95": [
+            0.40545887425541877,
+            0.4251699261367321
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.8473934531211853,
+          "passes_gate": false
+        },
+        {
+          "step": 498073600,
+          "greedy_reward_84ep": 0.465862512588501,
+          "screen_fraction": 0.9501709297416064,
+          "fixed_history_full_h_r2": 0.966672337320515,
+          "own_history_full_h_r2": 0.9645195738126313,
+          "reward_mean": 0.4685567319393158,
+          "reward_ci95": [
+            0.4586353987455368,
+            0.47821569442749023
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9556660056114197,
+          "passes_gate": true
+        },
+        {
+          "step": 796917760,
+          "greedy_reward_84ep": 0.462737500667572,
+          "screen_fraction": 0.9437971705269742,
+          "fixed_history_full_h_r2": 0.9714059724265214,
+          "own_history_full_h_r2": 0.9707801437239131,
+          "reward_mean": 0.47259825468063354,
+          "reward_ci95": [
+            0.4629561461508274,
+            0.4818137794733047
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9639090895652771,
+          "passes_gate": true
+        },
+        {
+          "step": 996147200,
+          "greedy_reward_84ep": 0.4647125005722046,
+          "screen_fraction": 0.9478253707897455,
+          "fixed_history_full_h_r2": 0.9678812474749694,
+          "own_history_full_h_r2": 0.9648405386038739,
+          "reward_mean": 0.47579753398895264,
+          "reward_ci95": [
+            0.46598511934280396,
+            0.48520861119031905
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.970434308052063,
+          "passes_gate": true
+        },
+        {
+          "step": 1115684864,
+          "greedy_reward_84ep": 0.4666374921798706,
+          "screen_fraction": 0.9517515743716518,
+          "fixed_history_full_h_r2": 0.9698408302056583,
+          "own_history_full_h_r2": 0.9687483976800704,
+          "reward_mean": 0.4747762084007263,
+          "reward_ci95": [
+            0.46515695229172704,
+            0.4837982401251793
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9683512449264526,
+          "passes_gate": true
+        },
+        {
+          "step": 1414529024,
+          "greedy_reward_84ep": 0.4628250002861023,
+          "screen_fraction": 0.9439756343261517,
+          "fixed_history_full_h_r2": 0.968218128680666,
+          "own_history_full_h_r2": 0.9666208395244579,
+          "reward_mean": 0.4742533266544342,
+          "reward_ci95": [
+            0.46466150507330894,
+            0.4835208632051945
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9672847986221313,
+          "passes_gate": true
+        },
+        {
+          "step": 1713373184,
+          "greedy_reward_84ep": 0.47027501463890076,
+          "screen_fraction": 0.9591706476034694,
+          "fixed_history_full_h_r2": 0.9704111629085002,
+          "own_history_full_h_r2": 0.9677912175949028,
+          "reward_mean": 0.4737752079963684,
+          "reward_ci95": [
+            0.4647819481790066,
+            0.4828606829047203
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9663096070289612,
+          "passes_gate": true
+        },
+        {
+          "step": 2012217344,
+          "greedy_reward_84ep": 0.4657750129699707,
+          "screen_fraction": 0.9499924659424288,
+          "fixed_history_full_h_r2": 0.9728730797880234,
+          "own_history_full_h_r2": 0.9728730797880234,
+          "reward_mean": 0.4768218994140625,
+          "reward_ci95": [
+            0.46701437383890154,
+            0.4859920792281628
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9725236296653748,
+          "passes_gate": true
+        }
+      ],
+      "first_gated_step": 498073600,
+      "gated_peak": {
+        "step": 2012217344,
+        "fixed_history_full_h_r2": 0.9728730797880234,
+        "minus_final": 0.0
+      },
+      "minus_best_arm": {
+        "best": [
+          0.0,
+          0.002
+        ],
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "variant": 3,
+      "training_epsilon": 0.0,
+      "training_entropy": 0.004,
+      "run_id": "20261115T001150Z-cc7d87c2",
+      "final_step": 2012217344,
+      "episodes": 4096,
+      "reward_mean": 0.47778040170669556,
+      "reward_ci95": [
+        0.47308381348848344,
+        0.4823931336402893
+      ],
+      "reference_mean": 0.4902933756510417,
+      "fraction_of_reference": 0.9744786024093628,
+      "fraction_ci95": [
+        0.961386676834909,
+        0.9883846755028999
+      ],
+      "passes_gate": true,
+      "checkpoints": [
+        {
+          "step": 0,
+          "greedy_reward_84ep": 0.0706624984741211,
+          "screen_fraction": 0.14412289046388008,
+          "fixed_history_full_h_r2": 0.9151184979755456,
+          "own_history_full_h_r2": 0.8670518920742516,
+          "fraction_of_reference": 0.14412289046388008,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 19922944,
+          "greedy_reward_84ep": 0.03689999878406525,
+          "screen_fraction": 0.07526105922819609,
+          "fixed_history_full_h_r2": 0.9231055098212695,
+          "own_history_full_h_r2": 0.8257045508799833,
+          "fraction_of_reference": 0.07526105922819609,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 39845888,
+          "greedy_reward_84ep": 0.030150000005960464,
+          "screen_fraction": 0.061493794334719375,
+          "fixed_history_full_h_r2": 0.9276772848445458,
+          "own_history_full_h_r2": 0.8667736459762243,
+          "fraction_of_reference": 0.061493794334719375,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 99614720,
+          "greedy_reward_84ep": 0.13058750331401825,
+          "screen_fraction": 0.26634564079234424,
+          "fixed_history_full_h_r2": 0.9485577963729367,
+          "own_history_full_h_r2": 0.8862974427938045,
+          "fraction_of_reference": 0.26634564079234424,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 219152384,
+          "greedy_reward_84ep": 0.42713749408721924,
+          "screen_fraction": 0.8711875691162252,
+          "fixed_history_full_h_r2": 0.9572863287549304,
+          "own_history_full_h_r2": 0.9535888512785756,
+          "reward_mean": 0.4433542788028717,
+          "reward_ci95": [
+            0.43357878401875494,
+            0.45274409353733064
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9042632579803467,
+          "passes_gate": false
+        },
+        {
+          "step": 498073600,
+          "greedy_reward_84ep": 0.4650000035762787,
+          "screen_fraction": 0.9484117605277107,
+          "fixed_history_full_h_r2": 0.968626668521635,
+          "own_history_full_h_r2": 0.9691967706548894,
+          "reward_mean": 0.4742726683616638,
+          "reward_ci95": [
+            0.46453591138124467,
+            0.4836019232869148
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9673242568969727,
+          "passes_gate": true
+        },
+        {
+          "step": 796917760,
+          "greedy_reward_84ep": 0.46935001015663147,
+          "screen_fraction": 0.9572840129308288,
+          "fixed_history_full_h_r2": 0.9712182930618894,
+          "own_history_full_h_r2": 0.9715115127087547,
+          "reward_mean": 0.4766794741153717,
+          "reward_ci95": [
+            0.4670492745935917,
+            0.48578288704156875
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9722331166267395,
+          "passes_gate": true
+        },
+        {
+          "step": 996147200,
+          "greedy_reward_84ep": 0.46172499656677246,
+          "screen_fraction": 0.941732072055156,
+          "fixed_history_full_h_r2": 0.9727198840033483,
+          "own_history_full_h_r2": 0.9753712671886798,
+          "reward_mean": 0.47710874676704407,
+          "reward_ci95": [
+            0.4672949887812138,
+            0.4862744629383087
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9731086492538452,
+          "passes_gate": true
+        },
+        {
+          "step": 1115684864,
+          "greedy_reward_84ep": 0.4627000093460083,
+          "screen_fraction": 0.9437207034086618,
+          "fixed_history_full_h_r2": 0.9721273561790137,
+          "own_history_full_h_r2": 0.9739128920884863,
+          "reward_mean": 0.4759979248046875,
+          "reward_ci95": [
+            0.46589711159467695,
+            0.4856160834431648
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9708430767059326,
+          "passes_gate": true
+        },
+        {
+          "step": 1414529024,
+          "greedy_reward_84ep": 0.47302499413490295,
+          "screen_fraction": 0.964779492496286,
+          "fixed_history_full_h_r2": 0.9694945684495269,
+          "own_history_full_h_r2": 0.9705761589507705,
+          "reward_mean": 0.477813720703125,
+          "reward_ci95": [
+            0.46808208525180817,
+            0.48708171546459195
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9745465517044067,
+          "passes_gate": true
+        },
+        {
+          "step": 1713373184,
+          "greedy_reward_84ep": 0.47043749690055847,
+          "screen_fraction": 0.9595020456392719,
+          "fixed_history_full_h_r2": 0.9715843476699968,
+          "own_history_full_h_r2": 0.9715536336192876,
+          "reward_mean": 0.47544044256210327,
+          "reward_ci95": [
+            0.4660836674273014,
+            0.4848264046013355
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9697059988975525,
+          "passes_gate": true
+        },
+        {
+          "step": 2012217344,
+          "greedy_reward_84ep": 0.46517500281333923,
+          "screen_fraction": 0.9487686881260659,
+          "fixed_history_full_h_r2": 0.9679234891618619,
+          "own_history_full_h_r2": 0.9679234891618619,
+          "reward_mean": 0.4741861820220947,
+          "reward_ci95": [
+            0.4642519436776638,
+            0.4836741670966148
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9671478271484375,
+          "passes_gate": true
+        }
+      ],
+      "first_gated_step": 498073600,
+      "gated_peak": {
+        "step": 996147200,
+        "fixed_history_full_h_r2": 0.9727198840033483,
+        "minus_final": 0.004796394841486418
+      },
+      "minus_best_arm": {
+        "best": [
+          0.0,
+          0.002
+        ],
+        "mean": -0.002416992327198386,
+        "ci95": [
+          -0.004552555177360773,
+          -0.00038263954993454
+        ]
+      }
+    },
+    {
+      "variant": 3,
+      "training_epsilon": 0.0,
+      "training_entropy": 0.008,
+      "run_id": "20261115T003323Z-0448f940",
+      "final_step": 2012217344,
+      "episodes": 4096,
+      "reward_mean": 0.47654879093170166,
+      "reward_ci95": [
+        0.47189452946186067,
+        0.4810212329030037
+      ],
+      "reference_mean": 0.4902933756510417,
+      "fraction_of_reference": 0.9719666242599487,
+      "fraction_ci95": [
+        0.9590638894295692,
+        0.986179381544256
+      ],
+      "passes_gate": true,
+      "checkpoints": [
+        {
+          "step": 0,
+          "greedy_reward_84ep": 0.0706624984741211,
+          "screen_fraction": 0.14412289046388008,
+          "fixed_history_full_h_r2": 0.9159673805777454,
+          "own_history_full_h_r2": 0.8670518920742516,
+          "fraction_of_reference": 0.14412289046388008,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 19922944,
+          "greedy_reward_84ep": 0.04561249911785126,
+          "screen_fraction": 0.09303103281231197,
+          "fixed_history_full_h_r2": 0.9255202481535039,
+          "own_history_full_h_r2": 0.8168625117284581,
+          "fraction_of_reference": 0.09303103281231197,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 39845888,
+          "greedy_reward_84ep": 0.10073749721050262,
+          "screen_fraction": 0.20546371257155407,
+          "fixed_history_full_h_r2": 0.9289228809546084,
+          "own_history_full_h_r2": 0.8510145911301582,
+          "fraction_of_reference": 0.20546371257155407,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 99614720,
+          "greedy_reward_84ep": 0.12908749282360077,
+          "screen_fraction": 0.26328622664377316,
+          "fixed_history_full_h_r2": 0.9624737873831758,
+          "own_history_full_h_r2": 0.9157036714062801,
+          "fraction_of_reference": 0.26328622664377316,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 219152384,
+          "greedy_reward_84ep": 0.42844998836517334,
+          "screen_fraction": 0.8738645261038885,
+          "fixed_history_full_h_r2": 0.9647411185342735,
+          "own_history_full_h_r2": 0.9602400253111733,
+          "reward_mean": 0.4463144838809967,
+          "reward_ci95": [
+            0.4366168387234211,
+            0.4561086796224117
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9103008508682251,
+          "passes_gate": false
+        },
+        {
+          "step": 498073600,
+          "greedy_reward_84ep": 0.46799999475479126,
+          "screen_fraction": 0.9545305280401802,
+          "fixed_history_full_h_r2": 0.9688316536343383,
+          "own_history_full_h_r2": 0.9686280967772236,
+          "reward_mean": 0.47198486328125,
+          "reward_ci95": [
+            0.4626501090824604,
+            0.4813153177499771
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9626580476760864,
+          "passes_gate": true
+        },
+        {
+          "step": 796917760,
+          "greedy_reward_84ep": 0.4624750018119812,
+          "screen_fraction": 0.9432617791294415,
+          "fixed_history_full_h_r2": 0.9681399805647003,
+          "own_history_full_h_r2": 0.9666538545382978,
+          "reward_mean": 0.4714864194393158,
+          "reward_ci95": [
+            0.462141091376543,
+            0.4806713961064816
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9616414308547974,
+          "passes_gate": true
+        },
+        {
+          "step": 996147200,
+          "greedy_reward_84ep": 0.4603624939918518,
+          "screen_fraction": 0.9389531183866275,
+          "fixed_history_full_h_r2": 0.9681175446628784,
+          "own_history_full_h_r2": 0.9680226284875768,
+          "reward_mean": 0.47164103388786316,
+          "reward_ci95": [
+            0.4623765587806702,
+            0.480965730547905
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9619567394256592,
+          "passes_gate": true
+        },
+        {
+          "step": 1115684864,
+          "greedy_reward_84ep": 0.4623500108718872,
+          "screen_fraction": 0.9430068482119516,
+          "fixed_history_full_h_r2": 0.9691077783033126,
+          "own_history_full_h_r2": 0.9685850022775697,
+          "reward_mean": 0.47104185819625854,
+          "reward_ci95": [
+            0.4615602187812328,
+            0.48016780987381935
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9607346653938293,
+          "passes_gate": true
+        },
+        {
+          "step": 1414529024,
+          "greedy_reward_84ep": 0.46668750047683716,
+          "screen_fraction": 0.9518535710525169,
+          "fixed_history_full_h_r2": 0.970816412443357,
+          "own_history_full_h_r2": 0.9669758806141139,
+          "reward_mean": 0.46948546171188354,
+          "reward_ci95": [
+            0.4598984822630882,
+            0.4790563002228737
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9575602412223816,
+          "passes_gate": true
+        },
+        {
+          "step": 1713373184,
+          "greedy_reward_84ep": 0.4685499966144562,
+          "screen_fraction": 0.9556523091756781,
+          "fixed_history_full_h_r2": 0.9700776840164544,
+          "own_history_full_h_r2": 0.9695715300973882,
+          "reward_mean": 0.4756825864315033,
+          "reward_ci95": [
+            0.46604293286800386,
+            0.48501696959137913
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9701998829841614,
+          "passes_gate": true
+        },
+        {
+          "step": 2012217344,
+          "greedy_reward_84ep": 0.4632999897003174,
+          "screen_fraction": 0.944944420440352,
+          "fixed_history_full_h_r2": 0.9713042996047172,
+          "own_history_full_h_r2": 0.9713042996047172,
+          "reward_mean": 0.47501933574676514,
+          "reward_ci95": [
+            0.46553926467895507,
+            0.48441602289676666
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9688471555709839,
+          "passes_gate": true
+        }
+      ],
+      "first_gated_step": 498073600,
+      "gated_peak": {
+        "step": 2012217344,
+        "fixed_history_full_h_r2": 0.9713042996047172,
+        "minus_final": 0.0
+      },
+      "minus_best_arm": {
+        "best": [
+          0.0,
+          0.002
+        ],
+        "mean": -0.003648631041869521,
+        "ci95": [
+          -0.005952263600192964,
+          -0.001340955757768825
+        ]
+      }
+    },
+    {
+      "variant": 3,
+      "training_epsilon": 0.075,
+      "training_entropy": 0.0,
+      "run_id": "20261115T001005Z-8a91b7d9",
+      "final_step": 2012217344,
+      "episodes": 4096,
+      "reward_mean": 0.4757954776287079,
+      "reward_ci95": [
+        0.4710159808397293,
+        0.48029397800564766
+      ],
+      "reference_mean": 0.4902933756510417,
+      "fraction_of_reference": 0.9704301357269287,
+      "fraction_ci95": [
+        0.9572926799012534,
+        0.9843560334264377
+      ],
+      "passes_gate": true,
+      "checkpoints": [
+        {
+          "step": 0,
+          "greedy_reward_84ep": 0.0706624984741211,
+          "screen_fraction": 0.14412289046388008,
+          "fixed_history_full_h_r2": 0.919397019104019,
+          "own_history_full_h_r2": 0.8670518920742516,
+          "fraction_of_reference": 0.14412289046388008,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 19922944,
+          "greedy_reward_84ep": 0.030150000005960464,
+          "screen_fraction": 0.061493794334719375,
+          "fixed_history_full_h_r2": 0.9292777501145,
+          "own_history_full_h_r2": 0.8675645020109731,
+          "fraction_of_reference": 0.061493794334719375,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 39845888,
+          "greedy_reward_84ep": 0.0361500009894371,
+          "screen_fraction": 0.07373136735007874,
+          "fixed_history_full_h_r2": 0.9353995470195239,
+          "own_history_full_h_r2": 0.8826117783079568,
+          "fraction_of_reference": 0.07373136735007874,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 99614720,
+          "greedy_reward_84ep": 0.13192500174045563,
+          "screen_fraction": 0.26907359612044013,
+          "fixed_history_full_h_r2": 0.9607256678161046,
+          "own_history_full_h_r2": 0.9207371589243734,
+          "fraction_of_reference": 0.26907359612044013,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 219152384,
+          "greedy_reward_84ep": 0.310824990272522,
+          "screen_fraction": 0.6339571483293843,
+          "fixed_history_full_h_r2": 0.9661458575661275,
+          "own_history_full_h_r2": 0.9527616984529481,
+          "fraction_of_reference": 0.6339571483293843,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 498073600,
+          "greedy_reward_84ep": 0.4272625148296356,
+          "screen_fraction": 0.8714425608183879,
+          "fixed_history_full_h_r2": 0.9670727908157942,
+          "own_history_full_h_r2": 0.9599004919647001,
+          "reward_mean": 0.44902750849723816,
+          "reward_ci95": [
+            0.4390086404979229,
+            0.4585912495851517
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9158343076705933,
+          "passes_gate": false
+        },
+        {
+          "step": 796917760,
+          "greedy_reward_84ep": 0.4402250051498413,
+          "screen_fraction": 0.8978807934438916,
+          "fixed_history_full_h_r2": 0.9663325568218571,
+          "own_history_full_h_r2": 0.961847825533962,
+          "reward_mean": 0.4577443301677704,
+          "reward_ci95": [
+            0.4480834096670151,
+            0.4672293409705162
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.933613121509552,
+          "passes_gate": false
+        },
+        {
+          "step": 996147200,
+          "greedy_reward_84ep": 0.4523625075817108,
+          "screen_fraction": 0.9226363847584848,
+          "fixed_history_full_h_r2": 0.9657238618339314,
+          "own_history_full_h_r2": 0.9613394579969634,
+          "reward_mean": 0.4638814330101013,
+          "reward_ci95": [
+            0.45479513704776764,
+            0.47294140979647636
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9461303353309631,
+          "passes_gate": false
+        },
+        {
+          "step": 1115684864,
+          "greedy_reward_84ep": 0.44606250524520874,
+          "screen_fraction": 0.909786930433028,
+          "fixed_history_full_h_r2": 0.9645389486032095,
+          "own_history_full_h_r2": 0.9611615985618339,
+          "reward_mean": 0.4670043885707855,
+          "reward_ci95": [
+            0.4576273560523987,
+            0.4762804120779037
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9524998664855957,
+          "passes_gate": true
+        },
+        {
+          "step": 1414529024,
+          "greedy_reward_84ep": 0.4545375108718872,
+          "screen_fraction": 0.9270725109600437,
+          "fixed_history_full_h_r2": 0.964187062217533,
+          "own_history_full_h_r2": 0.9633857982139831,
+          "reward_mean": 0.46793314814567566,
+          "reward_ci95": [
+            0.4582060493528843,
+            0.47715126201510427
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9543941617012024,
+          "passes_gate": true
+        },
+        {
+          "step": 1713373184,
+          "greedy_reward_84ep": 0.4627250134944916,
+          "screen_fraction": 0.9437717017490943,
+          "fixed_history_full_h_r2": 0.9626735401941897,
+          "own_history_full_h_r2": 0.9622057520957084,
+          "reward_mean": 0.4724538326263428,
+          "reward_ci95": [
+            0.4627364568412304,
+            0.4817847587168217
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9636145234107971,
+          "passes_gate": true
+        },
+        {
+          "step": 2012217344,
+          "greedy_reward_84ep": 0.4649749994277954,
+          "screen_fraction": 0.9483607621872782,
+          "fixed_history_full_h_r2": 0.9615903903590878,
+          "own_history_full_h_r2": 0.9615903903590878,
+          "reward_mean": 0.4716196656227112,
+          "reward_ci95": [
+            0.46217297166585924,
+            0.48090012520551684
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9619131684303284,
+          "passes_gate": true
+        }
+      ],
+      "first_gated_step": 1115684864,
+      "gated_peak": {
+        "step": 1115684864,
+        "fixed_history_full_h_r2": 0.9645389486032095,
+        "minus_final": 0.0029485582441217684
+      },
+      "minus_best_arm": {
+        "best": [
+          0.0,
+          0.002
+        ],
+        "mean": -0.00440190639346838,
+        "ci95": [
+          -0.006994635239243508,
+          -0.001891422053449788
+        ]
+      }
+    },
+    {
+      "variant": 3,
+      "training_epsilon": 0.1,
+      "training_entropy": 0.0,
+      "run_id": "20261115T003150Z-6eda5ec4",
+      "final_step": 2012217344,
+      "episodes": 4096,
+      "reward_mean": 0.4706212282180786,
+      "reward_ci95": [
+        0.4657627008855343,
+        0.4751214526593685
+      ],
+      "reference_mean": 0.4902933756510417,
+      "fraction_of_reference": 0.9598767757415771,
+      "fraction_ci95": [
+        0.946853148809788,
+        0.9737845218968902
+      ],
+      "passes_gate": true,
+      "checkpoints": [
+        {
+          "step": 0,
+          "greedy_reward_84ep": 0.0706624984741211,
+          "screen_fraction": 0.14412289046388008,
+          "fixed_history_full_h_r2": 0.9120118874896856,
+          "own_history_full_h_r2": 0.8670518920742516,
+          "fraction_of_reference": 0.14412289046388008,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 19922944,
+          "greedy_reward_84ep": 0.030150000005960464,
+          "screen_fraction": 0.061493794334719375,
+          "fixed_history_full_h_r2": 0.9213633884398194,
+          "own_history_full_h_r2": 0.8671763935665919,
+          "fraction_of_reference": 0.061493794334719375,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 39845888,
+          "greedy_reward_84ep": 0.0361500009894371,
+          "screen_fraction": 0.07373136735007874,
+          "fixed_history_full_h_r2": 0.9269231623339554,
+          "own_history_full_h_r2": 0.8825336959836692,
+          "fraction_of_reference": 0.07373136735007874,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 99614720,
+          "greedy_reward_84ep": 0.1313749998807907,
+          "screen_fraction": 0.26795181498494225,
+          "fixed_history_full_h_r2": 0.9531906378933132,
+          "own_history_full_h_r2": 0.8998748058607643,
+          "fraction_of_reference": 0.26795181498494225,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 219152384,
+          "greedy_reward_84ep": 0.3675124943256378,
+          "screen_fraction": 0.7495767076959425,
+          "fixed_history_full_h_r2": 0.9618809990163472,
+          "own_history_full_h_r2": 0.9490069580026591,
+          "fraction_of_reference": 0.7495767076959425,
+          "episodes": 84,
+          "passes_gate": false
+        },
+        {
+          "step": 498073600,
+          "greedy_reward_84ep": 0.434675008058548,
+          "screen_fraction": 0.8865610461927204,
+          "fixed_history_full_h_r2": 0.963259403494201,
+          "own_history_full_h_r2": 0.9593443866222098,
+          "reward_mean": 0.45199888944625854,
+          "reward_ci95": [
+            0.4427174381911755,
+            0.46161621287465093
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9218947291374207,
+          "passes_gate": false
+        },
+        {
+          "step": 796917760,
+          "greedy_reward_84ep": 0.43540000915527344,
+          "screen_fraction": 0.8880397549265734,
+          "fixed_history_full_h_r2": 0.9587487695073937,
+          "own_history_full_h_r2": 0.9555784661827688,
+          "reward_mean": 0.46038514375686646,
+          "reward_ci95": [
+            0.4510104350745678,
+            0.46988776624202727
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9389992952346802,
+          "passes_gate": false
+        },
+        {
+          "step": 996147200,
+          "greedy_reward_84ep": 0.4354499876499176,
+          "screen_fraction": 0.8881416908227657,
+          "fixed_history_full_h_r2": 0.9585162925664569,
+          "own_history_full_h_r2": 0.9546425482635421,
+          "reward_mean": 0.46013695001602173,
+          "reward_ci95": [
+            0.4505572371184826,
+            0.46927455589175227
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9384930729866028,
+          "passes_gate": false
+        },
+        {
+          "step": 1115684864,
+          "greedy_reward_84ep": 0.43525001406669617,
+          "screen_fraction": 0.8877338256686508,
+          "fixed_history_full_h_r2": 0.958234368999636,
+          "own_history_full_h_r2": 0.9547504615528337,
+          "reward_mean": 0.46185505390167236,
+          "reward_ci95": [
+            0.45234254077076913,
+            0.4708978429436684
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9419973492622375,
+          "passes_gate": false
+        },
+        {
+          "step": 1414529024,
+          "greedy_reward_84ep": 0.4422124922275543,
+          "screen_fraction": 0.9019344624845428,
+          "fixed_history_full_h_r2": 0.9562164292218047,
+          "own_history_full_h_r2": 0.953866542418085,
+          "reward_mean": 0.4660085141658783,
+          "reward_ci95": [
+            0.45645042434334754,
+            0.4750997625291348
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9504687190055847,
+          "passes_gate": true
+        },
+        {
+          "step": 1713373184,
+          "greedy_reward_84ep": 0.4486500024795532,
+          "screen_fraction": 0.9150643772900422,
+          "fixed_history_full_h_r2": 0.9554614546642322,
+          "own_history_full_h_r2": 0.95388784117229,
+          "reward_mean": 0.4663746953010559,
+          "reward_ci95": [
+            0.4570952743291855,
+            0.47534765526652334
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9512155652046204,
+          "passes_gate": true
+        },
+        {
+          "step": 2012217344,
+          "greedy_reward_84ep": 0.4570249915122986,
+          "screen_fraction": 0.9321459644553278,
+          "fixed_history_full_h_r2": 0.9541140851576702,
+          "own_history_full_h_r2": 0.9541140851576702,
+          "reward_mean": 0.46769410371780396,
+          "reward_ci95": [
+            0.45823577493429185,
+            0.4770521506667137
+          ],
+          "episodes": 1024,
+          "fraction_of_reference": 0.9539065957069397,
+          "passes_gate": true
+        }
+      ],
+      "first_gated_step": 1414529024,
+      "gated_peak": {
+        "step": 1414529024,
+        "fixed_history_full_h_r2": 0.9562164292218047,
+        "minus_final": 0.0021023440641345648
+      },
+      "minus_best_arm": {
+        "best": [
+          0.0,
+          0.002
+        ],
+        "mean": -0.0095761613920331,
+        "ci95": [
+          -0.012449156935326755,
+          -0.006701850960962476
+        ]
+      }
+    }
+  ]
+}

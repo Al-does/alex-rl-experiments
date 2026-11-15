@@ -11,6 +11,28 @@ PR #219 runs, re-analyzed with the same pipeline. The analysis is the parent wit
 both scored on the final policy's exact histories, classes and targets. Full tables are in
 [`results/README.md`](results/README.md).
 
+## Reward gate (all final policies pass)
+
+A belief-resolution comparison is only meaningful between policies that solve the task, so every policy was
+scored against a reward reference (`reward_reference.py`, `reward_gate.py`).
+- **Reference:** belief-MDP value iteration on a simplex grid, with the resulting policy simulated using
+  the exact filter and the probe protocol (4,096 episodes, 1,024 steps, 64-step warmup excluded). It earns
+  .5334 reward/step for Reward-State and .4903 for Full-State. The grid/discount sweep converged, but this
+  is near-optimal, not a certified Bayes bound. For scale: best current-token-only policy .348 / .308,
+  Noop forever .176.
+- **Final policies** (greedy, 4,096 fresh episodes, common random numbers across arms): Reward-State
+  .518–.527 (97.0–98.9% of reference), Full-State .471–.480 (96.0–97.9%). All 14 pass a 95% gate; Full-State
+  ε = .1 is the closest (lower CI .947 once reference noise is included). Within each quotient every arm is
+  within .010 reward/step of the best arm, so the final-checkpoint comparisons below are between competent
+  policies.
+- **Reward does not explain the Reward-State entropy loss.** The entropy arms have the *highest* reward
+  (98.9%) and the lowest Δ (see [`results/reward_vs_gain.png`](results/reward_vs_gain.png)).
+- **Checkpoints:** each sampled checkpoint was screened with its 84-episode probe reward; those ≥ 80% of
+  reference were re-scored with 1,024 fresh episodes, and the gate is again 95%. Reward-State checkpoints
+  through 100M steps (219M for most arms) earn .32–.41 of reference, near Noop level, and fail. Their ≈ .94
+  within-class R² is not evidence about a competent policy. The first passing sampled checkpoint is 219M–498M
+  for most arms, 1.1B–1.4B for Full-State ε ≥ .05 and Reward-State ε = .075.
+
 ## Verdict: not supported, with one partial exception
 
 1. **Full-State: the gain does not depend on exploration.** All seven arms gain the same within-class
@@ -29,13 +51,16 @@ both scored on the final policy's exact histories, classes and targets. Full tab
    - The loss is entirely in the non-reward contrast b1−b2, the nuisance the action does not need
      (Δ −.100, −.036, −.106).
    - The reward-state coordinate b3 still improves (+.022 to +.024) and is decoded at ≥ .999.
-4. **The trajectories show forgetting, not lack of learning.** All seven Reward-State runs reach about
-   .94 within-class R² by around 100M steps (one peaks at 498M), then decline.
-   - The entropy .002 and .008 runs decline most, to .877 and .869. The ε = .075 run ends at .903.
-   - Full-State ε > 0 runs peak at 219–498M steps and end .005–.011 lower.
-   - Full-State ε = 0 and entropy runs plateau near .97.
-   - So, if anything, exploration pressure speeds up forgetting of belief information the action does not
-     need, the opposite of the hypothesis.
+4. **Among reward-qualified checkpoints, entropy makes Reward-State lose resolution.** The trajectories
+   are scored on the final policy's histories, and only checkpoints that pass the reward gate count.
+   - The original "peaks near .94 around 100M steps" were at failing checkpoints and are dropped.
+   - Even so, every Reward-State arm is at .932–.944 at its first competent checkpoint (219M–498M; .918 at
+     1.4B for ε = .075). Entropy .002 and .008 then fall to .877 and .869, i.e. gated peak − final = +.060
+     and +.064, while reward stays at 98%. Entropy .004 falls +.031, ε = 0 +.022 (mostly at the last
+     checkpoint), ε = .075 and .1 about +.015, ε = .05 +.002. Pointwise 95% bands are about ±.004.
+   - Full-State is flat once competent: gated peak − final ≤ .005 in every arm.
+   - So exploration pressure, entropy in particular, removes belief information the action does not need
+     while the policy keeps optimal-level reward. That is the opposite of the hypothesis.
 5. **b3 gain shrinks with ε for both quotients:** from +.027 at ε = 0 to +.014–.015 at ε = .1.
 
 ## Caveats
@@ -43,8 +68,11 @@ both scored on the final policy's exact histories, classes and targets. Full tab
 - **One training seed per arm.** The 95% intervals are paired whole-episode bootstrap intervals over test
   rollouts, not seed-to-seed intervals. The non-monotone Reward-State entropy sequence (−.046, −.010, −.052)
   suggests seed-level variation is about as large as the effects.
-- **Exploratory peaks.** Trajectory peaks were picked after looking at the curves. The peak − final
-  intervals are not adjusted for that selection.
+- **Exploratory peaks.** Gated peaks are the best of 12 sampled, reward-passing checkpoints, chosen after
+  looking at the curves, and have no selection-adjusted interval. Checkpoint rewards for checkpoints
+  below the 80% screen rest on 84 episodes; the screen is far from the gate (.32 vs .95) for all but a few
+  Full-State checkpoints at .89–.94, which were re-scored with 1,024 episodes.
+- **Approximate reference.** The 95% gate is relative to a grid-policy reference, not a certified optimum.
 - **Identical greedy streams.** The Reward-State entropy .002 and .004 final policies produce identical
   greedy action streams on the probe rollouts, so their matched-init scores are identical. Their final
   encoders differ.
@@ -66,5 +94,7 @@ information out of the logits under ε.
 export CUDA_VISIBLE_DEVICES='' JAX_PLATFORMS=cpu OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
 uv run python -m experiments.within_class_exploration_sweep_2026_11.analyze
 uv run python -m experiments.within_class_exploration_sweep_2026_11.trajectory
+uv run python -m experiments.within_class_exploration_sweep_2026_11.reward_reference
+uv run python -m experiments.within_class_exploration_sweep_2026_11.reward_gate
 uv run python -m experiments.within_class_exploration_sweep_2026_11.report
 ```

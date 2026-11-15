@@ -10,6 +10,7 @@ import numpy as np
 from .analyze import OUTPUT
 
 TRAJECTORY = OUTPUT.with_name("within_class_exploration_sweep_trajectory.json")
+REWARD_GATE = OUTPUT.with_name("reward_gate.json")
 
 RESULTS = OUTPUT.parent
 NAMES = {2: "Reward-State", 3: "Full-State"}
@@ -129,12 +130,76 @@ def absolute_figure(arms, path):
     plt.close(fig)
 
 
+def knobs(a):
+    return a["variant"], a["training_epsilon"], a["training_entropy"]
+
+
+def load_gate():
+    if not REWARD_GATE.exists():
+        return {}, None
+    gate = json.loads(REWARD_GATE.read_text())
+    return {knobs(a): a for a in gate["arms"]}, gate["protocol"]
+
+
+def reward_section(arms, gate, protocol, path):
+    """Reward gate: final greedy reward vs the belief-grid reference, and Δ vs reward."""
+    if not gate:
+        return []
+    reference = json.loads(REWARD_GATE.with_name("reward_reference.json").read_text())["variants"]
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4))
+    for ax, variant in zip(axes, NAMES):
+        group = [a for a in arms if a["variant"] == variant]
+        for a in group:
+            g = gate[knobs(a)]
+            d = diff(a, "full_h")
+            marker = "s" if a["training_entropy"] else "o"
+            ax.errorbar(g["fraction_of_reference"], d[0], yerr=[[d[0]-d[1]], [d[2]-d[0]]],
+                        xerr=[[g["fraction_of_reference"]-g["fraction_ci95"][0]], [g["fraction_ci95"][1]-g["fraction_of_reference"]]],
+                        fmt=marker, color=COLORS[variant], capsize=2, mfc="white" if a["training_entropy"] else COLORS[variant])
+            ax.annotate(setting(a), (g["fraction_of_reference"], d[0]), fontsize=7, xytext=(4, 3), textcoords="offset points")
+        ax.axhline(0, color="gray", lw=.8)
+        ax.axvline(float(protocol["gate"].split(">= ")[1].split("%")[0])/100, color="gray", ls="--", lw=.8)
+        ax.set_title(f"{NAMES[variant]} Quotient", fontsize=10)
+        ax.set_xlabel("Final greedy reward / belief-grid reference")
+        ax.grid(alpha=.2)
+    axes[0].set_ylabel("Δ full h within-class R²\n(final − matched init)")
+    fig.suptitle("Training-added within-class resolution vs reward attained (circles: ε arms; squares: entropy arms;\n"
+                 "dashed: reward gate; one seed per point)", fontsize=10)
+    fig.tight_layout()
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
+    refs = {v: reference[str(v)] for v in NAMES}
+    lines = ["#### Reward attained (gate for the belief-resolution comparison)", "",
+             "Reference: belief-MDP value iteration on a simplex grid (`reward_reference.py`), its lookahead policy simulated "
+             "with the exact filter for 4,096 episodes under the probe protocol (1,024 steps, 64-step warmup excluded). It is "
+             "near-optimal (grid/discount sweep converged), not a certified Bayes bound. "
+             + " ".join(f"{NAMES[v]}: reference {r['best_belief_grid']['mean']:.4f}, myopic-belief {r['myopic_belief']['mean']:.4f}, "
+                        f"best current-token {r['current_token']['mean']:.4f}, Noop {r['constant_action']['0']['mean']:.4f}."
+                        for v, r in refs.items()),
+             f"Policies are greedy, {protocol['episodes']:,} fresh episodes each; gate: {protocol['gate']}. "
+             "Arm − best arm uses common random numbers (shared rollout key) and a paired episode bootstrap. "
+             "First gated step / gated peak use the sampled checkpoints: " + protocol["checkpoint_rewards"] + ".", "",
+             "| Quotient | Setting | Final reward/step [95% CI] | / reference [95% CI] | Gate | Arm − best arm [95% CI] | First gated checkpoint | Gated peak (fixed hist.) | Gated peak − final |",
+             "|---|---|---|---|---|---|---:|---|---:|"]
+    for a in arms:
+        g = gate[knobs(a)]
+        b, p = g["minus_best_arm"], g["gated_peak"]
+        first = "—" if g["first_gated_step"] is None else f"{g['first_gated_step']/1e6:,.0f}M"
+        peak = "—" if p is None else f"{p['fixed_history_full_h_r2']:.4f} @ {p['step']/1e6:,.0f}M"
+        lines.append(f"| {NAMES[a['variant']]} | {setting(a)} | {g['reward_mean']:.4f} [{g['reward_ci95'][0]:.4f}, {g['reward_ci95'][1]:.4f}] | "
+                     f"{g['fraction_of_reference']:.3f} [{g['fraction_ci95'][0]:.3f}, {g['fraction_ci95'][1]:.3f}] | "
+                     f"{'pass' if g['passes_gate'] else 'FAIL'} | {b['mean']:+.4f} [{b['ci95'][0]:+.4f}, {b['ci95'][1]:+.4f}] | "
+                     f"{first} | {peak} | {'—' if p is None else format(p['minus_final'], '+.4f')} |")
+    return [*lines, "", f"![reward]({path.name})", ""]
+
+
 def level(arm, axis):
     return arm["training_epsilon"] if axis == "epsilon" else arm["training_entropy"]
 
 
-def trajectory_section(path):
+def trajectory_section(path, gate=None):
     """Fixed-final-history checkpoint trajectories (parent PR219 protocol), when that JSON exists."""
+    gate = gate or {}
     if not TRAJECTORY.exists():
         return []
     runs = sorted(json.loads(TRAJECTORY.read_text())["arms"],
@@ -152,6 +217,9 @@ def trajectory_section(path):
                 color = cmap(i/max(1, len(group)-1)*.9)
                 ax.plot(x, [d["r2"] for d in m], "-", marker=".", ms=4, color=color, label=f"{xlabel.split(' (')[0]} = {level(r, axis):g}")
                 ax.fill_between(x, ci[:, 0], ci[:, 1], color=color, alpha=.1)
+                if knobs(r) in gate:
+                    fails = [not c["passes_gate"] for c in gate[knobs(r)]["checkpoints"]]
+                    ax.plot(x[fails], np.array([d["r2"] for d in m])[fails], "x", color=color, ms=6)
             ax.set_title(f"{NAMES[variant]} Quotient", fontsize=10)
             ax.grid(alpha=.2)
             ax.legend(fontsize=7)
@@ -160,14 +228,15 @@ def trajectory_section(path):
             if row == 1:
                 ax.set_xlabel(f"Training steps (billions) — {xlabel}")
     fig.suptitle("Checkpoint trajectories on fixed final-policy histories (step 0 = matched init)\n"
-                 "Pointwise 95% episode-bootstrap bands; seed 42 only; lines connect 12 prespecified checkpoints", fontsize=11)
+                 "Pointwise 95% episode-bootstrap bands; seed 42 only; × = checkpoint policy fails the reward gate", fontsize=11)
     fig.tight_layout()
     fig.savefig(path, dpi=160)
     plt.close(fig)
     lines = ["#### Checkpoint trajectories (fixed final-policy histories)", "",
              "Each run's 12 prespecified checkpoints (parent PR219 trajectory protocol) are replayed on that run's final-policy "
              "histories, classes and targets with the probe refit per encoder. Peaks are chosen after looking, so the paired "
-             "peak − final interval is exploratory and not selection-adjusted.", "",
+             "peak − final interval is exploratory and not selection-adjusted. Peaks here ignore reward; "
+             "see the reward-gate table for peaks restricted to checkpoints whose policy passes the gate.", "",
              "| Quotient | Setting | Init (fixed hist.) | Peak | Peak step | Final | Peak − final [95% CI] |",
              "|---|---|---:|---:|---:|---:|---|"]
     for r in runs:
@@ -190,13 +259,15 @@ def main():
                   ("Δ b3 R² (full h)", lambda a: diff(a, "full_h", "rho"))],
            RESULTS/"scalar_gain_vs_exploration.png", "Training-added within-class resolution of scalar belief coordinates\n(b1−b2: non-reward-state contrast; b3: reward-state probability)")
     absolute_figure(arms, RESULTS/"within_class_r2_by_representation.png")
+    gate, protocol = load_gate()
     lines = ["# Results: exploration pressure vs within-class belief resolution", "",
              "Generated by `report.py` from `within_class_exploration_sweep.json`. Δ is final minus matched-init "
              "(init encoder replayed on the final policy's exact histories); 95% intervals are 10,000 paired "
-             "whole-episode resamples conditional on one training seed (42).", "", *tables(arms), "",
+             "whole-episode resamples conditional on one training seed (42).", "",
+             *reward_section(arms, gate, protocol, RESULTS/"reward_vs_gain.png"), "#### Within-class probes", "", *tables(arms), "",
              "![gain](gain_vs_exploration.png)", "", "![scalar](scalar_gain_vs_exploration.png)", "",
              "![absolute](within_class_r2_by_representation.png)", "",
-             *trajectory_section(RESULTS/"trajectory_vs_exploration.png")]
+             *trajectory_section(RESULTS/"trajectory_vs_exploration.png", gate)]
     (RESULTS/"README.md").write_text("\n".join(lines))
     print("Reported", len(arms), "arms")
 

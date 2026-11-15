@@ -51,3 +51,25 @@ def test_validator_rejects_trivial_quotient():
     r["condition"] = "variant_1"
     with pytest.raises(ValueError):
         analyze.validate_recipe(r, "variant_1_transformer")
+
+
+def test_reward_reference_grid_interpolation_is_exact_affine():
+    import numpy as np
+    from experiments.within_class_exploration_sweep_2026_11.reward_reference import grid, interpolate
+
+    for n in (7, 60):
+        points, index = grid(n)
+        beliefs = np.vstack([points, np.random.default_rng(0).dirichlet([.3, .3, .3], 5000)])
+        vertices, weights = interpolate(beliefs, n, index)
+        assert (vertices >= 0).all() and np.allclose(weights.sum(-1), 1) and (weights >= 0).all()
+        np.testing.assert_allclose((points[vertices] * weights[..., None]).sum(1), beliefs, atol=1e-12)
+
+
+def test_reward_reference_myopic_beats_constant_actions():
+    import numpy as np
+    from experiments.within_class_exploration_sweep_2026_11 import reward_reference as ref
+
+    kernels = ref.env.action_transitions(2)
+    myopic = ref.simulate(2, lambda b: np.einsum("ns,ast->nat", b, kernels)[..., 2].argmax(1), episodes=64)
+    noop = ref.simulate(2, lambda b: np.zeros(len(b), dtype=int), episodes=64)
+    assert myopic["mean"] > noop["mean"] + .2
