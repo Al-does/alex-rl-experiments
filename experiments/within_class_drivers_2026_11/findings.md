@@ -163,7 +163,7 @@ Network probes, within class, `b1 - b2` (initialization, peak of the full target
 
 - **The early rise is a gain in the 32-input statistic.** In Reward-State-like and Trivial runs
   the near part rises by +.03 to +.05 to the peak while the far part does not rise (-.06 to +.01).
-  This removes the "longer effective memory" explanation listed as open above.
+  The rise is therefore not the network learning to reach further back than one band.
 - **The untrained network already carries the far part** (.45-.50 where the last 32 inputs carry
   none of it), so the stacked bands pass older evidence through at initialization.
 - **Compression removes the far part first and most.** It falls to .06-.19 in all five
