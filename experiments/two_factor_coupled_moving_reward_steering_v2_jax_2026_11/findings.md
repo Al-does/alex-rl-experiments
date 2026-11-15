@@ -105,6 +105,36 @@ exact-belief long-run map's action (factor 1 / factor 2).
   paper; factor-2 gains are equal.
 - Best sites are blocks 3–4 and post-final-norm; block 1 recovers about half.
 
+## Next-step vs long-run map on the exact belief (`results/exact_belief_map_comparison.json`)
+
+The 256 confirmation episodes cannot rank the two maps on the exact belief
+(XOR 0.623 vs 0.619, episode SE 0.008). `map_comparison.py` reruns both, with
+no agent, on 16,384 episodes that share environment draws (seed 3042), so the
+difference is paired.
+
+| Map on the exact belief | XOR | Moving total |
+|---|---:|---:|
+| Next-step | 0.6178 ± 0.0009 | 1.1829 ± 0.0014 |
+| Long-run, γ=0.5 | 0.6193 | 1.1829 |
+| Long-run, γ=0.9 | 0.6220 | 1.1857 |
+| Long-run, γ=0.99 | 0.6223 ± 0.0009 | 1.1881 ± 0.0014 |
+| Long-run, γ=0.999 | 0.6225 | 1.1890 |
+| Long-run (γ=0.99) minus next-step, paired | +0.0045 ± 0.0006 | +0.0051 ± 0.0006 |
+| Steps where the two maps pick different actions | 8.0% | 2.5% |
+| Hidden state known, next-step / long-run | 0.8192 / 0.8192 | 1.5043 / 1.5132 |
+
+- The long-run map is slightly better on both rewards. The XOR ordering in the
+  256 confirmation episodes was noise: on those episodes the paired difference
+  is −0.004 ± 0.004.
+- For XOR the two maps choose the same action at every known state (all steps
+  but the last), so they earn the same reward when the state is known. They
+  differ only on uncertain beliefs.
+- The gap to the known-state reward (0.82 for XOR) is the cost of partial
+  observability under these maps; neither map is the POMDP optimum.
+- Run with seed 2042 and 256 episodes, the script reproduces the
+  `exact_belief_{myopic,discounted}_map` rewards in the per-agent reports
+  (`confirmation_check` in the JSON).
+
 ## Caveats
 
 - Two training seeds per arm; SEs reflect episode-to-episode variation only.
@@ -128,3 +158,9 @@ uv run --group jax python -m experiments.two_factor_coupled_moving_reward_steeri
 ```
 
 About 40 minutes on 8 CPU cores with the four agents in parallel (`--only`).
+
+The exact-belief map comparison needs no checkpoints (about 4 minutes on CPU):
+
+```bash
+uv run --group jax python -m experiments.two_factor_coupled_moving_reward_steering_v2_jax_2026_11.map_comparison
+```
