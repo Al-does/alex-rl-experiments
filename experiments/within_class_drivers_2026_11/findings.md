@@ -135,6 +135,51 @@ Reading: the rise in Reward-State-like arms is consistent with a by-product of l
 not established; the direct test is to train the same initialization on `b3` regression alone and
 check whether `b1 - b2` rises by the same amount.
 
+## Is `b1 - b2` a short-window token statistic?
+
+`window_filter.py` rebuilds the Bayes filter from only the last `k` (token, previous action)
+inputs, starting `k` steps back from the mean belief on the fit histories (a uniform start changes
+the numbers below by at most .005). `k = 32` is one attention band; the four-layer network can
+reach back 128. On the same nine runs and fixed histories it splits each coordinate into a
+**near** part (the 32-input filter) and a **far** part (full filter minus the 32-input filter),
+and probes the residual stream of ten checkpoints for both. Results: `results/window_filter.json`.
+
+The filter itself, no network (share of within-class variance the 32-input filter misses):
+
+| | Reward-State-like (5 runs) | Full-State (3 runs) | Trivial (1 run) |
+|---|---|---|---|
+| `b3` | .001-.004 (`kappa=.05`: .023) | .011-.014 | .000 |
+| `b1 - b2` | .05-.08 | .32 | .09 |
+| `b1 - b2` at 64 / 128 inputs | <.01 / .000 | .04 / .000 | .006 / .000 |
+
+Network probes, within class, `b1 - b2` (initialization, peak of the full target, final):
+
+| | Reward-State-like (5 runs) | Full-State (3 runs) | Trivial (1 run) |
+|---|---|---|---|
+| Near part | .87-.91, .92-.93, .68-.90 | .79-.82, .85-.87, .85-.87 | .87, .91, .89 |
+| Far part | .45-.50, .41-.50, .06-.19 | .60-.61, .54-.56, .54-.56 | .35, .30, .27 |
+| Far part from the 32 raw inputs and the near belief | -.01 to .04 | .64-.66 | .04 |
+| Full minus near score, initialization to final | -.01 to -.02, -.00 to -.03 | -.01 to -.02, +.04 to +.06 | -.03, -.04 |
+
+- **The early rise is a gain in the 32-input statistic.** In Reward-State-like and Trivial runs
+  the near part rises by +.03 to +.05 to the peak while the far part does not rise (-.06 to +.01).
+  This removes the "longer effective memory" explanation listed as open above.
+- **The untrained network already carries the far part** (.45-.50 where the last 32 inputs carry
+  none of it), so the stacked bands pass older evidence through at initialization.
+- **Compression removes the far part first and most.** It falls to .06-.19 in all five
+  Reward-State-like runs, starting at the peak. The near part also falls by about .2 in three
+  of the five (`lam=1` seed 43, `lam=.75`, `kappa=.05`), so the final Reward-State `b1 - b2` is
+  not simply "the 32-input statistic, intact".
+- **Full-State matches the full filter better than the 32-input one after training** (full minus
+  near +.04 to +.06; negative at initialization and in every other run at every checkpoint).
+- **Full-State far part is confounded.** It does not rise with training (.60 to .54-.56), and
+  about two thirds of it is already linear in the last 32 inputs, because the previous-action
+  inputs record what the policy believed earlier (previous actions alone: .32 in Full-State
+  seed 42, -.00 in Reward-State seed 42). "Full-State integrates over all four bands" is therefore
+  not shown by the far-part probe; the full-versus-near comparison is the usable evidence.
+
+Exploratory: nine runs, fixed final-policy histories, no intervention.
+
 ## Limits
 
 - Reward values of .1-.8% (`lam=.75`, `.5`, `0`, `kappa=.05`) are smaller than their Monte Carlo
