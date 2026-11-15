@@ -403,3 +403,26 @@ checkpoint; they condition on that observed choice and are not corrected for
 peak selection, unobserved checkpoints, simultaneous comparisons or training
 seeds. One-class scores equal global scores. All conclusions remain descriptive
 affine accessibility, not causal information use.
+
+### Own-policy-only trajectory follow-up
+
+`own_trajectory.py` makes the same 12 checkpoints' own-history scores primary;
+no encoder is scored on another policy's histories. It reuses rollout caches,
+refits missing own-policy predictions, and adds init/own-peak/final input and
+label controls. Run it with the CPU/B2 environment above, then run
+`own_trajectory_report.py`, both using `uv run python -m
+experiments.within_class_belief_probes_2026_11.<module>`. Outputs are
+`results/ladder_nuisance_v2_temp15_own_trajectory.{json,png,pdf}` and an appended
+results README section. Predictions and control caches remain ignored under
+each study/arm's `own_trajectory/` artifact directory.
+
+Peak−final and init−peak use independently resampled episode sets (10K draws),
+not paired intervals. The original rollouts reuse PRNG keys, so independent
+bootstrap resampling does not make the underlying samples strictly independent.
+Peaks are selected on observed own-history full-h R² and intervals are not
+selection-adjusted. Class-standardized pooled R² weights class-conditional SSE
+and SST per row by final class proportions. When peak lacks a final class, the
+full-final-mixture contrast is undefined; shared-support results and covered mass
+are reported separately. Class standardization does not remove within-class
+visitation or target-variance changes. Pointwise intervals hold probes fixed;
+all results remain conditional on one training seed.

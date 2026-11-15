@@ -422,3 +422,249 @@ A one-class within-class score equals the corresponding global affine score. All
 Uncertainty: 2000 pointwise whole-test-episode bootstrap resamples; 10000 paired peak-minus-final resamples; probes held fixed and class means recomputed. The final scored episode is truncated to the 80K-row budget. One training seed only; no fit-data, seed-to-seed, simultaneous-curve or selected-peak correction. The observation/action streams and post-warmup scoring follow the original probe protocol. Affine accessibility does not establish causal use or Bayesian computation.
 
 Reproduce with CPU-only environment variables and `uv run python -m experiments.within_class_belief_probes_2026_11.trajectory`, then `uv run python -m experiments.within_class_belief_probes_2026_11.trajectory_report`. Flags `--points`, `--bootstrap`, and `--peak-bootstrap` set the sampling budget and bootstrap counts. Caches are parameterized by points/bootstrap under each study/arm's ignored artifact directory. No new training or paid compute.
+
+## PR219 own-policy-only checkpoint trajectory (primary follow-up)
+
+**Primary result: each encoder is scored only on its own greedy-policy trajectories.** These curves do not use final-policy fixed histories. Each checkpoint has its own belief distribution and action partition; compare these as distribution-specific affine accessibility, not causal information use.
+
+2000 pointwise draws; 10000 unpaired contrast draws with independently resampled episodes, class means recomputed and probes fixed. Underlying checkpoint rollouts reuse PRNG stream keys: independent resampling is the requested convention, not a claim that these common-random-number samples are strictly independent.
+
+Peak maximizes observed own-history full-h within-class R2 among 12 checkpoints; contrasts condition on selected peak, no selection/multiplicity correction; one training seed only.
+
+R2=1-sum(q_k*SSE_k/n_k)/sum(q_k*SST_k/n_k). q is final test class proportions, restricted and renormalized to shared peak/final support. Zero-presence bootstrap replicates are invalid, not silently renormalized. This controls class proportions, not within-class visitation or target variance.
+
+Controls retain original own-policy targets/classes and use one fixed perturbation draw. Input controls are distribution shifts, not required-to-be-zero nulls. Init−peak is signed init minus peak, so a negative value indicates a rise.
+
+### Trivial, epsilon 0.0
+
+| Steps | Within-class R² [95% CI] | Head-blind | Logits | Delta | Rho | Reward | Test classes |
+|---:|---|---:|---:|---:|---:|---:|---:|
+| 0 | 0.833117 [0.825889, 0.839119] | 0.832589 | 0.220412 | 0.854448 | 0.693100 | 0.087362 | 2 |
+| 19922944 | 0.922380 [0.910120, 0.931247] | 0.920884 | 0.639724 | 0.845679 | 0.937833 | 0.965163 | 1 |
+| 39845888 | 0.925220 [0.913697, 0.933576] | 0.923883 | 0.648252 | 0.847894 | 0.940799 | 0.965163 | 1 |
+| 99614720 | 0.939596 [0.930811, 0.946173] | 0.938184 | 0.676792 | 0.854405 | 0.956760 | 0.965163 | 1 |
+| 219152384 | 0.970401 [0.965545, 0.974350] | 0.969928 | 0.747787 | 0.872305 | 0.990165 | 0.965163 | 1 |
+| 498073600 | 0.966967 [0.960834, 0.972136] | 0.966470 | 0.745108 | 0.848148 | 0.990907 | 0.965163 | 1 |
+| 796917760 | 0.974811 [0.970025, 0.978890] | 0.974649 | 0.624595 | 0.874051 | 0.995112 | 0.965163 | 1 |
+| 996147200 | 0.973116 [0.968309, 0.977069] | 0.973067 | 0.514719 | 0.869167 | 0.994059 | 0.965163 | 1 |
+| 1115684864 | 0.969468 [0.964425, 0.973578] | 0.969541 | 0.503438 | 0.863165 | 0.990885 | 0.965163 | 1 |
+| 1414529024 | 0.964401 [0.958868, 0.968878] | 0.964463 | 0.516271 | 0.857603 | 0.985919 | 0.965163 | 1 |
+| 1713373184 | 0.958737 [0.952772, 0.963635] | 0.958006 | 0.520524 | 0.855772 | 0.979482 | 0.965163 | 1 |
+| 2012217344 | 0.959598 [0.953714, 0.964431] | 0.958762 | 0.416803 | 0.854629 | 0.980746 | 0.965163 | 1 |
+
+Peak checkpoint: `checkpoints/step_0796917760.npz`.
+
+| Contrast | Left R² | Right R² | Difference [unpaired 95% CI] |
+|---|---:|---:|---|
+| Peak − final | 0.974811 | 0.959598 | +0.015214 [+0.008465, +0.022137] |
+| Init − peak | 0.833117 | 0.974811 | -0.141694 [-0.150143, -0.133606] |
+| Peak − final, final class proportions on shared support | 0.974811 | 0.959598 | +0.015214 [+0.008465, +0.022137] |
+
+Shared classes: [1]; standardized weights: [0.0, 1.0, 0.0]. Final mass covered: 1.000000; peak mass covered: 1.000000.
+
+| Shared action | Peak R² | Final R² | Difference [unpaired 95% CI] |
+|---:|---:|---:|---|
+| 1 | 0.974811 | 0.959598 | +0.015214 [+0.008465, +0.022137] |
+
+| Control stage / steps | Shuffle R² [CI] | Random input R² [CI] | Label permutation R² [CI] |
+|---|---|---|---|
+| init / 0 | 0.034169 [-0.002036, 0.067714] | -0.029880 [-0.061698, -0.010287] | -0.028826 [-0.060747, -0.009711] |
+| peak / 796917760 | 0.019486 [-0.007773, 0.039434] | -0.015052 [-0.028804, -0.003837] | -0.012761 [-0.019487, -0.009566] |
+| final / 2012217344 | 0.025828 [-0.001907, 0.047207] | -0.009705 [-0.021695, 0.000525] | -0.011051 [-0.017842, -0.007725] |
+
+### Reward-State, epsilon 0.0
+
+| Steps | Within-class R² [95% CI] | Head-blind | Logits | Delta | Rho | Reward | Test classes |
+|---:|---|---:|---:|---:|---:|---:|---:|
+| 0 | 0.864559 [0.858358, 0.869660] | 0.864196 | 0.232276 | 0.875484 | 0.634079 | 0.051488 | 2 |
+| 19922944 | 0.897409 [0.894414, 0.900122] | 0.897187 | 0.281735 | 0.919183 | 0.802121 | 0.172725 | 1 |
+| 39845888 | 0.906467 [0.903599, 0.909061] | 0.906373 | 0.243454 | 0.925092 | 0.824964 | 0.172725 | 1 |
+| 99614720 | 0.939250 [0.936797, 0.941494] | 0.938821 | 0.312174 | 0.938874 | 0.940893 | 0.172725 | 1 |
+| 219152384 | 0.940165 [0.937263, 0.942867] | 0.939895 | 0.255928 | 0.928277 | 0.992187 | 0.172725 | 1 |
+| 498073600 | 0.939672 [0.936307, 0.942700] | 0.939399 | 0.326322 | 0.908640 | 0.995528 | 0.499250 | 2 |
+| 796917760 | 0.935131 [0.931505, 0.938432] | 0.935081 | 0.346882 | 0.899308 | 0.998548 | 0.501238 | 2 |
+| 996147200 | 0.934345 [0.930652, 0.937818] | 0.934366 | 0.348111 | 0.898660 | 0.997557 | 0.501238 | 2 |
+| 1115684864 | 0.930879 [0.926998, 0.934502] | 0.930849 | 0.337076 | 0.893403 | 0.997264 | 0.501238 | 2 |
+| 1414529024 | 0.930014 [0.926271, 0.933586] | 0.928376 | 0.351423 | 0.892193 | 0.997391 | 0.501113 | 2 |
+| 1713373184 | 0.931615 [0.927818, 0.935360] | 0.929246 | 0.382478 | 0.894484 | 0.997765 | 0.501113 | 2 |
+| 2012217344 | 0.917327 [0.912456, 0.921890] | 0.916750 | 0.385431 | 0.872847 | 0.996568 | 0.501113 | 2 |
+
+Peak checkpoint: `checkpoints/step_0219152384.npz`.
+
+| Contrast | Left R² | Right R² | Difference [unpaired 95% CI] |
+|---|---:|---:|---|
+| Peak − final | 0.940165 | 0.917327 | +0.022838 [+0.017525, +0.028194] |
+| Init − peak | 0.864559 | 0.940165 | -0.075606 [-0.082523, -0.069404] |
+| Peak − final, final class proportions on shared support | 0.940165 | 0.878384 | +0.061781 [+0.054681, +0.069249] |
+
+**Full-final-class-mix pooled contrast is undefined:** peak has no samples for final classes [0]. The numeric standardized contrast below/above is restricted to shared support; it must not be interpreted as covering the entire final policy distribution.
+
+Shared classes: [1]; standardized weights: [0.0, 1.0, 0.0]. Final mass covered: 0.405712; peak mass covered: 1.000000.
+
+| Shared action | Peak R² | Final R² | Difference [unpaired 95% CI] |
+|---:|---:|---:|---|
+| 1 | 0.940165 | 0.878384 | +0.061781 [+0.054681, +0.069249] |
+
+| Control stage / steps | Shuffle R² [CI] | Random input R² [CI] | Label permutation R² [CI] |
+|---|---|---|---|
+| init / 0 | 0.050405 [0.015456, 0.081178] | -0.028907 [-0.059162, -0.012567] | -0.026072 [-0.051790, -0.015866] |
+| peak / 219152384 | 0.006543 [-0.001369, 0.012134] | -0.009734 [-0.016064, -0.006285] | -0.007156 [-0.012422, -0.005909] |
+| final / 2012217344 | 0.007233 [-0.006027, 0.016767] | -0.008323 [-0.019169, -0.004098] | 0.001280 [-0.009921, 0.005640] |
+
+### Full-State, epsilon 0.0
+
+| Steps | Within-class R² [95% CI] | Head-blind | Logits | Delta | Rho | Reward | Test classes |
+|---:|---|---:|---:|---:|---:|---:|---:|
+| 0 | 0.867052 [0.861614, 0.871858] | 0.866748 | 0.270876 | 0.889033 | 0.600466 | 0.070662 | 2 |
+| 19922944 | 0.805209 [0.789391, 0.817688] | 0.803974 | 0.123460 | 0.822783 | 0.549508 | 0.038863 | 2 |
+| 39845888 | 0.645191 [0.369308, 0.861938] | 0.436392 | 0.161201 | 0.650677 | 0.583207 | 0.086675 | 3 |
+| 99614720 | 0.878554 [0.871542, 0.884515] | 0.877501 | 0.410261 | 0.877495 | 0.882206 | 0.130275 | 3 |
+| 219152384 | 0.956675 [0.953945, 0.959102] | 0.956468 | 0.760412 | 0.909649 | 0.980927 | 0.429112 | 3 |
+| 498073600 | 0.958770 [0.955124, 0.962204] | 0.958283 | 0.832945 | 0.898931 | 0.986512 | 0.463313 | 3 |
+| 796917760 | 0.964280 [0.961157, 0.967182] | 0.964107 | 0.884988 | 0.910159 | 0.990121 | 0.458025 | 3 |
+| 996147200 | 0.963038 [0.959404, 0.966325] | 0.962630 | 0.874497 | 0.904791 | 0.991018 | 0.455213 | 3 |
+| 1115684864 | 0.966168 [0.962713, 0.969295] | 0.965733 | 0.882342 | 0.913713 | 0.992020 | 0.449313 | 3 |
+| 1414529024 | 0.969655 [0.966511, 0.972463] | 0.969566 | 0.890579 | 0.917354 | 0.992629 | 0.454275 | 3 |
+| 1713373184 | 0.971982 [0.968970, 0.974628] | 0.971721 | 0.887506 | 0.925981 | 0.991730 | 0.463575 | 3 |
+| 2012217344 | 0.969721 [0.966708, 0.972367] | 0.969416 | 0.881228 | 0.923861 | 0.989194 | 0.465250 | 3 |
+
+Peak checkpoint: `checkpoints/step_1713373184.npz`.
+
+| Contrast | Left R² | Right R² | Difference [unpaired 95% CI] |
+|---|---:|---:|---|
+| Peak − final | 0.971982 | 0.969721 | +0.002260 [-0.001776, +0.006227] |
+| Init − peak | 0.867052 | 0.971982 | -0.104930 [-0.111124, -0.099253] |
+| Peak − final, final class proportions on shared support | 0.972272 | 0.969721 | +0.002551 [-0.000991, +0.006022] |
+
+Shared classes: [0, 1, 2]; standardized weights: [0.60795, 0.18415, 0.2079]. Final mass covered: 1.000000; peak mass covered: 1.000000.
+
+| Shared action | Peak R² | Final R² | Difference [unpaired 95% CI] |
+|---:|---:|---:|---|
+| 0 | 0.988344 | 0.985881 | +0.002463 [+0.000708, +0.004230] |
+| 1 | 0.893589 | 0.880972 | +0.012616 [-0.004970, +0.030406] |
+| 2 | 0.902906 | 0.904095 | -0.001189 [-0.015434, +0.012575] |
+
+| Control stage / steps | Shuffle R² [CI] | Random input R² [CI] | Label permutation R² [CI] |
+|---|---|---|---|
+| init / 0 | 0.024845 [0.007703, 0.042269] | -0.018077 [-0.033374, -0.009755] | -0.015739 [-0.028648, -0.011157] |
+| peak / 1713373184 | 0.013819 [0.000565, 0.025556] | -0.011073 [-0.018081, -0.007768] | -0.008749 [-0.014431, -0.006573] |
+| final / 2012217344 | 0.012788 [-0.000446, 0.025638] | -0.012393 [-0.019486, -0.009002] | -0.011545 [-0.017599, -0.009573] |
+
+### Trivial, epsilon 0.05
+
+| Steps | Within-class R² [95% CI] | Head-blind | Logits | Delta | Rho | Reward | Test classes |
+|---:|---|---:|---:|---:|---:|---:|---:|
+| 0 | 0.833117 [0.825889, 0.839119] | 0.832589 | 0.220412 | 0.854448 | 0.693100 | 0.087362 | 2 |
+| 19922944 | 0.924894 [0.913045, 0.933446] | 0.923526 | 0.644509 | 0.847437 | 0.940500 | 0.965163 | 1 |
+| 39845888 | 0.930224 [0.919574, 0.938070] | 0.929064 | 0.658096 | 0.850809 | 0.946224 | 0.965163 | 1 |
+| 99614720 | 0.944117 [0.936322, 0.950176] | 0.942807 | 0.627713 | 0.859053 | 0.961255 | 0.965163 | 1 |
+| 219152384 | 0.973949 [0.968619, 0.978161] | 0.973779 | 0.764861 | 0.872862 | 0.994316 | 0.965163 | 1 |
+| 498073600 | 0.971550 [0.966314, 0.975611] | 0.971413 | 0.788682 | 0.870823 | 0.991844 | 0.965163 | 1 |
+| 796917760 | 0.970413 [0.964830, 0.974682] | 0.970006 | 0.782672 | 0.869217 | 0.990802 | 0.965163 | 1 |
+| 996147200 | 0.970056 [0.964250, 0.974444] | 0.969432 | 0.778896 | 0.868653 | 0.990487 | 0.965163 | 1 |
+| 1115684864 | 0.969839 [0.963933, 0.974280] | 0.969095 | 0.777806 | 0.868221 | 0.990313 | 0.965163 | 1 |
+| 1414529024 | 0.969015 [0.962883, 0.973633] | 0.968009 | 0.772891 | 0.867672 | 0.989433 | 0.965163 | 1 |
+| 1713373184 | 0.968076 [0.961718, 0.972815] | 0.966866 | 0.768891 | 0.867191 | 0.988402 | 0.965163 | 1 |
+| 2012217344 | 0.967503 [0.961061, 0.972318] | 0.966225 | 0.765818 | 0.867105 | 0.987730 | 0.965163 | 1 |
+
+Peak checkpoint: `checkpoints/step_0219152384.npz`.
+
+| Contrast | Left R² | Right R² | Difference [unpaired 95% CI] |
+|---|---:|---:|---|
+| Peak − final | 0.973949 | 0.967503 | +0.006446 [-0.000435, +0.013848] |
+| Init − peak | 0.833117 | 0.973949 | -0.140832 [-0.149283, -0.132717] |
+| Peak − final, final class proportions on shared support | 0.973949 | 0.967503 | +0.006446 [-0.000435, +0.013848] |
+
+Shared classes: [1]; standardized weights: [0.0, 1.0, 0.0]. Final mass covered: 1.000000; peak mass covered: 1.000000.
+
+| Shared action | Peak R² | Final R² | Difference [unpaired 95% CI] |
+|---:|---:|---:|---|
+| 1 | 0.973949 | 0.967503 | +0.006446 [-0.000435, +0.013848] |
+
+| Control stage / steps | Shuffle R² [CI] | Random input R² [CI] | Label permutation R² [CI] |
+|---|---|---|---|
+| init / 0 | 0.034169 [-0.002036, 0.067714] | -0.029880 [-0.061698, -0.010287] | -0.028826 [-0.060747, -0.009711] |
+| peak / 219152384 | 0.022426 [-0.010983, 0.052625] | -0.015530 [-0.030098, -0.002922] | -0.010223 [-0.016830, -0.006803] |
+| final / 2012217344 | 0.027682 [-0.008650, 0.060074] | -0.017464 [-0.034341, -0.003599] | -0.006488 [-0.013071, -0.003602] |
+
+### Reward-State, epsilon 0.05
+
+| Steps | Within-class R² [95% CI] | Head-blind | Logits | Delta | Rho | Reward | Test classes |
+|---:|---|---:|---:|---:|---:|---:|---:|
+| 0 | 0.864559 [0.858358, 0.869660] | 0.864196 | 0.232276 | 0.875484 | 0.634079 | 0.051488 | 2 |
+| 19922944 | 0.900588 [0.897564, 0.903319] | 0.900479 | 0.324689 | 0.919755 | 0.816712 | 0.172725 | 1 |
+| 39845888 | 0.909995 [0.907167, 0.912582] | 0.909924 | 0.384560 | 0.925245 | 0.843260 | 0.172725 | 1 |
+| 99614720 | 0.947633 [0.945219, 0.949851] | 0.947595 | 0.449948 | 0.938549 | 0.987387 | 0.172725 | 1 |
+| 219152384 | 0.941447 [0.938704, 0.943939] | 0.940111 | 0.394748 | 0.930374 | 0.989902 | 0.172725 | 1 |
+| 498073600 | 0.928982 [0.925292, 0.932350] | 0.928337 | 0.359181 | 0.894118 | 0.996131 | 0.490137 | 2 |
+| 796917760 | 0.936920 [0.933283, 0.940146] | 0.936635 | 0.320918 | 0.902315 | 0.997492 | 0.497375 | 2 |
+| 996147200 | 0.938905 [0.935302, 0.941996] | 0.938716 | 0.328901 | 0.902195 | 0.997254 | 0.503663 | 2 |
+| 1115684864 | 0.938909 [0.935119, 0.942160] | 0.938784 | 0.344226 | 0.901373 | 0.996874 | 0.505463 | 2 |
+| 1414529024 | 0.938961 [0.935123, 0.942351] | 0.938805 | 0.311312 | 0.901324 | 0.997029 | 0.505463 | 2 |
+| 1713373184 | 0.936624 [0.932969, 0.939936] | 0.936260 | 0.288744 | 0.896814 | 0.994672 | 0.508438 | 2 |
+| 2012217344 | 0.938354 [0.934611, 0.941614] | 0.938323 | 0.286622 | 0.902098 | 0.994294 | 0.505463 | 2 |
+
+Peak checkpoint: `checkpoints/step_0099614720.npz`.
+
+| Contrast | Left R² | Right R² | Difference [unpaired 95% CI] |
+|---|---:|---:|---|
+| Peak − final | 0.947633 | 0.938354 | +0.009279 [+0.005016, +0.013631] |
+| Init − peak | 0.864559 | 0.947633 | -0.083074 [-0.089759, -0.077138] |
+| Peak − final, final class proportions on shared support | 0.947633 | 0.908531 | +0.039102 [+0.033547, +0.045002] |
+
+**Full-final-class-mix pooled contrast is undefined:** peak has no samples for final classes [0]. The numeric standardized contrast below/above is restricted to shared support; it must not be interpreted as covering the entire final policy distribution.
+
+Shared classes: [1]; standardized weights: [0.0, 1.0, 0.0]. Final mass covered: 0.380412; peak mass covered: 1.000000.
+
+| Shared action | Peak R² | Final R² | Difference [unpaired 95% CI] |
+|---:|---:|---:|---|
+| 1 | 0.947633 | 0.908531 | +0.039102 [+0.033547, +0.045002] |
+
+| Control stage / steps | Shuffle R² [CI] | Random input R² [CI] | Label permutation R² [CI] |
+|---|---|---|---|
+| init / 0 | 0.050405 [0.015456, 0.081178] | -0.028907 [-0.059162, -0.012567] | -0.026072 [-0.051790, -0.015866] |
+| peak / 99614720 | 0.006790 [-0.001660, 0.012702] | -0.010845 [-0.016934, -0.007195] | -0.008026 [-0.013311, -0.006749] |
+| final / 2012217344 | 0.008060 [-0.006512, 0.020368] | -0.008550 [-0.015616, -0.004925] | -0.000472 [-0.007529, 0.001102] |
+
+### Full-State, epsilon 0.05
+
+| Steps | Within-class R² [95% CI] | Head-blind | Logits | Delta | Rho | Reward | Test classes |
+|---:|---|---:|---:|---:|---:|---:|---:|
+| 0 | 0.867052 [0.861614, 0.871858] | 0.866748 | 0.270876 | 0.889033 | 0.600466 | 0.070662 | 2 |
+| 19922944 | 0.860679 [0.855315, 0.865592] | 0.860260 | 0.116108 | 0.879953 | 0.657759 | 0.090650 | 2 |
+| 39845888 | 0.884475 [0.878262, 0.889335] | 0.882804 | 0.348756 | 0.899907 | 0.665909 | 0.036150 | 1 |
+| 99614720 | 0.926966 [0.924058, 0.929577] | 0.925543 | 0.661828 | 0.928549 | 0.923218 | 0.130912 | 3 |
+| 219152384 | 0.959082 [0.956436, 0.961400] | 0.958344 | 0.805404 | 0.926547 | 0.981200 | 0.377400 | 3 |
+| 498073600 | 0.958153 [0.955244, 0.960755] | 0.956505 | 0.800258 | 0.904458 | 0.984145 | 0.424200 | 3 |
+| 796917760 | 0.957325 [0.954361, 0.960193] | 0.955395 | 0.700177 | 0.901666 | 0.981957 | 0.446788 | 3 |
+| 996147200 | 0.955557 [0.952652, 0.958359] | 0.954390 | 0.689120 | 0.900062 | 0.980212 | 0.446988 | 3 |
+| 1115684864 | 0.956625 [0.953289, 0.959705] | 0.955434 | 0.680299 | 0.901190 | 0.980926 | 0.457475 | 3 |
+| 1414529024 | 0.956722 [0.953713, 0.959394] | 0.955479 | 0.662259 | 0.900883 | 0.980054 | 0.461163 | 3 |
+| 1713373184 | 0.955528 [0.952419, 0.958442] | 0.954616 | 0.621109 | 0.900153 | 0.978590 | 0.468250 | 3 |
+| 2012217344 | 0.954003 [0.950386, 0.957292] | 0.953369 | 0.570734 | 0.897462 | 0.977844 | 0.470987 | 3 |
+
+Peak checkpoint: `checkpoints/step_0219152384.npz`.
+
+| Contrast | Left R² | Right R² | Difference [unpaired 95% CI] |
+|---|---:|---:|---|
+| Peak − final | 0.959082 | 0.954003 | +0.005079 [+0.000974, +0.009456] |
+| Init − peak | 0.867052 | 0.959082 | -0.092030 [-0.098063, -0.086458] |
+| Peak − final, final class proportions on shared support | 0.969343 | 0.954003 | +0.015340 [+0.011922, +0.018865] |
+
+Shared classes: [0, 1, 2]; standardized weights: [0.6092125, 0.20465, 0.1861375]. Final mass covered: 1.000000; peak mass covered: 1.000000.
+
+| Shared action | Peak R² | Final R² | Difference [unpaired 95% CI] |
+|---:|---:|---:|---|
+| 0 | 0.985118 | 0.972059 | +0.013060 [+0.010900, +0.015307] |
+| 1 | 0.928900 | 0.883309 | +0.045591 [+0.034451, +0.057424] |
+| 2 | 0.933608 | 0.855637 | +0.077970 [+0.066147, +0.090257] |
+
+| Control stage / steps | Shuffle R² [CI] | Random input R² [CI] | Label permutation R² [CI] |
+|---|---|---|---|
+| init / 0 | 0.024845 [0.007703, 0.042269] | -0.018077 [-0.033374, -0.009755] | -0.015739 [-0.028648, -0.011157] |
+| peak / 219152384 | 0.011032 [-0.002524, 0.023194] | -0.016822 [-0.024370, -0.011875] | -0.000378 [-0.005169, 0.001677] |
+| final / 2012217344 | 0.004524 [-0.006650, 0.014045] | -0.010177 [-0.017283, -0.007285] | 0.009148 [0.002806, 0.011004] |
+
+One-class points are marked with crosses in the figure; their class-centred full-h scores equal global affine scores. Per-class point estimates/intervals, all global scores, action counts, head-blind/logits/scalar/reward intervals and checkpoint provenance are in JSON. Class reweighting does not fix within-class visitation, representation scaling effects, or training-seed uncertainty.
+
+Reproduce: with the documented CPU-only/B2 environment, run `uv run python -m experiments.within_class_belief_probes_2026_11.own_trajectory` then `uv run python -m experiments.within_class_belief_probes_2026_11.own_trajectory_report`. Own rollouts are reused; missing predictions/controls are cached under each run's ignored `own_trajectory/` directory. No training or paid compute.
