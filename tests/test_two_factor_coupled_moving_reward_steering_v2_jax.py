@@ -48,3 +48,29 @@ def test_belief_target_respects_steered_factors():
     assert np.allclose(full.sum(1).max(1), 1, atol=1e-6)
     both = s.belief_target(decoded, "marginal", q, anchors, (True, True))
     assert set(np.round(np.asarray(both), 6).ravel().tolist()) <= {0.0, 1.0}
+
+
+def test_next_step_and_long_run_maps_agree_on_known_states():
+    from experiments.two_factor_coupled_moving_reward_steering_v2_jax_2026_11 import (
+        map_comparison as m,
+    )
+
+    # With the state known the two maps choose the same action at every step
+    # but the last, where no later reward is left for the long-run map to rank.
+    tables = m.maps("xor")
+    np.testing.assert_array_equal(
+        tables[m.NEXT_STEP][:-1].argmax(2), tables[m.LONG_RUN][:-1].argmax(2))
+
+
+def test_map_comparison_pairs_maps_on_shared_episodes():
+    from experiments.two_factor_coupled_moving_reward_steering_v2_jax_2026_11 import (
+        map_comparison as m,
+    )
+
+    out = m.compare("xor", episodes=4, seed=0)
+    belief, known = out["exact_belief"], out["known_state"]
+    assert set(belief) == {m.NEXT_STEP, *(f"long_run_gamma_{g}" for g in m.DISCOUNTS)}
+    assert belief[m.NEXT_STEP]["paired_minus_next_step"] == 0
+    assert belief[m.NEXT_STEP]["action_differs_from_next_step_map"] == 0
+    assert 0 < belief[m.LONG_RUN]["action_differs_from_next_step_map"] < 0.5
+    assert known[m.LONG_RUN]["total_reward"] > belief[m.LONG_RUN]["total_reward"]
