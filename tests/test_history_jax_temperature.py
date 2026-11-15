@@ -115,3 +115,27 @@ def test_eps05_leaves_pass_epsilon(variant, architecture):
     assert (config.exploration_epsilon, config.temperature, config.total_env_steps) == (0.05, 1.5, 2_000_000_000)
     assert config.entropy_schedule == ((0, 0.0),)
 
+
+
+EXPLORE_STUDY = "belief_quotient_persistent_nuisance_v2_jax_temp15_explore_2026_11"
+EXPLORE_ARMS = {"eps075": (0.075, 0.0), "eps10": (0.1, 0.0),
+                "ent002": (0.0, 0.002), "ent004": (0.0, 0.004), "ent008": (0.0, 0.008)}
+
+
+@pytest.mark.parametrize("variant", (2, 3))
+@pytest.mark.parametrize("arm", sorted(EXPLORE_ARMS))
+def test_explore_leaves_set_one_exploration_knob(variant, arm):
+    import importlib
+    from unittest.mock import patch
+
+    from experiments.belief_quotient_persistent_nuisance_jax_2026_11 import shared as base
+
+    module = importlib.import_module(f"experiments.{EXPLORE_STUDY}.variant_{variant}_transformer_{arm}.experiment")
+    with patch.object(base, "run_study", side_effect=lambda *a, **kw: kw):
+        result = module.run(type("Context", (), {"smoke": False})())
+    epsilon, entropy = EXPLORE_ARMS[arm]
+    assert result["architecture"] == "transformer" and result["study"] == EXPLORE_STUDY
+    assert result["condition"] == f"variant_{variant}"
+    config = result["config"]
+    assert (config.exploration_epsilon, config.temperature, config.total_env_steps) == (epsilon, 1.5, 2_000_000_000)
+    assert config.entropy_schedule == ((0, entropy),)
