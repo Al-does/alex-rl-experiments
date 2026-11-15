@@ -85,11 +85,9 @@ def rank_correlation(x, y, classes):
     total, weight = 0., 0
     for k in np.unique(classes):
         mask = classes == k
-        if mask.sum() < 3:
+        if mask.sum() < 3 or np.ptp(x[mask]) == 0 or np.ptp(y[mask]) == 0:
             continue
         a, b = (np.argsort(np.argsort(v[mask])).astype(float) for v in (x, y))
-        if a.std() == 0 or b.std() == 0:
-            continue
         total += mask.sum() * float(np.corrcoef(a, b)[0, 1])
         weight += mask.sum()
     return total / weight if weight else None
