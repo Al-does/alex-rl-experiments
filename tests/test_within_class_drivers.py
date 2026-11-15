@@ -49,3 +49,14 @@ def test_probe_helpers():
     bins = probe.boundary_bins(target, target + 1, target + 2, x, classes)
     assert [b["mse_trained"] for b in bins] == [1.] * 3 and [b["mse_matched_init"] for b in bins] == [4.] * 3
     assert bins[0]["mean_q_margin"] < bins[1]["mean_q_margin"] < bins[2]["mean_q_margin"]
+
+
+def test_trivial_quotient_is_reported_outside_the_interpolation_family():
+    from experiments.within_class_drivers_2026_11 import probe, report
+
+    np.testing.assert_array_equal(probe.family(None), v2.action_transitions(1))
+    np.testing.assert_array_equal(probe.family(-1.), theory.kernels_for(-1.))
+    assert report.arm_key(None, 0.) == "trivial"
+    arms = [(-1., 0.), (1., .05), (None, 0.), (1., 0.)]
+    assert sorted(arms, key=lambda a: report.position(*a)) == [(None, 0.), (1., 0.), (-1., 0.), (1., .05)]
+    assert report.spearman([1, 2, 3, 4], [10, 30, 20, 40]) == pytest.approx(.8)
