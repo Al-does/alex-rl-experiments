@@ -60,3 +60,18 @@ def test_trivial_quotient_is_reported_outside_the_interpolation_family():
     arms = [(-1., 0.), (1., .05), (None, 0.), (1., 0.)]
     assert sorted(arms, key=lambda a: report.position(*a)) == [(None, 0.), (1., 0.), (-1., 0.), (1., .05)]
     assert report.spearman([1, 2, 3, 4], [10, 30, 20, 40]) == pytest.approx(.8)
+
+
+def test_early_rise_helpers_align_lags_and_score_within_class():
+    from experiments.within_class_drivers_2026_11 import early_rise
+
+    obs = np.arange(2 * 70 * 1, dtype=float).reshape(2, 70, 1)
+    now, past = early_rise.lagged(obs, 0, 12), early_rise.lagged(obs, 3, 12)
+    assert now.shape == (12, 1) and np.allclose(now - past, 3)
+    assert np.allclose(now, early_rise.flat(obs, 12))
+    rng = np.random.default_rng(0)
+    x = [rng.normal(size=(400, 3)) for _ in range(2)]
+    classes = [np.arange(400) % 2 for _ in range(2)]
+    y = [np.stack([v[:, 0] * np.where(c, 2., -1.) + c, rng.normal(size=400)], axis=1) for v, c in zip(x, classes)]
+    exact, noise = early_rise.r2(x[0], y[0], x[1], y[1], classes)
+    assert exact == pytest.approx(1., abs=1e-6) and noise < .05

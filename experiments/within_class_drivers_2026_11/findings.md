@@ -92,6 +92,49 @@ Ranges are over seeds.
   Across the 8 arms, rank correlation with the change in `b1 - b2` is .76 (gain) and .69
   (final - peak) for reward value, against -.29 and -.19 for next-action predictability.
 
+## Early rise: diagnostics
+
+`early_rise.py` replays ten checkpoints of nine runs (Trivial, Reward-State and Full-State seed 42;
+`lam=1` and `lam=-1` seeds 43-44; `lam=.75` and `kappa=.05` seed 43) on the final policy's fixed
+histories and writes `results/early_rise.json`. Inputs, classes and targets are identical across
+checkpoints, so a change in R2 is a change in the weights. Exploratory: nine runs, no intervention.
+
+Timing, from `results/dose_trajectory.json` (all 33 runs): `b1 - b2` peaks above its
+initialization value in 33/33 runs (mean +.058, minimum +.015). In 17 of the 19 runs with
+`lam >= .5` or `kappa > 0`, the peak falls while the archived policy evaluation still shows one
+action and flat reward; `b3` resolution rises over the same checkpoints (median within-run correlation of
+checkpoint-to-checkpoint changes .64).
+
+| Measurement (within class, `b1 - b2`) | Reward-State-like (5 runs) | Full-State (3 runs) | Trivial (1 run) |
+|---|---|---|---|
+| Affine probe on raw one-hot inputs, last 32 / 64 steps | .83-.87 / .86-.91 | .83-.84 / .85 | .80 / .82 |
+| Initialized network, affine | .86-.88 | .77-.81 | .84 |
+| Initialized network, degree-2 probe | .90-.91 | .85-.88 | .87 |
+| Peak, affine | .91-.92 | .90-.92 | .87 |
+| Peak, degree-2 probe | .93-.95 | .94-.95 | .93 |
+| Conditional skew `(b1-b2)/(b1+b2)`, init to peak | +.03 to +.05 | +.07 to +.08 | +.01 |
+| A-B input-embedding distance, init to final | -9% to -13% | -2% to +1% | -1% |
+
+- **Not a probe artifact.** Fixed histories; ridge-free probes agree to .002; the
+  policy-head-blind stream equals the full stream to .004.
+- **Not only linearization.** A degree-2 probe on the initialized network already reaches the
+  affine peak level in Reward-State-like runs, but the degree-2 score rises by a similar amount.
+- **Reward-State-like runs: real `b1`-versus-`b2` evidence integration.** The conditional skew,
+  which removes the `1 - b3` factor from `b1 - b2`, rises with `b1 - b2`. Linear readability of the
+  previous token (A versus B, and non-C versus C, alike) rises at the checkpoints where `b3`
+  becomes resolved. Logit `b1 - b2` R2 does not rise consistently (two of five runs).
+- **Trivial: mostly the `b3` factor.** The skew moves +.01 (3,472 rows with `b1 + b2 > .1`) while
+  `b3` goes .913 to .996 and `b1 - b2` .841 to .873. Logit `b3` R2 rises .74 to .89 although the
+  greedy action never changes; offline, 59% of within-class action-value-gap variance needs `b3`.
+- **Full-State:** the rise coincides with reward take-off and with logit `b1 - b2` R2 (.23-.35 to
+  .78-.82); it is reward-driven.
+- **Compression signature:** the A and B input embeddings converge only in Reward-State-like runs.
+
+Reading: the rise in Reward-State-like arms is consistent with a by-product of learning `b3`
+(the shared events are non-C tokens, whose identity carries the `b1`-versus-`b2` evidence). This is
+not established; the direct test is to train the same initialization on `b3` regression alone and
+check whether `b1 - b2` rises by the same amount.
+
 ## Limits
 
 - Reward values of .1-.8% (`lam=.75`, `.5`, `0`, `kappa=.05`) are smaller than their Monte Carlo
@@ -106,8 +149,7 @@ Ranges are over seeds.
   moves to -.002 (2 seeds) and `lam=.75` has one seed left (-.056).
 - The action-value contrast target has the same within-class R2 as `b3` to three decimals in
   every run, because `b3` dominates its within-class variance. It is not separate evidence.
-- The early rise (result 1) has no tested mechanism. The context window of 32 tokens may set the
-  common .91 level; this was not measured.
+- The early rise (result 1) has diagnostics but no intervention; see the next section.
 - 20 of the 30 run manifests record a dirty tree at commit `5fcd526a`. These are the second and
   third run on each box; the first run on every box is clean. The likely cause is the previous
   run's untracked `results/` directory; this was not checked on the boxes.
