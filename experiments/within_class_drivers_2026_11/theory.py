@@ -83,6 +83,36 @@ def simulate(kernels, emission, policy, episodes=1024, seed=20261115, keep=True)
     return out
 
 
+def lumped_filter_reward(kernels, emission, q, episodes=1024, seed=20261115):
+    """Reward of the belief-MDP policy when the filter never distinguishes states 1 and 2.
+
+    The filter tracks only rho = P(state 3) under the two-state model obtained by giving states
+    1 and 2 equal weight (averaged transitions and emissions); the policy is the optimal Q at
+    the symmetric belief with that rho. Exact for the Reward-State Quotient; elsewhere the gap
+    to the optimal reward is what tracking b1 - b2 buys (filtering plus action selection).
+    """
+    rng = np.random.default_rng(seed)
+    cumulative = emission.cumsum(1)
+    lumped_emission = np.stack([emission[:2].mean(0), emission[2]])
+    to_reward = np.stack([kernels[:, :2, 2].mean(1), kernels[:, 2, 2]], axis=1)  # (action, lumped state)
+    state = rng.choice(3, size=episodes, p=v2.INITIAL_STATE_DISTRIBUTION)
+    token = (rng.random(episodes)[:, None] > cumulative[state]).sum(1)
+    prior = np.array([2 / 3, 1 / 3]) * lumped_emission[:, token].T
+    rho = prior[:, 1] / prior.sum(1)
+    reward = np.zeros(episodes)
+    for t in range(EPISODE):
+        action = q(np.column_stack([(1 - rho) / 2, (1 - rho) / 2, rho])).argmax(1)
+        if t >= WARMUP:
+            reward += state == 2
+        state = (rng.random(episodes)[:, None] > kernels[action, state].cumsum(1)).sum(1)
+        token = (rng.random(episodes)[:, None] > cumulative[state]).sum(1)
+        ahead = (1 - rho) * to_reward[action, 0] + rho * to_reward[action, 1]
+        joint = np.column_stack([1 - ahead, ahead]) * lumped_emission[:, token].T
+        rho = joint[:, 1] / joint.sum(1)
+    return {"reward": float(reward.mean() / (EPISODE - WARMUP)),
+            "reward_se": float(reward.std(ddof=1) / (EPISODE - WARMUP) / np.sqrt(episodes))}
+
+
 def cells(x, classes, bins):
     """Quantile-bin index of x computed separately inside each class."""
     out = np.zeros(len(x), dtype=np.int64)
@@ -122,6 +152,7 @@ def analyse(kernels, emission, episodes=1024):
         r = beliefs[:, 2]
         return q(np.column_stack([(1 - r) / 2, (1 - r) / 2, r])).argmax(1)
     quotient = simulate(kernels, emission, quotient_policy, episodes, keep=False)
+    lumped = lumped_filter_reward(kernels, emission, q, episodes)
     # future optimal action: does delta predict it beyond class and rho?
     actions = optimal["action"]
     future = {}
@@ -141,6 +172,8 @@ def analyse(kernels, emission, episodes=1024):
         "optimal_reward": optimal["reward"], "optimal_reward_se": optimal["reward_se"],
         "quotient_policy_reward": quotient["reward"], "quotient_policy_reward_se": quotient["reward_se"],
         "nuisance_value": optimal["reward"] - quotient["reward"],
+        "lumped_filter_reward": lumped["reward"], "lumped_filter_reward_se": lumped["reward_se"],
+        "lumped_filter_loss": optimal["reward"] - lumped["reward"],
         "action_fractions": (np.bincount(a, minlength=3) / len(a)).tolist(),
         "within_class_sd": {"delta": float(np.sqrt(sum(((delta[a == k] - delta[a == k].mean()) ** 2).sum() for k in np.unique(a)) / len(a))),
                             "rho": float(np.sqrt(sum(((rho[a == k] - rho[a == k].mean()) ** 2).sum() for k in np.unique(a)) / len(a)))},
@@ -153,8 +186,8 @@ def analyse(kernels, emission, episodes=1024):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--lams", type=float, nargs="*", default=[1, .9, .75, .5, .25, 0, -.5, -1])
-    parser.add_argument("--kappas", type=float, nargs="*", default=[.02, .05, .1])
+    parser.add_argument("--lams", type=float, nargs="*", default=[1, .75, .5, 0, -.5, -1])
+    parser.add_argument("--kappas", type=float, nargs="*", default=[.05, .1])
     parser.add_argument("--episodes", type=int, default=1024)
     args = parser.parse_args()
     report = {"trivial": analyse(kernels_for(variant=1), emission_for(), args.episodes), "lam": {}, "kappa": {}}
