@@ -105,9 +105,59 @@ exact-belief long-run map's action (factor 1 / factor 2).
   paper; factor-2 gains are equal.
 - Best sites are blocks 3–4 and post-final-norm; block 1 recovers about half.
 
+## 15 no-ε seeds (PR #231)
+
+PR #231 trained seeds 44–56 of the no-ε Joint Reward arm
+(`reward_factors_persistent_nuisance_v2_jax_temp15_ctx32_2026_11/reward_both_transformer`).
+Their final checkpoints (step 2,012,217,344, SHA-256 matching each run's B2
+durability manifest) were run through the unchanged protocol above; seeds 42–43
+are the reports already here. n=15; sd is across seeds; block 4, long-run map
+(`results/v2_xor_moving_steering_15_seeds.pdf`, `summary.json` → `by_setup`).
+
+| Condition | XOR mean ± sd [min, max] | Moving total mean ± sd [min, max] | Moving factor 1 / factor 2 |
+|---|---|---|---|
+| Unsteered | 0.499 ± 0.006 [0.492, 0.514] | 0.964 ± 0.008 [0.952, 0.976] | 0.472 / 0.492 |
+| Uniform random | 0.181 | 0.602 | 0.098 / 0.504 |
+| Factored steering | **0.579 ± 0.009** [0.561, 0.592] | 1.102 ± 0.022 [1.057, 1.131] | 0.431 / 0.671 |
+| Joint steering | 0.554 ± 0.013 [0.535, 0.574] | **1.142 ± 0.007** [1.131, 1.155] | 0.460 / 0.682 |
+| Exact belief | 0.619 | 1.176 | 0.471 / 0.705 |
+| Null, factored | 0.495 ± 0.006 | 0.962 ± 0.008 | |
+| Null, joint | 0.488 ± 0.030 | 0.965 ± 0.009 | |
+
+| Gap closed (unsteered → exact), mean ± sd | XOR | Moving |
+|---|---|---|
+| Factored steering | 66% ± 8% | 65% ± 9% |
+| Joint steering | 46% ± 11% | 84% ± 3% |
+
+- Every one of the 15 agents improves under both steering types on both rewards.
+  Factored > joint on XOR in 15/15 agents; joint > factored on moving in 15/15.
+- Exact-belief-map agreement (factor 1 / factor 2): XOR unsteered 0.58 / 0.57,
+  factored 0.73 / 0.75, joint 0.71 / 0.70. Moving factor 2: unsteered 0.47,
+  joint 0.69; in phases paying states 1/2 factor-2 reward goes 0.527 → 0.946
+  (joint), exact 0.971.
+- Moving-reward factor-1 cost: joint −0.012, factored −0.041.
+- Nulls are flat except seed 47 XOR joint (0.387): its tuned λ=3.0 is large
+  enough that a decoder-orthogonal push of the same norm degrades the policy.
+- Selected λ ranges 0.75–3.0 (XOR joint) and 0.75–2.0 (moving joint); most are
+  0.75–1.25.
+- Decoding vs steerability (Pearson r of final joint-belief 1−R² against steered
+  reward, n=15): XOR factored −0.60 (p=0.018), XOR joint −0.50 (p=0.06),
+  moving factored −0.48 (p=0.07), moving joint −0.14 (p=0.62). Lower decoding
+  error goes with better steering for factored maps and for XOR; moving-reward
+  joint steering is nearly saturated and uncorrelated.
+- The two ε=0.05 agents fall at or below the bottom of the no-ε distribution in
+  7 of 8 steering rows (exception: ε seed 42, XOR joint, 0.548; 11 of 15 no-ε
+  seeds score at least as high).
+  Their unsteered rewards are within the no-ε range. This is consistent with a
+  small ε penalty on steerability, but with two ε seeds it is not established.
+
 ## Caveats
 
-- Two training seeds per arm; SEs reflect episode-to-episode variation only.
+- The 4-agent tables above use two training seeds per arm; the 15-seed section
+  covers the no-ε arm only (ε=0.05 still has two seeds). SEs reflect
+  episode-to-episode variation only.
+- The 15-seed reports were run at a clean commit (merge of PR #231 into this
+  branch); `steering.py` is unchanged from the 4-agent runs.
 - Exact-belief maps are QMDP, not the POMDP optimum; steering can only express
   actions through the agent's anchor states.
 - The steering controller is given the step `t`; the agents are not. This tests
@@ -127,4 +177,8 @@ uv run --group jax python -m experiments.two_factor_coupled_moving_reward_steeri
 uv run --group jax python -m experiments.two_factor_coupled_moving_reward_steering_v2_jax_2026_11.plot
 ```
 
-About 40 minutes on 8 CPU cores with the four agents in parallel (`--only`).
+About 40 minutes on 8 CPU cores with the four agents in parallel (`--only`); the
+13 PR #231 seeds took 70 minutes with 7 in parallel, e.g.
+`--only ctx32_2026_11/reward_both_transformer/seed44`. Checkpoints come from each
+run's B2 prefix, `checkpoints/step_2012217344.npz`, renamed to the
+`checkpoint_path` pattern in the PR #226 study.

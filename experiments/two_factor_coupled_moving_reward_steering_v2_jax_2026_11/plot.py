@@ -130,6 +130,67 @@ def plot_rewards(reports: list[Path], output: Path) -> None:
     plt.close(fig)
 
 
+SEED_ROWS = (("Unsteered", lambda c: c["intact"]),
+             ("Factored steering", lambda c: c["comparisons"]["discounted_marginal_block_4"]),
+             ("Joint steering", lambda c: c["comparisons"]["discounted_joint_block_4"]),
+             ("Null, joint", lambda c: c["matched_null"]["discounted_joint"]))
+SEED_PANELS = (("xor", "XOR reward", (0.38, 0.64)), ("moving", "Moving reward, total", (0.94, 1.19)))
+
+
+def plot_seeds(reports: list[Path], output: Path) -> None:
+    """Per-seed long-run-map steering for the 15 no-ε agents, ε=0.05 agents overlaid."""
+    loaded = [json.loads(p.read_text()) for p in reports]
+    no_eps = [r for r in loaded if r["source"]["study"].endswith("ctx32_2026_11")]
+    eps = [r for r in loaded if not r["source"]["study"].endswith("ctx32_2026_11")]
+    fig, axes = plt.subplots(1, 4, figsize=(7.4, 2.4), gridspec_kw={"wspace": 0.45,
+                                                                   "width_ratios": (1.25, 1.25, 1, 1)})
+    rng = np.random.default_rng(0)
+    for ax, (reward, title, xlim) in zip(axes[:2], SEED_PANELS):
+        exact = no_eps[0]["rewards"][reward]["confirmation"]["exact_belief_discounted_map"]["total_reward"]
+        for i, (name, pick) in enumerate(SEED_ROWS):
+            y = len(SEED_ROWS) - 1 - i
+            values = [pick(r["rewards"][reward]["confirmation"])["total_reward"] for r in no_eps]
+            ax.scatter(values, y + rng.uniform(-0.15, 0.15, len(values)), s=8, color="black",
+                       alpha=0.7, lw=0, label="no ε (15 seeds)" if i == 0 else None)
+            ax.plot([np.mean(values)] * 2, [y - 0.3, y + 0.3], color="#2ca02c", lw=1.5)
+            ax.scatter([pick(r["rewards"][reward]["confirmation"])["total_reward"] for r in eps],
+                       [y + 0.3] * len(eps), s=14, marker="^", facecolor="none", edgecolor="#d62728",
+                       lw=0.7, label="ε=0.05 (2 seeds)" if i == 0 else None)
+        ax.axvline(exact, color="grey", ls="--", lw=0.7)
+        ax.text(exact, len(SEED_ROWS) - 0.4, "exact\nbelief", fontsize=5.5, ha="center", va="bottom",
+                color="grey")
+        ax.set_yticks(range(len(SEED_ROWS))[::-1], [n for n, _ in SEED_ROWS] if ax is axes[0] else [])
+        ax.set_xlim(*xlim)
+        ax.set_ylim(-0.6, len(SEED_ROWS) + 0.2)
+        ax.set_title(title, fontsize=7)
+        ax.set_xlabel("Mean reward per step", fontsize=7)
+    error = lambda r: 1 - json.loads((Path(r["source"]["results"]) / "condition_summary.json")
+                                     .read_text())["checkpoint_reports"][-1]["targets"]["joint"]["r_squared"]
+    for ax, (reward, title, _) in zip(axes[2:], SEED_PANELS):
+        for kind, pick, color in (("Factored", SEED_ROWS[1][1], "#1f77b4"),
+                                  ("Joint", SEED_ROWS[2][1], "#ff7f0e")):
+            for group, marker, face in ((no_eps, "o", color), (eps, "^", "none")):
+                ax.scatter([error(r) for r in group],
+                           [pick(r["rewards"][reward]["confirmation"])["total_reward"] for r in group],
+                           s=10, marker=marker, facecolor=face, edgecolor=color, lw=0.7,
+                           label=kind if marker == "o" else None)
+        ax.set_title(f"{title}\nvs decoding error", fontsize=7)
+        ax.set_xlabel("Joint-belief 1−R² (final)", fontsize=7)
+        ax.set_ylabel("Steered reward", fontsize=7)
+    axes[2].legend(fontsize=6, frameon=False, loc="lower left")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, frameon=False, loc="lower center", ncol=2, fontsize=6,
+               bbox_to_anchor=(0.3, -0.12))
+    for ax in axes:
+        ax.tick_params(labelsize=6)
+        ax.spines[["top", "right"]].set_visible(False)
+    fig.suptitle("Long-run-map steering at block 4, per Joint Reward agent (256 episodes each)",
+                 fontsize=8, y=1.1)
+    fig.savefig(output, bbox_inches="tight", pad_inches=0.02)
+    fig.savefig(output.with_suffix(".png"), bbox_inches="tight", pad_inches=0.02, dpi=200)
+    plt.close(fig)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--results", type=Path, default=Path(__file__).resolve().parent / "results")
@@ -138,8 +199,11 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     plot_maps(args.output_dir / "v2_xor_moving_best_action_maps.pdf")
     reports = sorted(args.results.glob("*__reward_both__seed*.json"))
-    if reports:
-        plot_rewards(reports, args.output_dir / "v2_xor_moving_steering_reward_both.pdf")
+    original = [p for p in reports if p.stem.endswith(("seed42", "seed43"))]
+    if original:
+        plot_rewards(original, args.output_dir / "v2_xor_moving_steering_reward_both.pdf")
+    if len(reports) > len(original):
+        plot_seeds(reports, args.output_dir / "v2_xor_moving_steering_15_seeds.pdf")
 
 
 if __name__ == "__main__":
