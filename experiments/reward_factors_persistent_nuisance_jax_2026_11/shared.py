@@ -35,17 +35,21 @@ def factor_process(condition, environment=None):
 
 
 def run_condition(context, *, condition, architecture, total_env_steps=TOTAL_ENV_STEPS,
-                  study=STUDY, entropy_schedule_points=None, temperature=1.0, environment=None):
+                  study=STUDY, entropy_schedule_points=None, temperature=1.0, environment=None,
+                  exploration_epsilon=0.0, context_len=None):
     if condition not in CONDITIONS or architecture not in ARCHITECTURES:
         raise ValueError("unknown condition or architecture")
     process = factor_process(condition, environment)
     config = train_config(context.smoke, total_env_steps)
     if entropy_schedule_points is not None:
         config = replace(config, entropy_schedule=tuple(entropy_schedule_points))
-    config = replace(config, temperature=temperature)
+    config = replace(config, temperature=temperature, exploration_epsilon=exploration_epsilon)
+    spec = model_spec(architecture, process)
+    if context_len is not None:
+        spec = replace(spec, context_len=context_len)
     return run_study(
         context, study=study, condition=condition, architecture=architecture,
-        process=process, spec=model_spec(architecture, process),
+        process=process, spec=spec,
         config=config, targets=factor_targets, representation="residual",
         recipe_extra={**(environment_metadata() if environment is None else environment.environment_metadata()), "source_study": SOURCE_STUDY,
                       "action_pairs": ACTION_PAIRS,
