@@ -1,7 +1,8 @@
 # belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11
 
 Requested by the human user: fresh persistent-nuisance v2 environment, smoke only.
-Three variant_{1,2,3}_transformer leaves; all architecture and probes match PR #213.
+Twelve variant_{1,2,3}_{transformer,memoryless,gru128,gru92} leaves; all architectures and probes match PR #213
+(the memoryless/GRU leaves were added later, on request, with the same recipe).
 Training uses PR #213's 2B-step target, constant entropy 0.0 and temperature 1.5
 in both rollout and PPO likelihoods. Smoke retains the parent's 4,096 steps.
 No full training is requested.

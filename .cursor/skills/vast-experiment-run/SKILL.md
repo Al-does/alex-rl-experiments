@@ -96,12 +96,11 @@ user identity on the box; the token enables clone and push.
 
 ### Parallel multi-box provisioning
 
-Provisioning several boxes concurrently from separate `provision up` processes
-can race on `devops/vast/state.json` (last write wins, earlier instance IDs
-lost). Until that is fixed in rl-harness, **provision sequentially** — one
-`provision up` per box/arm — or use a single process that records every
-instance before moving on. Do not launch eight parallel `provision up` shells
-expecting all IDs to appear in `state.json`.
+Parallel `provision up` processes (one per box/arm) are safe once the sibling
+rl-harness checkout includes the state and SSH-alias locking/atomic-write fix.
+A single `up -n N` process also provisions concurrently, but runs the same
+command on each box. Run `status`/`destroy` from the same harness checkout;
+track and operate only your own instance IDs.
 
 ## 3. Trigger the confirmed experiment
 
