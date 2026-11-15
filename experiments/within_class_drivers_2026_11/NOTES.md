@@ -58,3 +58,18 @@ Hypotheses
   Trajectories: near-symmetric arms: delta rises to ~.91-.92 when rho resolves (~160-300M), then decays below init; lam<0 rises and plateaus. (replicates hypothesis 1 for RSQ, not FSQ)
   Reward gate caveat: CPU greedy reward SE ~.013 so 95% gate flags a few runs at .93-.95; report all-runs and gated.
 - Remaining: third batch (~05:50Z) -> sync.sh -> probe shards -> then boxes push + self-destruct: verify `provision status` empty, delete untracked synced dirs, git pull, rerun report, findings.md, tests, PR.
+- 05:58Z: 9 boxes self-destructed after pushing (27 runs on origin branch); box 60739721 (lam_p075) last. 29 run dirs synced locally (untracked), probes running (logs /tmp/probe_shardE_*.log).
+- 06:25Z ALL 30 dose runs on origin launch branch (pulled; local synced copies deleted), all 10 Vast boxes `gone` (provision status: 0 running). Seeds complete: endpoints 43-48, others 43-45.
+  Manifests: status completed, commit 5fcd526a, harness a267508f, B2 remote_artifacts completed for 30/30. git.dirty true for the 2nd/3rd run on each box (20 runs), false for the first (10).
+- 32 probes done (30 + PR219 s42 RSQ/FSQ). FULL per-arm delta gain: lam1 -.050 [-.143,+.026] 2/7+ | .75 -.088 0/3 | .5 -.060 0/3 | 0 +.026 3/3 | -.5 +.064 3/3 | -1 +.117 7/7 | k.05 -.055 1/3 | k.1 +.023 3/3.
+- KEY CAVEATS found on full data (must be in findings):
+  (a) every run rises early to a common delta level ~.89-.93; arms differ in INIT baseline (FSQ init .77-.81 vs RSQ .86-.89, histories differ) and in whether delta later decays. Report peak and final-peak, not only gain.
+  (b) q_contrast R2 == rho R2 to 3 dp in every run (within-class Q-contrast variance is dominated by b3) -> not independent evidence.
+  (c) lumped-filter loss for lam .75/.5/0, kappa .05 (.0006-.0029) is below MC SE (~.0035-.005): indistinguishable from 0. Only kappa .1 (.018), lam -.5, -1 clearly > 0.
+  (d) theory "next optimal action needs delta" (h=1 increment) is .14-.25 at lam .75/.5/0 where delta is compressed/barely gained -> future-action info does NOT predict retention; qgap variance share flat (.004-.014).
+  (e) big RSQ compression is seed-heterogeneous (bimodal: ~0 or -.08..-.19).
+- report.py extended (trivial rung lam=None, init/trained/peak/final-peak columns, loss SE, predictors Spearman, abs trajectories); probe.py family(lam) adds PR219 variant_1 seed 42 (running, /tmp/probe_trivial.log).
+- 06:45Z report rerun on 33 probes (30 dose + PR219 s42 trivial/RSQ/FSQ). Baseline-free outcome final-peak of delta: trivial -.018(1) | lam1 -.088 [-.201,-.037] | .75 -.125 | .5 -.089 | k.05 -.092 | lam0 -.017 | k.1 -.018 | -.5 -.001 | -1 -.003. Peak .89-.93 in all.
+  Arm-level Spearman (n=8): delta-blind loss vs gain .76, vs final-peak .69; next-optimal-action share -.29/-.19; q-gap share .57/.62 (range only .004-.014).
+  Trivial s42: reward saturated by 20M, yet rho .913->.996 @300M ->.981; delta .841->.873->.855. archived action_fractions are stochastic-policy -> action-onset timing NOT reliable, make no claim.
+- Remaining: findings.md, small tests, full fast suite, git diff --check, commit results, push, PR template, PR (no merge), final message.

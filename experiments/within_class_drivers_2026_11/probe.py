@@ -32,17 +32,24 @@ TRAJECTORY_STEPS = (0, 20e6, 40e6, 60e6, 100e6, 160e6, 220e6, 300e6, 400e6, 500e
 
 
 def completed_runs():
-    """(run directory, lam, kappa) for dose runs plus the PR #219 seed-42 epsilon-0 endpoints."""
+    """(run directory, lam, kappa) for dose runs plus the PR #219 seed-42 epsilon-0 ladder runs.
+
+    ``lam`` is None for the Trivial Quotient, which is outside the interpolation family.
+    """
     found = []
     for run in sorted(DOSE.glob("*/results/*")):
         if (run / "run_manifest.json").exists() and (run / "condition_summary.json").exists():
             recipe = json.loads((run / "resolved_recipe.json").read_text())
             found.append((run, recipe["lam"], recipe["kappa"]))
-    for variant, lam in ((2, 1.), (3, -1.)):
+    for variant, lam in ((1, None), (2, 1.), (3, -1.)):
         for run in sorted(BASELINE.glob(f"variant_{variant}_transformer/results/*")):
             if (run / "run_manifest.json").exists():
                 found.append((run, lam, 0.))
     return found
+
+
+def family(lam):
+    return kernels_for(variant=1) if lam is None else kernels_for(lam)
 
 
 def validate(recipe, lam, kappa):
@@ -50,7 +57,7 @@ def validate(recipe, lam, kappa):
     if (training["temperature"] != 1.5 or training["entropy_schedule"] != [[0, 0.]]
             or training["exploration_epsilon"] != 0 or training["total_env_steps"] != 2_000_000_000
             or recipe["model"]["kind"] != "transformer"
-            or not np.allclose(process["transitions"], kernels_for(lam))
+            or not np.allclose(process["transitions"], family(lam))
             or not np.allclose(process["emission"], emission_for(kappa))
             or not np.allclose(process["initial"], [1 / 3] * 3)):
         raise ValueError("run is not the 2B-step T=1.5 entropy-0 epsilon-0 v2 transformer recipe for this dose")
@@ -125,7 +132,7 @@ def analyze_run(run, lam, kappa, *, bootstrap_draws=2000):
     data = histories(run, step, spec, process, params, raw_root=raw)
     classes = [rows(d, "action", n) for d, n in zip(data, COUNTS)]
     belief = [rows(d, "belief", n).astype(float) for d, n in zip(data, COUNTS)]
-    q = solve(kernels_for(lam), emission_for(kappa))
+    q = solve(family(lam), emission_for(kappa))
     values = [q(b) for b in belief]
     targets = [np.concatenate([b, b[:, 0:1] - b[:, 1:2], b[:, 2:3], v[:, 1:] - v[:, :1]], axis=1)
                for b, v in zip(belief, values)]
@@ -193,7 +200,7 @@ def trajectory(run, lam, kappa):
     data = histories(run, final, spec, process, params, raw_root=raw)
     classes = [rows(d, "action", n) for d, n in zip(data, COUNTS)]
     belief = [rows(d, "belief", n).astype(float) for d, n in zip(data, COUNTS)]
-    q = solve(kernels_for(lam), emission_for(kappa))
+    q = solve(family(lam), emission_for(kappa))
     targets = [np.concatenate([b, b[:, 0:1] - b[:, 1:2], b[:, 2:3], v[:, 1:] - v[:, :1]], axis=1)
                for b, v in zip(belief, (q(b) for b in belief))]
     out = []
