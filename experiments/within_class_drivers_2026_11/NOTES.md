@@ -45,3 +45,16 @@ Hypotheses
   quotient_policy (exact rho, Q at symmetric belief) is a worse delta-blind policy at lam=0 (.040) -> report lumped as the delta-blind agent; both are upper bounds on the best delta-blind loss.
 - probe.py --trajectory added (14 checkpoints replayed on final-policy histories -> artifacts/probe/<run>/trajectory.json). PR219 RSQ seed42: delta .885 init -> .917 @100M (policy all Tilt X, reward .17) -> .873 @2B; rho .970 -> .997 by 160M and stays.
 - report.py written+works (reads artifacts/probe/*/analysis.json + trajectory.json -> results/dose_probe.json, dose_trajectory.json, dose_table.md, fig_within_class_symmetry_dose.{pdf,png}). Uncommitted results regenerate; rerun after all probes.
+- 05:08Z first 10 runs done (22 min each). Boxes push results only when all 3 seeds finish, so /home/ubuntu/vast_launch/sync.sh scp's finished result dirs into the checkout
+  (untracked; DELETE these untracked dirs before `git pull` of the box-pushed copies). Probing with 4 shards: `probe --shard i --shards 4 --trajectory` logs /tmp/probe_shard_i.log (idempotent per run).
+- All 10 first runs reach 2 or 3 classes; rewards ~93-100% of belief-MDP optimum (lam_p000 .285/.3075, lam_m050 .338/.361 are below the 95% gate).
+- PRELIM (first seed per arm + lam=+-1 x3), gain = trained - matched-init within-class R2 of delta (b1-b2), full_h:
+  lam 1: -.012(s42 PR219) -.143 -.081 | .75: -.189 | .5: -.025 | 0: +.028 | -.5: +.082 | -1: +.111(s42) +.145 +.097 | kappa .05: -.161 | kappa .1: +.024.
+  rho gain +.02..+.06 everywhere; q_contrast R2 .96-.997 trained in all runs. Logit-margin vs Q-margin Spearman .57-.89 trained.
+  => working story: training moves within-class geometry toward ACTION-VALUE-relevant coordinates: adds delta where it changes reward, COMPRESSES it below init where it does not
+  (even though delta still predicts future tokens -> argues against predictive/excess-entropy account). Slight symmetry breaks (lam .75, kappa .05) track the approximate quotient.
+- 05:38Z: 20/30 runs synced+probing (sync.sh now waits for durability_manifest.json; a run synced mid-upload lacks manifest["remote_artifacts"]). Interim user message sent 05:22Z with prelim table.
+  Interim arm means of delta gain (n): lam1 -.079(3) | .75 -.189(1) | .5 -.030(2) | 0 +.025(2) | -.5 +.072(2) | -1 +.120(5) | k.05 -.084(2) | k.1 +.021(2). rho gain + in all but kappa .1 (~0).
+  Trajectories: near-symmetric arms: delta rises to ~.91-.92 when rho resolves (~160-300M), then decays below init; lam<0 rises and plateaus. (replicates hypothesis 1 for RSQ, not FSQ)
+  Reward gate caveat: CPU greedy reward SE ~.013 so 95% gate flags a few runs at .93-.95; report all-runs and gated.
+- Remaining: third batch (~05:50Z) -> sync.sh -> probe shards -> then boxes push + self-destruct: verify `provision status` empty, delete untracked synced dirs, git pull, rerun report, findings.md, tests, PR.
