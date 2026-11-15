@@ -9,6 +9,8 @@ import numpy as np
 
 from .analyze import OUTPUT
 
+TRAJECTORY = OUTPUT.with_name("within_class_exploration_sweep_trajectory.json")
+
 RESULTS = OUTPUT.parent
 NAMES = {2: "Reward-State", 3: "Full-State"}
 COLORS = {2: "#c0504d", 3: "#2468a0"}
@@ -127,6 +129,56 @@ def absolute_figure(arms, path):
     plt.close(fig)
 
 
+def level(arm, axis):
+    return arm["training_epsilon"] if axis == "epsilon" else arm["training_entropy"]
+
+
+def trajectory_section(path):
+    """Fixed-final-history checkpoint trajectories (parent PR219 protocol), when that JSON exists."""
+    if not TRAJECTORY.exists():
+        return []
+    runs = sorted(json.loads(TRAJECTORY.read_text())["arms"],
+                  key=lambda r: (r["variant"], r["training_entropy"] > 0, r["training_epsilon"], r["training_entropy"]))
+    fig, axes = plt.subplots(2, 2, figsize=(12, 7.5), sharex=True, sharey="row")
+    for col, (axis, xlabel) in enumerate(AXES):
+        for row, variant in enumerate(NAMES):
+            group, _ = axis_points([r for r in runs if r["variant"] == variant], axis)
+            cmap = plt.get_cmap("viridis")
+            ax = axes[row, col]
+            for i, r in enumerate(group):
+                x = np.array([p["step"] for p in r["points"]])/1e9
+                m = [p["fixed_history"]["metrics"]["full_h"]["belief"] for p in r["points"]]
+                ci = np.array([d["bootstrap"]["r2_ci95"] for d in m])
+                color = cmap(i/max(1, len(group)-1)*.9)
+                ax.plot(x, [d["r2"] for d in m], "-", marker=".", ms=4, color=color, label=f"{xlabel.split(' (')[0]} = {level(r, axis):g}")
+                ax.fill_between(x, ci[:, 0], ci[:, 1], color=color, alpha=.1)
+            ax.set_title(f"{NAMES[variant]} Quotient", fontsize=10)
+            ax.grid(alpha=.2)
+            ax.legend(fontsize=7)
+            if col == 0:
+                ax.set_ylabel("Within-class belief R²\n(encoder at step, final-policy histories)", fontsize=9)
+            if row == 1:
+                ax.set_xlabel(f"Training steps (billions) — {xlabel}")
+    fig.suptitle("Checkpoint trajectories on fixed final-policy histories (step 0 = matched init)\n"
+                 "Pointwise 95% episode-bootstrap bands; seed 42 only; lines connect 12 prespecified checkpoints", fontsize=11)
+    fig.tight_layout()
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
+    lines = ["#### Checkpoint trajectories (fixed final-policy histories)", "",
+             "Each run's 12 prespecified checkpoints (parent PR219 trajectory protocol) are replayed on that run's final-policy "
+             "histories, classes and targets with the probe refit per encoder. Peaks are chosen after looking, so the paired "
+             "peak − final interval is exploratory and not selection-adjusted.", "",
+             "| Quotient | Setting | Init (fixed hist.) | Peak | Peak step | Final | Peak − final [95% CI] |",
+             "|---|---|---:|---:|---:|---:|---|"]
+    for r in runs:
+        values = {p["step"]: p["fixed_history"]["metrics"]["full_h"]["belief"]["r2"] for p in r["points"]}
+        d = r["fixed_peak_minus_final"]
+        lines.append(f"| {NAMES[r['variant']]} | {setting(r)} | {values[min(values)]:.4f} | {values[d['peak_step']]:.4f} | "
+                     f"{d['peak_step']/1e6:,.0f}M | {values[r['final_reference_step']]:.4f} | "
+                     f"{fmt_ci((d['difference'], *d['paired_difference_ci95']))} |")
+    return [*lines, "", f"![trajectory]({path.name})", ""]
+
+
 def main():
     report = json.loads(OUTPUT.read_text())
     arms = sorted(report["arms"], key=lambda a: (a["variant"], a["training_entropy"] > 0, a["training_epsilon"], a["training_entropy"]))
@@ -143,7 +195,8 @@ def main():
              "(init encoder replayed on the final policy's exact histories); 95% intervals are 10,000 paired "
              "whole-episode resamples conditional on one training seed (42).", "", *tables(arms), "",
              "![gain](gain_vs_exploration.png)", "", "![scalar](scalar_gain_vs_exploration.png)", "",
-             "![absolute](within_class_r2_by_representation.png)", ""]
+             "![absolute](within_class_r2_by_representation.png)", "",
+             *trajectory_section(RESULTS/"trajectory_vs_exploration.png")]
     (RESULTS/"README.md").write_text("\n".join(lines))
     print("Reported", len(arms), "arms")
 
