@@ -126,8 +126,9 @@ from the already steered state; at the final LayerNorm this is identical to the
 transformer protocol. Sustained λ=1 steering is reported at every site with the
 full λ grid at the top hidden layer and final LayerNorm. Sustained writes into a
 carried hidden state are not interpretable: belief and control writes alike
-compound from step to step until the hidden state overflows. Those runs are
-flagged `diverged`, their norms are null, and the aggregate omits them.
+compound from step to step and in most runs overflow the hidden state. Those
+runs are flagged `diverged` and their norms are null. The aggregate tabulates no
+hidden-site sustained steering and reports the number of diverged runs.
 
 Pulses write once (λ=1) into one hidden layer or all of them at steps
 256/512/768 of seed-3042 episodes and follow 128 lags on the intact inputs.

@@ -31,8 +31,9 @@ def markdown(reports):
     for label, arch, variant, r in reports:
         lines.append(f"| {label} | {arch} | {variant} | "+'; '.join(f"{fmt(s['rho'])} / {fmt(s['delta'])}" for s in r['probes']['exclusion_8'])+' |')
     lines += ['', '## Sustained steering at the final LayerNorm, λ = 1: occupancy (fraction of actions changed)', '',
-              'Writes repeated at every step into a carried hidden state compound until the state overflows (`diverged` in the',
-              'per-agent results), for belief and control writes alike, so hidden-state sites are not tabulated.', '',
+              'Writes repeated at every step into a carried hidden state compound and in most runs overflow the state',
+              '(`diverged` in the per-agent results), for belief and control writes alike, so hidden-state sites are not',
+              'tabulated. The last column counts the diverged hidden-site runs per target.', '',
               '| Study | Arch | Variant | Intact | Random | Target | Final norm | Orthogonal control | Hidden-site runs diverged |',
               '|---|---|---:|---:|---:|---|---:|---:|---:|']
     for label, arch, variant, r in reports:
