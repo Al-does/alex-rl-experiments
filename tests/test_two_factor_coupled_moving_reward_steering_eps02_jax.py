@@ -34,3 +34,18 @@ def test_evaluate_uses_the_supplied_process():
                                 process=process)["total_reward"]
                for process in (None, s.source_process())]
     assert rewards[0] != rewards[1]
+
+
+def test_tuning_curves_average_gain_over_agents():
+    from experiments.two_factor_coupled_moving_reward_steering_eps02_jax_2026_11.summarize import tuning_curves
+
+    def report(steered):
+        cell = lambda total: {"total_reward": total, "factor_action_change_fraction": [0.0, 0.5]}
+        grid = {"discounted_joint": {"0.0": cell(0.5), "1.0": cell(steered)}}
+        return {"rewards": {reward: {"strength_tuning": {"grid": grid}} for reward in ("xor", "moving")}}
+
+    row = tuning_curves([report(0.6), report(0.8)])["xor"]["discounted_joint"]["1.0"]
+    assert row["total_reward_mean"] == 0.7
+    assert row["gain_over_unsteered_mean"] == 0.2
+    assert row["gain_over_unsteered_se_across_agents"] == 0.1
+    assert row["factor_action_change_fraction_mean"] == [0.0, 0.5]

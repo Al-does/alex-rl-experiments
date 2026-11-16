@@ -77,11 +77,8 @@ FIELDS = ("total_reward", "total_reward_se", "component_reward", "phase_componen
           "factor_action_agrees_with_exact_belief_map", "factor_action_change_fraction")
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--results", type=Path, default=Path(__file__).resolve().parent / "results")
-    args = parser.parse_args()
-    reports = {p.stem: json.loads(p.read_text()) for p in sorted(args.results.glob("ctx32*__seed*.json"))}
+def summarize(results: Path) -> dict:
+    reports = {p.stem: json.loads(p.read_text()) for p in sorted(results.glob("*ctx32*__seed*.json"))}
     out = {"site": "block_4", "agents": sorted(reports), "rewards": {}}
     errors = {stem: final_probe_error(r) for stem, r in reports.items()}
     out["final_checkpoint_probe_error"] = errors
@@ -103,7 +100,14 @@ def main() -> None:
         for name, m in means.items():
             print(f"  {name:34s} {m['total_reward']:.3f} {m['component_reward']} "
                   f"{m['phase_component_reward']} {m['factor_action_agrees_with_exact_belief_map']}")
-    (args.results / "summary.json").write_text(json.dumps(out, indent=1) + "\n")
+    return out
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--results", type=Path, default=Path(__file__).resolve().parent / "results")
+    args = parser.parse_args()
+    (args.results / "summary.json").write_text(json.dumps(summarize(args.results), indent=1) + "\n")
 
 
 if __name__ == "__main__":
