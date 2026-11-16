@@ -426,3 +426,96 @@ full-final-mixture contrast is undefined; shared-support results and covered mas
 are reported separately. Class standardization does not remove within-class
 visitation or target-variance changes. Pointwise intervals hold probes fixed;
 all results remain conditional on one training seed.
+
+## PR #234 eps02 multi-seed init/final analysis
+
+`eps02.py` inventories every published eps02 Ladder run and its canonical B2
+checkpoint manifest, then analyzes actual initialization and final checkpoints.
+Primary runs are all three transformer quotient conditions, seeds 42–56 at
+2,012,217,344 steps. Secondary runs are the three seed-42 continuations at
+4,024,434,688 steps. The original seed-42 runs are counted once, not duplicated
+as extra campaign replicates. No other Ladder architectures have published
+results in the imported main snapshot. Reward-factor studies are not imported
+or analyzed.
+
+The two new Ladder studies' Python sources, AGENTS files and required
+`condition_summary.json`, `resolved_recipe.json`, `run_manifest.json` records
+were imported using `git archive` from fetched main at
+`b3db18a1cc88c0fb30c4348e3ef3b0ea6ea33ec5`, without merging or rebasing. The
+records are checked in, so no import is needed to rerun this branch. To repeat
+the exact upstream import from a clone with that revision available:
+
+```bash
+git fetch origin
+src=b3db18a1cc88c0fb30c4348e3ef3b0ea6ea33ec5
+git ls-tree -r --name-only "$src" \
+  experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 \
+  experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_cont4b_2026_11 \
+  | rg '(\.py$|AGENTS.md$|/(condition_summary|resolved_recipe|run_manifest)\.json$)' \
+  | xargs git archive "$src" | tar -x
+```
+
+From the repository root, with the editable sibling harness and the existing
+JAX environment installed (`uv sync --group jax --group dev` if necessary):
+
+```bash
+# Required secrets/config: B2_BUCKET, B2_ENDPOINT,
+# B2_APPLICATION_KEY_ID, B2_APPLICATION_KEY. Never paste their values into logs.
+# B2_PREFIX is not used to select runs: each run's recorded bucket and canonical
+# manifest key select its immutable checkpoint objects.
+export CUDA_VISIBLE_DEVICES='' JAX_PLATFORMS=cpu
+export OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2
+uv run python -m experiments.within_class_belief_probes_2026_11.eps02 --inventory-only
+uv run python -m experiments.within_class_belief_probes_2026_11.eps02
+uv run python -m experiments.within_class_belief_probes_2026_11.eps02_report
+uv run pytest -q tests/test_eps02_within_class.py tests/test_within_class_belief_probes.py tests/test_temp15_analysis.py tests/test_temp15_probe_gate.py tests/test_nuisance_v2_within_class.py
+git diff --check
+```
+
+The default analysis runs sequentially and assembles JSON when complete. For
+parallel CPU execution, run three separate processes with `--workers 3 --worker
+0`, `--workers 3 --worker 1`, and `--workers 3 --worker 2` after inventory; when
+all finish, run the module with `--assemble-only` and then render the report.
+Workers write disjoint run-ID caches. No training entry point is executed.
+
+Checkpoints, canonical manifests, full-episode histories, matched embeddings,
+predictions and intermediate JSON stay ignored under
+`artifacts/eps02/<study>/<run-id>/<leaf>/`. Checkpoint byte counts and SHA-256
+must match the canonical durability manifest before restore; manifest hashes
+are retained. Caches are for exact reruns and are not automatically invalidated
+by code edits: move the relevant ignored cache aside if changing the protocol.
+
+The target is the full three-state filtered belief computed with the new S3
+emission row `[.01,.01,.98]`. A separate NumPy filter over the complete saved
+token/previous-action streams validates it, including reset and warmup. Probe
+streams follow `split(fold_in(PRNGKey(training_seed),2))`, matching each run's
+archive rather than imposing seed 42 on the multi-seed campaign. Fit/test rows
+remain 60K/80K, warmup 64, full episodes 1,024, ridge 1e-6. Greedy local
+collection is equivalent to main's collector: epsilon support only changes
+training sampling/likelihoods, not probe argmax, key splitting or filtering.
+Archive reproduction uses the existing annotation-only tolerance rule.
+
+`eps02_metrics.py` separates descriptive test between-class variance from a
+held-out class-only baseline fitted on training class means. All probes and
+controls include class-specific held-out scores. Matched initialization replays
+the actual zero-step encoder on the final policy's exact complete streams and
+retains final beliefs/classes; its own head defines its head-blind subspace.
+Own-policy initialization is secondary. For continuations, initialization means
+the original 2B parent's **zero-step** checkpoint, not the restored 2B join;
+the join is separately restored, checked against the parent and archive-probed.
+
+Final one-class runs remain in global/descriptive summaries but are excluded
+from within-class claims. Equal-weight seed means and 95% intervals resample
+whole training seeds 10,000 times; final-minus-matched-init is paired by seed.
+The report explicitly gives effective seed counts, positive paired differences,
+and undefined metrics. The figure's hatched one-class bars are descriptive
+global accessibility only. JSON retains full per-class metrics, all three
+controls at trained/matched/own init, provenance, inventory and annotations.
+Affine accessibility does not establish causal use or Bayesian computation.
+
+Outputs: `results/ladder_eps02_within_class.{json,png,pdf}` and an appended
+`results/README.md` section. To add compatible studies/runs, update `STUDIES`
+and `selected_runs()`, deliberately adjust `validate_recipe()` if the scientific
+contract changes, and use new `RAW`, `OUTPUT`, `REF` constants. One run per
+seed/condition is required for seed aggregation; the cache includes study,
+run ID and leaf, preventing collisions between seeds.

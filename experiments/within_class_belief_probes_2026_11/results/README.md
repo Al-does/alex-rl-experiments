@@ -668,3 +668,207 @@ Shared classes: [0, 1, 2]; standardized weights: [0.6092125, 0.20465, 0.1861375]
 One-class points are marked with crosses in the figure; their class-centred full-h scores equal global affine scores. Per-class point estimates/intervals, all global scores, action counts, head-blind/logits/scalar/reward intervals and checkpoint provenance are in JSON. Class reweighting does not fix within-class visitation, representation scaling effects, or training-seed uncertainty.
 
 Reproduce: with the documented CPU-only/B2 environment, run `uv run python -m experiments.within_class_belief_probes_2026_11.own_trajectory` then `uv run python -m experiments.within_class_belief_probes_2026_11.own_trajectory_report`. Own rollouts are reused; missing predictions/controls are cached under each run's ignored `own_trajectory/` directory. No training or paid compute.
+
+<!-- eps02-within-class:start -->
+## PR #234 eps02: affine belief accessibility inside greedy-action classes
+
+CPU-only frozen-checkpoint analysis. Source: `b3db18a1cc88c0fb30c4348e3ef3b0ea6ea33ec5` from fetched main, imported with `git archive`; no merge/rebase. Reward-factor studies were excluded.
+
+### Inventory and target
+
+**48 runs / 4,896 durable checkpoints:** three transformer conditions, seeds 42–56 at 2,012,217,344 steps; three seed-42 continuations at 4,024,434,688 steps. The original seed-42 runs are the campaign's seed 42, not additional replicates. No other eps02 Ladder architectures have published runs in this main snapshot.
+
+Target: full **three-state decision-time filtered belief**, recomputed from tokens and executed actions using emissions `[[.1125,.0375,.85],[.0375,.1125,.85],[.01,.01,.98]]`; never reward-conditioned. Delta is b1−b2, rho is b3. Transitions, uniform prior, effect size 2.5, temperature 1.5, entropy 0 and no epsilon-greedy are unchanged from v2.
+
+Complete canonical-manifest inventory (B2 prefixes exclude the bucket; bucket is `slop-bucket`). Counts are read from B2, cross-checked against archived checkpoint reports, not inferred from intended budgets:
+
+| Study | Leaf | Seed | Steps | B2 prefix | Saved checkpoints |
+|---|---|---|---|---|---|
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_1_transformer | 42 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/20261115T200146Z-2521a721` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_1_transformer | 43 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/20261116T185439Z-84597d42` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_1_transformer | 44 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/20261116T185553Z-b7c0cd5b` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_1_transformer | 45 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/20261116T191021Z-41a8916b` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_1_transformer | 46 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/20261116T185500Z-0b34b953` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_1_transformer | 47 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/20261116T190627Z-3ed1d66d` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_1_transformer | 48 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/20261116T185428Z-ea615ae5` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_1_transformer | 49 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/20261116T185934Z-c33a71a1` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_1_transformer | 50 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/20261116T185543Z-a89093db` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_1_transformer | 51 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/20261116T185017Z-722f514b` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_1_transformer | 52 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/20261116T190105Z-efba5033` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_1_transformer | 53 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/20261116T190459Z-9baa6c94` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_1_transformer | 54 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/20261116T191215Z-1badf7bf` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_1_transformer | 55 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/20261116T185217Z-cb593701` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_1_transformer | 56 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/20261116T185233Z-c9bcd9d5` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_2_transformer | 42 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261115T194341Z-aeb93b50` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_2_transformer | 43 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261116T191626Z-fbed243d` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_2_transformer | 44 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261116T191755Z-cc325aad` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_2_transformer | 45 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261116T193141Z-37027039` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_2_transformer | 46 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261116T191730Z-38896911` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_2_transformer | 47 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261116T192730Z-252a7ed9` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_2_transformer | 48 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261116T191609Z-00b7219a` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_2_transformer | 49 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261116T192134Z-978df4fa` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_2_transformer | 50 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261116T191834Z-72bb82cb` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_2_transformer | 51 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261116T191156Z-c2c19efd` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_2_transformer | 52 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261116T192420Z-d306a257` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_2_transformer | 53 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261116T192719Z-0a5e795e` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_2_transformer | 54 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261116T193419Z-892e0b53` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_2_transformer | 55 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261116T191356Z-efadf8e9` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_2_transformer | 56 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261116T191410Z-d46a0db4` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_3_transformer | 42 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/20261115T194441Z-fc34e4aa` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_3_transformer | 43 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/20261116T193810Z-8ff5b38c` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_3_transformer | 44 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/20261116T194122Z-e46b1711` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_3_transformer | 45 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/20261116T195303Z-42fca6b0` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_3_transformer | 46 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/20261116T194103Z-ed5dcd90` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_3_transformer | 47 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/20261116T194836Z-ed1f2f95` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_3_transformer | 48 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/20261116T193752Z-d34e56b3` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_3_transformer | 49 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/20261116T194406Z-752943e7` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_3_transformer | 50 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/20261116T194345Z-91a34aae` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_3_transformer | 51 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/20261116T193333Z-0b8e7032` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_3_transformer | 52 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/20261116T194716Z-5805fab1` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_3_transformer | 53 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/20261116T194937Z-d8f5be22` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_3_transformer | 54 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/20261116T195625Z-c509b1c0` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_3_transformer | 55 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/20261116T193537Z-afb3fa39` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 | variant_3_transformer | 56 | 2012217344 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/20261116T193546Z-4f7d41d6` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_cont4b_2026_11 | variant_1_transformer | 42 | 4024434688 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_cont4b_2026_11/variant_1_transformer/20261115T210344Z-38335f5d` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_cont4b_2026_11 | variant_2_transformer | 42 | 4024434688 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_cont4b_2026_11/variant_2_transformer/20261115T210349Z-4196ad25` | 102 |
+| belief_quotient_persistent_nuisance_eps02_jax_temp15_cont4b_2026_11 | variant_3_transformer | 42 | 4024434688 | `experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_cont4b_2026_11/variant_3_transformer/20261115T210506Z-e539da7f` | 102 |
+
+### Archive reproduction — annotated rows only
+
+Each checkpoint is byte-count/SHA-256 verified against its canonical B2 durability manifest. The original global affine probe is reproduced on CPU; discrepancies are annotations only at max(.01, 5 × whole-test-episode-bootstrap SE). Both R² and 1−R² comparisons are retained in JSON.
+
+99 archive comparisons (2 annotated); continuation initialization reuses the original parent's zero-step initialization. Repeated init comparisons are not independent replicates.
+
+| Arm | Seed | Run | Stage | Archive R² | CPU R² | Δ | Threshold |
+|---|---|---|---|---|---|---|---|
+| variant_1_transformer | 43 | 2B | final | 0.8488 | 0.8822 | 0.0334 | 0.0315 |
+| variant_1_transformer | 46 | 2B | final | 0.8384 | 0.8746 | 0.0363 | 0.0358 |
+
+### Primary: equal-weight training-seed means and 95% seed-bootstrap CIs
+
+Each condition has 15 independent training seeds. Intervals use **10,000 whole-seed resamples**, with the trained-minus-matched contrast paired within seed. All within-class claims, scalar/head probes and controls below exclude one-class finals; global R² and between-class fractions use all 15. Undefined metrics retain their own coverage lists in JSON. One-class within scores equal global accessibility, not additional conditional evidence.
+
+Between-class fraction = 1 − within-class test SST/global test SST, the descriptive class-mean oracle's global R². A genuinely held-out class-only baseline, using fit-class means, is also saved; it need not equal this fraction exactly.
+
+| Condition | Eligible seeds | Global trained | Global own init | Between-class fraction | Within trained | Within matched init | Final − matched init | Positive seeds | One-class seeds |
+|---|---|---|---|---|---|---|---|---|---|
+| Trivial Quotient | 0/15 | 0.8610 [0.8456, 0.8722] | 0.8488 [0.8225, 0.8675] | 0.0000 [0.0000, 0.0000] | NA | NA | NA | 0/0 | 15 |
+| Reward-State Quotient | 15/15 | 0.8981 [0.8877, 0.9074] | 0.8486 [0.8210, 0.8694] | 0.3778 [0.3644, 0.3915] | 0.8646 [0.8504, 0.8778] | 0.8854 [0.8791, 0.8911] | -0.0208 [-0.0381, -0.0036] | 4/15 | 0 |
+| Full-State Quotient | 15/15 | 0.9684 [0.9661, 0.9704] | 0.7876 [0.6453, 0.8660] | 0.5579 [0.5446, 0.5732] | 0.9512 [0.9479, 0.9541] | 0.8397 [0.8336, 0.8468] | 0.1115 [0.1041, 0.1185] | 15/15 | 0 |
+
+| Condition | Head-blind | Logits | Delta | Rho | Shuffle | Random input | Label permutation |
+|---|---|---|---|---|---|---|---|
+| Trivial Quotient | NA | NA | NA | NA | NA | NA | NA |
+| Reward-State Quotient | 0.8639 [0.8496, 0.8772] | 0.3581 [0.3382, 0.3776] | 0.7977 [0.7770, 0.8177] | 0.9684 [0.9639, 0.9727] | 0.0067 [0.0046, 0.0088] | -0.0093 [-0.0107, -0.0080] | -0.0034 [-0.0067, 0.0001] |
+| Full-State Quotient | 0.9503 [0.9471, 0.9533] | 0.7369 [0.7114, 0.7616] | 0.9158 [0.9109, 0.9207] | 0.9674 [0.9642, 0.9702] | 0.0189 [0.0151, 0.0226] | -0.0095 [-0.0104, -0.0086] | -0.0028 [-0.0059, 0.0004] |
+
+### Initialization and controls
+
+Own-policy initialization is secondary: it changes visitation/classes as well as parameters. Matched initialization keeps the final policy's exact complete observation/previous-action streams, beliefs, classes and row ordering, replaying the initialized encoder from an empty cache per episode. Controls are separately refitted using original targets/classes; one fixed draw each, not permutation significance tests.
+
+| Condition | Within own init (final-eligible subset) | Global matched init | Matched shuffle | Matched random | Matched labels |
+|---|---|---|---|---|---|
+| Trivial Quotient | NA | NA | NA | NA | NA |
+| Reward-State Quotient | 0.8453 [0.8144, 0.8703] | 0.9106 [0.9049, 0.9162] | 0.0178 [0.0140, 0.0213] | -0.0163 [-0.0188, -0.0140] | -0.0055 [-0.0092, -0.0016] |
+| Full-State Quotient | 0.7906 [0.6483, 0.8687] | 0.8957 [0.8915, 0.9003] | 0.0365 [0.0324, 0.0415] | -0.0118 [-0.0130, -0.0105] | -0.0024 [-0.0056, 0.0010] |
+
+### All-seed descriptive values — includes one-class/global-accessibility cases
+
+This table reports excluded one-class runs without treating them as within-class evidence. The main conditional claims and CIs above use only eligible finals.
+
+| Condition | Trained | Matched init | Difference | Positive seeds | Shuffle | Random | Labels |
+|---|---|---|---|---|---|---|---|
+| Trivial Quotient | 0.8610 [0.8456, 0.8722] | 0.8065 [0.7960, 0.8159] | 0.0545 [0.0367, 0.0703] | 13/15 | -0.0004 [-0.0088, 0.0070] | -0.0072 [-0.0118, -0.0033] | -0.0030 [-0.0070, 0.0012] |
+| Reward-State Quotient | 0.8646 [0.8504, 0.8778] | 0.8854 [0.8791, 0.8911] | -0.0208 [-0.0381, -0.0036] | 4/15 | 0.0067 [0.0046, 0.0088] | -0.0093 [-0.0107, -0.0080] | -0.0034 [-0.0067, 0.0001] |
+| Full-State Quotient | 0.9512 [0.9479, 0.9541] | 0.8397 [0.8336, 0.8468] | 0.1115 [0.1041, 0.1185] | 15/15 | 0.0189 [0.0151, 0.0226] | -0.0095 [-0.0104, -0.0086] | -0.0028 [-0.0059, 0.0004] |
+
+| Condition | Global matched init | Own-init within (descriptive) | Head-blind | Logits | Delta | Rho |
+|---|---|---|---|---|---|---|
+| Trivial Quotient | 0.8065 [0.7960, 0.8159] | 0.8130 [0.7299, 0.8647] | 0.8603 [0.8448, 0.8715] | 0.4475 [0.3771, 0.5099] | 0.7490 [0.7257, 0.7690] | 0.8875 [0.8728, 0.8984] |
+| Reward-State Quotient | 0.9106 [0.9049, 0.9162] | 0.8453 [0.8144, 0.8703] | 0.8639 [0.8496, 0.8772] | 0.3581 [0.3382, 0.3776] | 0.7977 [0.7770, 0.8177] | 0.9684 [0.9639, 0.9727] |
+| Full-State Quotient | 0.8957 [0.8915, 0.9003] | 0.7906 [0.6483, 0.8687] | 0.9503 [0.9471, 0.9533] | 0.7369 [0.7114, 0.7616] | 0.9158 [0.9109, 0.9207] | 0.9674 [0.9642, 0.9702] |
+
+### Secondary: seed 42, 2B parent and 4B continuation versus original initialization
+
+These are individual-seed point estimates, without training-seed CIs. Both 2B and 4B use the parent's original zero-step initialization. Each matched-init probe uses that row's own final-policy histories. Own-history differences between 2B and 4B also change visitation and class proportions; they are not isolated representational effects. The continuation restarted Adam moments at the join.
+
+| Condition | Stage | Steps | Global | Global init | Between fraction | Within trained | Matched init | Difference | Own init | Head-blind | Logits | Delta | Rho | One class |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Trivial Quotient | 2B | 2012217344 | 0.8670 | 0.8558 | 0.0000 | 0.8670 | 0.8191 | 0.0479 | 0.8615 | 0.8636 | 0.4553 | 0.7760 | 0.8888 | True |
+| Reward-State Quotient | 2B | 2012217344 | 0.8738 | 0.8706 | 0.3898 | 0.8385 | 0.8892 | -0.0507 | 0.8768 | 0.8357 | 0.3860 | 0.7533 | 0.9661 | False |
+| Full-State Quotient | 2B | 2012217344 | 0.9720 | 0.8764 | 0.6050 | 0.9525 | 0.8501 | 0.1023 | 0.8831 | 0.9514 | 0.7300 | 0.9101 | 0.9722 | False |
+| Trivial Quotient | 4B | 4024434688 | 0.8323 | 0.8558 | 0.0000 | 0.8323 | 0.8191 | 0.0133 | 0.8615 | 0.8320 | 0.5061 | 0.7191 | 0.8595 | True |
+| Reward-State Quotient | 4B | 4024434688 | 0.8561 | 0.8706 | 0.3894 | 0.8339 | 0.8945 | -0.0605 | 0.8768 | 0.8324 | 0.4138 | 0.7381 | 0.9754 | False |
+| Full-State Quotient | 4B | 4024434688 | 0.9732 | 0.8764 | 0.5923 | 0.9566 | 0.8591 | 0.0975 | 0.8831 | 0.9558 | 0.6748 | 0.9112 | 0.9784 | False |
+
+### Per-seed final and matched-init results
+
+Per-class R², SSE/SST, excluded-row counts and full fit/test class counts for all probes and controls are retained in JSON; a missing class is NA, not zero.
+
+| Condition | Seed | Stage | Global | Between fraction | Within trained | Matched init | Difference | Test classes 0/1/2 | One class |
+|---|---|---|---|---|---|---|---|---|---|
+| Trivial Quotient | 42 | 2B | 0.8670 | 0.0000 | 0.8670 | 0.8191 | 0.0479 | 0/80000/0 | True |
+| Trivial Quotient | 43 | 2B | 0.8822 | 0.0000 | 0.8822 | 0.8365 | 0.0457 | 0/80000/0 | True |
+| Trivial Quotient | 44 | 2B | 0.8660 | 0.0000 | 0.8660 | 0.7526 | 0.1134 | 0/80000/0 | True |
+| Trivial Quotient | 45 | 2B | 0.8531 | 0.0000 | 0.8531 | 0.8024 | 0.0507 | 0/80000/0 | True |
+| Trivial Quotient | 46 | 2B | 0.8746 | 0.0000 | 0.8746 | 0.8332 | 0.0414 | 0/80000/0 | True |
+| Trivial Quotient | 47 | 2B | 0.8852 | 0.0000 | 0.8852 | 0.8095 | 0.0758 | 0/80000/0 | True |
+| Trivial Quotient | 48 | 2B | 0.8543 | 0.0000 | 0.8543 | 0.7902 | 0.0641 | 0/80000/0 | True |
+| Trivial Quotient | 49 | 2B | 0.8599 | 0.0000 | 0.8599 | 0.8038 | 0.0561 | 0/80000/0 | True |
+| Trivial Quotient | 50 | 2B | 0.8303 | 0.0000 | 0.8303 | 0.8315 | -0.0011 | 0/80000/0 | True |
+| Trivial Quotient | 51 | 2B | 0.8705 | 0.0000 | 0.8705 | 0.8060 | 0.0645 | 0/80000/0 | True |
+| Trivial Quotient | 52 | 2B | 0.7761 | 0.0000 | 0.7761 | 0.8056 | -0.0295 | 0/80000/0 | True |
+| Trivial Quotient | 53 | 2B | 0.8845 | 0.0000 | 0.8845 | 0.7963 | 0.0882 | 0/80000/0 | True |
+| Trivial Quotient | 54 | 2B | 0.8672 | 0.0000 | 0.8672 | 0.8063 | 0.0609 | 0/80000/0 | True |
+| Trivial Quotient | 55 | 2B | 0.8680 | 0.0000 | 0.8680 | 0.8011 | 0.0669 | 0/80000/0 | True |
+| Trivial Quotient | 56 | 2B | 0.8757 | 0.0000 | 0.8757 | 0.8040 | 0.0718 | 0/80000/0 | True |
+| Reward-State Quotient | 42 | 2B | 0.8738 | 0.3898 | 0.8385 | 0.8892 | -0.0507 | 48817/31183/0 | False |
+| Reward-State Quotient | 43 | 2B | 0.8467 | 0.3257 | 0.8007 | 0.8891 | -0.0884 | 42637/37363/0 | False |
+| Reward-State Quotient | 44 | 2B | 0.8971 | 0.4028 | 0.8572 | 0.8896 | -0.0324 | 48305/31695/0 | False |
+| Reward-State Quotient | 45 | 2B | 0.9139 | 0.3847 | 0.8886 | 0.8954 | -0.0068 | 50788/29212/0 | False |
+| Reward-State Quotient | 46 | 2B | 0.8912 | 0.3926 | 0.8441 | 0.8974 | -0.0533 | 49104/30896/0 | False |
+| Reward-State Quotient | 47 | 2B | 0.9013 | 0.3395 | 0.8779 | 0.8809 | -0.0031 | 54728/25272/0 | False |
+| Reward-State Quotient | 48 | 2B | 0.9093 | 0.3623 | 0.8841 | 0.8684 | 0.0157 | 54908/25092/0 | False |
+| Reward-State Quotient | 49 | 2B | 0.8991 | 0.3799 | 0.8702 | 0.8936 | -0.0234 | 37025/42975/0 | False |
+| Reward-State Quotient | 50 | 2B | 0.9035 | 0.3761 | 0.8814 | 0.8762 | 0.0052 | 44778/35222/0 | False |
+| Reward-State Quotient | 51 | 2B | 0.9182 | 0.3587 | 0.8961 | 0.9007 | -0.0046 | 49128/30872/0 | False |
+| Reward-State Quotient | 52 | 2B | 0.9268 | 0.3912 | 0.8992 | 0.8618 | 0.0374 | 50327/29673/0 | False |
+| Reward-State Quotient | 53 | 2B | 0.9138 | 0.3650 | 0.8897 | 0.8650 | 0.0246 | 52907/27093/0 | False |
+| Reward-State Quotient | 54 | 2B | 0.8818 | 0.3626 | 0.8383 | 0.8851 | -0.0467 | 50496/29504/0 | False |
+| Reward-State Quotient | 55 | 2B | 0.9101 | 0.4433 | 0.8710 | 0.8911 | -0.0201 | 43079/36921/0 | False |
+| Reward-State Quotient | 56 | 2B | 0.8854 | 0.3927 | 0.8324 | 0.8970 | -0.0647 | 44217/35783/0 | False |
+| Full-State Quotient | 42 | 2B | 0.9720 | 0.6050 | 0.9525 | 0.8501 | 0.1023 | 49265/15015/15720 | False |
+| Full-State Quotient | 43 | 2B | 0.9699 | 0.5276 | 0.9545 | 0.8405 | 0.1140 | 53747/12406/13847 | False |
+| Full-State Quotient | 44 | 2B | 0.9691 | 0.5696 | 0.9527 | 0.8419 | 0.1108 | 52634/13888/13478 | False |
+| Full-State Quotient | 45 | 2B | 0.9663 | 0.5534 | 0.9489 | 0.8350 | 0.1140 | 52151/13467/14382 | False |
+| Full-State Quotient | 46 | 2B | 0.9695 | 0.5567 | 0.9561 | 0.8608 | 0.0953 | 53028/12985/13987 | False |
+| Full-State Quotient | 47 | 2B | 0.9729 | 0.5612 | 0.9564 | 0.8295 | 0.1269 | 51239/13063/15698 | False |
+| Full-State Quotient | 48 | 2B | 0.9694 | 0.5198 | 0.9525 | 0.8352 | 0.1173 | 54529/11520/13951 | False |
+| Full-State Quotient | 49 | 2B | 0.9682 | 0.6232 | 0.9516 | 0.8702 | 0.0814 | 46908/17700/15392 | False |
+| Full-State Quotient | 50 | 2B | 0.9633 | 0.5373 | 0.9415 | 0.8297 | 0.1118 | 53068/13154/13778 | False |
+| Full-State Quotient | 51 | 2B | 0.9695 | 0.5411 | 0.9546 | 0.8292 | 0.1254 | 53556/12405/14039 | False |
+| Full-State Quotient | 52 | 2B | 0.9726 | 0.5446 | 0.9619 | 0.8280 | 0.1339 | 53935/12861/13204 | False |
+| Full-State Quotient | 53 | 2B | 0.9752 | 0.5887 | 0.9551 | 0.8228 | 0.1323 | 51396/13904/14700 | False |
+| Full-State Quotient | 54 | 2B | 0.9666 | 0.5514 | 0.9478 | 0.8557 | 0.0921 | 52522/13517/13961 | False |
+| Full-State Quotient | 55 | 2B | 0.9633 | 0.5580 | 0.9450 | 0.8338 | 0.1112 | 51509/15813/12678 | False |
+| Full-State Quotient | 56 | 2B | 0.9579 | 0.5315 | 0.9367 | 0.8332 | 0.1035 | 53228/12792/13980 | False |
+| Trivial Quotient | 42 | 4B | 0.8323 | 0.0000 | 0.8323 | 0.8191 | 0.0133 | 0/80000/0 | True |
+| Reward-State Quotient | 42 | 4B | 0.8561 | 0.3894 | 0.8339 | 0.8945 | -0.0605 | 49976/30024/0 | False |
+| Full-State Quotient | 42 | 4B | 0.9732 | 0.5923 | 0.9566 | 0.8591 | 0.0975 | 50173/14362/15465 | False |
+
+### Interpretation and limitations
+
+Trivial Quotient: all finals are one-class, so this condition supplies no additional action-conditioned evidence.
+
+Reward-State Quotient: training decreases within-class accessibility versus matched initialization; difference -0.0208 [-0.0381, -0.0036], positive in 4/15 seeds.
+
+Full-State Quotient: training increases within-class accessibility versus matched initialization; difference 0.1115 [0.1041, 0.1185], positive in 15/15 seeds.
+
+High class-centred held-out R² above the controls in eligible multi-class policies supports **continuous affine belief accessibility inside their own greedy-action regions**, beyond a class-only predictor. The paired final-minus-matched-init contrast asks whether training increases accessibility on the exact same histories/classes. Neither finding establishes that the policy causally uses that information or implements Bayesian computation.
+
+One-class runs are excluded from conditional claims. Seed intervals condition on fixed replay/probe streams, fit data and one perturbation draw per control; they do not include every source of Monte Carlo or probe-fitting uncertainty. Class-specific fits require at least two fit rows; constant or empty targets have undefined R². Delta and rho are task-derived coordinates, not universally action-irrelevant nuisance variables: both can affect action choice in Full-State. Head-blind removes own-head logit differences, not nonlinear or causal action information.
+
+![eps02 seed-aggregated probes](ladder_eps02_within_class.png)
+
+Vector figure: [PDF](ladder_eps02_within_class.pdf). JSON: [full results and provenance](ladder_eps02_within_class.json).
+<!-- eps02-within-class:end -->
