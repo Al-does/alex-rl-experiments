@@ -96,3 +96,22 @@ def test_eps05_recipe_constants():
     assert eps05.EXPLORATION_EPSILON == 0.05
     assert eps05.TOTAL_ENV_STEPS == 2_000_000_000
     assert eps05.ENTROPY_SCHEDULE == ((0, 0.0),) and eps05.TEMPERATURE == 1.5
+
+
+@pytest.mark.parametrize("variant", (1, 2, 3))
+@pytest.mark.parametrize("architecture", ("transformer", "memoryless", "gru128", "gru92"))
+def test_eps05_leaves_pass_epsilon(variant, architecture):
+    import importlib
+    from unittest.mock import patch
+
+    from experiments.belief_quotient_persistent_nuisance_jax_2026_11 import shared as base
+
+    study = "belief_quotient_persistent_nuisance_v2_jax_temp15_eps05_2026_11"
+    module = importlib.import_module(f"experiments.{study}.variant_{variant}_{architecture}.experiment")
+    with patch.object(base, "run_study", side_effect=lambda *a, **kw: kw):
+        result = module.run(type("Context", (), {"smoke": False})())
+    assert result["architecture"] == architecture and result["study"] == study
+    config = result["config"]
+    assert (config.exploration_epsilon, config.temperature, config.total_env_steps) == (0.05, 1.5, 2_000_000_000)
+    assert config.entropy_schedule == ((0, 0.0),)
+
