@@ -33,10 +33,12 @@ def test_leaf_wiring_and_legacy_config(study, leaf):
             result = module.run(context)
             after = legacy.run(context)
         assert asdict(before["config"]) == asdict(after["config"])
-        assert asdict(result["config"]) == {**asdict(before["config"]), **auto.HYPERPARAMETERS}
+        assert asdict(result["config"]) == {
+            **asdict(before["config"]), **auto.hyperparameters(result["spec"].n_actions)}
         config = result["config"]
-        assert config.auto_entropy_tuning and config.alpha_init == 1.
-        assert config.target_entropy == .3 * math.log(3)
+        assert config.auto_entropy_tuning and config.alpha_init == .01
+        assert result["spec"].n_actions == (3 if study == LADDER else 9)
+        assert config.target_entropy == .3 * math.log(result["spec"].n_actions)
         assert config.alpha_lr == config.critic_lr == 3e-4 and config.lr == 3e-5
         assert config.q_head_init == "zeros"
         assert config.temperature == 1.5 and config.gamma == .99 and config.tau == .005
@@ -62,13 +64,14 @@ def test_leaf_wiring_and_legacy_config(study, leaf):
 def test_alpha_gradient_direction_and_detachment(probabilities, direction):
     log_probs = jnp.log(jnp.array([[probabilities]]))
     log_alpha = jnp.array(.2)
-    grad = jax.grad(sac.alpha_loss)(log_alpha, log_probs, auto.HYPERPARAMETERS["target_entropy"])
+    target = auto.hyperparameters(log_probs.shape[-1])["target_entropy"]
+    grad = jax.grad(sac.alpha_loss)(log_alpha, log_probs, target)
     optimizer = optax.adam(3e-4)
     updates, _ = optimizer.update(grad, optimizer.init(log_alpha), log_alpha)
     updated = optax.apply_updates(log_alpha, updates)
     assert direction * (jnp.exp(updated) - jnp.exp(log_alpha)) > 0
     np.testing.assert_array_equal(jax.grad(lambda lp: sac.alpha_loss(
-        log_alpha, lp, auto.HYPERPARAMETERS["target_entropy"]))(log_probs), 0.)
+        log_alpha, lp, target))(log_probs), 0.)
 
 
 def test_critic_initialization_opt_in():
@@ -80,7 +83,7 @@ def test_critic_initialization_opt_in():
         key = jax.random.fold_in(jax.random.PRNGKey(42), index)
         reference = models.init_params(spec, key)
         default = sac.init_critic_params(spec, key, config)
-        zero = sac.init_critic_params(spec, key, auto.sac.configure(config, **auto.HYPERPARAMETERS))
+        zero = sac.init_critic_params(spec, key, sac.configure(config, **auto.hyperparameters(spec.n_actions)))
         for expected, actual in zip(jax.tree.leaves(reference), jax.tree.leaves(default)):
             np.testing.assert_array_equal(actual, expected)
         for name in reference:
@@ -96,7 +99,7 @@ def test_autoalpha_training_metrics_and_checkpoint(tmp_path):
     process = environment.ladder_process(1)
     spec = models.ModelSpec("transformer", process.obs_dim, process.n_actions, 8, 1)
     config = sac.configure(sac.TrainConfig(total_env_steps=8, num_envs=2, episode_length=4,
-        num_minibatches=2, gradient_steps=2, temperature=1.5), **auto.HYPERPARAMETERS)
+        num_minibatches=2, gradient_steps=2, temperature=1.5), **auto.hyperparameters(spec.n_actions))
     saved = {}
 
     def save(step, params):
@@ -113,13 +116,13 @@ def test_autoalpha_training_metrics_and_checkpoint(tmp_path):
     for name in ("alpha", "log_alpha", "alpha_loss", "entropy", "mean_policy_q",
                  "mean_q", "critic_loss", "actor_loss"):
         assert np.isfinite(metrics[name])
-    assert 0 < metrics["alpha"] <= 1.
+    assert 0 < metrics["alpha"] <= config.alpha_init
     assert metrics["entropy_coeff"] == metrics["alpha"]
     assert metrics["entropy"] == metrics["policy_entropy"]
     with np.load(tmp_path / "critic_step_0000000008.npz") as checkpoint:
         assert any("targets" in key for key in checkpoint.files)
         assert any("critics" in key for key in checkpoint.files)
-        assert checkpoint["['alpha']"] < 1.
+        assert 0 < checkpoint["['alpha']"] < config.alpha_init
         np.testing.assert_allclose(checkpoint["['alpha']"], np.exp(checkpoint["['log_alpha']"]))
         assert checkpoint["['alpha_optimizer'][0].count"] == config.gradient_steps
     obs = jnp.zeros((2, 4, spec.obs_dim))
@@ -140,4 +143,4 @@ def test_autoalpha_training_metrics_and_checkpoint(tmp_path):
 ])
 def test_invalid_autoalpha_config(overrides):
     with pytest.raises(ValueError):
-        sac.TrainConfig(total_env_steps=8, **{**auto.HYPERPARAMETERS, **overrides})
+        sac.TrainConfig(total_env_steps=8, **{**auto.hyperparameters(3), **overrides})

@@ -2,7 +2,9 @@
 
 Entropy-regularised discrete SAC, separate from the unchanged fixed-alpha
 eps02 SAC leaves. The human user selected automatic alpha tuning with
-target entropy 0.3*log(3), initial alpha 1.0 and Adam lr=3e-4.
+target entropy 0.3*log(|A|), resolved from the environment action count,
+initial alpha 0.01 and Adam lr=3e-4. Reward-factor leaves have nine actions,
+so the resolved target is 0.6591673732008658 nats.
 Alpha loss is log_alpha * stop_gradient(H(pi)-target_entropy); one update
 per gradient step. Current stop-gradiented alpha enters both the actor loss
 and the soft critic target. Temperature 1.5 applies to sampling and all losses.

@@ -11,17 +11,20 @@ from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_sac_2026_1
 STUDY = "belief_quotient_persistent_nuisance_eps02_jax_temp15_sac_autoalpha_2026_11"
 HYPERPARAMETERS = {
     "auto_entropy_tuning": True,
-    "alpha_init": 1.0,
+    "alpha_init": 0.01,
     "alpha_lr": 3e-4,
-    "target_entropy": 0.3 * math.log(3),
     "lr": 3e-5,
     "critic_lr": 3e-4,
     "q_head_init": "zeros",
 }
 
 
-def training_backend(context):
-    return sac.for_context(context, **HYPERPARAMETERS)
+def hyperparameters(n_actions):
+    return {**HYPERPARAMETERS, "target_entropy": 0.3 * math.log(n_actions)}
+
+
+def training_backend(context, process):
+    return sac.for_context(context, **hyperparameters(process.n_actions))
 
 
 def run_condition(context, *, variant, architecture="transformer"):
@@ -31,5 +34,5 @@ def run_condition(context, *, variant, architecture="transformer"):
         context, variant=variant, architecture=architecture, study=STUDY,
         total_env_steps=TOTAL_ENV_STEPS, entropy_schedule_points=ENTROPY_SCHEDULE,
         temperature=TEMPERATURE, environment=environment,
-        training_backend=training_backend(context),
+        training_backend=training_backend(context, environment.ladder_process(variant)),
     )

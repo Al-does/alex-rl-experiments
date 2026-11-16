@@ -16,5 +16,6 @@ def run_condition(context, *, condition, architecture="transformer"):
         context, condition=condition, architecture=architecture, study=STUDY,
         total_env_steps=TOTAL_ENV_STEPS, entropy_schedule_points=ENTROPY_SCHEDULE,
         temperature=TEMPERATURE, environment=environment,
-        training_backend=training_backend(context), context_len=32,
+        training_backend=training_backend(context, base.factor_process(condition, environment)),
+        context_len=32,
     )
