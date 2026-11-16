@@ -1,0 +1,1952 @@
+{
+  "schema": 1,
+  "horizon": 1024,
+  "objective": "undiscounted complete-episode expected reward / horizon",
+  "conventions": {
+    "reward": "pre-transition S3 occupancy; reward_both SUMS two factors",
+    "initial": [
+      0.3333333333333333,
+      0.3333333333333333,
+      0.3333333333333333
+    ],
+    "reset": "emit before first action",
+    "warmup": 0,
+    "training_gamma": 0.99,
+    "benchmark_gamma": 1.0,
+    "temperature": "1.5 does not constrain distributions; entropy=0, epsilon-greedy=0",
+    "memoryless": "stationary stochastic current-token only; no previous action",
+    "bayes": "finite horizon, time-dependent full exact token/executed-action posterior, no rewards",
+    "comparison": "train rewards include 1024 reset steps; greedy probe rewards exclude first 64; neither has saved episode CIs",
+    "limitations": "Bayes values bounded/estimated, not exact. Reactive search lower bounds only: no global certificate, especially joint 9-token policies."
+  },
+  "git_revision": "b3db18a1cc88c0fb30c4348e3ef3b0ea6ea33ec5",
+  "module_sha256": "b47bc04c6f30ef56011b415616c5195fc11032e16c9c30d375bb245cb2d82be8",
+  "sanity": {
+    "pr208_v1": {
+      "current_token_policy": [
+        1,
+        1,
+        0
+      ],
+      "current_token": 0.22886187165598199,
+      "c_action_fractional_rewards": [
+        0.22886187165598196,
+        0.18922892519409681,
+        0.06367887110275304
+      ],
+      "feasible_three_token": 0.2514246410147799,
+      "relative_gain": 0.09858684277787244,
+      "AAAC": [
+        0.7927740504808222,
+        0.07436307802191151,
+        0.1328628714972662
+      ],
+      "BBAC": [
+        0.29514759984028843,
+        0.5719895286624453,
+        0.1328628714972662
+      ]
+    },
+    "v2_variant2_best_deterministic_stationary": 0.34532685272776137,
+    "v2_variant2_policy": [
+      1,
+      1,
+      0
+    ],
+    "note": "PR208 references are v1 feasible controllers, not v2 Bayes optima"
+  },
+  "tasks": {
+    "eps02/variant_1": {
+      "bayes": [
+        {
+          "grid_divisions": 80,
+          "upper_bound": 0.9413356355927269,
+          "feasible_policy": {
+            "mean": 0.9415781984271014,
+            "ci95": [
+              0.9409673023706787,
+              0.9421890944835242
+            ]
+          },
+          "post_warmup64_policy": {
+            "mean": 0.9611635611466236,
+            "ci95": [
+              0.9606075597026916,
+              0.9617195625905556
+            ]
+          },
+          "episodes": 16384,
+          "seed": 208,
+          "certification": "upper bound up to floating-point error; CI estimates a feasible policy, not exact optimum"
+        },
+        {
+          "grid_divisions": 320,
+          "upper_bound": 0.9413356355927087,
+          "feasible_policy": {
+            "mean": 0.9415781984271014,
+            "ci95": [
+              0.9409673023706787,
+              0.9421890944835242
+            ]
+          },
+          "post_warmup64_policy": {
+            "mean": 0.9611635611466236,
+            "ci95": [
+              0.9606075597026916,
+              0.9617195625905556
+            ]
+          },
+          "episodes": 16384,
+          "seed": 208,
+          "certification": "upper bound up to floating-point error; CI estimates a feasible policy, not exact optimum"
+        }
+      ],
+      "memoryless": {
+        "best_known": 0.9413356355927174,
+        "policy": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "starts": 91,
+        "successful_optimizations": 91,
+        "globally_certified": true
+      },
+      "exact_bayes_and_memoryless": 0.9413356355927174,
+      "proof": "S1/S2 have identical reward-state transition probabilities. Action 1 maximizes P(next S3) in every state; its S3 row has greater P(next S3) than its nonreward rows. Backward induction on monotone two-state values makes always-1 optimal, even with full state information."
+    },
+    "eps02/variant_2": {
+      "bayes": [
+        {
+          "grid_divisions": 80,
+          "upper_bound": 0.45671083246352384,
+          "feasible_policy": {
+            "mean": 0.4559023392179778,
+            "ci95": [
+              0.45439145735546504,
+              0.45741322108049054
+            ]
+          },
+          "post_warmup64_policy": {
+            "mean": 0.4606489998817582,
+            "ci95": [
+              0.4590799358456711,
+              0.46221806391784537
+            ]
+          },
+          "episodes": 16384,
+          "seed": 208,
+          "certification": "upper bound up to floating-point error; CI estimates a feasible policy, not exact optimum"
+        },
+        {
+          "grid_divisions": 320,
+          "upper_bound": 0.4562541925747393,
+          "feasible_policy": {
+            "mean": 0.4559023369138203,
+            "ci95": [
+              0.4543914552889393,
+              0.4574132185387013
+            ]
+          },
+          "post_warmup64_policy": {
+            "mean": 0.4606489964442972,
+            "ci95": [
+              0.45907993266275604,
+              0.46221806022583833
+            ]
+          },
+          "episodes": 16384,
+          "seed": 208,
+          "certification": "upper bound up to floating-point error; CI estimates a feasible policy, not exact optimum"
+        }
+      ],
+      "memoryless": {
+        "best_known": 0.30707214522189463,
+        "policy": [
+          [
+            7.401487713160364e-17,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            6.013707278017693e-17
+          ],
+          [
+            0.9999999999999997,
+            3.830465033393157e-16,
+            7.957993731010542e-17
+          ]
+        ],
+        "starts": 91,
+        "successful_optimizations": 91,
+        "globally_certified": false
+      }
+    },
+    "eps02/variant_3": {
+      "bayes": [
+        {
+          "grid_divisions": 80,
+          "upper_bound": 0.4223606093325434,
+          "feasible_policy": {
+            "mean": 0.4209585959061848,
+            "ci95": [
+              0.4193753682315461,
+              0.4225418235808235
+            ]
+          },
+          "post_warmup64_policy": {
+            "mean": 0.42485963548790023,
+            "ci95": [
+              0.42321731991698053,
+              0.42650195105881994
+            ]
+          },
+          "episodes": 16384,
+          "seed": 208,
+          "certification": "upper bound up to floating-point error; CI estimates a feasible policy, not exact optimum"
+        },
+        {
+          "grid_divisions": 320,
+          "upper_bound": 0.42141261672345703,
+          "feasible_policy": {
+            "mean": 0.42096853362397224,
+            "ci95": [
+              0.41938527300299133,
+              0.42255179424495315
+            ]
+          },
+          "post_warmup64_policy": {
+            "mean": 0.4248702434992494,
+            "ci95": [
+              0.42322789728492444,
+              0.42651258971357436
+            ]
+          },
+          "episodes": 16384,
+          "seed": 208,
+          "certification": "upper bound up to floating-point error; CI estimates a feasible policy, not exact optimum"
+        }
+      ],
+      "memoryless": {
+        "best_known": 0.2717675427882021,
+        "policy": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            1.9428902930940146e-16,
+            0.0,
+            0.9999999999999998
+          ],
+          [
+            1.0,
+            0.0,
+            9.021935300431689e-17
+          ]
+        ],
+        "starts": 91,
+        "successful_optimizations": 91,
+        "globally_certified": false
+      }
+    },
+    "v2/variant_1": {
+      "bayes": [
+        {
+          "grid_divisions": 80,
+          "upper_bound": 0.9413356355926932,
+          "feasible_policy": {
+            "mean": 0.9409303070831594,
+            "ci95": [
+              0.9401633713466157,
+              0.9416972428197031
+            ]
+          },
+          "post_warmup64_policy": {
+            "mean": 0.9606001536819182,
+            "ci95": [
+              0.9598867135363713,
+              0.9613135938274651
+            ]
+          },
+          "episodes": 16384,
+          "seed": 208,
+          "certification": "upper bound up to floating-point error; CI estimates a feasible policy, not exact optimum"
+        },
+        {
+          "grid_divisions": 320,
+          "upper_bound": 0.9413356355927168,
+          "feasible_policy": {
+            "mean": 0.9409303070831594,
+            "ci95": [
+              0.9401633713466157,
+              0.9416972428197031
+            ]
+          },
+          "post_warmup64_policy": {
+            "mean": 0.9606001536819182,
+            "ci95": [
+              0.9598867135363713,
+              0.9613135938274651
+            ]
+          },
+          "episodes": 16384,
+          "seed": 208,
+          "certification": "upper bound up to floating-point error; CI estimates a feasible policy, not exact optimum"
+        }
+      ],
+      "memoryless": {
+        "best_known": 0.9413356355927174,
+        "policy": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "starts": 91,
+        "successful_optimizations": 91,
+        "globally_certified": true
+      },
+      "exact_bayes_and_memoryless": 0.9413356355927174,
+      "proof": "S1/S2 have identical reward-state transition probabilities. Action 1 maximizes P(next S3) in every state; its S3 row has greater P(next S3) than its nonreward rows. Backward induction on monotone two-state values makes always-1 optimal, even with full state information."
+    },
+    "v2/variant_2": {
+      "bayes": [
+        {
+          "grid_divisions": 80,
+          "upper_bound": 0.5260170675113018,
+          "feasible_policy": {
+            "mean": 0.5254419202613764,
+            "ci95": [
+              0.5237187179737894,
+              0.5271651225489633
+            ]
+          },
+          "post_warmup64_policy": {
+            "mean": 0.53223648777398,
+            "ci95": [
+              0.5304485442157431,
+              0.534024431332217
+            ]
+          },
+          "episodes": 16384,
+          "seed": 208,
+          "certification": "upper bound up to floating-point error; CI estimates a feasible policy, not exact optimum"
+        },
+        {
+          "grid_divisions": 320,
+          "upper_bound": 0.525745877628378,
+          "feasible_policy": {
+            "mean": 0.5254419202613764,
+            "ci95": [
+              0.5237187179737894,
+              0.5271651225489633
+            ]
+          },
+          "post_warmup64_policy": {
+            "mean": 0.53223648777398,
+            "ci95": [
+              0.5304485442157431,
+              0.534024431332217
+            ]
+          },
+          "episodes": 16384,
+          "seed": 208,
+          "certification": "upper bound up to floating-point error; CI estimates a feasible policy, not exact optimum"
+        }
+      ],
+      "memoryless": {
+        "best_known": 0.3445600720668444,
+        "policy": [
+          [
+            0.0,
+            0.9999999999999998,
+            2.590520390792037e-16
+          ],
+          [
+            8.68807340885051e-17,
+            1.0,
+            0.0
+          ],
+          [
+            1.0,
+            1.0722611071445253e-16,
+            0.0
+          ]
+        ],
+        "starts": 91,
+        "successful_optimizations": 91,
+        "globally_certified": false
+      }
+    },
+    "v2/variant_3": {
+      "bayes": [
+        {
+          "grid_divisions": 80,
+          "upper_bound": 0.4824821453795294,
+          "feasible_policy": {
+            "mean": 0.4813286342737863,
+            "ci95": [
+              0.47950258933852374,
+              0.48315467920904887
+            ]
+          },
+          "post_warmup64_policy": {
+            "mean": 0.4870617644645,
+            "ci95": [
+              0.4851672284405186,
+              0.4889563004884814
+            ]
+          },
+          "episodes": 16384,
+          "seed": 208,
+          "certification": "upper bound up to floating-point error; CI estimates a feasible policy, not exact optimum"
+        },
+        {
+          "grid_divisions": 320,
+          "upper_bound": 0.4815319473931166,
+          "feasible_policy": {
+            "mean": 0.4813316730199828,
+            "ci95": [
+              0.4795057692906635,
+              0.4831575767493021
+            ]
+          },
+          "post_warmup64_policy": {
+            "mean": 0.48706514587927485,
+            "ci95": [
+              0.4851707800433068,
+              0.4889595117152429
+            ]
+          },
+          "episodes": 16384,
+          "seed": 208,
+          "certification": "upper bound up to floating-point error; CI estimates a feasible policy, not exact optimum"
+        }
+      ],
+      "memoryless": {
+        "best_known": 0.30686810357961336,
+        "policy": [
+          [
+            2.6145752229922383e-14,
+            0.9999999999999739,
+            0.0
+          ],
+          [
+            3.7733931627065017e-17,
+            3.488181965494164e-14,
+            0.9999999999999651
+          ],
+          [
+            0.9999999999999989,
+            3.4282669688219707e-16,
+            8.51311605951057e-16
+          ]
+        ],
+        "starts": 91,
+        "successful_optimizations": 91,
+        "globally_certified": false
+      }
+    },
+    "eps02/reward_both": {
+      "bayes_from": "eps02/variant_3",
+      "bayes_multiplier": 2,
+      "memoryless": {
+        "best_known": 0.5435350855764239,
+        "policy": [
+          [
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.9999999999999998,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.9428902930940146e-16,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            9.021935300431689e-17,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.9428902930940146e-16,
+            0.0,
+            0.9999999999999998,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            3.774822690998946e-32,
+            0.0,
+            0.0,
+            0.0,
+            1.942890293094014e-16,
+            0.0,
+            0.9999999999999996,
+            0.0,
+            1.942890293094014e-16
+          ],
+          [
+            1.9428902930940146e-16,
+            0.0,
+            0.0,
+            0.0,
+            1.752863052013096e-32,
+            0.0,
+            9.021935300431686e-17,
+            0.0,
+            0.9999999999999998
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            9.021935300431689e-17,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            1.9428902930940146e-16,
+            0.0,
+            0.0,
+            0.0,
+            0.9999999999999998,
+            0.0,
+            9.021935300431686e-17,
+            0.0,
+            1.752863052013096e-32
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            9.021935300431689e-17,
+            0.0,
+            8.139531656517542e-33,
+            0.0,
+            9.021935300431689e-17
+          ]
+        ],
+        "starts": 65,
+        "successful_optimizations": 65,
+        "globally_certified": false
+      },
+      "note": "Bayes value is additive by independence/unrestricted full histories and Cartesian actions. Joint reactive search is NOT restricted to product policies."
+    },
+    "eps02/reward_factor_1": {
+      "bayes_from": "eps02/variant_3",
+      "bayes_multiplier": 1,
+      "memoryless": {
+        "best_known": 0.271767542788215,
+        "policy": [
+          [
+            1.8079132367183264e-16,
+            0.290988790296771,
+            0.3845090763829753,
+            6.09039420680335e-17,
+            0.0,
+            7.108652779867782e-17,
+            0.0,
+            0.32450213332025346,
+            7.352903951896813e-17
+          ],
+          [
+            1.8835155490260875e-16,
+            0.4780970773065635,
+            0.21274420139015224,
+            1.371442195164302e-16,
+            0.0,
+            1.1610832229953495e-16,
+            1.4271749178472313e-17,
+            0.30915872130328387,
+            0.0
+          ],
+          [
+            0.0,
+            0.2874983127817512,
+            0.2926996873494617,
+            6.769880069616266e-19,
+            1.0607424916695924e-16,
+            0.0,
+            0.0,
+            0.4198019998687871,
+            4.1504376896471213e-17
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            2.789189178238215e-16,
+            1.9581497450026987e-16,
+            0.3886020058225242,
+            0.3227937867428518,
+            1.0404677720573757e-16,
+            0.2886042074346234
+          ],
+          [
+            0.0,
+            0.0,
+            8.973332399344663e-17,
+            3.0991459629555746e-17,
+            0.0,
+            0.2833121749087762,
+            0.28165719480563567,
+            0.0,
+            0.4350306302855882
+          ],
+          [
+            0.0,
+            0.0,
+            3.2939383468178664e-16,
+            0.0,
+            0.0,
+            0.2735500547646645,
+            0.3537779618640654,
+            0.0,
+            0.37267198337126994
+          ],
+          [
+            0.30447668488885565,
+            9.19382820706094e-17,
+            0.0,
+            0.3218634672086049,
+            0.37365984790253876,
+            0.0,
+            0.0,
+            5.060662539859372e-16,
+            0.0
+          ],
+          [
+            0.2160749984200176,
+            0.0,
+            1.8494353317710906e-17,
+            0.3440427611289525,
+            0.4398822404510295,
+            0.0,
+            0.0,
+            8.51307331522764e-17,
+            3.0074588247523796e-16
+          ],
+          [
+            0.33837502929975516,
+            1.2252445030741666e-16,
+            1.0801808619716037e-16,
+            0.26271708351751044,
+            0.3989078871827343,
+            0.0,
+            0.0,
+            0.0,
+            6.476787624208245e-17
+          ]
+        ],
+        "starts": 65,
+        "successful_optimizations": 65,
+        "globally_certified": false
+      },
+      "note": "Bayes value is additive by independence/unrestricted full histories and Cartesian actions. Joint reactive search is NOT restricted to product policies."
+    }
+  },
+  "achieved": [
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/results/20261115T200146Z-2521a721/condition_summary.json",
+      "sha256": "bc545cbceec1449cd75471ce2c7cc94762d8d741c486a76717fb286e27b16be8",
+      "curves_sha256": "819d2059e033f40f58753b3f46a35da27f69d908ad2ba6668e59cfcb791cde97",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_1_transformer",
+      "seed": 42,
+      "architecture": "transformer",
+      "condition": "variant_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.9410905241966248,
+      "summary_train_reward_per_step": 0.9410905241966248,
+      "greedy_post_warmup64": 0.9651625156402588,
+      "bayes_upper_minus_train": 0.0002451113960926232,
+      "train_minus_memoryless_best_known": -0.0002451113960926232
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/results/20261116T185017Z-722f514b/condition_summary.json",
+      "sha256": "73157c0aec1a47aee6996d42da6ee6d54b007f397185a36a2128f1afe332832e",
+      "curves_sha256": "31e454795b7d4d6a2dc24d03fc5c074f5d58f760f72fb69e5e90045c8c6f2af0",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_1_transformer",
+      "seed": 51,
+      "architecture": "transformer",
+      "condition": "variant_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.9410577416419983,
+      "summary_train_reward_per_step": 0.9410577416419983,
+      "greedy_post_warmup64": 0.9614874720573425,
+      "bayes_upper_minus_train": 0.00027789395071908807,
+      "train_minus_memoryless_best_known": -0.00027789395071908807
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/results/20261116T185217Z-cb593701/condition_summary.json",
+      "sha256": "30802a0c94018efd502b08b28b5e4fd971ad550a7a102e3ad00766a237f75ccf",
+      "curves_sha256": "b3d0489ad29957ec43e6711ad47cb804bf0de975c3f3c18f7ee8d806e58dd27d",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_1_transformer",
+      "seed": 55,
+      "architecture": "transformer",
+      "condition": "variant_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.9404345154762268,
+      "summary_train_reward_per_step": 0.9404345154762268,
+      "greedy_post_warmup64": 0.9604374766349792,
+      "bayes_upper_minus_train": 0.0009011201164905724,
+      "train_minus_memoryless_best_known": -0.0009011201164905724
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/results/20261116T185233Z-c9bcd9d5/condition_summary.json",
+      "sha256": "54546914169930fe36e5a8ce61e981b6f9dbb37286f8715609e1616a8c7c33a6",
+      "curves_sha256": "6b1212967d27b04a75c1ac8e424fe6cbb0c38b0578d810c99a1efa21680a7307",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_1_transformer",
+      "seed": 56,
+      "architecture": "transformer",
+      "condition": "variant_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.9408456683158875,
+      "summary_train_reward_per_step": 0.9408456683158875,
+      "greedy_post_warmup64": 0.9557874798774719,
+      "bayes_upper_minus_train": 0.0004899672768299279,
+      "train_minus_memoryless_best_known": -0.0004899672768299279
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/results/20261116T185428Z-ea615ae5/condition_summary.json",
+      "sha256": "27f6ed261d33195a032b99623fb29c84e1747a6aaa6aa380d67ec0befeb1e93f",
+      "curves_sha256": "7fafaa7f98604a95a871929e8a462637c5990643e6f357d27c8bd4dad5116a26",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_1_transformer",
+      "seed": 48,
+      "architecture": "transformer",
+      "condition": "variant_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.941206693649292,
+      "summary_train_reward_per_step": 0.941206693649292,
+      "greedy_post_warmup64": 0.9635124802589417,
+      "bayes_upper_minus_train": 0.0001289419434253869,
+      "train_minus_memoryless_best_known": -0.0001289419434253869
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/results/20261116T185439Z-84597d42/condition_summary.json",
+      "sha256": "dcaf491b6244d091e6501a9107d8ced5aed7f302dcf4b5c8eb9d149128960182",
+      "curves_sha256": "87518e5febb7b393ddd22fc4c46999384d5d473c099ff195b527e1d5be9f9c22",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_1_transformer",
+      "seed": 43,
+      "architecture": "transformer",
+      "condition": "variant_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.9413306713104248,
+      "summary_train_reward_per_step": 0.9413306713104248,
+      "greedy_post_warmup64": 0.9541249871253967,
+      "bayes_upper_minus_train": 4.964282292574396e-06,
+      "train_minus_memoryless_best_known": -4.964282292574396e-06
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/results/20261116T185500Z-0b34b953/condition_summary.json",
+      "sha256": "54b7588abda5104b6913d870b54e91514c30109c467652ec835530b4142e4d72",
+      "curves_sha256": "8efa403ace12dd28a6854e30f1308d107b66fd290c1bdab9cff2ecd8e3a72c3b",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_1_transformer",
+      "seed": 46,
+      "architecture": "transformer",
+      "condition": "variant_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.941114604473114,
+      "summary_train_reward_per_step": 0.941114604473114,
+      "greedy_post_warmup64": 0.9556000232696533,
+      "bayes_upper_minus_train": 0.0002210311196033654,
+      "train_minus_memoryless_best_known": -0.0002210311196033654
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/results/20261116T185543Z-a89093db/condition_summary.json",
+      "sha256": "27995921a99eb94c59f5847df2eedf835eec659392df5b0e6cd9058ee848460e",
+      "curves_sha256": "b2f14bb65a4a84161bf5464e908846f3d1140d2a96606ff9f1fd435cc5f05893",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_1_transformer",
+      "seed": 50,
+      "architecture": "transformer",
+      "condition": "variant_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.9416670799255371,
+      "summary_train_reward_per_step": 0.9416670799255371,
+      "greedy_post_warmup64": 0.9597125053405762,
+      "bayes_upper_minus_train": -0.0003314443328197303,
+      "train_minus_memoryless_best_known": 0.0003314443328197303
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/results/20261116T185553Z-b7c0cd5b/condition_summary.json",
+      "sha256": "5897abdf38bac5d12d55e3c1e881a7c9230dd71f63d72045f1d553ba62bed0c6",
+      "curves_sha256": "250bd717e133a3ee61572b28edb8c115f23bcf73238ddc8b644ef287cc44c1c3",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_1_transformer",
+      "seed": 44,
+      "architecture": "transformer",
+      "condition": "variant_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.9404475688934326,
+      "summary_train_reward_per_step": 0.9404475688934326,
+      "greedy_post_warmup64": 0.9685624837875366,
+      "bayes_upper_minus_train": 0.0008880666992847619,
+      "train_minus_memoryless_best_known": -0.0008880666992847619
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/results/20261116T185934Z-c33a71a1/condition_summary.json",
+      "sha256": "1e0199a02a4042c19743e835aac61f00b03501995b2b4b24700e48ee5b527e81",
+      "curves_sha256": "f29bd50beeb30c5fa69550f2eaf7cde8f649472a76c89acccc151d26c2878162",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_1_transformer",
+      "seed": 49,
+      "architecture": "transformer",
+      "condition": "variant_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.9413819909095764,
+      "summary_train_reward_per_step": 0.9413819909095764,
+      "greedy_post_warmup64": 0.9631875157356262,
+      "bayes_upper_minus_train": -4.635531685903693e-05,
+      "train_minus_memoryless_best_known": 4.635531685903693e-05
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/results/20261116T190105Z-efba5033/condition_summary.json",
+      "sha256": "63f9b9166bd098521b5d9ba6f313729a77dda185c031c4bb0bf5a54bae1435d9",
+      "curves_sha256": "b1ab13a7b67d8f6273ea93b8d5685c2912bd193fed46957f7691c77214d73ef9",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_1_transformer",
+      "seed": 52,
+      "architecture": "transformer",
+      "condition": "variant_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.9409085512161255,
+      "summary_train_reward_per_step": 0.9409085512161255,
+      "greedy_post_warmup64": 0.9556875228881836,
+      "bayes_upper_minus_train": 0.0004270843765918908,
+      "train_minus_memoryless_best_known": -0.0004270843765918908
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/results/20261116T190459Z-9baa6c94/condition_summary.json",
+      "sha256": "8e590e4f8eac889ec909b65f50a583bf2dc7844a795b62bd4cc0834d6a0bd6a8",
+      "curves_sha256": "657ffbdf9e035d00e3311ca9e8fc2a97fc3ff997f160e1082121e9f80e25212b",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_1_transformer",
+      "seed": 53,
+      "architecture": "transformer",
+      "condition": "variant_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.9411249756813049,
+      "summary_train_reward_per_step": 0.9411249756813049,
+      "greedy_post_warmup64": 0.9686124920845032,
+      "bayes_upper_minus_train": 0.00021065991141244744,
+      "train_minus_memoryless_best_known": -0.00021065991141244744
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/results/20261116T190627Z-3ed1d66d/condition_summary.json",
+      "sha256": "28ea4b1382efa8acdcc497b6ca43a35ef4e094afd3571a5c6d34ead8b56102bd",
+      "curves_sha256": "800b641ef34154f7cc11a1d94f8d42632719e70585eeeeee13ce86dbfa143348",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_1_transformer",
+      "seed": 47,
+      "architecture": "transformer",
+      "condition": "variant_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.9409154653549194,
+      "summary_train_reward_per_step": 0.9409154653549194,
+      "greedy_post_warmup64": 0.9551874995231628,
+      "bayes_upper_minus_train": 0.0004201702377979455,
+      "train_minus_memoryless_best_known": -0.0004201702377979455
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/results/20261116T191021Z-41a8916b/condition_summary.json",
+      "sha256": "d31a06a695d9effbca6df5366a33bf7412fd8be137e4dc4c53c662316d5c4918",
+      "curves_sha256": "74b88aed95d1f14152722efcb3f4908e9c522e851027b91ca300f0477d92aa00",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_1_transformer",
+      "seed": 45,
+      "architecture": "transformer",
+      "condition": "variant_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.9420204162597656,
+      "summary_train_reward_per_step": 0.9420204162597656,
+      "greedy_post_warmup64": 0.9671375155448914,
+      "bayes_upper_minus_train": -0.0006847806670482459,
+      "train_minus_memoryless_best_known": 0.0006847806670482459
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_1_transformer/results/20261116T191215Z-1badf7bf/condition_summary.json",
+      "sha256": "83e91e1ed8e720d231727a53e3f639e3fad621f7890e6105f5cc52975c2735ea",
+      "curves_sha256": "a037c10de624f719a88f54df20a0986073d76c139d1dae86f2b98d8c46149cb8",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_1_transformer",
+      "seed": 54,
+      "architecture": "transformer",
+      "condition": "variant_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.9418247938156128,
+      "summary_train_reward_per_step": 0.9418247938156128,
+      "greedy_post_warmup64": 0.9524750113487244,
+      "bayes_upper_minus_train": -0.0004891582228954139,
+      "train_minus_memoryless_best_known": 0.0004891582228954139
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/20261115T194341Z-aeb93b50/condition_summary.json",
+      "sha256": "e567418f9f614a619061aa20fef0eccf420b93c50afab9345cbb04859d618889",
+      "curves_sha256": "6f349f10413c85ace627e0feb0fc40506cbccc9f1795131efb77c21de7861ea6",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_2_transformer",
+      "seed": 42,
+      "architecture": "transformer",
+      "condition": "variant_2",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.43142610788345337,
+      "summary_train_reward_per_step": 0.43142610788345337,
+      "greedy_post_warmup64": 0.4301374852657318,
+      "bayes_upper_minus_train": 0.024828084691285945,
+      "train_minus_memoryless_best_known": 0.12435396266155874
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/20261116T191156Z-c2c19efd/condition_summary.json",
+      "sha256": "ee6dee78e04ba92900335523093bb9a2918f2a9969a5288f88eac919f8b94ec3",
+      "curves_sha256": "faa928115e8b893eec27c613bc68db708865176297500ff40619aaebe833811d",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_2_transformer",
+      "seed": 51,
+      "architecture": "transformer",
+      "condition": "variant_2",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4288625717163086,
+      "summary_train_reward_per_step": 0.4288625717163086,
+      "greedy_post_warmup64": 0.4325374960899353,
+      "bayes_upper_minus_train": 0.02739162085843072,
+      "train_minus_memoryless_best_known": 0.12179042649441396
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/20261116T191356Z-efadf8e9/condition_summary.json",
+      "sha256": "8a6aa9515498aa4f7011148d10e4dc8a02ebc5c717096057034bc313a06d90a1",
+      "curves_sha256": "6b6e7348166466aaf4d61a6a9980bb4f7edefa1863597bb1dd1d825376cdb6cf",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_2_transformer",
+      "seed": 55,
+      "architecture": "transformer",
+      "condition": "variant_2",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4264090359210968,
+      "summary_train_reward_per_step": 0.4264090359210968,
+      "greedy_post_warmup64": 0.42698749899864197,
+      "bayes_upper_minus_train": 0.029845156653642513,
+      "train_minus_memoryless_best_known": 0.11933689069920217
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/20261116T191410Z-d46a0db4/condition_summary.json",
+      "sha256": "bf84a7f0f323827ae0fd12f48b86bdc95aa2eb7a28c05bc3aedc4a4528e69399",
+      "curves_sha256": "926dacb868f9950b8a1e283d18da3296e252fd0bd836c5fe4ad82db2ef7d81f3",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_2_transformer",
+      "seed": 56,
+      "architecture": "transformer",
+      "condition": "variant_2",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.42090246081352234,
+      "summary_train_reward_per_step": 0.42090246081352234,
+      "greedy_post_warmup64": 0.41013750433921814,
+      "bayes_upper_minus_train": 0.035351731761216976,
+      "train_minus_memoryless_best_known": 0.1138303155916277
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/20261116T191609Z-00b7219a/condition_summary.json",
+      "sha256": "eba06f2ead21998bbf43f13db5f2652dc4afaf3b1cfa64ed7a4a690a6489af41",
+      "curves_sha256": "52124549951fbc52e1752189c4ef8328559b3b2f34e6449c12ac0e7539320e4b",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_2_transformer",
+      "seed": 48,
+      "architecture": "transformer",
+      "condition": "variant_2",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.449720174074173,
+      "summary_train_reward_per_step": 0.449720174074173,
+      "greedy_post_warmup64": 0.4851999878883362,
+      "bayes_upper_minus_train": 0.006534018500566341,
+      "train_minus_memoryless_best_known": 0.14264802885227834
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/20261116T191626Z-fbed243d/condition_summary.json",
+      "sha256": "b4d69bdd1ba0ec56f324902eb1a1a8cef2191f6069181179afd27dda74ab7d19",
+      "curves_sha256": "30cbec36a40b32597733d859738ac30ae787f57c42be2058301fa01443c2a2ae",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_2_transformer",
+      "seed": 43,
+      "architecture": "transformer",
+      "condition": "variant_2",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.38966062664985657,
+      "summary_train_reward_per_step": 0.38966062664985657,
+      "greedy_post_warmup64": 0.3868125081062317,
+      "bayes_upper_minus_train": 0.06659356592488275,
+      "train_minus_memoryless_best_known": 0.08258848142796194
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/20261116T191730Z-38896911/condition_summary.json",
+      "sha256": "25f68320b9a6983e973a53f47dd104f55de1bec261e80c830bd3c76e22e8a304",
+      "curves_sha256": "c56238fe77f1157af1051ba15e1ee8c670c2128834368c275495e3f5da4bcba3",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_2_transformer",
+      "seed": 46,
+      "architecture": "transformer",
+      "condition": "variant_2",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4466245174407959,
+      "summary_train_reward_per_step": 0.4466245174407959,
+      "greedy_post_warmup64": 0.4536625146865845,
+      "bayes_upper_minus_train": 0.009629675133943416,
+      "train_minus_memoryless_best_known": 0.13955237221890127
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/20261116T191755Z-cc325aad/condition_summary.json",
+      "sha256": "1caa737e427705e9e9f8e4870c67d6d58494b3e58b7f551774e03d542bf7dbd1",
+      "curves_sha256": "d0c60e9799552faec86c33f498fb4adf8878db2dd9533e823d7c8b0d4944ab1e",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_2_transformer",
+      "seed": 44,
+      "architecture": "transformer",
+      "condition": "variant_2",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4354941248893738,
+      "summary_train_reward_per_step": 0.4354941248893738,
+      "greedy_post_warmup64": 0.4495624899864197,
+      "bayes_upper_minus_train": 0.020760067685365535,
+      "train_minus_memoryless_best_known": 0.12842197966747915
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/20261116T191834Z-72bb82cb/condition_summary.json",
+      "sha256": "a0986832d1560f60e5bebdb41d1ccd04863abc61231eecab165a1d2d8f457f00",
+      "curves_sha256": "abb8372b8543853390a72a500cf55c3a81da7b9e9ee38258ec8dab2c105446fc",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_2_transformer",
+      "seed": 50,
+      "architecture": "transformer",
+      "condition": "variant_2",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4177687466144562,
+      "summary_train_reward_per_step": 0.4177687466144562,
+      "greedy_post_warmup64": 0.41471248865127563,
+      "bayes_upper_minus_train": 0.03848544596028314,
+      "train_minus_memoryless_best_known": 0.11069660139256154
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/20261116T192134Z-978df4fa/condition_summary.json",
+      "sha256": "b54fc19fc655d22757bdd7590c65313b045345bd80e4f98a24101ca1e31c4e67",
+      "curves_sha256": "045f7e8232e5cd4c2cf2b1931aca95e0cd9a4f243787d83fa01192bca16e9c58",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_2_transformer",
+      "seed": 49,
+      "architecture": "transformer",
+      "condition": "variant_2",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.3824193477630615,
+      "summary_train_reward_per_step": 0.3824193477630615,
+      "greedy_post_warmup64": 0.3764750063419342,
+      "bayes_upper_minus_train": 0.07383484481167779,
+      "train_minus_memoryless_best_known": 0.07534720254116689
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/20261116T192420Z-d306a257/condition_summary.json",
+      "sha256": "3c2131f4d1ba2b6a0505be385f036e4590bd460dcecb14f77611239927dbb5c0",
+      "curves_sha256": "4a0c04ffda09ab3e9bfa9260ad81039a97687e8bac77be51eafb3554ae21cd09",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_2_transformer",
+      "seed": 52,
+      "architecture": "transformer",
+      "condition": "variant_2",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4490223824977875,
+      "summary_train_reward_per_step": 0.4490223824977875,
+      "greedy_post_warmup64": 0.45756250619888306,
+      "bayes_upper_minus_train": 0.007231810076951839,
+      "train_minus_memoryless_best_known": 0.14195023727589284
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/20261116T192719Z-0a5e795e/condition_summary.json",
+      "sha256": "1ea35b070c94acef752b7f8759d76203a3b9ecec8aca7c59b544798c9a792214",
+      "curves_sha256": "41cccdd46080094536ef21236338cc20dbaff0f79baa617cbaea1c94a11a3424",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_2_transformer",
+      "seed": 53,
+      "architecture": "transformer",
+      "condition": "variant_2",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4518098831176758,
+      "summary_train_reward_per_step": 0.4518098831176758,
+      "greedy_post_warmup64": 0.45364999771118164,
+      "bayes_upper_minus_train": 0.004444309457063533,
+      "train_minus_memoryless_best_known": 0.14473773789578115
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/20261116T192730Z-252a7ed9/condition_summary.json",
+      "sha256": "cd3b90b99231993e4d36c27799bb3201b41a5d67cf6dfd4d03dc17cc5fb4fcc6",
+      "curves_sha256": "495cead0d9a3b63385820bfb730a4cc33ba40011ff6c963ea5ba17130bf83715",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_2_transformer",
+      "seed": 47,
+      "architecture": "transformer",
+      "condition": "variant_2",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4492214620113373,
+      "summary_train_reward_per_step": 0.4492214620113373,
+      "greedy_post_warmup64": 0.46933749318122864,
+      "bayes_upper_minus_train": 0.007032730563402034,
+      "train_minus_memoryless_best_known": 0.14214931678944265
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/20261116T193141Z-37027039/condition_summary.json",
+      "sha256": "89a0e44ff36e5d6129d4fcaa05e16c482c38565c42a7e178e5ea55ed117528be",
+      "curves_sha256": "af197c630b76de8bdffdaadfe93e4bdaf731680cb68938ccd51288be799bd884",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_2_transformer",
+      "seed": 45,
+      "architecture": "transformer",
+      "condition": "variant_2",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.43350455164909363,
+      "summary_train_reward_per_step": 0.43350455164909363,
+      "greedy_post_warmup64": 0.45846250653266907,
+      "bayes_upper_minus_train": 0.022749640925645687,
+      "train_minus_memoryless_best_known": 0.126432406427199
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/20261116T193419Z-892e0b53/condition_summary.json",
+      "sha256": "7857b8e0963ed446909784f5f77cf9c458a85586cc4e824787963f92d063d25a",
+      "curves_sha256": "bef6e7a86dfdbd679e7b7a3dab483ff6dbe2a468667d6a66ae9543bb57ae4a72",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_2_transformer",
+      "seed": 54,
+      "architecture": "transformer",
+      "condition": "variant_2",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.43381670117378235,
+      "summary_train_reward_per_step": 0.43381670117378235,
+      "greedy_post_warmup64": 0.44148749113082886,
+      "bayes_upper_minus_train": 0.022437491400956966,
+      "train_minus_memoryless_best_known": 0.12674455595188772
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/results/20261115T194441Z-fc34e4aa/condition_summary.json",
+      "sha256": "4f28107c1e57f4bb242d883ac351dbae772f2f6ed412eec6277a585b2cac2192",
+      "curves_sha256": "3d48c6efedb3ea992d47957a80d1f94aea6fb2e50e382aca15aa49588e3a97fa",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_3_transformer",
+      "seed": 42,
+      "architecture": "transformer",
+      "condition": "variant_3",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.40823042392730713,
+      "summary_train_reward_per_step": 0.40823042392730713,
+      "greedy_post_warmup64": 0.4000000059604645,
+      "bayes_upper_minus_train": 0.013182192796149905,
+      "train_minus_memoryless_best_known": 0.13646288113910504
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/results/20261116T193333Z-0b8e7032/condition_summary.json",
+      "sha256": "48605d421422da228a0b91336995d100d7a1a43d9add644499e7485321e01ed5",
+      "curves_sha256": "f6bc020f7c98f7350c8a309f67092acd92575ccceb1060d6efc511fad7a033a1",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_3_transformer",
+      "seed": 51,
+      "architecture": "transformer",
+      "condition": "variant_3",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4093978703022003,
+      "summary_train_reward_per_step": 0.4093978703022003,
+      "greedy_post_warmup64": 0.42598751187324524,
+      "bayes_upper_minus_train": 0.012014746421256717,
+      "train_minus_memoryless_best_known": 0.13763032751399823
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/results/20261116T193537Z-afb3fa39/condition_summary.json",
+      "sha256": "2d23361042bc3fcf14e8e48bf0216e29dfeaf82fca8eea1e29bce8981e975bcc",
+      "curves_sha256": "2661ef810b175652bf16b911da73387d20f05a6375b911265781168c0e535cf1",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_3_transformer",
+      "seed": 55,
+      "architecture": "transformer",
+      "condition": "variant_3",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4037071168422699,
+      "summary_train_reward_per_step": 0.4037071168422699,
+      "greedy_post_warmup64": 0.41747498512268066,
+      "bayes_upper_minus_train": 0.017705499881187137,
+      "train_minus_memoryless_best_known": 0.1319395740540678
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/results/20261116T193546Z-4f7d41d6/condition_summary.json",
+      "sha256": "14dc8a50935658f6b44a5df1f69a055229fad4806d93c5e06f43a59095ade4ab",
+      "curves_sha256": "e78ba8bf3b56daad36c1637825c875ea8845ea2877b7ed4db9051305360a8a25",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_3_transformer",
+      "seed": 56,
+      "architecture": "transformer",
+      "condition": "variant_3",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.40883365273475647,
+      "summary_train_reward_per_step": 0.40883365273475647,
+      "greedy_post_warmup64": 0.40956249833106995,
+      "bayes_upper_minus_train": 0.012578963988700564,
+      "train_minus_memoryless_best_known": 0.13706610994655438
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/results/20261116T193752Z-d34e56b3/condition_summary.json",
+      "sha256": "2266e56174f490393ff74e4cd7c8d67a4dffb0aa3e510af6d01772b557faeb90",
+      "curves_sha256": "174a99074cdf6d40ab0b094cf193680e822b46ee2cb05e53194b302157066f19",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_3_transformer",
+      "seed": 48,
+      "architecture": "transformer",
+      "condition": "variant_3",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4106317460536957,
+      "summary_train_reward_per_step": 0.4106317460536957,
+      "greedy_post_warmup64": 0.43070000410079956,
+      "bayes_upper_minus_train": 0.010780870669761355,
+      "train_minus_memoryless_best_known": 0.1388642032654936
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/results/20261116T193810Z-8ff5b38c/condition_summary.json",
+      "sha256": "f5abde91dbc22dcb85f0a896de264bd261282a828be63e3eb2107fbec6f94499",
+      "curves_sha256": "71062290ec132e74ed9fd25dd0c176fe18e1355f23c26145a6630cdb1230a49c",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_3_transformer",
+      "seed": 43,
+      "architecture": "transformer",
+      "condition": "variant_3",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4086399972438812,
+      "summary_train_reward_per_step": 0.4086399972438812,
+      "greedy_post_warmup64": 0.4142625033855438,
+      "bayes_upper_minus_train": 0.012772619479575809,
+      "train_minus_memoryless_best_known": 0.13687245445567914
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/results/20261116T194103Z-ed5dcd90/condition_summary.json",
+      "sha256": "9d44facf109cb3017fa311e0d509b1202cbc8a79fad67f83176f339f9bf1221f",
+      "curves_sha256": "9665d4a91efd9bd54841cd7f03359bbcd27ab90d430ee44fb7e8fa7b0eaaacae",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_3_transformer",
+      "seed": 46,
+      "architecture": "transformer",
+      "condition": "variant_3",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.41300487518310547,
+      "summary_train_reward_per_step": 0.41300487518310547,
+      "greedy_post_warmup64": 0.4392875134944916,
+      "bayes_upper_minus_train": 0.008407741540351565,
+      "train_minus_memoryless_best_known": 0.14123733239490338
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/results/20261116T194122Z-e46b1711/condition_summary.json",
+      "sha256": "2b8a1f4411bb49f09efcdb54aa16954560faf3b5f8a3900278049295a79336b8",
+      "curves_sha256": "9a04109feb76918a6c15fbb7520fa1e989126d77ddbdacb51a38afebbc1cfebe",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_3_transformer",
+      "seed": 44,
+      "architecture": "transformer",
+      "condition": "variant_3",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4101213216781616,
+      "summary_train_reward_per_step": 0.4101213216781616,
+      "greedy_post_warmup64": 0.4347749948501587,
+      "bayes_upper_minus_train": 0.011291295045295413,
+      "train_minus_memoryless_best_known": 0.13835377888995953
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/results/20261116T194345Z-91a34aae/condition_summary.json",
+      "sha256": "97394e1b8cad1bfd83d626b11b6627de8aa94077d718f7bb5188531c7e628bf0",
+      "curves_sha256": "e61911642373745a340b5436d9ac867f15cec651f4e0ec11bb53abdc5855bedb",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_3_transformer",
+      "seed": 50,
+      "architecture": "transformer",
+      "condition": "variant_3",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.41227129101753235,
+      "summary_train_reward_per_step": 0.41227129101753235,
+      "greedy_post_warmup64": 0.41353750228881836,
+      "bayes_upper_minus_train": 0.009141325705924686,
+      "train_minus_memoryless_best_known": 0.14050374822933026
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/results/20261116T194406Z-752943e7/condition_summary.json",
+      "sha256": "a3c678b547e80c21b681d27b1d39426ac3ce444e1c8fb83304cef2ca5c02be01",
+      "curves_sha256": "c25780902f4c032dd43f440ca78c005aa3878e098d13bb4077eb20cd1bc57c8f",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_3_transformer",
+      "seed": 49,
+      "architecture": "transformer",
+      "condition": "variant_3",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.39459365606307983,
+      "summary_train_reward_per_step": 0.39459365606307983,
+      "greedy_post_warmup64": 0.4018250107765198,
+      "bayes_upper_minus_train": 0.0268189606603772,
+      "train_minus_memoryless_best_known": 0.12282611327487775
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/results/20261116T194716Z-5805fab1/condition_summary.json",
+      "sha256": "57d685d9717f721baed730ffaff2b0161a79dd1d93e52a434b0ef051f1c00e65",
+      "curves_sha256": "19f39d3ff2556d9d4f2bfb6e1f71459d7b456800409f08ffff963fe15b250f3d",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_3_transformer",
+      "seed": 52,
+      "architecture": "transformer",
+      "condition": "variant_3",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4122171401977539,
+      "summary_train_reward_per_step": 0.4122171401977539,
+      "greedy_post_warmup64": 0.43722501397132874,
+      "bayes_upper_minus_train": 0.009195476525703128,
+      "train_minus_memoryless_best_known": 0.14044959740955182
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/results/20261116T194836Z-ed1f2f95/condition_summary.json",
+      "sha256": "7cd565745026f7b2656a6541de1aefa3b3c45bedd5a1643f34caf790e180818d",
+      "curves_sha256": "b3479510894fa4fa665d5b93c19296140cc7f621ceb346b381d940d5f9d3d9ef",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_3_transformer",
+      "seed": 47,
+      "architecture": "transformer",
+      "condition": "variant_3",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4114462733268738,
+      "summary_train_reward_per_step": 0.4114462733268738,
+      "greedy_post_warmup64": 0.40661248564720154,
+      "bayes_upper_minus_train": 0.009966343396583255,
+      "train_minus_memoryless_best_known": 0.1396787305386717
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/results/20261116T194937Z-d8f5be22/condition_summary.json",
+      "sha256": "5fc4c57f5b516522bf3932fef7a34412c4e8fdb326410225841c16ef07f8170e",
+      "curves_sha256": "a86e979a10464922b82bc16965d4b02db58c0d3aa4d02e8849a371a14253b7a0",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_3_transformer",
+      "seed": 53,
+      "architecture": "transformer",
+      "condition": "variant_3",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4105525314807892,
+      "summary_train_reward_per_step": 0.4105525314807892,
+      "greedy_post_warmup64": 0.424762487411499,
+      "bayes_upper_minus_train": 0.01086008524266785,
+      "train_minus_memoryless_best_known": 0.1387849886925871
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/results/20261116T195303Z-42fca6b0/condition_summary.json",
+      "sha256": "6c1896ca65fdfe771915c9bb1f8798f80c86311661361c380543c3b6fe7c2e7f",
+      "curves_sha256": "d3039c93127cb04b88dec4af88140c265a92b5ee057f6f3dcbcc8adb7a1045d1",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_3_transformer",
+      "seed": 45,
+      "architecture": "transformer",
+      "condition": "variant_3",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.40778350830078125,
+      "summary_train_reward_per_step": 0.40778350830078125,
+      "greedy_post_warmup64": 0.41552498936653137,
+      "bayes_upper_minus_train": 0.013629108422675784,
+      "train_minus_memoryless_best_known": 0.13601596551257916
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_3_transformer/results/20261116T195625Z-c509b1c0/condition_summary.json",
+      "sha256": "e0669361aada8376b9c2392ee84ace04e74722cb5e6ce0087c15429733346ff9",
+      "curves_sha256": "7a49a2e3c3c8bdbab8bb6a28cad53d8785b97e3d982c1cf01c96e5c7ed73a7d9",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11",
+      "leaf": "variant_3_transformer",
+      "seed": 54,
+      "architecture": "transformer",
+      "condition": "variant_3",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.40587761998176575,
+      "summary_train_reward_per_step": 0.40587761998176575,
+      "greedy_post_warmup64": 0.41468751430511475,
+      "bayes_upper_minus_train": 0.015534996741691287,
+      "train_minus_memoryless_best_known": 0.13411007719356366
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/results/20261116T184848Z-5ba1e023/condition_summary.json",
+      "sha256": "3414c1ade72400e47908fd256242fa34e5a9436a612bf8e05ef4160f9fd3161c",
+      "curves_sha256": "991d2c264bdc7d5f0e9a3b4b59791ae76299276012475098cbdf7fe100a98e5f",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_both_transformer",
+      "seed": 42,
+      "architecture": "transformer",
+      "condition": "reward_both",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.7776296734809875,
+      "summary_train_reward_per_step": 0.7776296734809875,
+      "greedy_post_warmup64": 0.7913374900817871,
+      "bayes_upper_minus_train": 0.06519555996592652,
+      "train_minus_memoryless_best_known": 0.2340945879045636
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/results/20261116T195307Z-2a8d5f73/condition_summary.json",
+      "sha256": "d0e5c6ba4728d624ad3c3de24ebe7c87fb1244cf0aaa74b9fcdff900ac645b94",
+      "curves_sha256": "a4a185f7f01b346152aece22feda80c909284af3be48e22539e8be80fac63a8d",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_both_transformer",
+      "seed": 52,
+      "architecture": "transformer",
+      "condition": "reward_both",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.7320879697799683,
+      "summary_train_reward_per_step": 0.7320879697799683,
+      "greedy_post_warmup64": 0.7305874824523926,
+      "bayes_upper_minus_train": 0.1107372636669458,
+      "train_minus_memoryless_best_known": 0.18855288420354432
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/results/20261116T195309Z-6e5e09b1/condition_summary.json",
+      "sha256": "3ff7ad9c8fa07aeeac19d1e06681a665ad4305385d3ddb8bdb25b8365f619d3c",
+      "curves_sha256": "23683611b4a1b93de35803e3111443e59fef4bbcdf28e542617c3875c9b797fa",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_both_transformer",
+      "seed": 46,
+      "architecture": "transformer",
+      "condition": "reward_both",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.7911404967308044,
+      "summary_train_reward_per_step": 0.7911404967308044,
+      "greedy_post_warmup64": 0.8260124921798706,
+      "bayes_upper_minus_train": 0.051684736716109625,
+      "train_minus_memoryless_best_known": 0.2476054111543805
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/results/20261116T195513Z-757eb8ea/condition_summary.json",
+      "sha256": "84dc17d34146dc2a0ade0ece3ce2b899073136e667a723cee7109808a9b78256",
+      "curves_sha256": "97036e3c15aca325f2a1eb4fb93ef9761b06f1e16086e6e844a471d4426f71dc",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_both_transformer",
+      "seed": 51,
+      "architecture": "transformer",
+      "condition": "reward_both",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.7849830389022827,
+      "summary_train_reward_per_step": 0.7849830389022827,
+      "greedy_post_warmup64": 0.8365749716758728,
+      "bayes_upper_minus_train": 0.05784219454463135,
+      "train_minus_memoryless_best_known": 0.24144795332585878
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/results/20261116T195649Z-010dbc00/condition_summary.json",
+      "sha256": "142d945934f7142dbcdf77f8f8f72997216d3b7f541f6f22adcd8cc1bad64872",
+      "curves_sha256": "c30d1cfd1ed37502fc2c50d031dfee540633685c2cc54fa7ae2e3232feee0849",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_both_transformer",
+      "seed": 49,
+      "architecture": "transformer",
+      "condition": "reward_both",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.7816714644432068,
+      "summary_train_reward_per_step": 0.7816714644432068,
+      "greedy_post_warmup64": 0.8312749862670898,
+      "bayes_upper_minus_train": 0.06115376900370728,
+      "train_minus_memoryless_best_known": 0.23813637886678285
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/results/20261116T195715Z-00ae1f1b/condition_summary.json",
+      "sha256": "fde059cfd4c4f284db67225175be6111fd2756d81ea617aac5b0e53f7bdd25a7",
+      "curves_sha256": "f597eb433e592f831d304a0089e4fdf1bd6c852c85ee2c650ee7f010816136f3",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_both_transformer",
+      "seed": 55,
+      "architecture": "transformer",
+      "condition": "reward_both",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.7723029255867004,
+      "summary_train_reward_per_step": 0.7723029255867004,
+      "greedy_post_warmup64": 0.8340625166893005,
+      "bayes_upper_minus_train": 0.07052230786021363,
+      "train_minus_memoryless_best_known": 0.2287678400102765
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/results/20261116T195723Z-34f78c91/condition_summary.json",
+      "sha256": "0bfade9201195dff09753c0b362b6b3727f409f0127e4915f9269b85ce7f3da4",
+      "curves_sha256": "d9f3e29b73ea6dbd278e106f86f24a2427063703b2ac430b96d6382349fa74a2",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_both_transformer",
+      "seed": 56,
+      "architecture": "transformer",
+      "condition": "reward_both",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.7820616960525513,
+      "summary_train_reward_per_step": 0.7820616960525513,
+      "greedy_post_warmup64": 0.7440375089645386,
+      "bayes_upper_minus_train": 0.0607635373943628,
+      "train_minus_memoryless_best_known": 0.23852661047612733
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/results/20261116T195934Z-0ac12339/condition_summary.json",
+      "sha256": "eb450125988edc71e23f4d2f77842d647d82cb5587a770f3d081fb1510fa11ea",
+      "curves_sha256": "49bab9cd35fe9894f09447345f328aef733e0f5b053122a6123ccae89551c56d",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_both_transformer",
+      "seed": 48,
+      "architecture": "transformer",
+      "condition": "reward_both",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.7797102928161621,
+      "summary_train_reward_per_step": 0.7797102928161621,
+      "greedy_post_warmup64": 0.7594000101089478,
+      "bayes_upper_minus_train": 0.06311494063075196,
+      "train_minus_memoryless_best_known": 0.23617520723973817
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/results/20261116T200152Z-9db245b8/condition_summary.json",
+      "sha256": "c815da599837761b731a79d2e0faf728426d3c1f83b5a0f225fa0f5905ad810e",
+      "curves_sha256": "fc97a9db89576a3790a1981907721053a6ac29fdcb4f595ba185658fe4e8c0f6",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_both_transformer",
+      "seed": 43,
+      "architecture": "transformer",
+      "condition": "reward_both",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.7855153679847717,
+      "summary_train_reward_per_step": 0.7855153679847717,
+      "greedy_post_warmup64": 0.7614874839782715,
+      "bayes_upper_minus_train": 0.05730986546214234,
+      "train_minus_memoryless_best_known": 0.2419802824083478
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/results/20261116T200607Z-16b33aa1/condition_summary.json",
+      "sha256": "86bde813761d69134d4004a95875bcacacaa009089a70c0a6da4376364587d50",
+      "curves_sha256": "a8d9b31ca6ba2a37909adfca5eb9e113404565daf7e76837e063fc208ff67f4a",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_both_transformer",
+      "seed": 50,
+      "architecture": "transformer",
+      "condition": "reward_both",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.7902891039848328,
+      "summary_train_reward_per_step": 0.7902891039848328,
+      "greedy_post_warmup64": 0.7923750281333923,
+      "bayes_upper_minus_train": 0.052536129462081305,
+      "train_minus_memoryless_best_known": 0.24675401840840883
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/results/20261116T200939Z-d03c94e5/condition_summary.json",
+      "sha256": "21ccbd455edd082407dfb54925f81177bee251fb506256676d11b16e32094f79",
+      "curves_sha256": "a42407e8659ef6d928629a00e5ca5ed24f872670d24b0af835c9b85468855d83",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_both_transformer",
+      "seed": 47,
+      "architecture": "transformer",
+      "condition": "reward_both",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.793027400970459,
+      "summary_train_reward_per_step": 0.793027400970459,
+      "greedy_post_warmup64": 0.8456875085830688,
+      "bayes_upper_minus_train": 0.049797832476455084,
+      "train_minus_memoryless_best_known": 0.24949231539403505
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/results/20261116T201200Z-8045ef83/condition_summary.json",
+      "sha256": "804f106ce79671b704a9ccb22e0a7d4b58d785356ecf771fa73cbbb3244279b9",
+      "curves_sha256": "01a990a4d4b262b785052c8f07ca327dbd3e5f379847c27e6422d52c4698c3a0",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_both_transformer",
+      "seed": 53,
+      "architecture": "transformer",
+      "condition": "reward_both",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.7806772589683533,
+      "summary_train_reward_per_step": 0.7806772589683533,
+      "greedy_post_warmup64": 0.8606874942779541,
+      "bayes_upper_minus_train": 0.0621479744785608,
+      "train_minus_memoryless_best_known": 0.23714217339192933
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/results/20261116T201430Z-7c394b63/condition_summary.json",
+      "sha256": "6ffe04a839750251dda74ba66c80fbacbf9b8fb5982fd2e1f03f3389f4167ce2",
+      "curves_sha256": "0b0575ca41bfbced1be7a4b129afa42da97776a8a188ccdbe7a78071a427f281",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_both_transformer",
+      "seed": 45,
+      "architecture": "transformer",
+      "condition": "reward_both",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.7845483422279358,
+      "summary_train_reward_per_step": 0.7845483422279358,
+      "greedy_post_warmup64": 0.8142874836921692,
+      "bayes_upper_minus_train": 0.05827689121897828,
+      "train_minus_memoryless_best_known": 0.24101325665151185
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/results/20261116T201835Z-b2369e1a/condition_summary.json",
+      "sha256": "734726cb2e1eb165235fc2d05f1f93ea6de82fe7d64e22ac391743d62d993517",
+      "curves_sha256": "77c859809caaeee290e7185eac9a27cbafacd7a8aa04c3032955ba0c11265fca",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_both_transformer",
+      "seed": 54,
+      "architecture": "transformer",
+      "condition": "reward_both",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.7897188067436218,
+      "summary_train_reward_per_step": 0.7897188067436218,
+      "greedy_post_warmup64": 0.7779874801635742,
+      "bayes_upper_minus_train": 0.05310642670329224,
+      "train_minus_memoryless_best_known": 0.2461837211671979
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/results/20261116T202001Z-5c781157/condition_summary.json",
+      "sha256": "5df4f5da29527fe66e2c70964936bb9ec74c176373f59620db7d324d86a3c209",
+      "curves_sha256": "7c0903039c4e1902faca8f9bdc961fec284fcaf1387e06d6918a94836f6e755e",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_both_transformer",
+      "seed": 44,
+      "architecture": "transformer",
+      "condition": "reward_both",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.7778776288032532,
+      "summary_train_reward_per_step": 0.7778776288032532,
+      "greedy_post_warmup64": 0.8029249906539917,
+      "bayes_upper_minus_train": 0.0649476046436609,
+      "train_minus_memoryless_best_known": 0.23434254322682924
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_factor_1_transformer/results/20261116T191132Z-4bc7ecab/condition_summary.json",
+      "sha256": "df356ebefe5a96f0e6ed9e76736aa3e7ecacff895beea2662e6fb48d7a6ef477",
+      "curves_sha256": "5594684ca3e2a7abb353279534d0583847108a0d553643deb8fa129ebabd38e8",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_factor_1_transformer",
+      "seed": 42,
+      "architecture": "transformer",
+      "condition": "reward_factor_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.40033698081970215,
+      "summary_train_reward_per_step": 0.40033698081970215,
+      "greedy_post_warmup64": 0.3873000144958496,
+      "bayes_upper_minus_train": 0.021075635903754886,
+      "train_minus_memoryless_best_known": 0.12856943803148713
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_factor_1_transformer/results/20261116T195237Z-9bb9ef08/condition_summary.json",
+      "sha256": "7887cc59d7d8b016f881306c39a4d24d056934e5c7b88a2d718f8af5f7928bc0",
+      "curves_sha256": "ecccf0e3a71cdc12dc697dc5eda7f31b945b3f8ea52e8e9c80794e14b3d5a268",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_factor_1_transformer",
+      "seed": 49,
+      "architecture": "transformer",
+      "condition": "reward_factor_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.41150298714637756,
+      "summary_train_reward_per_step": 0.41150298714637756,
+      "greedy_post_warmup64": 0.42592498660087585,
+      "bayes_upper_minus_train": 0.00990962957707947,
+      "train_minus_memoryless_best_known": 0.13973544435816254
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_factor_1_transformer/results/20261116T195645Z-ecba0bc4/condition_summary.json",
+      "sha256": "3a95d1de151acf90696213b394dc3c5640f05e3f5ced21fd4fade7d5c66dde3d",
+      "curves_sha256": "4594a05627fd23246026a1b80edbd6c90379beb1b26d459435f4d14bf83a92d1",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_factor_1_transformer",
+      "seed": 46,
+      "architecture": "transformer",
+      "condition": "reward_factor_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.40518665313720703,
+      "summary_train_reward_per_step": 0.40518665313720703,
+      "greedy_post_warmup64": 0.3992375135421753,
+      "bayes_upper_minus_train": 0.016225963586250003,
+      "train_minus_memoryless_best_known": 0.133419110348992
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_factor_1_transformer/results/20261116T195809Z-5555d927/condition_summary.json",
+      "sha256": "7a19fba369209bc6cac2622c4b263e35674d316b0bb52307e57d940b7ddda4af",
+      "curves_sha256": "e3ebcc855f7bcbfe2d8faabd15c8bfe82b8ca380f46a70bf2dff894c032b20ab",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_factor_1_transformer",
+      "seed": 44,
+      "architecture": "transformer",
+      "condition": "reward_factor_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.40761274099349976,
+      "summary_train_reward_per_step": 0.40761274099349976,
+      "greedy_post_warmup64": 0.39879998564720154,
+      "bayes_upper_minus_train": 0.013799875729957278,
+      "train_minus_memoryless_best_known": 0.13584519820528473
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_factor_1_transformer/results/20261116T195815Z-c57195ee/condition_summary.json",
+      "sha256": "f8d2962ac063c8c472a082a7b25da75d1074cc9a532794a614487cb060d7b517",
+      "curves_sha256": "d86f8d59958863b0a6e7ad81f085c8a76dad5ea975c11ede6740523e1a00b3ae",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_factor_1_transformer",
+      "seed": 52,
+      "architecture": "transformer",
+      "condition": "reward_factor_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4044380187988281,
+      "summary_train_reward_per_step": 0.4044380187988281,
+      "greedy_post_warmup64": 0.41026249527931213,
+      "bayes_upper_minus_train": 0.01697459792462891,
+      "train_minus_memoryless_best_known": 0.1326704760106131
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_factor_1_transformer/results/20261116T201747Z-93ded208/condition_summary.json",
+      "sha256": "94da2b2a0d485610d4804d53476f8453a717a364da3b4ffa222f259ee2575faf",
+      "curves_sha256": "79dcb9d0dc4fc18f6a1ae9594bd1fe2ad6e94e54dca71afb8cb80465e2194630",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_factor_1_transformer",
+      "seed": 51,
+      "architecture": "transformer",
+      "condition": "reward_factor_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4081341624259949,
+      "summary_train_reward_per_step": 0.4081341624259949,
+      "greedy_post_warmup64": 0.42419999837875366,
+      "bayes_upper_minus_train": 0.013278454297462161,
+      "train_minus_memoryless_best_known": 0.13636661963777985
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_factor_1_transformer/results/20261116T201945Z-3d1e8e2e/condition_summary.json",
+      "sha256": "d58c7451468c75cc00ea2be51d7909e7925bc7eefe4ea5c017f0f5f572010fe3",
+      "curves_sha256": "2af1a66c0e19465c6a0e1074db71f708ffe3a3c40f9e2ce8381b604d4bcfbedf",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_factor_1_transformer",
+      "seed": 55,
+      "architecture": "transformer",
+      "condition": "reward_factor_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.40839913487434387,
+      "summary_train_reward_per_step": 0.40839913487434387,
+      "greedy_post_warmup64": 0.4243125021457672,
+      "bayes_upper_minus_train": 0.013013481849113162,
+      "train_minus_memoryless_best_known": 0.13663159208612885
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_factor_1_transformer/results/20261116T201958Z-ce2238c6/condition_summary.json",
+      "sha256": "d9729483ba14111299259cd7b1f8e36408c68b3e9ca0808954b3e142546a6e4d",
+      "curves_sha256": "9291d2601ca4a6560d528976f5c6204138dcee9f6a74b1e2f963d6e6f4579fca",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_factor_1_transformer",
+      "seed": 56,
+      "architecture": "transformer",
+      "condition": "reward_factor_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.40629613399505615,
+      "summary_train_reward_per_step": 0.40629613399505615,
+      "greedy_post_warmup64": 0.3814375102519989,
+      "bayes_upper_minus_train": 0.015116482728400882,
+      "train_minus_memoryless_best_known": 0.13452859120684113
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_factor_1_transformer/results/20261116T202207Z-94c15cc4/condition_summary.json",
+      "sha256": "56cb12755c36f4a36db03726a4170b6079e8d4e17e300c164b2ffaff8383136f",
+      "curves_sha256": "affbb1bcea21de6afa24be2dace2896d08b03444be8aba137f4fce84c9713f9c",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_factor_1_transformer",
+      "seed": 48,
+      "architecture": "transformer",
+      "condition": "reward_factor_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4076932668685913,
+      "summary_train_reward_per_step": 0.4076932668685913,
+      "greedy_post_warmup64": 0.41497498750686646,
+      "bayes_upper_minus_train": 0.013719349854865726,
+      "train_minus_memoryless_best_known": 0.1359257240803763
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_factor_1_transformer/results/20261116T202629Z-4ba6d746/condition_summary.json",
+      "sha256": "9589543fa87c8a6ebc8da7277fd85c9ca32edec6d6c8a5ff1c057fc6c6dbddae",
+      "curves_sha256": "b5ce72e82fb02087296e2ae5223c7db3aa4bbdd052c42a089e9a8b56720cf7de",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_factor_1_transformer",
+      "seed": 43,
+      "architecture": "transformer",
+      "condition": "reward_factor_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4051099121570587,
+      "summary_train_reward_per_step": 0.4051099121570587,
+      "greedy_post_warmup64": 0.4126250147819519,
+      "bayes_upper_minus_train": 0.01630270456639832,
+      "train_minus_memoryless_best_known": 0.1333423693688437
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_factor_1_transformer/results/20261116T202913Z-4e6743e9/condition_summary.json",
+      "sha256": "9eb8804ccbca62f246ca0fbe1b00278f9527d6411d8e2f8d9cf6055a518da27c",
+      "curves_sha256": "13d2cea00b69b73d73a1884911a607722d91a225ad2946b0f8db6fb8e6a791dd",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_factor_1_transformer",
+      "seed": 50,
+      "architecture": "transformer",
+      "condition": "reward_factor_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.40702468156814575,
+      "summary_train_reward_per_step": 0.40702468156814575,
+      "greedy_post_warmup64": 0.4249750077724457,
+      "bayes_upper_minus_train": 0.014387935155311282,
+      "train_minus_memoryless_best_known": 0.13525713877993073
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_factor_1_transformer/results/20261116T203120Z-22d638e9/condition_summary.json",
+      "sha256": "fc26abe11c431a145a3fecd59af72730794df4caf7f2616cd19c61602b9f693f",
+      "curves_sha256": "20200e49b2e7d09f4c3d7d323ab101ad35e6ce79ec3a74713289bf2b3052a0d4",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_factor_1_transformer",
+      "seed": 47,
+      "architecture": "transformer",
+      "condition": "reward_factor_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.40504559874534607,
+      "summary_train_reward_per_step": 0.40504559874534607,
+      "greedy_post_warmup64": 0.42026248574256897,
+      "bayes_upper_minus_train": 0.016367017978110965,
+      "train_minus_memoryless_best_known": 0.13327805595713105
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_factor_1_transformer/results/20261116T203430Z-c784af79/condition_summary.json",
+      "sha256": "7b14d7491fa8d10d007d7ac50274afd9551625b69278dbab3b8f0b0cdbbfa79d",
+      "curves_sha256": "631228d2b395adb5b11070f63bc4a32fe92bcd8e86b488a3df180ac6515b47db",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_factor_1_transformer",
+      "seed": 53,
+      "architecture": "transformer",
+      "condition": "reward_factor_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.40928399562835693,
+      "summary_train_reward_per_step": 0.40928399562835693,
+      "greedy_post_warmup64": 0.45225000381469727,
+      "bayes_upper_minus_train": 0.0121286210951001,
+      "train_minus_memoryless_best_known": 0.1375164528401419
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_factor_1_transformer/results/20261116T203705Z-0f622fc7/condition_summary.json",
+      "sha256": "90539cabc08e36fa79714a833f8fd96f3291b70a5fc396701bd590ace5e73ec5",
+      "curves_sha256": "ab9dd09c13ffaed8fc9081b1e0427cfdac582549dca35134181654cce8a30b4b",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_factor_1_transformer",
+      "seed": 45,
+      "architecture": "transformer",
+      "condition": "reward_factor_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.4059455692768097,
+      "summary_train_reward_per_step": 0.4059455692768097,
+      "greedy_post_warmup64": 0.42750000953674316,
+      "bayes_upper_minus_train": 0.015467047446647342,
+      "train_minus_memoryless_best_known": 0.13417802648859467
+    },
+    {
+      "path": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_factor_1_transformer/results/20261116T204135Z-77f453e6/condition_summary.json",
+      "sha256": "47941949680aa3c445b0861c1c6b3e2fdec2c00cf56e9abd1847e029fedeb838",
+      "curves_sha256": "27b7cc359ef07d0ab7a0fe90f1aa74819a19dfef0a4d6336eb10dbc79b818ba6",
+      "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+      "leaf": "reward_factor_1_transformer",
+      "seed": 54,
+      "architecture": "transformer",
+      "condition": "reward_factor_1",
+      "final_steps": 2012217344,
+      "train_reward_per_step": 0.40867358446121216,
+      "summary_train_reward_per_step": 0.40867358446121216,
+      "greedy_post_warmup64": 0.4257250130176544,
+      "bayes_upper_minus_train": 0.012739032262244876,
+      "train_minus_memoryless_best_known": 0.13690604167299714
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_cont4b_2026_11/variant_1_transformer/results/20261115T210344Z-38335f5d/condition_summary.json",
+      "sha256": "6414206fe21effe0dc185dd554bd1c57741fe204606723dae3ce5ce78fb2931b",
+      "curves_sha256": "f73e12c2412bd10bf353fa3f31c53b68724dc632ab12fc47750687234668e975",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_cont4b_2026_11",
+      "leaf": "variant_1_transformer",
+      "seed": 42,
+      "architecture": "transformer",
+      "condition": "variant_1",
+      "final_steps": 4024434688,
+      "train_reward_per_step": 0.9419824481010437,
+      "summary_train_reward_per_step": 0.9419824481010437,
+      "greedy_post_warmup64": 0.9651625156402588,
+      "bayes_upper_minus_train": -0.0006468125083263221,
+      "train_minus_memoryless_best_known": 0.0006468125083263221
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_cont4b_2026_11/variant_2_transformer/results/20261115T210349Z-4196ad25/condition_summary.json",
+      "sha256": "07b53876b7124cb42e720ade722957a710b4e6e993e2fde3ef5c47a02c019e9d",
+      "curves_sha256": "c593e382a7c9a18b2ebe37f60267e61a9a4744c11e94afe1d50db52181e45cca",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_cont4b_2026_11",
+      "leaf": "variant_2_transformer",
+      "seed": 42,
+      "architecture": "transformer",
+      "condition": "variant_2",
+      "final_steps": 4024434688,
+      "train_reward_per_step": 0.43879377841949463,
+      "summary_train_reward_per_step": 0.43879377841949463,
+      "greedy_post_warmup64": 0.43654999136924744,
+      "bayes_upper_minus_train": 0.017460414155244686,
+      "train_minus_memoryless_best_known": 0.1317216331976
+    },
+    {
+      "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_cont4b_2026_11/variant_3_transformer/results/20261115T210506Z-e539da7f/condition_summary.json",
+      "sha256": "0c9cebb2f926d4aa49343853f328aa9efdf6cc504e8d939079bab9815e31d05c",
+      "curves_sha256": "ac00b21b9512ef29bf7d93ccad51b8e837e779499383dcb3c9cb03a921c664ea",
+      "study": "belief_quotient_persistent_nuisance_eps02_jax_temp15_cont4b_2026_11",
+      "leaf": "variant_3_transformer",
+      "seed": 42,
+      "architecture": "transformer",
+      "condition": "variant_3",
+      "final_steps": 4024434688,
+      "train_reward_per_step": 0.41064783930778503,
+      "summary_train_reward_per_step": 0.41064783930778503,
+      "greedy_post_warmup64": 0.404325008392334,
+      "bayes_upper_minus_train": 0.010764777415672,
+      "train_minus_memoryless_best_known": 0.13888029651958295
+    }
+  ]
+}
