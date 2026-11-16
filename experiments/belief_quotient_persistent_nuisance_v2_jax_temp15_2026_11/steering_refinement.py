@@ -7,22 +7,23 @@ from pathlib import Path
 
 import numpy as np
 
-from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.environment import action_transitions, EMISSION_MATRIX
+from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11 import environment as v2_environment
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_core import LAMBDAS, MODES
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_prediction import simulate
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_storage import require_artifacts
 
 
 class InterpolatedPolicy:
-    def __init__(self, n, gamma, tolerance=1e-8, cap=6000, variant=3):
+    def __init__(self, n, gamma, tolerance=1e-8, cap=6000, variant=3, environment=v2_environment):
         self.n, self.gamma, self.variant = n, gamma, variant
-        self.transitions = action_transitions(variant)
+        self.transitions = environment.action_transitions(variant)
+        self.emission = np.asarray(environment.EMISSION_MATRIX)
         self.grid = np.array([(i/n, j/n, 1-(i+j)/n) for i in range(n+1) for j in range(n+1-i)])
         self.lookup = np.full((n+1, n+1), -1, int)
         ij = np.rint(self.grid[:, :2]*n).astype(int)
         self.lookup[ij[:, 0], ij[:, 1]] = np.arange(len(ij))
         prior = np.einsum('ks,asj->kaj', self.grid, self.transitions)
-        weights = prior[:, :, None, :]*EMISSION_MATRIX.T[None, None]
+        weights = prior[:, :, None, :]*self.emission.T[None, None]
         probability = weights.sum(-1)
         posterior = np.divide(weights, probability[..., None], out=np.full_like(weights, 1/3), where=probability[..., None] > 0)
         indices, interpolation = self.stencil(posterior)

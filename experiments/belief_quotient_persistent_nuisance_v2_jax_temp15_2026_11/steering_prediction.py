@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
-from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.environment import action_transitions, EMISSION_MATRIX
+from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11 import environment as v2_environment
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_core import LAMBDAS, MODES
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_storage import require_artifacts
 
@@ -28,21 +28,24 @@ def target(b, mode):
 
 
 class Policy:
-    def __init__(self, variant, n=100, gamma=.995, tolerance=1e-9, max_iterations=10000):
-        self.transitions = action_transitions(variant)
+    def __init__(self, variant, n=100, gamma=.995, tolerance=1e-9, max_iterations=10000, environment=v2_environment):
+        self.transitions = environment.action_transitions(variant)
+        self.emission = emission = np.asarray(environment.EMISSION_MATRIX)
+        # The rho-only grid is exact only when the reward state never emits A/B.
+        self.quotient = variant == 2 and not emission[2, :2].any()
         self.n, self.gamma, self.variant = n, gamma, variant
         self.grid = np.array([(i/n, j/n, 1-(i+j)/n) for i in range(n+1) for j in range(n+1-i)])
         self.lookup = np.full((n+1, n+1), -1, int)
         ij = np.rint(self.grid[:, :2]*n).astype(int)
         self.lookup[ij[:, 0], ij[:, 1]] = np.arange(len(ij))
         prior = np.einsum('ks,asj->kaj', self.grid, self.transitions)
-        weights = prior[:, :, None, :]*EMISSION_MATRIX.T[None, None]
+        weights = prior[:, :, None, :]*emission.T[None, None]
         probability = weights.sum(-1)
         posterior = np.divide(weights, probability[..., None], out=np.full_like(weights, 1/3), where=probability[..., None] > 0)
         nxt = self.nearest(posterior)
         value = np.zeros(len(self.grid))
         reward = self.grid[:, 2]
-        if variant == 2:
+        if self.quotient:
             rho = np.arange(n+1)/n
             r = (1-rho[:, None])*self.transitions[None, :, 0, 2]+rho[:, None]*self.transitions[None, :, 2, 2]
             probability = np.stack((.15*(1-r), r+.85*(1-r)), -1)
@@ -60,7 +63,7 @@ class Policy:
         self.convergence = dict(iterations=iteration+1, bellman_residual=residual,
                                 value_error_bound=residual/(1-gamma), converged=residual < tolerance,
                                 n=n, gamma=gamma, tolerance=tolerance,
-                                belief_grid='exact reward-state quotient' if variant == 2 else 'full simplex')
+                                belief_grid='exact reward-state quotient' if self.quotient else 'full simplex')
 
     def nearest(self, b):
         b = np.maximum(np.asarray(b), 0)
@@ -72,7 +75,7 @@ class Policy:
         return self.lookup[i, j]
 
     def __call__(self, b):
-        if self.variant == 2:
+        if self.quotient:
             return self.actions[np.rint(np.clip(np.asarray(b)[..., 2], 0, 1)*self.n).astype(int)]
         return self.actions[self.nearest(b)]
 
@@ -84,8 +87,8 @@ def simulate(policy, mode, strength, episodes=32, length=1024, seed=2042, random
     occupied = np.zeros(episodes)
     actions = np.zeros(3)
     for _ in range(length):
-        token = (rng.random(episodes)[:, None] >= EMISSION_MATRIX[states].cumsum(-1)).sum(-1)
-        b *= EMISSION_MATRIX[:, token].T
+        token = (rng.random(episodes)[:, None] >= policy.emission[states].cumsum(-1)).sum(-1)
+        b *= policy.emission[:, token].T
         b /= b.sum(-1, keepdims=True)
         installed = (1-strength)*b+strength*target(b, mode)
         a = rng.integers(3, size=episodes) if random else policy(installed)

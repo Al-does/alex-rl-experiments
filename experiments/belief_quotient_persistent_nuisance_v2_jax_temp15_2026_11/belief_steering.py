@@ -17,7 +17,7 @@ from harness.storage.b2 import upload_run_artifacts
 from harness.context import RunContext
 from experiments.belief_quotient_history_jax_2026_11.continuation import locate_parent_run, load_params
 from experiments.belief_quotient_history_jax_2026_11.shared import model_spec
-from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.environment import ladder_process
+from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11 import environment as v2_environment
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_core import AFFINE_RCOND, LAMBDAS, MODES, empty_maps, fit_maps, metrics, probe_scores, rollout
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_prediction import Policy, target
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_pulse import run_pulse
@@ -31,8 +31,8 @@ def sha256(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def restore(leaf, study, destination):
-    parent = locate_parent_run(leaf, study=study, seed=42)
+def restore(leaf, study, destination, seed=42):
+    parent = locate_parent_run(leaf, study=study, seed=seed)
     storage = B2StorageConfig.from_env()
     if storage is None:
         raise RuntimeError('B2 credentials required for manifest-verified restoration')
@@ -61,7 +61,8 @@ def revision(directory):
 
 def persist(leaf, raw, report_path, report):
     """Satisfy Vast's required-durability teardown contract without training."""
-    run_id = f'belief_steering_v2_{ANALYSIS_TAG}'
+    seed = report.get('seed', 42)
+    run_id = f'belief_steering_v2_seed{seed}_stable'
     metadata = leaf/'results'/f'{run_id}_run'
     metadata.mkdir(parents=True, exist_ok=True)
     for source in (report_path, report_path.with_suffix('.md')):
@@ -72,7 +73,7 @@ def persist(leaf, raw, report_path, report):
                     git=report['provenance'], checkpoint=report['checkpoint'])
     manifest_path.write_text(json.dumps(manifest, indent=2))
     context = RunContext(experiment_dir=leaf, results_dir=metadata, artifacts_dir=raw,
-                         seed=42, run_id=run_id, upload_artifacts=True)
+                         seed=seed, run_id=run_id, upload_artifacts=True)
     manifest['remote_artifacts'] = upload_run_artifacts(context,
         experiment_module=f"experiments.{report['study']}.variant_{report['variant']}_transformer.belief_steering")
     manifest_path.write_text(json.dumps(manifest, indent=2))
@@ -93,10 +94,10 @@ def markdown(report):
     return '\n'.join(lines)+'\n'
 
 
-def run(study, variant, smoke=False):
+def run(study, variant, smoke=False, seed=42, environment=v2_environment):
     root = Path(__file__).resolve().parents[2]
     leaf = root/'experiments'/study/f'variant_{variant}_transformer'
-    tag = 'smoke_stable' if smoke else ANALYSIS_TAG
+    tag = f'seed{seed}_smoke_stable' if smoke and seed != 42 else 'smoke_stable' if smoke else f'seed{seed}_stable'
     raw = leaf/'artifacts'/f'belief_steering_v2_{tag}'
     output = raw
     output.mkdir(parents=True, exist_ok=True)
@@ -104,8 +105,8 @@ def run(study, variant, smoke=False):
     if path.exists() or path.with_suffix('.md').exists() or (not smoke and (leaf/'results'/path.name).exists()):
         raise FileExistsError(f'refusing to overwrite {path}')
     start = time.perf_counter()
-    checkpoint_path, checkpoint = restore(leaf, study, raw)
-    process = ladder_process(variant)
+    checkpoint_path, checkpoint = restore(leaf, study, raw, seed)
+    process = environment.ladder_process(variant)
     spec = model_spec('transformer', process)
     params = load_params(checkpoint_path, spec)
     rows, length = (256, 256) if smoke else (12000, 1024)
@@ -119,7 +120,7 @@ def run(study, variant, smoke=False):
     probes = {'exclusion_8': probe_scores(test, maps, rows, 8),
               'exclusion_128': probe_scores(test, supplemental_maps, rows, 128)}
     np.savez(raw/'maps.npz', **{k: np.asarray(v) for k, v in maps.items()})
-    policy = Policy(variant, n=100, gamma=.995)
+    policy = Policy(variant, n=100, gamma=.995, environment=environment)
     timings = []
 
     def evaluate(seed, episodes, site=-1, mode=0, strength=0., orthogonal=False, random=False):
@@ -184,14 +185,15 @@ def run(study, variant, smoke=False):
                 caveat='Scalar calibration assumes approximate norm monotonicity; inspect achieved norms. Confirmation is never used to calibrate.')
     pulse_records = rollout(spec, process, params, maps, jax.random.PRNGKey(3042), confirm_episodes, length, capture=True)
     pulse = run_pulse(spec, params, maps, pulse_records, variant,
-                      times=(32, 80, 128) if smoke else (256, 512, 768), horizon=16 if smoke else 128)
+                      times=(32, 80, 128) if smoke else (256, 512, 768), horizon=16 if smoke else 128,
+                      environment=environment)
     harness_root = Path(analysis.__file__).resolve().parents[1]
     sources = {p.name: sha256(p) for p in Path(__file__).parent.glob('steering_*.py')}
     sources[Path(__file__).name] = sha256(__file__)
     sources['trainer_models.py'] = sha256(root/'experiments/belief_quotient_history_jax_2026_11/models.py')
     sources['trainer_env.py'] = sha256(root/'experiments/belief_quotient_history_jax_2026_11/env.py')
-    sources['environment.py'] = sha256(Path(__file__).with_name('environment.py'))
-    report = dict(schema=1, study=study, variant=variant, seed=42, smoke=smoke, checkpoint=checkpoint,
+    sources['environment.py'] = sha256(environment.__file__)
+    report = dict(schema=1, study=study, variant=variant, seed=seed, smoke=smoke, checkpoint=checkpoint,
         provenance=dict(experiment_revision=revision(root), harness_revision=revision(harness_root),
                         source_sha256=sources, jax=jax.__version__, python=platform.python_version(), devices=[str(x) for x in jax.devices()]),
         protocol=dict(fit_rows=rows, test_rows=rows, fit_seed=42, test_seed=43, exclusion=8, supplemental_exclusion=128,

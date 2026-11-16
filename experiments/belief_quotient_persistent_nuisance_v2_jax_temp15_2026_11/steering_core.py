@@ -36,9 +36,18 @@ def decode(h, maps, site):
     return jnp.concatenate((y, 1-y.sum(-1, keepdims=True)), -1)
 
 
+def ladder_displacement(x, maps, index, mode):
+    belief = decode(x, maps, index)
+    return target(belief, mode)[..., :2]-belief[..., :2]
+
+
 def instrumented_step(spec, params, carry, obs, t, maps, site=-1, mode=0,
-                      strength=0., orthogonal=False):
-    """Match models.step; intervene after the MLP residual or final norm."""
+                      strength=0., orthogonal=False, displacement=ladder_displacement):
+    """Match models.step; intervene after the MLP residual or final norm.
+
+    ``displacement`` returns the decoded-coordinate change that the encoder map
+    turns into an activation shift.
+    """
     batch = obs.shape[0]
     cache_len = spec.context_len + 1
     slot = t % cache_len
@@ -49,8 +58,7 @@ def instrumented_step(spec, params, carry, obs, t, maps, site=-1, mode=0,
 
     def install(x, index, stats):
         def apply(x):
-            belief = decode(x, maps, index)
-            shift = jnp.matmul(target(belief, mode)[..., :2]-belief[..., :2], maps['encoder'][index], precision=jax.lax.Precision.HIGHEST)
+            shift = jnp.matmul(displacement(x, maps, index, mode), maps['encoder'][index], precision=jax.lax.Precision.HIGHEST)
             shift = strength*shift
             norm = jnp.linalg.norm(shift, axis=-1)
             shift = jnp.where(orthogonal, norm[:, None]*maps['orthogonal'][index], shift)

@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import numpy as np
 
 from experiments.belief_quotient_history_jax_2026_11 import models
-from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.environment import action_transitions, EMISSION_MATRIX
+from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11 import environment as v2_environment
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_core import instrumented_step, pulse_branch
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11.steering_prediction import target
 
@@ -41,10 +41,12 @@ def coordinates(b):
     return np.stack((b[..., 2], b[..., 0]-b[..., 1]), -1)
 
 
-def exact_trace(b, observations, variant, mode, coarse=False):
+def exact_trace(b, observations, variant, mode, coarse=False, environment=v2_environment):
     b = np.asarray(b, float).copy()
     perturbed = target(b, mode)
-    transition = action_transitions(variant)
+    transition = environment.action_transitions(variant)
+    emission = np.asarray(environment.EMISSION_MATRIX)
+    lumped = emission[:2].mean(0)
     differences = [coordinates(perturbed)-coordinates(b)]
     for obs in observations[1:]:
         action = obs[:, 3:].argmax(-1)
@@ -53,15 +55,23 @@ def exact_trace(b, observations, variant, mode, coarse=False):
             def update(x):
                 rho = x[:, 2]
                 r = (1-rho)*transition[action, 0, 2]+rho*transition[action, 2, 2]
-                rho = np.where(token == 2, r/(r+.85*(1-r)), 0)
+                # Reward-state filter with states 1/2 lumped at equal weight; exact only
+                # when the reward state never emits A/B.
+                evidence = r*emission[2, token]
+                total = evidence+(1-r)*lumped[token]
+                rho = np.divide(evidence, total, out=np.zeros_like(total), where=total > 0)
                 return np.stack(((1-rho)/2, (1-rho)/2, rho), -1)
         else:
             def update(x):
-                x = np.einsum('bs,bsj->bj', x, transition[action])*EMISSION_MATRIX[:, token].T
+                x = np.einsum('bs,bsj->bj', x, transition[action])*emission[:, token].T
                 return x/x.sum(-1, keepdims=True)
         b, perturbed = update(b), update(perturbed)
         differences.append(coordinates(perturbed)-coordinates(b))
     return np.asarray(differences)
+
+
+def emission_leak(environment):
+    return bool(np.asarray(environment.EMISSION_MATRIX)[2, :2].any())
 
 
 def summarize(difference):
@@ -70,7 +80,8 @@ def summarize(difference):
                 decay={name: decay(absolute[:, i]) for i, name in enumerate(('rho', 'delta'))})
 
 
-def run_pulse(spec, params, maps, records, variant, times=(256, 512, 768), horizon=128):
+def run_pulse(spec, params, maps, records, variant, times=(256, 512, 768), horizon=128,
+              environment=v2_environment):
     observations = records['obs']
     saved = snapshots(spec, params, maps, observations, jnp.asarray(times), len(times))
     results = {}
@@ -79,9 +90,9 @@ def run_pulse(spec, params, maps, records, variant, times=(256, 512, 768), horiz
         for t in times:
             obs = np.asarray(observations[t:t+horizon+1])
             b = np.asarray(records['belief'][t])
-            exact.append(exact_trace(b, obs, variant, mode))
+            exact.append(exact_trace(b, obs, variant, mode, environment=environment))
             if variant == 2:
-                coarse.append(exact_trace(b, obs, variant, mode, coarse=True))
+                coarse.append(exact_trace(b, obs, variant, mode, coarse=True, environment=environment))
         for site in (0, 1, 2):
             diffs, tvs, disagreements = [], [], []
             for index, t in enumerate(times):
@@ -97,5 +108,6 @@ def run_pulse(spec, params, maps, records, variant, times=(256, 512, 768), horiz
             if coarse:
                 result['quotient_filter'] = summarize(np.concatenate(coarse, 1))
                 result['quotient_filter']['delta_not_defined'] = True
+                result['quotient_filter']['exact'] = not emission_leak(environment)
             results[f'{mode}_block{site+1}'] = result
     return dict(seed=3042, times=list(times), horizon=horizon, conditions=results)
