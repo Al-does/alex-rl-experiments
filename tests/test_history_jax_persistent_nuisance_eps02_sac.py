@@ -142,6 +142,14 @@ def test_training_checkpoint_layout_and_scaled_q(tmp_path):
 
     actor, curves, summary = sac.train(spec, process, config, seed=42,
         on_checkpoint=save, critic_checkpoint_dir=tmp_path)
+    expected = {"actor_loss": 33.019309997558594, "critic_loss": .5497674942016602,
+                "mean_q": -43.139869689941406, "policy_entropy": 1.0397520065307617,
+                "reward_per_step": 0.}
+    for name, value in expected.items():
+        np.testing.assert_allclose(curves[-1][name], value, rtol=2e-6, atol=1e-6)
+    np.testing.assert_allclose(actor["policy"]["b"],
+        [.0693768858909607, .283753901720047, -.08408339321613312], atol=1e-7)
+    assert "alpha" not in curves[-1] and "mean_policy_q" not in curves[-1]
     assert sorted(captured) == [0, 8]
     with np.load(tmp_path / "parent.npz") as reference:
         for step in captured:
@@ -154,6 +162,7 @@ def test_training_checkpoint_layout_and_scaled_q(tmp_path):
     with np.load(tmp_path / "critic_step_0000000008.npz") as checkpoint:
         assert any("targets" in name for name in checkpoint.files)
         assert any("critics" in name for name in checkpoint.files)
+        assert not any("alpha" in name for name in checkpoint.files)
     for name in ("actor_loss", "critic_loss", "mean_q", "policy_entropy"):
         assert np.isfinite(curves[-1][name])
     assert summary["env_steps"] == 8

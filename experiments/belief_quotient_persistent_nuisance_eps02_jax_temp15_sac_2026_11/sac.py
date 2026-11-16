@@ -24,6 +24,10 @@ class TrainConfig(reinforce.TrainConfig):
     gradient_steps: int = 64
     critic_lr: float = 4.2e-4
     q_scaling: str = "1-gamma"
+    alpha_init: float = 1.0
+    alpha_lr: float = 3e-4
+    target_entropy: float | None = None
+    q_head_init: str = "default"
 
     def __post_init__(self):
         super().__post_init__()
@@ -33,19 +37,38 @@ class TrainConfig(reinforce.TrainConfig):
             raise ValueError("tau must be in (0, 1]")
         if self.replay_rollouts < 1 or self.gradient_steps < 1:
             raise ValueError("replay_rollouts and gradient_steps must be positive")
-        if self.alpha < 0 or self.auto_entropy_tuning:
-            raise ValueError("alpha must be nonnegative and fixed")
+        if self.alpha < 0:
+            raise ValueError("alpha must be nonnegative")
+        if self.auto_entropy_tuning and (
+                self.target_entropy is None or not np.isfinite(self.target_entropy)
+                or self.target_entropy < 0 or not np.isfinite(self.alpha_init)
+                or self.alpha_init <= 0 or not np.isfinite(self.alpha_lr) or self.alpha_lr <= 0):
+            raise ValueError("automatic alpha requires a nonnegative target and positive init/lr")
+        if self.q_head_init not in ("default", "zeros"):
+            raise ValueError("q_head_init must be default or zeros")
 
 
-def configure(config):
-    return TrainConfig(**asdict(config))
+def configure(config, **overrides):
+    return TrainConfig(**{**asdict(config), **overrides})
 
 
-def for_context(context):
+def for_context(context, **overrides):
     def train_in_context(*args, **kwargs):
         return train(*args, **kwargs,
                      critic_checkpoint_dir=context.artifacts_dir / "checkpoints")
-    return SimpleNamespace(configure=configure, train=train_in_context)
+    return SimpleNamespace(configure=partial(configure, **overrides), train=train_in_context)
+
+
+def init_critic_params(spec, key, config):
+    params = models.init_params(spec, key)
+    if config.q_head_init == "zeros":
+        params["policy"] = jax.tree.map(jnp.zeros_like, params["policy"])
+    return params
+
+
+def alpha_loss(log_alpha, log_probs, target_entropy):
+    entropy = -(jnp.exp(log_probs) * log_probs).sum(-1).mean()
+    return log_alpha * jax.lax.stop_gradient(entropy - target_entropy)
 
 
 def init_buffer(config):
@@ -118,51 +141,72 @@ def critic_loss(spec, config, critics, batch, targets):
     return one(critics[0]) + one(critics[1])
 
 
-def actor_loss(spec, config, actor, obs, q1, q2):
+def actor_loss(spec, config, actor, obs, q1, q2, alpha=None):
     logits, _, _ = models.sequence(spec, actor, obs)
     log_probs = jax.nn.log_softmax(logits / config.temperature)
-    loss = actor_objective(log_probs, q1, q2, config.alpha)
-    return loss, {
+    loss = actor_objective(log_probs, q1, q2, config.alpha if alpha is None else alpha)
+    info = {
         "actor_loss": loss,
         "mean_q": jnp.minimum(q1, q2).mean(),
         "policy_entropy": -(jnp.exp(log_probs) * log_probs).sum(-1).mean(),
     }
+    if config.auto_entropy_tuning:
+        info["mean_policy_q"] = (jnp.exp(log_probs) * jnp.minimum(q1, q2)).sum(-1).mean()
+    return loss, info
 
 
 def make_iteration(spec, process, config, actor_optimizer, critic_optimizer):
     batch_size = config.num_envs // config.num_minibatches
+    if config.auto_entropy_tuning:
+        alpha_optimizer = optax.adam(config.alpha_lr)
 
     def gradient_step(state, key):
-        actor, critics, targets, actor_opt, critic_opt, buffer = state
+        actor, critics, targets, actor_opt, critic_opt, buffer = state[:6]
+        alpha = config.alpha
+        if config.auto_entropy_tuning:
+            log_alpha, alpha_opt = state[6:]
+            alpha = jax.lax.stop_gradient(jnp.exp(log_alpha))
         batch = sample_buffer(buffer, key, batch_size, process.n_tokens, spec.n_actions)
         logits, _, _ = models.sequence(spec, actor, batch["obs"])
         log_probs = jax.nn.log_softmax(logits / config.temperature)
         target_q = [q_values(spec, q, batch["obs"], config.gamma) for q in targets]
-        y = critic_targets(batch["reward"], log_probs, *target_q, config.gamma, config.alpha)
+        y = critic_targets(batch["reward"], log_probs, *target_q, config.gamma, alpha)
         loss, grads = jax.value_and_grad(partial(critic_loss, spec, config))(
             critics, batch, y)
         updates, critic_opt = critic_optimizer.update(grads, critic_opt, critics)
         critics = optax.apply_updates(critics, updates)
         q1, q2 = [jax.lax.stop_gradient(q_values(spec, q, batch["obs"], config.gamma))
                   for q in critics]
-        (_, info), grads = jax.value_and_grad(partial(actor_loss, spec, config), has_aux=True)(
+        loss_fn = partial(actor_loss, spec, config)
+        if config.auto_entropy_tuning:
+            loss_fn = partial(loss_fn, alpha=alpha)
+        (_, info), grads = jax.value_and_grad(loss_fn, has_aux=True)(
             actor, batch["obs"], q1, q2)
         updates, actor_opt = actor_optimizer.update(grads, actor_opt, actor)
         actor = optax.apply_updates(actor, updates)
         targets = polyak_update(targets, critics, config.tau)
         info["critic_loss"] = loss
-        return (actor, critics, targets, actor_opt, critic_opt, buffer), info
+        state = (actor, critics, targets, actor_opt, critic_opt, buffer)
+        if config.auto_entropy_tuning:
+            loss, grad = jax.value_and_grad(alpha_loss)(
+                log_alpha, log_probs, config.target_entropy)
+            updates, alpha_opt = alpha_optimizer.update(grad, alpha_opt, log_alpha)
+            info.update(alpha=alpha, log_alpha=log_alpha, alpha_loss=loss,
+                        entropy=info["policy_entropy"])
+            log_alpha = optax.apply_updates(log_alpha, updates)
+            state += (log_alpha, alpha_opt)
+        return state, info
 
     @partial(jax.jit, donate_argnums=(0,))
     def iteration(state, key):
-        actor, critics, targets, actor_opt, critic_opt, buffer = state
+        actor, critics, targets, actor_opt, critic_opt, buffer = state[:6]
         rollout_key, update_key = jax.random.split(key)
         records = reinforce.rollout(
             spec, process, actor, rollout_key, config.num_envs, config.episode_length,
             temperature=config.temperature, epsilon=config.exploration_epsilon)
         buffer = insert_buffer(buffer, records, process.n_tokens)
         state, infos = jax.lax.scan(
-            gradient_step, (actor, critics, targets, actor_opt, critic_opt, buffer),
+            gradient_step, (actor, critics, targets, actor_opt, critic_opt, buffer) + state[6:],
             jax.random.split(update_key, config.gradient_steps))
         metrics = {
             **jax.tree.map(lambda a: a.mean(), infos),
@@ -187,11 +231,14 @@ def train(spec, process, config, *, seed, checkpoint_steps=(), on_checkpoint=Non
         raise ValueError("SAC requires exploration_epsilon=0")
     root = jax.random.PRNGKey(seed)
     actor = models.init_params(spec, jax.random.fold_in(root, 0))
-    critics = tuple(models.init_params(spec, jax.random.fold_in(root, i)) for i in (3, 4))
+    critics = tuple(init_critic_params(spec, jax.random.fold_in(root, i), config) for i in (3, 4))
     targets = jax.tree.map(lambda x: x.copy(), critics)
     actor_optimizer, critic_optimizer = optax.adam(config.lr), optax.adam(config.critic_lr)
     state = (actor, critics, targets, actor_optimizer.init(actor),
              critic_optimizer.init(critics), init_buffer(config))
+    if config.auto_entropy_tuning:
+        log_alpha = jnp.log(jnp.asarray(config.alpha_init, jnp.float32))
+        state += (log_alpha, optax.adam(config.alpha_lr).init(log_alpha))
     iteration = make_iteration(spec, process, config, actor_optimizer, critic_optimizer)
     if on_checkpoint:
         on_checkpoint(0, actor)
@@ -214,6 +261,8 @@ def train(spec, process, config, *, seed, checkpoint_steps=(), on_checkpoint=Non
             "entropy_coeff": config.alpha,
             **{k: np.asarray(v).tolist() for k, v in metrics.items()},
         }
+        if config.auto_entropy_tuning:
+            record["entropy_coeff"] = record["alpha"]
         curves.append(record)
         if log:
             log(record)
@@ -229,8 +278,11 @@ def train(spec, process, config, *, seed, checkpoint_steps=(), on_checkpoint=Non
     if critic_checkpoint_dir is not None:
         directory = Path(critic_checkpoint_dir)
         directory.mkdir(parents=True, exist_ok=True)
-        _save(directory / f"critic_step_{steps:010d}.npz",
-              {"critics": critics, "targets": targets})
+        checkpoint = {"critics": critics, "targets": targets}
+        if config.auto_entropy_tuning:
+            checkpoint.update(log_alpha=state[6], alpha=jnp.exp(state[6]),
+                              alpha_optimizer=state[7])
+        _save(directory / f"critic_step_{steps:010d}.npz", checkpoint)
     summary = {
         "env_steps": steps, "step_offset": 0, "iterations": config.iterations,
         "batch_steps": config.batch_steps, "compile_seconds": compile_seconds,
