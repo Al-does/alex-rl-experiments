@@ -48,9 +48,13 @@ STRENGTHS = base.STRENGTHS
 _FIRST, _SECOND = np.divmod(np.arange(9), 3)
 
 
-def joint_transitions() -> np.ndarray:
-    """``[joint action, from, to]`` in float64, rows renormalized."""
-    transitions = np.asarray(base.source_process("reward_both").transitions, np.float64)
+def joint_transitions(process=None) -> np.ndarray:
+    """``[joint action, from, to]`` in float64, rows renormalized.
+
+    ``process`` defaults to the v2 Joint Reward training process.
+    """
+    process = base.source_process("reward_both") if process is None else process
+    transitions = np.asarray(process.transitions, np.float64)
     return transitions / transitions.sum(2, keepdims=True)
 
 
@@ -68,13 +72,13 @@ def reward_schedule(reward: str) -> np.ndarray:
     return np.stack([reward_components(reward, t) for t in range(HORIZON)])
 
 
-def q_tables(reward: str, kind: str, gamma: float = GAMMA) -> np.ndarray:
+def q_tables(reward: str, kind: str, gamma: float = GAMMA, process=None) -> np.ndarray:
     """``[t, joint state, joint action]`` action values over one episode.
 
     ``myopic``: expected reward of the next state. ``discounted``: optimal
     finite-horizon values for the pre-transition occupancy reward.
     """
-    transitions = joint_transitions()
+    transitions = joint_transitions(process)
     total = reward_schedule(reward).sum(1)
     if kind == "myopic":
         upcoming = np.concatenate((total[1:], total[-1:]))
@@ -165,17 +169,18 @@ def _evaluate(spec, params, process, episodes, policy, site, target, steered, st
 
 def evaluate(spec, params, *, reward: str, episodes: int, seed: int, policy: str = "agent",
              action_map: str = "discounted", site: int = 3, target: str = "joint",
-             steer: dict | None = None):
+             steer: dict | None = None, process=None):
     """Per-step reward (total, per component, per phase) over complete episodes."""
     if episodes < 2:
         raise ValueError("at least two episodes are required")
-    q = jnp.asarray(q_tables(reward, action_map), jnp.float32)
+    process = base.source_process("reward_both") if process is None else process
+    q = jnp.asarray(q_tables(reward, action_map, process=process), jnp.float32)
     dummy = {"decoder": jnp.zeros((spec.width, 8)), "bias": jnp.zeros(8),
              "embedding": jnp.zeros((8, spec.width)), "q": q,
              "anchors": jnp.zeros((2, 3), jnp.int32), "null_direction": jnp.zeros(spec.width),
              "strength": jnp.float32(0), "use_null": jnp.bool_(False)}
     acc = jax.device_get(_evaluate(
-        spec, params, base.source_process("reward_both"), episodes, policy, site, target,
+        spec, params, process, episodes, policy, site, target,
         STEERED_FACTORS[reward], steer is not None, steer if steer is not None else dummy, q,
         jnp.asarray(reward_schedule(reward), jnp.float32), base._keys(seed)[0]))
     per_phase = np.asarray(acc["reward"], np.float64)  # (episodes, phase, component)
@@ -196,10 +201,10 @@ def evaluate(spec, params, *, reward: str, episodes: int, seed: int, policy: str
 
 
 def analyze(run: dict, checkpoint: Path, *, tune_episodes: int, confirm_episodes: int,
-            seed: int) -> dict:
+            seed: int, process=None) -> dict:
     recipe = json.loads((run["results"] / "resolved_recipe.json").read_text())
     spec = models.ModelSpec(**recipe["model"])
-    process = base.source_process(run["condition"])
+    process = base.source_process(run["condition"]) if process is None else process
     params = base.load_params(checkpoint, spec)
     fit = base.collect_rows(spec, params, process, rows=base.FIT_ROWS, seed=seed)
     learned = base.learned_action_map(fit)
@@ -223,14 +228,15 @@ def analyze(run: dict, checkpoint: Path, *, tune_episodes: int, confirm_episodes
             return {"decoder": jnp.asarray(decoder, jnp.float32),
                     "bias": jnp.asarray(bias, jnp.float32),
                     "embedding": jnp.asarray(embedding, jnp.float32),
-                    "q": jnp.asarray(q_tables(reward, action_map), jnp.float32),
+                    "q": jnp.asarray(q_tables(reward, action_map, process=process), jnp.float32),
                     "anchors": jnp.asarray(anchors), "strength": jnp.float32(strength),
                     "null_direction": jnp.asarray(base.null_direction(decoder, seed + 9999), jnp.float32),
                     "use_null": jnp.bool_(use_null)}
 
-        tune = partial(evaluate, spec, params, reward=reward, episodes=tune_episodes, seed=tune_seed)
+        tune = partial(evaluate, spec, params, reward=reward, episodes=tune_episodes, seed=tune_seed,
+                       process=process)
         confirm = partial(evaluate, spec, params, reward=reward, episodes=confirm_episodes,
-                          seed=confirm_seed)
+                          seed=confirm_seed, process=process)
         selected, sweeps = {}, {}
         for action_map in ACTION_MAPS:
             for target in TARGETS:
