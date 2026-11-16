@@ -1,0 +1,868 @@
+{
+  "source": {
+    "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+    "leaf": "reward_both_transformer",
+    "condition": "reward_both",
+    "seed": 44,
+    "run_id": "20261116T202001Z-5c781157",
+    "results": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/results/20261116T202001Z-5c781157",
+    "remote_prefix": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/20261116T202001Z-5c781157"
+  },
+  "checkpoint": "seed44__20261116T202001Z-5c781157__step_2012217344.npz",
+  "checkpoint_step": 2012217344,
+  "checkpoint_sha256": "3202a97cd392154289f8011ca1db84f028c49cb9c87c26d57abba919dc81566e",
+  "environment": {
+    "source_study": "belief_quotient_history_jax_2026_11",
+    "environment_revision": "persistent_nuisance_eps02",
+    "baseline_transition_matrix": [
+      [
+        0.995505,
+        0.002495,
+        0.002
+      ],
+      [
+        0.002495,
+        0.995505,
+        0.002
+      ],
+      [
+        0.005,
+        0.005,
+        0.99
+      ]
+    ],
+    "emission_matrix": [
+      [
+        0.1125,
+        0.0375,
+        0.85
+      ],
+      [
+        0.0375,
+        0.1125,
+        0.85
+      ],
+      [
+        0.01,
+        0.01,
+        0.98
+      ]
+    ],
+    "effect_size": 2.5,
+    "directions": {
+      "1": [
+        [
+          0.0,
+          1.0,
+          -1.0
+        ],
+        [
+          0.0,
+          1.0,
+          -1.0
+        ],
+        [
+          0.0,
+          1.0,
+          -1.0
+        ]
+      ],
+      "2": [
+        [
+          0.0,
+          1.0,
+          -1.0
+        ],
+        [
+          0.0,
+          1.0,
+          -1.0
+        ],
+        [
+          0.0,
+          -1.0,
+          -1.0
+        ]
+      ],
+      "3": [
+        [
+          0.0,
+          1.0,
+          -1.0
+        ],
+        [
+          0.0,
+          -1.0,
+          1.0
+        ],
+        [
+          0.0,
+          -1.0,
+          -1.0
+        ]
+      ]
+    },
+    "initial_state_distribution": [
+      0.3333333333333333,
+      0.3333333333333333,
+      0.3333333333333333
+    ],
+    "reward_state": 2
+  },
+  "model": {
+    "chunk_len": 32,
+    "context_len": 32,
+    "feature_count": null,
+    "kind": "transformer",
+    "n_actions": 9,
+    "n_heads": 1,
+    "n_layers": 4,
+    "obs_dim": 18,
+    "width": 64
+  },
+  "policy_mode": "greedy",
+  "episode_horizon": 1024,
+  "reward_states_code": [
+    2,
+    2
+  ],
+  "fit_seed": 42,
+  "test_seed": 43,
+  "fit_rows": 60000,
+  "test_rows": 80000,
+  "map_warmup_dropped": 64,
+  "evaluation_warmup_dropped": 0,
+  "tune_seed": 1042,
+  "confirm_seed": 2042,
+  "tune_episodes": 64,
+  "confirm_episodes": 256,
+  "matmul_precision": "highest",
+  "map_solver": "numpy.linalg.lstsq float64 rcond=1e-10",
+  "action_change_reference": "intact forward on the same steered history and carry",
+  "probe_r2": {
+    "block_1": {
+      "factored": 0.8547587268853889,
+      "joint": 0.7840520659052038
+    },
+    "block_2": {
+      "factored": 0.8877232773130439,
+      "joint": 0.8303437604922761
+    },
+    "block_3": {
+      "factored": 0.909911681172751,
+      "joint": 0.8622911100405568
+    },
+    "block_4": {
+      "factored": 0.9121518807223683,
+      "joint": 0.8736006460251156
+    },
+    "post_final_norm": {
+      "factored": 0.9033165898842016,
+      "joint": 0.8545652025518462
+    }
+  },
+  "strength_tuning": {
+    "intact": {
+      "factor_reward": [
+        0.389129638671875,
+        0.4047393798828125
+      ],
+      "factor_reward_se": [
+        0.017878407693889164,
+        0.017991520683634448
+      ],
+      "total_reward": 0.7938690185546875,
+      "total_reward_se": 0.02438750555898789,
+      "factor_action_change_fraction": [
+        0.0,
+        0.0
+      ]
+    },
+    "random": {
+      "factor_reward": [
+        0.1048431396484375,
+        0.1050567626953125
+      ],
+      "factor_reward_se": [
+        0.005669160132165195,
+        0.0058012732636131496
+      ],
+      "total_reward": 0.20989990234375,
+      "total_reward_se": 0.008176378949285369,
+      "factor_action_change_fraction": [
+        0.6673126220703125,
+        0.6655120849609375
+      ]
+    },
+    "grid": {
+      "factored": {
+        "0.0": {
+          "factor_reward": [
+            0.389129638671875,
+            0.4047393798828125
+          ],
+          "factor_reward_se": [
+            0.017878407693889164,
+            0.017991520683634448
+          ],
+          "total_reward": 0.7938690185546875,
+          "total_reward_se": 0.02438750555898789,
+          "factor_action_change_fraction": [
+            0.0,
+            0.0
+          ]
+        },
+        "0.25": {
+          "factor_reward": [
+            0.3846435546875,
+            0.4116973876953125
+          ],
+          "factor_reward_se": [
+            0.01637485842757395,
+            0.016860745354694416
+          ],
+          "total_reward": 0.7963409423828125,
+          "total_reward_se": 0.023308321578557493,
+          "factor_action_change_fraction": [
+            0.0303955078125,
+            0.04608154296875
+          ]
+        },
+        "0.5": {
+          "factor_reward": [
+            0.3718414306640625,
+            0.3472900390625
+          ],
+          "factor_reward_se": [
+            0.01745799548521373,
+            0.019807162468935952
+          ],
+          "total_reward": 0.7191314697265625,
+          "total_reward_se": 0.025766541671117634,
+          "factor_action_change_fraction": [
+            0.0621490478515625,
+            0.1502227783203125
+          ]
+        },
+        "0.75": {
+          "factor_reward": [
+            0.386138916015625,
+            0.172271728515625
+          ],
+          "factor_reward_se": [
+            0.01633950666522987,
+            0.016417892931670505
+          ],
+          "total_reward": 0.55841064453125,
+          "total_reward_se": 0.02709105345800361,
+          "factor_action_change_fraction": [
+            0.1120147705078125,
+            0.390350341796875
+          ]
+        },
+        "0.8": {
+          "factor_reward": [
+            0.3847503662109375,
+            0.139373779296875
+          ],
+          "factor_reward_se": [
+            0.017574457828031433,
+            0.013097383070734846
+          ],
+          "total_reward": 0.5241241455078125,
+          "total_reward_se": 0.02388521175705305,
+          "factor_action_change_fraction": [
+            0.1204376220703125,
+            0.4458770751953125
+          ]
+        },
+        "0.85": {
+          "factor_reward": [
+            0.3800506591796875,
+            0.1278076171875
+          ],
+          "factor_reward_se": [
+            0.018920174060868343,
+            0.01261281654591632
+          ],
+          "total_reward": 0.5078582763671875,
+          "total_reward_se": 0.02508527530048125,
+          "factor_action_change_fraction": [
+            0.129241943359375,
+            0.48663330078125
+          ]
+        },
+        "0.9": {
+          "factor_reward": [
+            0.375518798828125,
+            0.1071929931640625
+          ],
+          "factor_reward_se": [
+            0.018040871382061004,
+            0.009708314904078613
+          ],
+          "total_reward": 0.4827117919921875,
+          "total_reward_se": 0.021730732672861547,
+          "factor_action_change_fraction": [
+            0.134124755859375,
+            0.5280303955078125
+          ]
+        },
+        "0.95": {
+          "factor_reward": [
+            0.37017822265625,
+            0.0954132080078125
+          ],
+          "factor_reward_se": [
+            0.01964486244866259,
+            0.008645739040186118
+          ],
+          "total_reward": 0.4655914306640625,
+          "total_reward_se": 0.02354364471013991,
+          "factor_action_change_fraction": [
+            0.147705078125,
+            0.56817626953125
+          ]
+        },
+        "1.0": {
+          "factor_reward": [
+            0.346466064453125,
+            0.0787353515625
+          ],
+          "factor_reward_se": [
+            0.020289107288550122,
+            0.007865288425237751
+          ],
+          "total_reward": 0.425201416015625,
+          "total_reward_se": 0.02330234166265698,
+          "factor_action_change_fraction": [
+            0.1675567626953125,
+            0.61846923828125
+          ]
+        },
+        "1.25": {
+          "factor_reward": [
+            0.2884063720703125,
+            0.050079345703125
+          ],
+          "factor_reward_se": [
+            0.01844336151350002,
+            0.004669898594989201
+          ],
+          "total_reward": 0.3384857177734375,
+          "total_reward_se": 0.019867007630497494,
+          "factor_action_change_fraction": [
+            0.2719268798828125,
+            0.826507568359375
+          ]
+        },
+        "1.5": {
+          "factor_reward": [
+            0.266845703125,
+            0.041107177734375
+          ],
+          "factor_reward_se": [
+            0.018336931222388202,
+            0.0030482074733473234
+          ],
+          "total_reward": 0.307952880859375,
+          "total_reward_se": 0.018929431044144178,
+          "factor_action_change_fraction": [
+            0.3351898193359375,
+            0.9350128173828125
+          ]
+        },
+        "2.0": {
+          "factor_reward": [
+            0.1953582763671875,
+            0.0385284423828125
+          ],
+          "factor_reward_se": [
+            0.017157766840958964,
+            0.002890996797585725
+          ],
+          "total_reward": 0.23388671875,
+          "total_reward_se": 0.017918185320732517,
+          "factor_action_change_fraction": [
+            0.3960723876953125,
+            0.9579925537109375
+          ]
+        },
+        "3.0": {
+          "factor_reward": [
+            0.183135986328125,
+            0.039154052734375
+          ],
+          "factor_reward_se": [
+            0.017686392293724183,
+            0.0029050176883687173
+          ],
+          "total_reward": 0.2222900390625,
+          "total_reward_se": 0.01847847285549991,
+          "factor_action_change_fraction": [
+            0.41680908203125,
+            0.9602508544921875
+          ]
+        }
+      },
+      "joint": {
+        "0.0": {
+          "factor_reward": [
+            0.389129638671875,
+            0.4047393798828125
+          ],
+          "factor_reward_se": [
+            0.017878407693889164,
+            0.017991520683634448
+          ],
+          "total_reward": 0.7938690185546875,
+          "total_reward_se": 0.02438750555898789,
+          "factor_action_change_fraction": [
+            0.0,
+            0.0
+          ]
+        },
+        "0.25": {
+          "factor_reward": [
+            0.3769073486328125,
+            0.412750244140625
+          ],
+          "factor_reward_se": [
+            0.01793294290996766,
+            0.016486720361881955
+          ],
+          "total_reward": 0.7896575927734375,
+          "total_reward_se": 0.024587509129164232,
+          "factor_action_change_fraction": [
+            0.0201873779296875,
+            0.05841064453125
+          ]
+        },
+        "0.5": {
+          "factor_reward": [
+            0.379180908203125,
+            0.3125
+          ],
+          "factor_reward_se": [
+            0.017967295521985185,
+            0.018079585141686904
+          ],
+          "total_reward": 0.691680908203125,
+          "total_reward_se": 0.025105775134041115,
+          "factor_action_change_fraction": [
+            0.0574493408203125,
+            0.2191619873046875
+          ]
+        },
+        "0.75": {
+          "factor_reward": [
+            0.3853912353515625,
+            0.156036376953125
+          ],
+          "factor_reward_se": [
+            0.018870338493331452,
+            0.012967016059858881
+          ],
+          "total_reward": 0.5414276123046875,
+          "total_reward_se": 0.024385202016075056,
+          "factor_action_change_fraction": [
+            0.1070404052734375,
+            0.4759063720703125
+          ]
+        },
+        "0.8": {
+          "factor_reward": [
+            0.38214111328125,
+            0.1169586181640625
+          ],
+          "factor_reward_se": [
+            0.017515455952184504,
+            0.011001296669744481
+          ],
+          "total_reward": 0.4990997314453125,
+          "total_reward_se": 0.02146671229333535,
+          "factor_action_change_fraction": [
+            0.1149749755859375,
+            0.536529541015625
+          ]
+        },
+        "0.85": {
+          "factor_reward": [
+            0.3907470703125,
+            0.09796142578125
+          ],
+          "factor_reward_se": [
+            0.01576308886914187,
+            0.00856849722543785
+          ],
+          "total_reward": 0.48870849609375,
+          "total_reward_se": 0.017720914092942384,
+          "factor_action_change_fraction": [
+            0.1241302490234375,
+            0.583648681640625
+          ]
+        },
+        "0.9": {
+          "factor_reward": [
+            0.386993408203125,
+            0.0775909423828125
+          ],
+          "factor_reward_se": [
+            0.01543324699450165,
+            0.005051145025783842
+          ],
+          "total_reward": 0.4645843505859375,
+          "total_reward_se": 0.016564167583499455,
+          "factor_action_change_fraction": [
+            0.13348388671875,
+            0.6332244873046875
+          ]
+        },
+        "0.95": {
+          "factor_reward": [
+            0.3929901123046875,
+            0.06927490234375
+          ],
+          "factor_reward_se": [
+            0.015596603212848547,
+            0.004701669409507316
+          ],
+          "total_reward": 0.4622650146484375,
+          "total_reward_se": 0.015448961675670388,
+          "factor_action_change_fraction": [
+            0.1353302001953125,
+            0.6800689697265625
+          ]
+        },
+        "1.0": {
+          "factor_reward": [
+            0.387176513671875,
+            0.0666961669921875
+          ],
+          "factor_reward_se": [
+            0.016557865264797352,
+            0.004935890041407746
+          ],
+          "total_reward": 0.4538726806640625,
+          "total_reward_se": 0.017642805290962037,
+          "factor_action_change_fraction": [
+            0.1455841064453125,
+            0.722686767578125
+          ]
+        },
+        "1.25": {
+          "factor_reward": [
+            0.363677978515625,
+            0.044219970703125
+          ],
+          "factor_reward_se": [
+            0.018843111305460535,
+            0.0030075676408858757
+          ],
+          "total_reward": 0.40789794921875,
+          "total_reward_se": 0.019251793583696285,
+          "factor_action_change_fraction": [
+            0.2016448974609375,
+            0.891387939453125
+          ]
+        },
+        "1.5": {
+          "factor_reward": [
+            0.357574462890625,
+            0.0409698486328125
+          ],
+          "factor_reward_se": [
+            0.018184493187362084,
+            0.0030959206635955173
+          ],
+          "total_reward": 0.3985443115234375,
+          "total_reward_se": 0.01855035432891182,
+          "factor_action_change_fraction": [
+            0.2259521484375,
+            0.9332733154296875
+          ]
+        },
+        "2.0": {
+          "factor_reward": [
+            0.3377838134765625,
+            0.0399322509765625
+          ],
+          "factor_reward_se": [
+            0.01807973058182762,
+            0.0030110769136698066
+          ],
+          "total_reward": 0.377716064453125,
+          "total_reward_se": 0.01837642987728747,
+          "factor_action_change_fraction": [
+            0.2375335693359375,
+            0.9476318359375
+          ]
+        },
+        "3.0": {
+          "factor_reward": [
+            0.3291778564453125,
+            0.039215087890625
+          ],
+          "factor_reward_se": [
+            0.01915918586153979,
+            0.0028845498885075316
+          ],
+          "total_reward": 0.3683929443359375,
+          "total_reward_se": 0.01966004960199194,
+          "factor_action_change_fraction": [
+            0.244354248046875,
+            0.9485321044921875
+          ]
+        }
+      }
+    },
+    "selected": {
+      "factored": {
+        "strength": 0.95,
+        "reached_random_baseline": true
+      },
+      "joint": {
+        "strength": 0.85,
+        "reached_random_baseline": true
+      }
+    }
+  },
+  "confirmation": {
+    "intact": {
+      "factor_reward": [
+        0.402801513671875,
+        0.4039802551269531
+      ],
+      "factor_reward_se": [
+        0.009697562310098686,
+        0.009868076997293064
+      ],
+      "total_reward": 0.8067817687988281,
+      "total_reward_se": 0.01394774819805817,
+      "factor_action_change_fraction": [
+        0.0,
+        0.0
+      ]
+    },
+    "random": {
+      "factor_reward": [
+        0.098358154296875,
+        0.10581588745117188
+      ],
+      "factor_reward_se": [
+        0.0026561735454586916,
+        0.0027640145510176425
+      ],
+      "total_reward": 0.20417404174804688,
+      "total_reward_se": 0.003975063131833847,
+      "factor_action_change_fraction": [
+        0.665191650390625,
+        0.6674766540527344
+      ]
+    },
+    "factored_block_1": {
+      "factor_reward": [
+        0.3922920227050781,
+        0.14028549194335938
+      ],
+      "factor_reward_se": [
+        0.009292875366543916,
+        0.005903506737310061
+      ],
+      "total_reward": 0.5325775146484375,
+      "total_reward_se": 0.011602729305955803,
+      "factor_action_change_fraction": [
+        0.10971832275390625,
+        0.4149589538574219
+      ]
+    },
+    "factored_block_2": {
+      "factor_reward": [
+        0.3887901306152344,
+        0.10879135131835938
+      ],
+      "factor_reward_se": [
+        0.009224021939203233,
+        0.004660385784307823
+      ],
+      "total_reward": 0.49758148193359375,
+      "total_reward_se": 0.010416219640500123,
+      "factor_action_change_fraction": [
+        0.12021255493164062,
+        0.5113563537597656
+      ]
+    },
+    "factored_block_3": {
+      "factor_reward": [
+        0.3752632141113281,
+        0.09641265869140625
+      ],
+      "factor_reward_se": [
+        0.009683360049988947,
+        0.00488022808325693
+      ],
+      "total_reward": 0.4716758728027344,
+      "total_reward_se": 0.01116837933944965,
+      "factor_action_change_fraction": [
+        0.125457763671875,
+        0.5310325622558594
+      ]
+    },
+    "factored_block_4": {
+      "factor_reward": [
+        0.354034423828125,
+        0.08713150024414062
+      ],
+      "factor_reward_se": [
+        0.010853259294593189,
+        0.004315424823704927
+      ],
+      "total_reward": 0.4411659240722656,
+      "total_reward_se": 0.012040018825720089,
+      "factor_action_change_fraction": [
+        0.15790557861328125,
+        0.5803794860839844
+      ]
+    },
+    "factored_post_final_norm": {
+      "factor_reward": [
+        0.3827362060546875,
+        0.10892486572265625
+      ],
+      "factor_reward_se": [
+        0.009954031132517496,
+        0.005526050679060935
+      ],
+      "total_reward": 0.49166107177734375,
+      "total_reward_se": 0.011478868319953033,
+      "factor_action_change_fraction": [
+        0.11884689331054688,
+        0.4648704528808594
+      ]
+    },
+    "factored_matched_null_block_4": {
+      "factor_reward": [
+        0.4144096374511719,
+        0.4027671813964844
+      ],
+      "factor_reward_se": [
+        0.00926500304903055,
+        0.009799028653271645
+      ],
+      "total_reward": 0.8171768188476562,
+      "total_reward_se": 0.013542597694836078,
+      "factor_action_change_fraction": [
+        0.037567138671875,
+        0.0462493896484375
+      ]
+    },
+    "joint_block_1": {
+      "factor_reward": [
+        0.3927879333496094,
+        0.15886306762695312
+      ],
+      "factor_reward_se": [
+        0.009396892106184355,
+        0.005604372424679873
+      ],
+      "total_reward": 0.5516510009765625,
+      "total_reward_se": 0.011307260449304437,
+      "factor_action_change_fraction": [
+        0.09400177001953125,
+        0.37853240966796875
+      ]
+    },
+    "joint_block_2": {
+      "factor_reward": [
+        0.3976860046386719,
+        0.09898757934570312
+      ],
+      "factor_reward_se": [
+        0.009710108762729085,
+        0.0037490034314964366
+      ],
+      "total_reward": 0.496673583984375,
+      "total_reward_se": 0.010240738871005324,
+      "factor_action_change_fraction": [
+        0.1040496826171875,
+        0.513092041015625
+      ]
+    },
+    "joint_block_3": {
+      "factor_reward": [
+        0.3828849792480469,
+        0.08263397216796875
+      ],
+      "factor_reward_se": [
+        0.009996571752185525,
+        0.003959359210469076
+      ],
+      "total_reward": 0.4655189514160156,
+      "total_reward_se": 0.010483028261477654,
+      "factor_action_change_fraction": [
+        0.11141586303710938,
+        0.5513572692871094
+      ]
+    },
+    "joint_block_4": {
+      "factor_reward": [
+        0.391937255859375,
+        0.08111190795898438
+      ],
+      "factor_reward_se": [
+        0.01012233213598044,
+        0.003781032271271554
+      ],
+      "total_reward": 0.4730491638183594,
+      "total_reward_se": 0.010585414446702881,
+      "factor_action_change_fraction": [
+        0.12408065795898438,
+        0.5868110656738281
+      ]
+    },
+    "joint_post_final_norm": {
+      "factor_reward": [
+        0.3853950500488281,
+        0.09084320068359375
+      ],
+      "factor_reward_se": [
+        0.009647630905027977,
+        0.004730283458133731
+      ],
+      "total_reward": 0.4762382507324219,
+      "total_reward_se": 0.010581692490646935,
+      "factor_action_change_fraction": [
+        0.11465835571289062,
+        0.5237388610839844
+      ]
+    },
+    "joint_matched_null_block_4": {
+      "factor_reward": [
+        0.41100311279296875,
+        0.40166473388671875
+      ],
+      "factor_reward_se": [
+        0.009199389697838031,
+        0.009762656740138142
+      ],
+      "total_reward": 0.8126678466796875,
+      "total_reward_se": 0.013740551088189177,
+      "factor_action_change_fraction": [
+        0.0354156494140625,
+        0.043766021728515625
+      ]
+    }
+  },
+  "revisions": {
+    "experiment": {
+      "commit": "a233109f2aaf8eb888b3c6a939847ac6c5161d82",
+      "dirty": false
+    },
+    "harness": {
+      "commit": "a267508fdeb523e95b3ef3fc42119102540bbe38",
+      "dirty": false
+    }
+  },
+  "wall_seconds": 90.78861749195494,
+  "jax_backend": "gpu"
+}
