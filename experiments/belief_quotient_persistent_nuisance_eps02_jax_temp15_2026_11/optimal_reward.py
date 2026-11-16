@@ -14,6 +14,7 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.stats import t as student_t
 
+from experiments.belief_quotient_history_jax_2026_11.shared import EPISODE_LENGTH
 from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 import environment as eps02
 from experiments.belief_quotient_persistent_nuisance_jax_2026_11 import design as historical
 from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11 import environment as v2
@@ -256,6 +257,8 @@ def build_report(horizon=1024, grids=(80, 160), episodes=4096, starts=24, seed=2
     root = Path(__file__).resolve().parents[2]
     achieved = source_comparisons(root)
     for record in achieved:
+        if horizon != EPISODE_LENGTH:
+            continue
         task = tasks[f"eps02/{record['condition']}"]
         bayes = tasks[task["bayes_from"]] if "bayes_from" in task else task
         multiplier = task.get("bayes_multiplier", 1)
@@ -269,7 +272,9 @@ def build_report(horizon=1024, grids=(80, 160), episodes=4096, starts=24, seed=2
                 "temperature": "1.5 does not constrain distributions; entropy=0, epsilon-greedy=0",
                 "memoryless": "stationary stochastic current-token only; no previous action",
                 "bayes": "finite horizon, time-dependent full exact token/executed-action posterior, no rewards",
-                "comparison": "train rewards include 1024 reset steps; greedy probe rewards exclude first 64; neither has saved episode CIs",
+                "comparison": "train rewards include 1024 reset steps; greedy probe rewards exclude first 64; neither has saved episode CIs"
+                    + (f"; achieved-vs-reference gaps omitted because benchmark horizon {horizon} differs from training episode length {EPISODE_LENGTH}"
+                       if horizon != EPISODE_LENGTH else ""),
                 "limitations": "Bayes values bounded/estimated, not exact. Reactive search lower bounds only: no global certificate, especially joint 9-token policies."},
             "git_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
             "module_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),

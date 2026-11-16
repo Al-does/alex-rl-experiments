@@ -98,3 +98,30 @@ def test_cli_output_and_refusal(tmp_path, monkeypatch):
     monkeypatch.setattr("sys.argv", ["optimal_reward", "--output", str(output), "--episodes", "1"])
     with pytest.raises(SystemExit):
         ref.main()
+
+
+@pytest.mark.parametrize("horizon", [1024, 32])
+@pytest.mark.parametrize("has_achieved", [True, False])
+def test_report_gaps_require_training_horizon(monkeypatch, horizon, has_achieved):
+    monkeypatch.setattr(ref, "reactive_search", lambda *a, **kw: {
+        "best_known": .3, "policy": np.full((3, 3), 1/3).tolist()})
+    monkeypatch.setattr(ref, "belief_reference", lambda *a, **kw: {"upper_bound": .5})
+    monkeypatch.setattr(ref, "source_comparisons", lambda root: [
+        {"condition": "variant_2", "train_reward_per_step": .4}] if has_achieved else [])
+    report = ref.build_report(horizon=horizon, grids=(2,), episodes=2, starts=1)
+    if has_achieved:
+        record, = report["achieved"]
+        if horizon == ref.EPISODE_LENGTH:
+            assert record["bayes_upper_minus_train"] == pytest.approx(.1)
+            assert record["train_minus_memoryless_best_known"] == pytest.approx(.1)
+        else:
+            assert "bayes_upper_minus_train" not in record
+            assert "train_minus_memoryless_best_known" not in record
+    else:
+        assert report["achieved"] == []
+    if horizon == ref.EPISODE_LENGTH:
+        assert report["conventions"]["comparison"] == (
+            "train rewards include 1024 reset steps; greedy probe rewards exclude first 64; neither has saved episode CIs")
+    else:
+        assert "gaps omitted" in report["conventions"]["comparison"]
+        assert f"horizon {horizon}" in report["conventions"]["comparison"]
