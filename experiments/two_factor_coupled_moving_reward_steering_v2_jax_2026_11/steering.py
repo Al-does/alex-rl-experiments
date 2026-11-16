@@ -34,6 +34,13 @@ import numpy as np
 import harness
 from experiments.belief_quotient_history_jax_2026_11 import env as hmm
 from experiments.belief_quotient_history_jax_2026_11 import models
+from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 import (
+    environment as eps02,
+)
+from experiments.belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11 import (
+    environment as v2,
+)
+from experiments.reward_factors_persistent_nuisance_jax_2026_11.shared import factor_process
 from experiments.two_factor_moved_reward_steering_v2_jax_2026_11 import steering as base
 
 STUDY_DIR = Path(__file__).resolve().parent
@@ -46,11 +53,48 @@ ACTION_MAPS = base.ACTION_MAPS
 TARGETS = base.TARGETS
 STRENGTHS = base.STRENGTHS
 _FIRST, _SECOND = np.divmod(np.arange(9), 3)
+# Source study -> (factor environment, report tag). PR #234's eps02 study changes
+# only the state-3 emission row, so transitions (and hence Q tables) are shared.
+SOURCE_STUDIES = {
+    "reward_factors_persistent_nuisance_v2_jax_temp15_ctx32_2026_11": (v2, "ctx32_2026_11"),
+    "reward_factors_persistent_nuisance_v2_jax_temp15_ctx32_eps05_2026_11": (v2, "ctx32_eps05_2026_11"),
+    "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11": (eps02, "eps02_ctx32_2026_11"),
+}
+
+
+def source_process(study: str, condition: str = "reward_both"):
+    return factor_process(condition, SOURCE_STUDIES[study][0])
+
+
+def source_runs() -> list[dict]:
+    runs = []
+    for study in SOURCE_STUDIES:
+        for manifest in sorted((base.REPO / "experiments" / study).glob("*/results/*/run_manifest.json")):
+            data = json.loads(manifest.read_text())
+            leaf = manifest.parents[2].name
+            runs.append({"study": study, "leaf": leaf, "condition": leaf.removesuffix("_transformer"),
+                         "seed": data["runtime"]["seed"], "run_id": data["run_id"],
+                         "results": manifest.parent,
+                         "remote_prefix": data["remote_artifacts"]["prefix"]})
+    return runs
+
+
+def checkpoint_path(run: dict, checkpoints: Path) -> Path:
+    tag = SOURCE_STUDIES[run["study"]][1]
+    matches = sorted(checkpoints.glob(f"{tag}__{run['leaf']}__seed{run['seed']}__{run['run_id']}__step_*.npz"))
+    if len(matches) != 1:
+        raise FileNotFoundError(f"expected one final checkpoint for {run['run_id']}")
+    return matches[0]
 
 
 def joint_transitions() -> np.ndarray:
     """``[joint action, from, to]`` in float64, rows renormalized."""
-    transitions = np.asarray(base.source_process("reward_both").transitions, np.float64)
+    transitions = {study: np.asarray(source_process(study).transitions, np.float64)
+                   for study in SOURCE_STUDIES}
+    transitions = next(iter(transitions.values())) if all(
+        np.array_equal(t, next(iter(transitions.values()))) for t in transitions.values()) else None
+    if transitions is None:
+        raise ValueError("source studies must share transitions")
     return transitions / transitions.sum(2, keepdims=True)
 
 
@@ -163,7 +207,7 @@ def _evaluate(spec, params, process, episodes, policy, site, target, steered, st
     return acc
 
 
-def evaluate(spec, params, *, reward: str, episodes: int, seed: int, policy: str = "agent",
+def evaluate(spec, params, *, process, reward: str, episodes: int, seed: int, policy: str = "agent",
              action_map: str = "discounted", site: int = 3, target: str = "joint",
              steer: dict | None = None):
     """Per-step reward (total, per component, per phase) over complete episodes."""
@@ -175,7 +219,7 @@ def evaluate(spec, params, *, reward: str, episodes: int, seed: int, policy: str
              "anchors": jnp.zeros((2, 3), jnp.int32), "null_direction": jnp.zeros(spec.width),
              "strength": jnp.float32(0), "use_null": jnp.bool_(False)}
     acc = jax.device_get(_evaluate(
-        spec, params, base.source_process("reward_both"), episodes, policy, site, target,
+        spec, params, process, episodes, policy, site, target,
         STEERED_FACTORS[reward], steer is not None, steer if steer is not None else dummy, q,
         jnp.asarray(reward_schedule(reward), jnp.float32), base._keys(seed)[0]))
     per_phase = np.asarray(acc["reward"], np.float64)  # (episodes, phase, component)
@@ -199,7 +243,10 @@ def analyze(run: dict, checkpoint: Path, *, tune_episodes: int, confirm_episodes
             seed: int) -> dict:
     recipe = json.loads((run["results"] / "resolved_recipe.json").read_text())
     spec = models.ModelSpec(**recipe["model"])
-    process = base.source_process(run["condition"])
+    process = source_process(run["study"], run["condition"])
+    for name, value in process._asdict().items():
+        if not np.allclose(np.asarray(value), np.asarray(recipe["process"][name]), atol=1e-6):
+            raise ValueError(f"{run['run_id']}: recorded process {name} differs")
     params = base.load_params(checkpoint, spec)
     fit = base.collect_rows(spec, params, process, rows=base.FIT_ROWS, seed=seed)
     learned = base.learned_action_map(fit)
@@ -228,8 +275,8 @@ def analyze(run: dict, checkpoint: Path, *, tune_episodes: int, confirm_episodes
                     "null_direction": jnp.asarray(base.null_direction(decoder, seed + 9999), jnp.float32),
                     "use_null": jnp.bool_(use_null)}
 
-        tune = partial(evaluate, spec, params, reward=reward, episodes=tune_episodes, seed=tune_seed)
-        confirm = partial(evaluate, spec, params, reward=reward, episodes=confirm_episodes,
+        tune = partial(evaluate, spec, params, process=process, reward=reward, episodes=tune_episodes, seed=tune_seed)
+        confirm = partial(evaluate, spec, params, process=process, reward=reward, episodes=confirm_episodes,
                           seed=confirm_seed)
         selected, sweeps = {}, {}
         for action_map in ACTION_MAPS:
@@ -288,18 +335,18 @@ def main() -> None:
     args = parser.parse_args()
     revisions = {"experiment": base._git(STUDY_DIR),
                  "harness": base._git(Path(harness.__file__).resolve().parent)}
-    for run in base.source_runs():
+    for run in source_runs():
         if run["condition"] != "reward_both":
             continue
         tag = f"{run['study']}/{run['leaf']}/seed{run['seed']}"
         if args.only and args.only not in tag:
             continue
-        stem = (f"{run['study'].removeprefix('reward_factors_persistent_nuisance_v2_jax_temp15_')}"
+        stem = (f"{SOURCE_STUDIES[run['study']][1]}"
                 f"__{run['condition']}__seed{run['seed']}")
         output = args.output_dir / f"{stem}.json"
         if output.exists():
             raise FileExistsError(output)
-        report = analyze(run, base.checkpoint_path(run, args.checkpoints),
+        report = analyze(run, checkpoint_path(run, args.checkpoints),
                          tune_episodes=args.tune_episodes, confirm_episodes=args.confirm_episodes,
                          seed=args.seed)
         report["revisions"] = revisions

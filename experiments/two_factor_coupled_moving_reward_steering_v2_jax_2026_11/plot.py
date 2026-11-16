@@ -134,14 +134,19 @@ SEED_ROWS = (("Unsteered", lambda c: c["intact"]),
              ("Factored steering", lambda c: c["comparisons"]["discounted_marginal_block_4"]),
              ("Joint steering", lambda c: c["comparisons"]["discounted_joint_block_4"]),
              ("Null, joint", lambda c: c["matched_null"]["discounted_joint"]))
+NO_EPS_STUDY = "reward_factors_persistent_nuisance_v2_jax_temp15_ctx32_2026_11"
+EPS05_STUDY = "reward_factors_persistent_nuisance_v2_jax_temp15_ctx32_eps05_2026_11"
+EPS02_STUDY = "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11"
 SEED_PANELS = (("xor", "XOR reward", (0.38, 0.64)), ("moving", "Moving reward, total", (0.94, 1.19)))
 
 
-def plot_seeds(reports: list[Path], output: Path) -> None:
-    """Per-seed long-run-map steering for the 15 no-ε agents, ε=0.05 agents overlaid."""
+def plot_seeds(reports: list[Path], output: Path, *, primary_study: str = NO_EPS_STUDY,
+               primary_label: str = "no ε (15 seeds)", overlay_study: str = EPS05_STUDY,
+               overlay_label: str = "ε=0.05 (2 seeds)") -> None:
+    """Per-seed long-run-map steering for one 15-seed setup, another setup overlaid."""
     loaded = [json.loads(p.read_text()) for p in reports]
-    no_eps = [r for r in loaded if r["source"]["study"].endswith("ctx32_2026_11")]
-    eps = [r for r in loaded if not r["source"]["study"].endswith("ctx32_2026_11")]
+    no_eps = [r for r in loaded if r["source"]["study"] == primary_study]
+    eps = [r for r in loaded if r["source"]["study"] == overlay_study]
     fig, axes = plt.subplots(1, 4, figsize=(7.4, 2.4), gridspec_kw={"wspace": 0.45,
                                                                    "width_ratios": (1.25, 1.25, 1, 1)})
     rng = np.random.default_rng(0)
@@ -151,11 +156,11 @@ def plot_seeds(reports: list[Path], output: Path) -> None:
             y = len(SEED_ROWS) - 1 - i
             values = [pick(r["rewards"][reward]["confirmation"])["total_reward"] for r in no_eps]
             ax.scatter(values, y + rng.uniform(-0.15, 0.15, len(values)), s=8, color="black",
-                       alpha=0.7, lw=0, label="no ε (15 seeds)" if i == 0 else None)
+                       alpha=0.7, lw=0, label=primary_label if i == 0 else None)
             ax.plot([np.mean(values)] * 2, [y - 0.3, y + 0.3], color="#2ca02c", lw=1.5)
             ax.scatter([pick(r["rewards"][reward]["confirmation"])["total_reward"] for r in eps],
                        [y + 0.3] * len(eps), s=14, marker="^", facecolor="none", edgecolor="#d62728",
-                       lw=0.7, label="ε=0.05 (2 seeds)" if i == 0 else None)
+                       lw=0.7, label=overlay_label if i == 0 else None)
         ax.axvline(exact, color="grey", ls="--", lw=0.7)
         ax.text(exact, len(SEED_ROWS) - 0.4, "exact\nbelief", fontsize=5.5, ha="center", va="bottom",
                 color="grey")
@@ -199,11 +204,16 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     plot_maps(args.output_dir / "v2_xor_moving_best_action_maps.pdf")
     reports = sorted(args.results.glob("*__reward_both__seed*.json"))
-    original = [p for p in reports if p.stem.endswith(("seed42", "seed43"))]
+    original = [p for p in reports if p.stem.startswith("ctx32")
+                and p.stem.endswith(("seed42", "seed43"))]
     if original:
         plot_rewards(original, args.output_dir / "v2_xor_moving_steering_reward_both.pdf")
-    if len(reports) > len(original):
+    if sum(p.stem.startswith("ctx32_2026_11") for p in reports) > 2:
         plot_seeds(reports, args.output_dir / "v2_xor_moving_steering_15_seeds.pdf")
+    if any(p.stem.startswith("eps02") for p in reports):
+        plot_seeds(reports, args.output_dir / "eps02_xor_moving_steering_15_seeds.pdf",
+                   primary_study=EPS02_STUDY, primary_label="PR #234 ε=0.02 emission (15 seeds)",
+                   overlay_study=NO_EPS_STUDY, overlay_label="PR #231 no ε (15 seeds)")
 
 
 if __name__ == "__main__":
