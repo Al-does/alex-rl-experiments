@@ -1,0 +1,303 @@
+{
+  "source": {
+    "study": "reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11",
+    "leaf": "reward_both_transformer",
+    "condition": "reward_both",
+    "seed": 50,
+    "run_id": "20261116T200607Z-16b33aa1",
+    "results": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/results/20261116T200607Z-16b33aa1",
+    "remote_prefix": "experiments/reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/20261116T200607Z-16b33aa1"
+  },
+  "checkpoint": "seed50__20261116T200607Z-16b33aa1__step_2012217344.npz",
+  "checkpoint_step": 2012217344,
+  "checkpoint_sha256": "bf2b5aec4891bbf9fc2333ccf9e4b0f55c13cae720c586d3c8d54ada6a587fee",
+  "environment": {
+    "source_study": "belief_quotient_history_jax_2026_11",
+    "environment_revision": "persistent_nuisance_eps02",
+    "baseline_transition_matrix": [
+      [
+        0.995505,
+        0.002495,
+        0.002
+      ],
+      [
+        0.002495,
+        0.995505,
+        0.002
+      ],
+      [
+        0.005,
+        0.005,
+        0.99
+      ]
+    ],
+    "emission_matrix": [
+      [
+        0.1125,
+        0.0375,
+        0.85
+      ],
+      [
+        0.0375,
+        0.1125,
+        0.85
+      ],
+      [
+        0.01,
+        0.01,
+        0.98
+      ]
+    ],
+    "effect_size": 2.5,
+    "directions": {
+      "1": [
+        [
+          0.0,
+          1.0,
+          -1.0
+        ],
+        [
+          0.0,
+          1.0,
+          -1.0
+        ],
+        [
+          0.0,
+          1.0,
+          -1.0
+        ]
+      ],
+      "2": [
+        [
+          0.0,
+          1.0,
+          -1.0
+        ],
+        [
+          0.0,
+          1.0,
+          -1.0
+        ],
+        [
+          0.0,
+          -1.0,
+          -1.0
+        ]
+      ],
+      "3": [
+        [
+          0.0,
+          1.0,
+          -1.0
+        ],
+        [
+          0.0,
+          -1.0,
+          1.0
+        ],
+        [
+          0.0,
+          -1.0,
+          -1.0
+        ]
+      ]
+    },
+    "initial_state_distribution": [
+      0.3333333333333333,
+      0.3333333333333333,
+      0.3333333333333333
+    ],
+    "reward_state": 2
+  },
+  "model": {
+    "chunk_len": 32,
+    "context_len": 32,
+    "feature_count": null,
+    "kind": "transformer",
+    "n_actions": 9,
+    "n_heads": 1,
+    "n_layers": 4,
+    "obs_dim": 18,
+    "width": 64
+  },
+  "policy_mode": "greedy",
+  "episode_horizon": 1024,
+  "reward_states_code": [
+    2,
+    2
+  ],
+  "fit_seed": 42,
+  "test_seed": 43,
+  "fit_rows": 60000,
+  "test_rows": 80000,
+  "map_warmup_dropped": 64,
+  "evaluation_warmup_dropped": 0,
+  "tune_seed": null,
+  "confirm_seed": 2042,
+  "tune_episodes": 0,
+  "confirm_episodes": 256,
+  "matmul_precision": "highest",
+  "map_solver": "numpy.linalg.lstsq float64 rcond=1e-10",
+  "action_change_reference": "intact forward on the same steered history and carry",
+  "probe_r2": {
+    "block_1": {
+      "joint": 0.7588521628047963
+    },
+    "block_2": {
+      "joint": 0.8533330892257407
+    },
+    "block_3": {
+      "joint": 0.8716292031860206
+    },
+    "block_4": {
+      "joint": 0.876339572504582
+    },
+    "post_final_norm": {
+      "joint": 0.853759971776265
+    }
+  },
+  "fixed_joint_strength": 1.0,
+  "confirmation": {
+    "intact": {
+      "factor_reward": [
+        0.4130516052246094,
+        0.4179801940917969
+      ],
+      "factor_reward_se": [
+        0.009611358398052869,
+        0.009566576271399063
+      ],
+      "total_reward": 0.8310317993164062,
+      "total_reward_se": 0.013739873504468975,
+      "factor_action_change_fraction": [
+        0.0,
+        0.0
+      ]
+    },
+    "random": {
+      "factor_reward": [
+        0.098358154296875,
+        0.10581588745117188
+      ],
+      "factor_reward_se": [
+        0.0026561735454586916,
+        0.0027640145510176425
+      ],
+      "total_reward": 0.20417404174804688,
+      "total_reward_se": 0.003975063131833847,
+      "factor_action_change_fraction": [
+        0.6655807495117188,
+        0.6668510437011719
+      ]
+    },
+    "joint_block_1": {
+      "factor_reward": [
+        0.40511322021484375,
+        0.10593032836914062
+      ],
+      "factor_reward_se": [
+        0.01004942493659613,
+        0.0031844886316708815
+      ],
+      "total_reward": 0.5110435485839844,
+      "total_reward_se": 0.010115085092178237,
+      "factor_action_change_fraction": [
+        0.06402587890625,
+        0.5965080261230469
+      ]
+    },
+    "joint_block_2": {
+      "factor_reward": [
+        0.38396453857421875,
+        0.057994842529296875
+      ],
+      "factor_reward_se": [
+        0.009195101193814883,
+        0.002258552136505563
+      ],
+      "total_reward": 0.4419593811035156,
+      "total_reward_se": 0.009444058504605729,
+      "factor_action_change_fraction": [
+        0.1003875732421875,
+        0.8040657043457031
+      ]
+    },
+    "joint_block_3": {
+      "factor_reward": [
+        0.3932037353515625,
+        0.054195404052734375
+      ],
+      "factor_reward_se": [
+        0.009113618070983364,
+        0.002197784150198575
+      ],
+      "total_reward": 0.4473991394042969,
+      "total_reward_se": 0.009305444300584786,
+      "factor_action_change_fraction": [
+        0.07843780517578125,
+        0.8006134033203125
+      ]
+    },
+    "joint_block_4": {
+      "factor_reward": [
+        0.3950347900390625,
+        0.052051544189453125
+      ],
+      "factor_reward_se": [
+        0.009227993795357783,
+        0.0021653522329624342
+      ],
+      "total_reward": 0.4470863342285156,
+      "total_reward_se": 0.009445300194187295,
+      "factor_action_change_fraction": [
+        0.08311080932617188,
+        0.8590927124023438
+      ]
+    },
+    "joint_post_final_norm": {
+      "factor_reward": [
+        0.3923301696777344,
+        0.052501678466796875
+      ],
+      "factor_reward_se": [
+        0.009023226029769191,
+        0.002248379664764167
+      ],
+      "total_reward": 0.44483184814453125,
+      "total_reward_se": 0.009090445571363959,
+      "factor_action_change_fraction": [
+        0.07408523559570312,
+        0.8157615661621094
+      ]
+    },
+    "joint_matched_null_block_4": {
+      "factor_reward": [
+        0.4097938537597656,
+        0.3912086486816406
+      ],
+      "factor_reward_se": [
+        0.009926815574253109,
+        0.010101371731890263
+      ],
+      "total_reward": 0.8010025024414062,
+      "total_reward_se": 0.014199911983532943,
+      "factor_action_change_fraction": [
+        0.0221099853515625,
+        0.0586700439453125
+      ]
+    }
+  },
+  "revisions": {
+    "experiment": {
+      "commit": "7e9fdee2d14f0abafbcc1fdffb80b870ed928559",
+      "dirty": false
+    },
+    "harness": {
+      "commit": "a267508fdeb523e95b3ef3fc42119102540bbe38",
+      "dirty": false
+    }
+  },
+  "wall_seconds": 84.02193023600012,
+  "jax_backend": "cpu",
+  "checkpoint_manifest_sha256_verified": true
+}
