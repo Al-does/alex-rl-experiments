@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path, PurePosixPath
+import shutil
 import tarfile
 import tempfile
 from types import SimpleNamespace
@@ -86,9 +87,33 @@ def restore(destination=DETAILS):
 
 def ensure_details():
     if not DETAILS.exists():
-        restore()
+        restore(DETAILS)
+    elif not (DETAILS/'index.json').exists():
+        if not any(p.is_file() for p in DETAILS.rglob('*')):
+            raise ValueError('empty report details')
+        references = ('probes/reinforce_reference.json', 'steering/reinforce_reference.json')
+        if any(not (DETAILS/name).exists() for name in references):
+            with tempfile.TemporaryDirectory(dir=DETAILS.parent) as temporary:
+                archived = Path(temporary)/'archived'
+                restore(archived)
+                for name in references:
+                    destination = DETAILS/name
+                    if not destination.exists():
+                        destination.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copyfile(archived/name, destination)
+        index_details(DETAILS)
     verify(DETAILS)
     return DETAILS
+
+
+def index_details(directory):
+    files = [p for p in sorted(directory.rglob('*')) if p.is_file() and p.name != 'index.json' and 'aggregates' not in p.relative_to(directory).parts]
+    if not files:
+        raise ValueError('empty report details')
+    index = {'files': [dict(relative_path=p.relative_to(directory).as_posix(),
+        sha256=hashlib.sha256(p.read_bytes()).hexdigest(), size_bytes=p.stat().st_size) for p in files]}
+    write(directory/'index.json', index)
+    return files
 
 
 def publish():
@@ -96,12 +121,7 @@ def publish():
     config = B2StorageConfig.from_env()
     if config is None:
         raise RuntimeError('B2 settings required to publish report details')
-    files = [p for p in sorted(DETAILS.rglob('*')) if p.is_file() and p.name != 'index.json' and 'aggregates' not in p.relative_to(DETAILS).parts]
-    if not files:
-        raise ValueError('empty report details')
-    index = {'files': [dict(relative_path=p.relative_to(DETAILS).as_posix(),
-        sha256=hashlib.sha256(p.read_bytes()).hexdigest(), size_bytes=p.stat().st_size) for p in files]}
-    write(DETAILS/'index.json', index)
+    files = index_details(DETAILS)
     verify(DETAILS)
     directory = ROOT/'artifacts/report_archive'
     directory.mkdir(parents=True, exist_ok=True)

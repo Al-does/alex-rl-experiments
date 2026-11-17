@@ -99,3 +99,45 @@ def test_restore_requires_credentials(tmp_path, monkeypatch):
         details.restore(tmp_path/'details')
     with pytest.raises(RuntimeError, match='B2 settings required'):
         details.checkpoint('run', {'step': 0})
+
+
+def test_fresh_collection_is_indexed_without_replacing_agents(tmp_path, monkeypatch):
+    monkeypatch.setattr(details, 'DETAILS', tmp_path/'fresh')
+    agent = details.DETAILS/'probes/agents/fresh.json'
+    details.write(agent, {'fresh': True})
+    restored = []
+
+    def restore(destination):
+        restored.append(destination)
+        details.write(destination/'probes/reinforce_reference.json', {'probe': True})
+        details.write(destination/'steering/reinforce_reference.json', {'steering': True})
+        details.write(destination/'probes/agents/stale.json', {'fresh': False})
+
+    monkeypatch.setattr(details, 'restore', restore)
+    assert details.ensure_details() == details.DETAILS
+    assert details.verify(details.DETAILS) == 3
+    assert details.read(agent) == {'fresh': True}
+    assert not (agent.parent/'stale.json').exists()
+    assert len(restored) == 1
+    agent.write_bytes(b'corrupted')
+    with pytest.raises(ValueError, match='integrity mismatch'):
+        details.ensure_details()
+    assert len(restored) == 1
+
+
+def test_absent_details_still_restore_and_empty_collection_rejected(tmp_path, monkeypatch):
+    monkeypatch.setattr(details, 'DETAILS', tmp_path/'absent')
+    restored = []
+
+    def restore(destination):
+        restored.append(destination)
+        details.write(destination/'input.json', {'archived': True})
+        details.index_details(destination)
+
+    monkeypatch.setattr(details, 'restore', restore)
+    assert details.ensure_details() == details.DETAILS
+    assert restored == [details.DETAILS]
+    monkeypatch.setattr(details, 'DETAILS', tmp_path/'empty')
+    details.DETAILS.mkdir()
+    with pytest.raises(ValueError, match='empty report details'):
+        details.ensure_details()

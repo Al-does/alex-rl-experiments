@@ -121,7 +121,11 @@ are required when ignored inputs/checkpoints are absent):
 ```
 
 Reports automatically restore missing details, and reject corrupted indexed
-inputs rather than silently accepting or replacing them. Derived full
+inputs rather than silently accepting or replacing them.
+Fresh collector directories without an index are indexed locally on first
+reporting; missing REINFORCE reference inputs are restored from the verified
+archive without importing archived agents or overwriting local inputs. This
+local index is not a B2 durability claim; publishing remains explicit. Derived full
 aggregates go to ignored `artifacts/report_details/aggregates/`; validation
 checks exact equality with archived pre-slim aggregates and checks compact
 projections. Missing checkpoints are restored from their canonical manifests;
