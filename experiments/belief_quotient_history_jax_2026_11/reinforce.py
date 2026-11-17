@@ -161,7 +161,8 @@ def surrogate_loss(spec, config, params, batch, entropy_coeff):
     return loss, {"policy_loss": -surrogate.mean(), "entropy": entropy.mean()}
 
 
-def make_iteration(spec, process, config: TrainConfig, optimizer):
+def make_iteration(spec, process, config: TrainConfig, optimizer, *,
+                   loss_fn=surrogate_loss, prepare_batch=None):
     def update(params, opt_state, batch, entropy_coeff, key):
         n = config.num_envs
         size = n // config.num_minibatches
@@ -171,7 +172,7 @@ def make_iteration(spec, process, config: TrainConfig, optimizer):
                 params, opt_state = carry
                 sub = jax.tree_util.tree_map(lambda a: a[indices], batch)
                 (_, info), grads = jax.value_and_grad(
-                    partial(surrogate_loss, spec, config), has_aux=True
+                    partial(loss_fn, spec, config), has_aux=True
                 )(params, sub, entropy_coeff)
                 updates, opt_state = optimizer.update(grads, opt_state, params)
                 info["grad_norm"] = optax.tree.norm(grads)
@@ -193,7 +194,10 @@ def make_iteration(spec, process, config: TrainConfig, optimizer):
         batch = {name: records[name] for name in ("obs", "action", "logp")}
         if spec.kind == "gru":
             batch["chunk_starts"] = records["chunk_starts"]
-        batch["advantages"] = standardized_advantages(records["reward"], config.gamma)
+        if prepare_batch is None:
+            batch["advantages"] = standardized_advantages(records["reward"], config.gamma)
+        else:
+            batch.update(prepare_batch(spec, config, params, records))
         params, opt_state, info = update(params, opt_state, batch, entropy_coeff, update_key)
         actions = jax.nn.one_hot(records["action"], spec.n_actions).mean((0, 1))
         metrics = {
@@ -211,7 +215,8 @@ def make_iteration(spec, process, config: TrainConfig, optimizer):
 
 def train(spec, process, config: TrainConfig, *, seed: int, checkpoint_steps=(),
           on_checkpoint: Callable | None = None, log: Callable | None = None,
-          initial_params=None, step_offset: int = 0):
+          initial_params=None, step_offset: int = 0, init_fn=models.init_params,
+          iteration_fn=make_iteration):
     """Run the recipe; ``on_checkpoint(steps, params)`` fires at the start, each
     requested threshold crossing, and the end.
 
@@ -221,11 +226,11 @@ def train(spec, process, config: TrainConfig, *, seed: int, checkpoint_steps=(),
     parameters are checkpointed, so Adam moments restart from zero."""
 
     root = jax.random.PRNGKey(seed)
-    params = initial_params if initial_params is not None else models.init_params(
+    params = initial_params if initial_params is not None else init_fn(
         spec, jax.random.fold_in(root, 0))
     optimizer = optax.adam(config.lr)
     opt_state = optimizer.init(params)
-    iteration = make_iteration(spec, process, config, optimizer)
+    iteration = iteration_fn(spec, process, config, optimizer)
     if step_offset % config.batch_steps:
         raise ValueError("step_offset must be a whole number of rollouts")
     first_index = step_offset // config.batch_steps
