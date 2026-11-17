@@ -137,7 +137,7 @@ def test_action_rule_lookup_recovers_a_threshold_rule():
     assert blind == pytest.approx(0.7, abs=0.05)
 
 
-def _write_run(tmp_path, *, horizon=192, final_step=4096, use_ppo=False):
+def _write_run(tmp_path, *, horizon=192, final_step=4096, use_ppo=False, training_smoke=False):
     process = env.ladder_process(0.05)
     spec = models.architecture_spec("transformer", obs_dim=6, n_actions=3, n_tokens=3,
                                     context_len=32)
@@ -154,7 +154,7 @@ def _write_run(tmp_path, *, horizon=192, final_step=4096, use_ppo=False):
     files = {
         "resolved_recipe": {
             "study": shared.STUDY, "condition": "asym_050", "seed": 7, "framework": "jax",
-            "continued_from": None, "model": asdict(spec),
+            "continued_from": None, "smoke": training_smoke, "model": asdict(spec),
             "training": training, "emission_asymmetry_kappa": 0.05,
             "process": {name: np.asarray(value).tolist()
                         for name, value in process._asdict().items()},
@@ -187,10 +187,14 @@ def test_checkpoints_are_verified_against_the_durability_manifest(tmp_path):
         analysis.verified_checkpoints(run, checkpoint_dir)
 
 
-@pytest.mark.parametrize("use_ppo", [False, True], ids=["reinforce", "ppo"])
-def test_analysis_and_report_end_to_end(tmp_path, use_ppo):
-    run_dir, checkpoint_dir = _write_run(tmp_path, use_ppo=use_ppo)
-    result = analysis.analyze(run_dir, checkpoint_dir, smoke=True)
+@pytest.mark.parametrize("use_ppo,training_smoke", [
+    (False, False), (True, False), (True, True),
+], ids=["reinforce", "ppo", "ppo-smoke-training"])
+def test_analysis_and_report_end_to_end(tmp_path, monkeypatch, use_ppo, training_smoke):
+    run_dir, checkpoint_dir = _write_run(tmp_path, use_ppo=use_ppo, training_smoke=training_smoke)
+    monkeypatch.setattr(analysis, "BUDGET", analysis.SMOKE_BUDGET)
+    result = analysis.analyze(run_dir, checkpoint_dir, smoke=not training_smoke,
+                              allow_unverified=training_smoke)
     json.dumps(result)
     assert result["lumpability_defect"]["emission"] == pytest.approx(0.1, abs=1e-6)
     assert result["protocol"]["n_test_rows"] == 8 * (192 - analysis.WARMUP)

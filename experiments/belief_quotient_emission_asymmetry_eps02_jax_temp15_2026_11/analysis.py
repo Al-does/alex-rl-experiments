@@ -379,7 +379,7 @@ def analyze(run_dir, checkpoint_dir, *, smoke=False, allow_unverified=False):
     resampling = {"seed": FIT_SEED, "n_resamples": budget["n_resamples"]}
     return {
         "study": recipe["study"], "condition": recipe["condition"], "seed": recipe["seed"],
-        "run_id": run["run_manifest"]["run_id"], "smoke": smoke,
+        "run_id": run["run_manifest"]["run_id"], "smoke": smoke or recipe.get("smoke", False),
         "emission_asymmetry_kappa": recipe.get("emission_asymmetry_kappa"),
         "lumpability_defect": environment.lumpability_defect(full),
         "process": {name: value.tolist() for name, value in full.items()},
