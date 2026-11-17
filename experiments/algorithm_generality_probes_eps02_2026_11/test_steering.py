@@ -1,6 +1,7 @@
 import ast
 import inspect
 import subprocess
+import sys
 
 from . import analyze
 from . import steer_core as core, steer_prediction as prediction, steer_moving as moving
@@ -131,3 +132,19 @@ def test_pinned_functions_and_ladder_numerical_driver_unchanged():
     adapted = inspect.getsource(steer_ladder.run)
     actual = adapted[adapted.index('    rows, length ='):adapted.index('    report = dict')]
     assert numerical == actual
+
+
+def test_references_only_refresh_writes_reference_destination(tmp_path, monkeypatch, capsys):
+    from . import steering_report
+    monkeypatch.setattr(steering_report, 'DETAILS', tmp_path)
+    monkeypatch.setattr(steering_report, 'ensure_details', lambda: tmp_path)
+    monkeypatch.setattr(sys, 'argv', ['steering_report', '--references-only'])
+    steering_report.main()
+    output = tmp_path/'steering/reinforce_reference.json'
+    result = analyze.read(output)
+    assert len(result['ladder']) == 45 and len(result['moving']) == 15
+    assert len(result['inputs']) == 61
+    assert all(len(row['sha256']) == 64 for row in result['inputs'])
+    assert steering_report.references() == result
+    assert list(tmp_path.rglob('*.json')) == [output]
+    assert 'Extracted 45 ladder and 15 moving REINFORCE references' in capsys.readouterr().out

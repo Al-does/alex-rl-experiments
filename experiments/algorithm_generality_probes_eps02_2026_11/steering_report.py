@@ -18,9 +18,9 @@ NAMES = {1: 'Trivial Quotient', 2: 'Reward-State Quotient', 3: 'Full-State Quoti
 
 
 def references(refresh=False):
-    path = DETAILS/'steering/reinforce_reference.json'
-    if path.exists() and not refresh:
-        return read(path)
+    output = DETAILS/'steering/reinforce_reference.json'
+    if output.exists() and not refresh:
+        return read(output)
     inputs = []
 
     def load(rev, path):
@@ -41,7 +41,7 @@ def references(refresh=False):
                            selected=r['rewards']['moving']['strength_tuning']['selected_strength']))
     reference = load(LADDER, 'experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/results/belief_steering_reference.json')
     result = dict(inputs=inputs, ladder=ladder, moving=moving, numerical_ladder_reference=reference)
-    write(path, result)
+    write(output, result)
     return result
 
 
