@@ -13,6 +13,7 @@ from pathlib import Path
 import jax
 import jax.numpy as jnp
 import numpy as np
+from botocore.exceptions import ClientError
 
 import harness
 from experiments.two_factor_moved_reward_steering_v2_jax_2026_11 import steering as base
@@ -20,6 +21,36 @@ from experiments.two_factor_coupled_moving_reward_steering_eps02_jax_2026_11 imp
 
 STUDY_DIR = Path(__file__).resolve().parent
 TARGETS = ("factored", "joint")
+
+
+def fetch_checkpoint(run, checkpoints, step):
+    if step == source.FINAL_STEP:
+        return source.fetch_checkpoint(run, checkpoints), True
+    config = source.B2StorageConfig.from_env()
+    if config is None:
+        raise RuntimeError("B2_* settings are required to fetch checkpoints")
+    client = config.s3_client()
+    relative = f"checkpoints/step_{step:010d}.npz"
+    expected = None
+    try:
+        manifest = json.loads(client.get_object(
+            Bucket=config.bucket, Key=f"{run['remote_prefix']}/metadata/durability_manifest.json",
+        )["Body"].read())
+    except ClientError as error:
+        if error.response["Error"]["Code"] not in ("NoSuchKey", "404"):
+            raise
+    else:
+        matches = [f["sha256"] for f in manifest["files"] if f["relative_path"] == relative]
+        if len(matches) > 1:
+            raise ValueError(f"duplicate durability entries: {relative}")
+        expected = matches[0] if matches else None
+    path = checkpoints / f"seed{run['seed']}__{run['run_id']}__step_{step:010d}.npz"
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        client.download_file(config.bucket, f"{run['remote_prefix']}/{relative}", str(path))
+    if expected and hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+        raise ValueError(f"{path}: SHA-256 does not match the durability manifest")
+    return path, expected is not None
 
 
 def suppression_target(decoded, target):
@@ -91,7 +122,8 @@ def select_strength(sweep, random_reward):
 
 
 def analyze(run, checkpoint, *, fit_rows=base.FIT_ROWS, test_rows=base.TEST_ROWS,
-            tune_episodes=64, confirm_episodes=256):
+            tune_episodes=64, confirm_episodes=256, fixed_joint_strength=None,
+            checkpoint_step=source.FINAL_STEP):
     recipe = json.loads((base.REPO / run["results"] / "resolved_recipe.json").read_text())
     spec = base.models.ModelSpec(**recipe["model"])
     process = source.source_process()
@@ -106,7 +138,7 @@ def analyze(run, checkpoint, *, fit_rows=base.FIT_ROWS, test_rows=base.TEST_ROWS
     sites = [f"block_{i + 1}" for i in range(spec.n_layers)] + ["post_final_norm"]
     for site, name in enumerate(sites):
         probes[name] = {}
-        for target in TARGETS:
+        for target in (TARGETS if fixed_joint_strength is None else ("joint",)):
             key = "marginal" if target == "factored" else target
             features = fit["sites"][:, site].astype(np.float64)
             decoder, bias = base.affine_fit(features, fit_y[key].astype(np.float64))
@@ -123,34 +155,39 @@ def analyze(run, checkpoint, *, fit_rows=base.FIT_ROWS, test_rows=base.TEST_ROWS
                         "strength": jnp.float32(strength), "use_null": jnp.bool_(use_null)})
 
     final = spec.n_layers - 1
-    tuning = {policy: evaluate(spec, params, process, episodes=tune_episodes, seed=1042,
-                              policy=policy) for policy in ("intact", "random")}
-    sweeps, selected = {}, {}
-    for target in TARGETS:
-        sweeps[target] = {str(s): evaluate_at(final, target, s, tune_episodes, 1042)
-                          for s in base.STRENGTHS}
-        selected[target] = select_strength(sweeps[target], tuning["random"]["factor_reward"][1])
+    tuning, sweeps, selected = {}, {}, {}
+    if fixed_joint_strength is None:
+        tuning = {policy: evaluate(spec, params, process, episodes=tune_episodes, seed=1042,
+                                  policy=policy) for policy in ("intact", "random")}
+        for target in TARGETS:
+            sweeps[target] = {str(s): evaluate_at(final, target, s, tune_episodes, 1042)
+                              for s in base.STRENGTHS}
+            selected[target] = select_strength(sweeps[target], tuning["random"]["factor_reward"][1])
     confirmation = {policy: evaluate(spec, params, process, episodes=confirm_episodes, seed=2042,
                                    policy=policy) for policy in ("intact", "random")}
-    for target in TARGETS:
-        strength = selected[target]["strength"]
+    for target in (TARGETS if fixed_joint_strength is None else ("joint",)):
+        strength = selected[target]["strength"] if fixed_joint_strength is None else fixed_joint_strength
         for site, name in enumerate(sites):
             confirmation[f"{target}_{name}"] = evaluate_at(site, target, strength, confirm_episodes, 2042)
         confirmation[f"{target}_matched_null_block_{final + 1}"] = evaluate_at(
             final, target, strength, confirm_episodes, 2042, True)
     return {"source": {k: str(v) if isinstance(v, Path) else v for k, v in run.items()},
-            "checkpoint": checkpoint.name, "checkpoint_step": source.FINAL_STEP,
+            "checkpoint": checkpoint.name, "checkpoint_step": checkpoint_step,
             "checkpoint_sha256": hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
             "environment": source.environment.environment_metadata(), "model": recipe["model"],
             "policy_mode": "greedy", "episode_horizon": base.HORIZON,
             "reward_states_code": [2, 2], "fit_seed": 42, "test_seed": 43,
             "fit_rows": fit_rows, "test_rows": test_rows, "map_warmup_dropped": base.WARMUP,
-            "evaluation_warmup_dropped": 0, "tune_seed": 1042, "confirm_seed": 2042,
-            "tune_episodes": tune_episodes, "confirm_episodes": confirm_episodes,
+            "evaluation_warmup_dropped": 0,
+            "tune_seed": 1042 if fixed_joint_strength is None else None, "confirm_seed": 2042,
+            "tune_episodes": tune_episodes if fixed_joint_strength is None else 0,
+            "confirm_episodes": confirm_episodes,
             "matmul_precision": "highest", "map_solver": "numpy.linalg.lstsq float64 rcond=1e-10",
             "action_change_reference": "intact forward on the same steered history and carry",
-            "probe_r2": probes, "strength_tuning": {**tuning, "grid": sweeps,
-                "selected": selected}, "confirmation": confirmation}
+            "probe_r2": probes,
+            **({"strength_tuning": {**tuning, "grid": sweeps, "selected": selected}}
+               if fixed_joint_strength is None else {"fixed_joint_strength": fixed_joint_strength}),
+            "confirmation": confirmation}
 
 
 def main():
@@ -161,27 +198,44 @@ def main():
     parser.add_argument("--tune-episodes", type=int, default=64)
     parser.add_argument("--confirm-episodes", type=int, default=256)
     parser.add_argument("--checkpoints", type=Path, default=STUDY_DIR / "artifacts/checkpoints")
-    parser.add_argument("--output-dir", type=Path, default=STUDY_DIR / "results")
+    parser.add_argument("--checkpoint-step", type=int, default=source.FINAL_STEP)
+    parser.add_argument("--fixed-joint-strength", type=float)
+    parser.add_argument("--output-dir", type=Path)
     args = parser.parse_args()
     if not set(args.agent_seeds) <= set(range(42, 57)) or min(args.fit_rows, args.test_rows) < 2:
         parser.error("agent seeds must be 42–56 and row budgets at least two")
     if min(args.tune_episodes, args.confirm_episodes) < 2:
         parser.error("episode budgets must be at least two")
+    if args.checkpoint_step < 0:
+        parser.error("checkpoint step must be nonnegative")
+    if args.fixed_joint_strength is not None and (
+            not math.isfinite(args.fixed_joint_strength) or args.fixed_joint_strength < 0):
+        parser.error("fixed joint strength must be finite and nonnegative")
+    output_dir = args.output_dir or STUDY_DIR / "results"
+    if args.output_dir is None:
+        if args.fixed_joint_strength is not None:
+            output_dir /= f"joint_fixed_{args.fixed_joint_strength}"
+        if args.checkpoint_step != source.FINAL_STEP:
+            output_dir /= f"step_{args.checkpoint_step:010d}"
     revisions = {"experiment": base._git(STUDY_DIR),
                  "harness": base._git(Path(harness.__file__).resolve().parent)}
     with jax.default_matmul_precision("highest"):
         for run in source.source_runs():
             if run["seed"] not in args.agent_seeds:
                 continue
-            output = args.output_dir / f"eps02_factor2_suppression__seed{run['seed']}.json"
+            output = output_dir / f"eps02_factor2_suppression__seed{run['seed']}.json"
             if output.exists():
                 raise FileExistsError(output)
             start = time.monotonic()
-            report = analyze(run, source.fetch_checkpoint(run, args.checkpoints),
+            checkpoint, verified = fetch_checkpoint(run, args.checkpoints, args.checkpoint_step)
+            report = analyze(run, checkpoint,
                              fit_rows=args.fit_rows, test_rows=args.test_rows,
-                             tune_episodes=args.tune_episodes, confirm_episodes=args.confirm_episodes)
+                             tune_episodes=args.tune_episodes, confirm_episodes=args.confirm_episodes,
+                             fixed_joint_strength=args.fixed_joint_strength,
+                             checkpoint_step=args.checkpoint_step)
             report.update(revisions=revisions, wall_seconds=time.monotonic() - start,
-                          jax_backend=jax.default_backend())
+                          jax_backend=jax.default_backend(),
+                          checkpoint_manifest_sha256_verified=verified)
             output.parent.mkdir(parents=True, exist_ok=True)
             output.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
             print(f"seed {run['seed']} done in {report['wall_seconds']:.1f}s: {output}", flush=True)

@@ -1,3 +1,10 @@
+import hashlib
+import io
+import json
+import sys
+from dataclasses import asdict
+from pathlib import Path
+
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -64,3 +71,88 @@ def test_zero_steering_null_norm_and_complete_episode_rewards():
     assert intact["total_reward"] == sum(intact["factor_reward"])
     with pytest.raises(ValueError, match="at least two"):
         s.evaluate(spec, params, process, episodes=1, seed=0)
+
+
+def test_fixed_joint_cli_skips_tuning_and_keeps_original_outputs(monkeypatch, tmp_path):
+    recipe_dir = tmp_path / "recipe"
+    recipe_dir.mkdir()
+    spec = s.base.models.ModelSpec(kind="transformer", obs_dim=18, n_actions=9, width=16,
+                                   n_layers=4, context_len=4, chunk_len=4)
+    process = s.source.source_process()
+    (recipe_dir / "resolved_recipe.json").write_text(json.dumps({"model": asdict(spec),
+        "process": {k: np.asarray(v).tolist() for k, v in process._asdict().items()}}))
+    checkpoint = tmp_path / "checkpoint.npz"
+    checkpoint.write_bytes(b"test")
+    monkeypatch.setattr(s, "STUDY_DIR", tmp_path)
+    monkeypatch.setattr(s.source, "source_runs", lambda: [{"seed": 42, "results": recipe_dir}])
+    monkeypatch.setattr(s, "fetch_checkpoint", lambda *args: (checkpoint, True))
+    monkeypatch.setattr(s.base, "_git", lambda path: {"commit": "test", "dirty": False})
+    monkeypatch.setattr(s.base, "load_params", lambda *args: None)
+    rng = np.random.default_rng(3)
+    rows = {"belief": rng.dirichlet(np.ones(9), 64), "sites": rng.normal(size=(64, 5, 16))}
+    monkeypatch.setattr(s.base, "collect_rows", lambda *args, **kwargs: rows)
+    calls = []
+
+    def evaluate(*args, **kwargs):
+        calls.append(kwargs)
+        assert kwargs["seed"] == 2042
+        return {"factor_reward": [.4, .1], "total_reward": .5}
+
+    monkeypatch.setattr(s, "evaluate", evaluate)
+    monkeypatch.setattr(sys, "argv", ["steering", "--agent-seeds", "42", "--fixed-joint-strength", "1.0"])
+    s.main()
+    report_path = tmp_path / "results/joint_fixed_1.0/eps02_factor2_suppression__seed42.json"
+    report = json.loads(report_path.read_text())
+    assert report["fixed_joint_strength"] == 1.
+    assert report["tune_episodes"] == 0 and "strength_tuning" not in report
+    assert report["checkpoint_manifest_sha256_verified"]
+    assert len(calls) == 8
+    assert [c["site"] for c in calls[2:7]] == list(range(5))
+    assert all(float(c["steer"]["strength"]) == 1 for c in calls[2:])
+    assert bool(calls[-1]["steer"]["use_null"])
+    with pytest.raises(FileExistsError):
+        s.main()
+    monkeypatch.setattr(sys, "argv", ["steering", "--fixed-joint-strength", "nan"])
+    with pytest.raises(SystemExit):
+        s.main()
+
+
+@pytest.mark.parametrize("has_digest", [True, False])
+def test_selectable_checkpoint_verification(monkeypatch, tmp_path, has_digest):
+    payload = b"checkpoint"
+    class Client:
+        def get_object(self, **kwargs):
+            return {"Body": io.BytesIO(json.dumps({"files": [{
+                "relative_path": "checkpoints/step_0000000123.npz",
+                "sha256": hashlib.sha256(payload).hexdigest()}] if has_digest else []}).encode())}
+
+        def download_file(self, bucket, key, path):
+            Path(path).write_bytes(payload)
+
+    class Config:
+        bucket = "test"
+        def s3_client(self):
+            return Client()
+
+    monkeypatch.setattr(s.source.B2StorageConfig, "from_env", lambda: Config())
+    run = {"seed": 42, "run_id": "run", "remote_prefix": "prefix"}
+    path, verified = s.fetch_checkpoint(run, tmp_path, 123)
+    assert verified == has_digest and "step_0000000123" in path.name
+    path.write_bytes(b"corrupt")
+    if has_digest:
+        with pytest.raises(ValueError, match="SHA-256"):
+            s.fetch_checkpoint(run, tmp_path, 123)
+
+
+def test_fixed_summary_ratios_and_count():
+    reports = [{"source": {"seed": seed}, "fixed_joint_strength": 1., "checkpoint_step": 123,
+        "confirmation": {c: {"factor_reward": pair, "total_reward": sum(pair)} for c, pair in
+                         {"intact": [.4, .4], "random": [.1, .1],
+                          "joint_block_4": [.3, f2]}.items()}} for seed, f2 in ((42, .05), (43, .15))]
+    result = summarize(reports)
+    assert result["joint_block_4_below_random"] == 1
+    assert result["across_agent"]["joint_block_4"]["F2/random"] == pytest.approx({"mean": 1., "seed_se": .5})
+    np.testing.assert_allclose(result["across_agent"]["joint_block_4"]["F1/intact"]["mean"], .75)
+    reports[1]["fixed_joint_strength"] = .9
+    with pytest.raises(ValueError, match="inconsistent fixed"):
+        summarize(reports)
