@@ -96,6 +96,36 @@ therefore zero **by design**, not evidence of zero Monte Carlo uncertainty.
 | Joint, block 4 | 0.39560 ± 0.00165 | 0.08960 ± 0.00371 | 0.48521 ± 0.00439 |
 | Joint, post-final-norm | 0.39307 ± 0.00169 | 0.09431 ± 0.00438 | 0.48738 ± 0.00383 |
 
+## Fixed joint λ=1.0 confirmation
+
+`results/joint_fixed_1.0/summary.json` aggregates a separate, **untuned**
+confirmation at joint λ=1.0 for all 15 agents and all five sites, plus a
+block-4 matched-norm decoder-orthogonal control at the same strength. All runs
+used local CPU, the same SHA-verified 2,012,217,344-step checkpoints, full-size
+60,000/80,000-row maps, and 256 complete episodes at confirmation seed 2042.
+Intact/random were recomputed on the same streams. Original tuned outputs
+were not overwritten. Fixed-mode driver revision: `7e9fdee2`.
+
+Values are mean ± training-seed SE. F2/random and F1/intact are means of
+per-agent ratios, with SEs across those ratios, not ratios of aggregate means.
+
+| Joint site/condition | F1 | F2 | F2/random | F1/intact |
+| --- | ---: | ---: | ---: | ---: |
+| Intact | 0.40269 ± 0.00220 | 0.40731 ± 0.00386 | 3.84923 ± 0.03647 | 1.00000 ± 0.00000 |
+| Uniform random | 0.09836 ± 0.00000 | 0.10582 ± 0.00000 | 1.00000 ± 0.00000 | 0.24435 ± 0.00135 |
+| Block 1 | 0.39953 ± 0.00227 | 0.12161 ± 0.00821 | 1.14927 ± 0.07759 | 0.99249 ± 0.00732 |
+| Block 2 | 0.39164 ± 0.00220 | 0.06887 ± 0.00348 | 0.65084 ± 0.03286 | 0.97301 ± 0.00813 |
+| Block 3 | 0.39398 ± 0.00173 | 0.05760 ± 0.00158 | 0.54430 ± 0.01494 | 0.97881 ± 0.00737 |
+| Block 4 | 0.39062 ± 0.00219 | 0.05685 ± 0.00182 | 0.53727 ± 0.01718 | 0.97041 ± 0.00741 |
+| Post-final-norm | 0.38844 ± 0.00224 | 0.05788 ± 0.00179 | 0.54703 ± 0.01693 | 0.96503 ± 0.00777 |
+| Matched-null, block 4 | 0.39721 ± 0.00310 | 0.38287 ± 0.00612 | 3.61822 ± 0.05786 | 0.98635 ± 0.00519 |
+
+**15/15 agents are strictly below random at block 4.** At that site, joint
+λ=1.0 reduces F2 to 0.53727× random while retaining 97.041% of intact F1
+(mean per-agent retention). The matched-null control retains near-intact F2
+rather than reproducing suppression. Block 1 fails to reach random on the
+across-agent mean at λ=1.0 (1.14927× random); the later sites all fall below it.
+
 ## Per-seed strengths and final-block F2
 
 Both targets reached the tuning random baseline for every row (15/15 each).
@@ -142,6 +172,34 @@ budget, context, sample budgets, tuning grid, and uncertainty unit differ.
 Do not compare old episode SEs directly to new training-seed SEs, substitute
 the separate old 300M continuation, or treat the old single-seed table as a
 multi-seed result.
+
+### Paper Appendix E, Table 4 comparison
+
+The paper's Appendix E, Table 4 reports the old-environment, single
+30M-step seed-42 agent above, with joint λ=0.5 and **episode SEs**. All its
+joint block interventions were below random. Its intact F1/F2 were
+0.3130/0.3134, random 0.1633/0.1617, joint 0.3130/0.1087, and factored
+0.2835/0.1357. The following ratios use those published old means; new ratios
+are recomputed from the per-agent JSONs (tuned) or the fixed summary. New
+uncertainties are **training-seed SEs** and are not comparable to the paper's
+episode SEs. This is not a head-to-head comparison.
+
+| Study / final-block intervention | F2/random | F1 kept (% of intact) |
+| --- | ---: | ---: |
+| Appendix E joint, λ=0.5 | 0.67223 | 100.000% |
+| Appendix E factored, λ=0.9 | 0.83921 | 90.575% |
+| ε=0.02 joint, tuned λ=0.75–0.90 | 0.84676 ± 0.03503 | 98.271% ± 0.563 pp |
+| ε=0.02 factored, tuned | 0.88854 ± 0.02037 | 94.981% ± 1.453 pp |
+| ε=0.02 joint, fixed λ=1.0 | 0.53727 ± 0.01718 | 97.041% ± 0.741 pp |
+
+The smallest-λ-reaching-random selection rule lands the new agents near the
+threshold rather than maximizing suppression. Their selected joint strengths
+(0.75, 0.80, 0.85, 0.90) are larger than the old agent's λ=0.5, but at λ=1.0
+they suppress F2 more strongly relative to random, at a small F1 cost.
+This does not establish a shared strength-response scale across the different
+agents/environments. Unlike the old result across joint blocks, block 1 here
+still fails on the mean at λ=1.0. Baseline difficulty also differs: intact F2
+is **3.84923 ± 0.03647× random** here versus **1.93816×** for the old agent.
 
 ## Execution and infrastructure
 
