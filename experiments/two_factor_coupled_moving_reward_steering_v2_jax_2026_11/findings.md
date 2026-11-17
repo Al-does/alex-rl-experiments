@@ -195,6 +195,9 @@ n=15; sd across seeds; block 4, long-run map (`results/summary_eps02.json`,
 - Decoding is worse: final joint-belief 1−R² is 0.131 on average (no ε: 0.099).
   Pearson r with steered reward: XOR joint −0.78 (p<0.001), XOR factored −0.28
   (p=0.32), moving joint −0.44 (p=0.10), moving factored 0.04 (p=0.89).
+- Held-out decoder R² of the steering maps (`results/eps02_probe_r2.json`,
+  `probe_r2.py`: same fit rollout, 80,000 test rows at seed 43), block 4:
+  factored 0.89–0.93, joint 0.84–0.90 (no-ε four agents: 0.91–0.93 / 0.87–0.91).
 - Nulls are flat except joint nulls at large tuned λ: seed 55 moving (λ=3.0,
   0.778) and seeds 52/56 XOR (drops of 0.03–0.05).
 - Reports record `experiment.dirty = true` on `569c2183` (merge of `main` into
@@ -231,6 +234,15 @@ About 40 minutes on 8 CPU cores with the four agents in parallel (`--only`); the
 `--only ctx32_2026_11/reward_both_transformer/seed44`. Checkpoints come from each
 run's B2 prefix, `checkpoints/step_2012217344.npz`, renamed to the
 `checkpoint_path` pattern in the PR #226 study.
+
+Decoder R² for the PR #234 agents (a few minutes per agent):
+
+```bash
+uv run --group jax python -m experiments.two_factor_coupled_moving_reward_steering_v2_jax_2026_11.probe_r2 \
+  --study reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11 \
+  --checkpoints experiments/two_factor_coupled_moving_reward_steering_v2_jax_2026_11/artifacts/checkpoints \
+  --output experiments/two_factor_coupled_moving_reward_steering_v2_jax_2026_11/results/eps02_probe_r2.json
+```
 
 PR #234 agents (~90 min, 8 in parallel; checkpoints named
 `eps02_ctx32_2026_11__<leaf>__seed<seed>__<run_id>__step_*.npz`):
