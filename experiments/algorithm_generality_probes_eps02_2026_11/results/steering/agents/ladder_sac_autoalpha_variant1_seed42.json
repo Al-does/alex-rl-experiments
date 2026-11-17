@@ -1,0 +1,2657 @@
+{
+  "schema": 3,
+  "payload_kind": "compact_summary",
+  "full_report": {
+    "local_path": "experiments/algorithm_generality_probes_eps02_2026_11/artifacts/steering/full/ladder_sac_autoalpha_variant1_seed42/full_report.json",
+    "sha256": "bb66593ee8ab3ac9ff220bc367fd474e7c3b5a6bdda6a0302e23875aa4386090"
+  },
+  "variant": 1,
+  "seed": 42,
+  "smoke": false,
+  "protocol": {
+    "fit_rows": 12000,
+    "test_rows": 12000,
+    "fit_seed": 42,
+    "test_seed": 43,
+    "exclusion": 8,
+    "supplemental_exclusion": 128,
+    "affine_rcond": 1e-06,
+    "affine_matmul_precision": "HIGHEST",
+    "tune_seed": 1042,
+    "tune_episodes": 16,
+    "confirm_seed": 2042,
+    "confirm_episodes": 32,
+    "episode_length": 1024,
+    "lambdas": [
+      0.0,
+      0.25,
+      0.4,
+      0.45,
+      0.5,
+      0.55,
+      0.6,
+      0.75,
+      0.9,
+      1.0
+    ],
+    "shadow": "independent unsteered carry on executed trajectory inputs"
+  },
+  "selected": {
+    "point": 0.0,
+    "mirror": 0.0,
+    "rho_flip": 1.0,
+    "rho_point": 1.0
+  },
+  "norm_matching": {
+    "point_site3": {
+      "target_tune_norm": 73.357177734375,
+      "effective_lambda": 49.5390625,
+      "tune_achieved_norm": 73.37022399902344,
+      "confirmation_achieved_norm": 71.36302185058594,
+      "bracketed": true,
+      "caveat": "Scalar calibration assumes approximate norm monotonicity; inspect achieved norms. Confirmation is never used to calibrate."
+    },
+    "mirror_site3": {
+      "target_tune_norm": 73.357177734375,
+      "effective_lambda": 67.796875,
+      "tune_achieved_norm": 72.9421157836914,
+      "confirmation_achieved_norm": 69.91644287109375,
+      "bracketed": true,
+      "caveat": "Scalar calibration assumes approximate norm monotonicity; inspect achieved norms. Confirmation is never used to calibrate."
+    },
+    "point_site4": {
+      "target_tune_norm": 22.716453552246094,
+      "effective_lambda": 40.1640625,
+      "tune_achieved_norm": 18.23495864868164,
+      "confirmation_achieved_norm": 58.86954116821289,
+      "bracketed": true,
+      "caveat": "Scalar calibration assumes approximate norm monotonicity; inspect achieved norms. Confirmation is never used to calibrate."
+    },
+    "mirror_site4": {
+      "target_tune_norm": 22.716453552246094,
+      "effective_lambda": 24.63671875,
+      "tune_achieved_norm": 22.72295379638672,
+      "confirmation_achieved_norm": 40.002891540527344,
+      "bracketed": true,
+      "caveat": "Scalar calibration assumes approximate norm monotonicity; inspect achieved norms. Confirmation is never used to calibrate."
+    }
+  },
+  "probes": {
+    "exclusion_8": [
+      {
+        "b1": 0.8067867010831833,
+        "b2": 0.7486361861228943,
+        "rho": 0.818331703543663,
+        "delta": 0.7381232976913452
+      },
+      {
+        "b1": 0.8828656077384949,
+        "b2": 0.7851786762475967,
+        "rho": 0.8972370475530624,
+        "delta": 0.7749535590410233
+      },
+      {
+        "b1": 0.8842397108674049,
+        "b2": 0.7099014520645142,
+        "rho": 0.9089919254183769,
+        "delta": 0.6929886341094971
+      },
+      {
+        "b1": 0.8685413002967834,
+        "b2": 0.71685791015625,
+        "rho": 0.9090296477079391,
+        "delta": 0.6741827726364136
+      },
+      {
+        "b1": 0.8720578253269196,
+        "b2": 0.7079963684082031,
+        "rho": 0.9079842492938042,
+        "delta": 0.6734429001808167
+      }
+    ],
+    "exclusion_128": [
+      {
+        "b1": 0.7365964651107788,
+        "b2": 0.7675077319145203,
+        "rho": 0.7873453795909882,
+        "delta": 0.6963946521282196
+      },
+      {
+        "b1": 0.9057211354374886,
+        "b2": 0.8674532771110535,
+        "rho": 0.9274352118372917,
+        "delta": 0.8403310626745224
+      },
+      {
+        "b1": 0.8986012265086174,
+        "b2": 0.8237732201814651,
+        "rho": 0.9292387962341309,
+        "delta": 0.7868475168943405
+      },
+      {
+        "b1": 0.8850072398781776,
+        "b2": 0.8026749193668365,
+        "rho": 0.9252193197607994,
+        "delta": 0.7531930953264236
+      },
+      {
+        "b1": 0.8803649991750717,
+        "b2": 0.792736604809761,
+        "rho": 0.9208480045199394,
+        "delta": 0.7432268857955933
+      }
+    ]
+  },
+  "reference_convergence": {
+    "iterations": 4136,
+    "bellman_residual": 9.964082892111037e-10,
+    "value_error_bound": 1.9928165784222055e-07,
+    "converged": true,
+    "n": 100,
+    "gamma": 0.995,
+    "tolerance": 1e-09,
+    "belief_grid": "full simplex"
+  },
+  "total_seconds": 412.19290467099995,
+  "confirmation": [
+    {
+      "condition": "intact",
+      "site": -1,
+      "mode": "point",
+      "strength": 0.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.0,
+        "activation_norm": 0.0,
+        "relative_shift": 0.0,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "random",
+      "site": -1,
+      "mode": "point",
+      "strength": 0.0,
+      "metrics": {
+        "occupancy": 0.18804931640625,
+        "occupancy_se": 0.010090684542278367,
+        "action_fractions": [
+          0.3355712890625,
+          0.330780029296875,
+          0.333648681640625
+        ],
+        "action_change": 0.669219970703125,
+        "action_given_state": [
+          [
+            0.33146067415730335,
+            0.33286516853932585,
+            0.3356741573033708
+          ],
+          [
+            0.33957791711270835,
+            0.33109038079217007,
+            0.3293317020951216
+          ],
+          [
+            0.33609217786432977,
+            0.32554365465757873,
+            0.3383641674780915
+          ]
+        ],
+        "noop_given_reward": 0.33609217786432977,
+        "shift_norm": 0.0,
+        "activation_norm": 0.0,
+        "relative_shift": 0.0,
+        "reference_action_agreement": 0.330780029296875,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "curve_point",
+      "site": 3,
+      "mode": "point",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.07004615664482117,
+        "activation_norm": 8.257293701171875,
+        "relative_shift": 0.008482943288981915,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "curve_point",
+      "site": 4,
+      "mode": "point",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.06327933073043823,
+        "activation_norm": 8.887598037719727,
+        "relative_shift": 0.007119958754628897,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_point",
+      "site": 0,
+      "mode": "point",
+      "strength": 0.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.0,
+        "activation_norm": 3.1460185050964355,
+        "relative_shift": 0.0,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_point",
+      "site": 1,
+      "mode": "point",
+      "strength": 0.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.0,
+        "activation_norm": 3.7542176246643066,
+        "relative_shift": 0.0,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_point",
+      "site": 2,
+      "mode": "point",
+      "strength": 0.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.0,
+        "activation_norm": 6.010533332824707,
+        "relative_shift": 0.0,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_point",
+      "site": 3,
+      "mode": "point",
+      "strength": 0.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.0,
+        "activation_norm": 8.257293701171875,
+        "relative_shift": 0.0,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_point",
+      "site": 4,
+      "mode": "point",
+      "strength": 0.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.0,
+        "activation_norm": 8.887598037719727,
+        "relative_shift": 0.0,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "orthogonal_point",
+      "site": 3,
+      "mode": "point",
+      "strength": 0.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.0,
+        "activation_norm": 8.257293701171875,
+        "relative_shift": 0.0,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "orthogonal_point",
+      "site": 4,
+      "mode": "point",
+      "strength": 0.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.0,
+        "activation_norm": 8.887598037719727,
+        "relative_shift": 0.0,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "curve_mirror",
+      "site": 3,
+      "mode": "mirror",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.0687955766916275,
+        "activation_norm": 8.257293701171875,
+        "relative_shift": 0.008331491611897945,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "curve_mirror",
+      "site": 4,
+      "mode": "mirror",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.057789675891399384,
+        "activation_norm": 8.887598037719727,
+        "relative_shift": 0.006502282805740833,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_mirror",
+      "site": 0,
+      "mode": "mirror",
+      "strength": 0.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.0,
+        "activation_norm": 3.1460185050964355,
+        "relative_shift": 0.0,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_mirror",
+      "site": 1,
+      "mode": "mirror",
+      "strength": 0.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.0,
+        "activation_norm": 3.7542176246643066,
+        "relative_shift": 0.0,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_mirror",
+      "site": 2,
+      "mode": "mirror",
+      "strength": 0.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.0,
+        "activation_norm": 6.010533332824707,
+        "relative_shift": 0.0,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_mirror",
+      "site": 3,
+      "mode": "mirror",
+      "strength": 0.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.0,
+        "activation_norm": 8.257293701171875,
+        "relative_shift": 0.0,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_mirror",
+      "site": 4,
+      "mode": "mirror",
+      "strength": 0.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.0,
+        "activation_norm": 8.887598037719727,
+        "relative_shift": 0.0,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "orthogonal_mirror",
+      "site": 3,
+      "mode": "mirror",
+      "strength": 0.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.0,
+        "activation_norm": 8.257293701171875,
+        "relative_shift": 0.0,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "orthogonal_mirror",
+      "site": 4,
+      "mode": "mirror",
+      "strength": 0.0,
+      "metrics": {
+        "occupancy": 0.942779541015625,
+        "occupancy_se": 0.010378117488044061,
+        "action_fractions": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "action_change": 0.0,
+        "action_given_state": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.0,
+        "shift_norm": 0.0,
+        "activation_norm": 8.887598037719727,
+        "relative_shift": 0.0,
+        "reference_action_agreement": 1.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "curve_rho_flip",
+      "site": 3,
+      "mode": "rho_flip",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.074859619140625,
+        "occupancy_se": 0.03775470171997147,
+        "action_fractions": [
+          0.00201416015625,
+          0.077972412109375,
+          0.920013427734375
+        ],
+        "action_change": 0.922027587890625,
+        "action_given_state": [
+          [
+            6.169792694965449e-05,
+            0.00024679170779861795,
+            0.9996915103652517
+          ],
+          [
+            0.002551924576451407,
+            0.02488126462040122,
+            0.9725668108031473
+          ],
+          [
+            0.011822258459029759,
+            0.8968609865470852,
+            0.09131675499388504
+          ]
+        ],
+        "noop_given_reward": 0.011822258459029759,
+        "shift_norm": 75.76093292236328,
+        "activation_norm": 8.970512390136719,
+        "relative_shift": 8.445552825927734,
+        "reference_action_agreement": 0.077972412109375,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "curve_rho_flip",
+      "site": 4,
+      "mode": "rho_flip",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.651031494140625,
+        "occupancy_se": 0.062329562343336066,
+        "action_fractions": [
+          0.0068359375,
+          0.68865966796875,
+          0.30450439453125
+        ],
+        "action_change": 0.31134033203125,
+        "action_given_state": [
+          [
+            0.005959982971477224,
+            0.1411948346814247,
+            0.852845182347098
+          ],
+          [
+            0.0022789425706472195,
+            0.14288969917958066,
+            0.8548313582497721
+          ],
+          [
+            0.008062625978530915,
+            0.9817653400834389,
+            0.010172033938030282
+          ]
+        ],
+        "noop_given_reward": 0.008062625978530915,
+        "shift_norm": 29.934309005737305,
+        "activation_norm": 8.795843124389648,
+        "relative_shift": 3.403233528137207,
+        "reference_action_agreement": 0.68865966796875,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_rho_flip",
+      "site": 0,
+      "mode": "rho_flip",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.158935546875,
+        "occupancy_se": 0.019583944092359893,
+        "action_fractions": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "action_change": 1.0,
+        "action_given_state": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 1.0,
+        "shift_norm": 1205.16650390625,
+        "activation_norm": 3.7096095085144043,
+        "relative_shift": 324.8769226074219,
+        "reference_action_agreement": 0.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_rho_flip",
+      "site": 1,
+      "mode": "rho_flip",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.208282470703125,
+        "occupancy_se": 0.03638486065473859,
+        "action_fractions": [
+          0.938720703125,
+          0.061279296875,
+          0.0
+        ],
+        "action_change": 0.938720703125,
+        "action_given_state": [
+          [
+            0.9808927297233013,
+            0.019107270276698646,
+            0.0
+          ],
+          [
+            0.9987246811702926,
+            0.0012753188297074268,
+            0.0
+          ],
+          [
+            0.7435897435897436,
+            0.2564102564102564,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.7435897435897436,
+        "shift_norm": 199.0369873046875,
+        "activation_norm": 5.560482978820801,
+        "relative_shift": 35.7949104309082,
+        "reference_action_agreement": 0.061279296875,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_rho_flip",
+      "site": 2,
+      "mode": "rho_flip",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.92645263671875,
+        "occupancy_se": 0.011023667595795265,
+        "action_fractions": [
+          0.008056640625,
+          0.989410400390625,
+          0.002532958984375
+        ],
+        "action_change": 0.010589599609375,
+        "action_given_state": [
+          [
+            0.011517615176151762,
+            0.9884823848238482,
+            0.0
+          ],
+          [
+            0.0032119914346895075,
+            0.9967880085653105,
+            0.0
+          ],
+          [
+            0.008037420119902498,
+            0.989228539429475,
+            0.0027340404506225706
+          ]
+        ],
+        "noop_given_reward": 0.008037420119902498,
+        "shift_norm": 9.766660690307617,
+        "activation_norm": 6.012319087982178,
+        "relative_shift": 1.6244415044784546,
+        "reference_action_agreement": 0.989410400390625,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_rho_flip",
+      "site": 3,
+      "mode": "rho_flip",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.074859619140625,
+        "occupancy_se": 0.03775470171997147,
+        "action_fractions": [
+          0.00201416015625,
+          0.077972412109375,
+          0.920013427734375
+        ],
+        "action_change": 0.922027587890625,
+        "action_given_state": [
+          [
+            6.169792694965449e-05,
+            0.00024679170779861795,
+            0.9996915103652517
+          ],
+          [
+            0.002551924576451407,
+            0.02488126462040122,
+            0.9725668108031473
+          ],
+          [
+            0.011822258459029759,
+            0.8968609865470852,
+            0.09131675499388504
+          ]
+        ],
+        "noop_given_reward": 0.011822258459029759,
+        "shift_norm": 75.76093292236328,
+        "activation_norm": 8.970512390136719,
+        "relative_shift": 8.445552825927734,
+        "reference_action_agreement": 0.077972412109375,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_rho_flip",
+      "site": 4,
+      "mode": "rho_flip",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.651031494140625,
+        "occupancy_se": 0.062329562343336066,
+        "action_fractions": [
+          0.0068359375,
+          0.68865966796875,
+          0.30450439453125
+        ],
+        "action_change": 0.31134033203125,
+        "action_given_state": [
+          [
+            0.005959982971477224,
+            0.1411948346814247,
+            0.852845182347098
+          ],
+          [
+            0.0022789425706472195,
+            0.14288969917958066,
+            0.8548313582497721
+          ],
+          [
+            0.008062625978530915,
+            0.9817653400834389,
+            0.010172033938030282
+          ]
+        ],
+        "noop_given_reward": 0.008062625978530915,
+        "shift_norm": 29.934309005737305,
+        "activation_norm": 8.795843124389648,
+        "relative_shift": 3.403233528137207,
+        "reference_action_agreement": 0.68865966796875,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "orthogonal_rho_flip",
+      "site": 3,
+      "mode": "rho_flip",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.551055908203125,
+        "occupancy_se": 0.06380671982158981,
+        "action_fractions": [
+          3.0517578125e-05,
+          0.605438232421875,
+          0.39453125
+        ],
+        "action_change": 0.394561767578125,
+        "action_given_state": [
+          [
+            0.0,
+            0.10476190476190476,
+            0.8952380952380953
+          ],
+          [
+            0.0,
+            0.211932470086871,
+            0.788067529913129
+          ],
+          [
+            5.53801849698178e-05,
+            0.9771279836074652,
+            0.022816636207564932
+          ]
+        ],
+        "noop_given_reward": 5.53801849698178e-05,
+        "shift_norm": 38.84223556518555,
+        "activation_norm": 8.55653190612793,
+        "relative_shift": 4.539483547210693,
+        "reference_action_agreement": 0.605438232421875,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "orthogonal_rho_flip",
+      "site": 4,
+      "mode": "rho_flip",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.81121826171875,
+        "occupancy_se": 0.04060511152400946,
+        "action_fractions": [
+          0.000732421875,
+          0.88397216796875,
+          0.11529541015625
+        ],
+        "action_change": 0.11602783203125,
+        "action_given_state": [
+          [
+            0.00022624434389140272,
+            0.36877828054298645,
+            0.6309954751131222
+          ],
+          [
+            0.0005662514156285391,
+            0.6619479048697622,
+            0.33748584371460927
+          ],
+          [
+            0.0008276277180046648,
+            0.9843879316830938,
+            0.014784440598901513
+          ]
+        ],
+        "noop_given_reward": 0.0008276277180046648,
+        "shift_norm": 17.99224090576172,
+        "activation_norm": 8.84566879272461,
+        "relative_shift": 2.0340170860290527,
+        "reference_action_agreement": 0.88397216796875,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "curve_rho_point",
+      "site": 3,
+      "mode": "rho_point",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.920379638671875,
+        "occupancy_se": 0.013218838785280606,
+        "action_fractions": [
+          0.013153076171875,
+          0.983489990234375,
+          0.00335693359375
+        ],
+        "action_change": 0.016510009765625,
+        "action_given_state": [
+          [
+            0.018598884066955982,
+            0.9807811531308122,
+            0.0006199628022318661
+          ],
+          [
+            0.018072289156626505,
+            0.9819277108433735,
+            0.0
+          ],
+          [
+            0.012699360058357373,
+            0.9836864617527107,
+            0.0036141781889319938
+          ]
+        ],
+        "noop_given_reward": 0.012699360058357373,
+        "shift_norm": 11.18078899383545,
+        "activation_norm": 8.24063491821289,
+        "relative_shift": 1.3567873239517212,
+        "reference_action_agreement": 0.983489990234375,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "curve_rho_point",
+      "site": 4,
+      "mode": "rho_point",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.933624267578125,
+        "occupancy_se": 0.011184704118510311,
+        "action_fractions": [
+          0.008697509765625,
+          0.99066162109375,
+          0.000640869140625
+        ],
+        "action_change": 0.00933837890625,
+        "action_given_state": [
+          [
+            0.01849217638691323,
+            0.9815078236130867,
+            0.0
+          ],
+          [
+            0.007802340702210663,
+            0.9921976592977894,
+            0.0
+          ],
+          [
+            0.008269865655542117,
+            0.9910437028078318,
+            0.0006864315366260256
+          ]
+        ],
+        "noop_given_reward": 0.008269865655542117,
+        "shift_norm": 10.759941101074219,
+        "activation_norm": 8.88361930847168,
+        "relative_shift": 1.2112114429473877,
+        "reference_action_agreement": 0.99066162109375,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_rho_point",
+      "site": 0,
+      "mode": "rho_point",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.158935546875,
+        "occupancy_se": 0.019583944092359893,
+        "action_fractions": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "action_change": 1.0,
+        "action_given_state": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 1.0,
+        "shift_norm": 603.2074584960938,
+        "activation_norm": 3.7096095085144043,
+        "relative_shift": 162.60671997070312,
+        "reference_action_agreement": 0.0,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_rho_point",
+      "site": 1,
+      "mode": "rho_point",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.178192138671875,
+        "occupancy_se": 0.027646997094884294,
+        "action_fractions": [
+          0.969879150390625,
+          0.030059814453125,
+          6.103515625e-05
+        ],
+        "action_change": 0.969940185546875,
+        "action_given_state": [
+          [
+            0.983225806451613,
+            0.016774193548387096,
+            0.0
+          ],
+          [
+            0.9998545877562891,
+            0.0,
+            0.00014541224371092046
+          ],
+          [
+            0.8691556773420106,
+            0.13084432265798937,
+            0.0
+          ]
+        ],
+        "noop_given_reward": 0.8691556773420106,
+        "shift_norm": 105.2402572631836,
+        "activation_norm": 5.622217178344727,
+        "relative_shift": 18.718639373779297,
+        "reference_action_agreement": 0.030059814453125,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_rho_point",
+      "site": 2,
+      "mode": "rho_point",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.92596435546875,
+        "occupancy_se": 0.012392308792934606,
+        "action_fractions": [
+          0.008026123046875,
+          0.9901123046875,
+          0.001861572265625
+        ],
+        "action_change": 0.0098876953125,
+        "action_given_state": [
+          [
+            0.006202618883528601,
+            0.9937973811164714,
+            0.0
+          ],
+          [
+            0.0041025641025641026,
+            0.9958974358974358,
+            0.0
+          ],
+          [
+            0.008239404126293587,
+            0.9897501812668907,
+            0.002010414606815635
+          ]
+        ],
+        "noop_given_reward": 0.008239404126293587,
+        "shift_norm": 9.328300476074219,
+        "activation_norm": 6.014891147613525,
+        "relative_shift": 1.5508676767349243,
+        "reference_action_agreement": 0.9901123046875,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_rho_point",
+      "site": 3,
+      "mode": "rho_point",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.920379638671875,
+        "occupancy_se": 0.013218838785280606,
+        "action_fractions": [
+          0.013153076171875,
+          0.983489990234375,
+          0.00335693359375
+        ],
+        "action_change": 0.016510009765625,
+        "action_given_state": [
+          [
+            0.018598884066955982,
+            0.9807811531308122,
+            0.0006199628022318661
+          ],
+          [
+            0.018072289156626505,
+            0.9819277108433735,
+            0.0
+          ],
+          [
+            0.012699360058357373,
+            0.9836864617527107,
+            0.0036141781889319938
+          ]
+        ],
+        "noop_given_reward": 0.012699360058357373,
+        "shift_norm": 11.18078899383545,
+        "activation_norm": 8.24063491821289,
+        "relative_shift": 1.3567873239517212,
+        "reference_action_agreement": 0.983489990234375,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "selected_rho_point",
+      "site": 4,
+      "mode": "rho_point",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.933624267578125,
+        "occupancy_se": 0.011184704118510311,
+        "action_fractions": [
+          0.008697509765625,
+          0.99066162109375,
+          0.000640869140625
+        ],
+        "action_change": 0.00933837890625,
+        "action_given_state": [
+          [
+            0.01849217638691323,
+            0.9815078236130867,
+            0.0
+          ],
+          [
+            0.007802340702210663,
+            0.9921976592977894,
+            0.0
+          ],
+          [
+            0.008269865655542117,
+            0.9910437028078318,
+            0.0006864315366260256
+          ]
+        ],
+        "noop_given_reward": 0.008269865655542117,
+        "shift_norm": 10.759941101074219,
+        "activation_norm": 8.88361930847168,
+        "relative_shift": 1.2112114429473877,
+        "reference_action_agreement": 0.99066162109375,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "orthogonal_rho_point",
+      "site": 3,
+      "mode": "rho_point",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.939971923828125,
+        "occupancy_se": 0.01032025710902819,
+        "action_fractions": [
+          3.0517578125e-05,
+          0.99713134765625,
+          0.002838134765625
+        ],
+        "action_change": 0.00286865234375,
+        "action_given_state": [
+          [
+            0.0,
+            0.9746031746031746,
+            0.025396825396825397
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            3.246647836109217e-05,
+            0.9979870783416123,
+            0.0019804551800266224
+          ]
+        ],
+        "noop_given_reward": 3.246647836109217e-05,
+        "shift_norm": 10.619213104248047,
+        "activation_norm": 8.251970291137695,
+        "relative_shift": 1.286870002746582,
+        "reference_action_agreement": 0.99713134765625,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "orthogonal_rho_point",
+      "site": 4,
+      "mode": "rho_point",
+      "strength": 1.0,
+      "metrics": {
+        "occupancy": 0.936279296875,
+        "occupancy_se": 0.011116812131004341,
+        "action_fractions": [
+          0.001068115234375,
+          0.997039794921875,
+          0.00189208984375
+        ],
+        "action_change": 0.002960205078125,
+        "action_given_state": [
+          [
+            0.0007246376811594203,
+            0.9992753623188406,
+            0.0
+          ],
+          [
+            0.0014124293785310734,
+            0.998587570621469,
+            0.0
+          ],
+          [
+            0.001075619295958279,
+            0.996903520208605,
+            0.0020208604954367665
+          ]
+        ],
+        "noop_given_reward": 0.001075619295958279,
+        "shift_norm": 10.76717758178711,
+        "activation_norm": 8.886506080627441,
+        "relative_shift": 1.211632251739502,
+        "reference_action_agreement": 0.997039794921875,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "normmatched_point",
+      "site": 3,
+      "mode": "point",
+      "strength": 49.5390625,
+      "metrics": {
+        "occupancy": 0.24652099609375,
+        "occupancy_se": 0.01770292102369558,
+        "action_fractions": [
+          0.28857421875,
+          0.4002685546875,
+          0.3111572265625
+        ],
+        "action_change": 0.5997314453125,
+        "action_given_state": [
+          [
+            0.23285568065506654,
+            0.44259638348686453,
+            0.3245479358580689
+          ],
+          [
+            0.2439457041493136,
+            0.39703840814437763,
+            0.3590158877063088
+          ],
+          [
+            0.4410745233968804,
+            0.3440207972270364,
+            0.21490467937608318
+          ]
+        ],
+        "noop_given_reward": 0.4410745233968804,
+        "shift_norm": 71.36302185058594,
+        "activation_norm": 9.137676239013672,
+        "relative_shift": 7.809755802154541,
+        "reference_action_agreement": 0.4002685546875,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "normmatched_mirror",
+      "site": 3,
+      "mode": "mirror",
+      "strength": 67.796875,
+      "metrics": {
+        "occupancy": 0.429595947265625,
+        "occupancy_se": 0.044080943681456666,
+        "action_fractions": [
+          0.069122314453125,
+          0.48846435546875,
+          0.442413330078125
+        ],
+        "action_change": 0.51153564453125,
+        "action_given_state": [
+          [
+            0.1063936063936064,
+            0.24463036963036963,
+            0.6489760239760239
+          ],
+          [
+            0.09360666479453338,
+            0.10352897126275391,
+            0.8028643639427128
+          ],
+          [
+            0.029338637493784188,
+            0.9193009874262982,
+            0.05136037507991759
+          ]
+        ],
+        "noop_given_reward": 0.029338637493784188,
+        "shift_norm": 69.91644287109375,
+        "activation_norm": 8.71331787109375,
+        "relative_shift": 8.024089813232422,
+        "reference_action_agreement": 0.48846435546875,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "normmatched_point",
+      "site": 4,
+      "mode": "point",
+      "strength": 40.1640625,
+      "metrics": {
+        "occupancy": 0.5665283203125,
+        "occupancy_se": 0.07424700522827646,
+        "action_fractions": [
+          0.3516845703125,
+          0.55706787109375,
+          0.09124755859375
+        ],
+        "action_change": 0.44293212890625,
+        "action_given_state": [
+          [
+            0.650365289995527,
+            0.12926792902937229,
+            0.22036678097510065
+          ],
+          [
+            0.7577697745764973,
+            0.041483259970654926,
+            0.20074696545284781
+          ],
+          [
+            0.07977806507218271,
+            0.9198448610213316,
+            0.0003770739064856712
+          ]
+        ],
+        "noop_given_reward": 0.07977806507218271,
+        "shift_norm": 58.86954116821289,
+        "activation_norm": 8.753053665161133,
+        "relative_shift": 6.725600242614746,
+        "reference_action_agreement": 0.55706787109375,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    },
+    {
+      "condition": "normmatched_mirror",
+      "site": 4,
+      "mode": "mirror",
+      "strength": 24.63671875,
+      "metrics": {
+        "occupancy": 0.749114990234375,
+        "occupancy_se": 0.06427633054441033,
+        "action_fractions": [
+          0.141998291015625,
+          0.776397705078125,
+          0.08160400390625
+        ],
+        "action_change": 0.223602294921875,
+        "action_given_state": [
+          [
+            0.45790697674418607,
+            0.2372093023255814,
+            0.3048837209302326
+          ],
+          [
+            0.5246110686049478,
+            0.12981382300433564,
+            0.34557510839071665
+          ],
+          [
+            0.025542836191795332,
+            0.9741312584022488,
+            0.0003259054059559213
+          ]
+        ],
+        "noop_given_reward": 0.025542836191795332,
+        "shift_norm": 40.002891540527344,
+        "activation_norm": 8.820505142211914,
+        "relative_shift": 4.535215377807617,
+        "reference_action_agreement": 0.776397705078125,
+        "reference_agreement_caveat": "exact installed-belief reference; extrapolated beliefs projected nonnegative for \u03bb>1"
+      }
+    }
+  ],
+  "pulse": {
+    "seed": 3042,
+    "times": [
+      256,
+      512,
+      768
+    ],
+    "horizon": 128,
+    "conditions": {
+      "mirror_block1": {
+        "measured": {
+          "decay": {
+            "rho": {
+              "multiplier": 0.9434635747024529,
+              "r2": 0.8290687856637973,
+              "n_lags": 96
+            },
+            "delta": {
+              "multiplier": 0.9329251162596158,
+              "r2": 0.7603778315284881,
+              "n_lags": 96
+            }
+          },
+          "absolute_at_lag": {
+            "0": [
+              0.003663962008431554,
+              0.013928269036114216
+            ],
+            "1": [
+              0.00015991926193237305,
+              0.0026742417830973864
+            ],
+            "32": [
+              0.0005656927824020386,
+              0.0020875483751296997
+            ],
+            "33": [
+              0.00011242429172853008,
+              0.0006746053695678711
+            ],
+            "64": [
+              2.8252601623535156e-05,
+              8.202592289308086e-05
+            ],
+            "65": [
+              5.091229922982166e-06,
+              4.902482032775879e-06
+            ],
+            "96": [
+              1.18215882594086e-06,
+              1.6391277313232422e-06
+            ],
+            "97": [
+              0.0,
+              0.0
+            ],
+            "128": [
+              0.0,
+              0.0
+            ]
+          },
+          "last_nonzero_lag": 96
+        },
+        "full_filter": {
+          "decay": {
+            "rho": {
+              "multiplier": 0.9610824698104339,
+              "r2": 0.6873932524535076,
+              "n_lags": 127
+            },
+            "delta": {
+              "multiplier": 0.9460905569440897,
+              "r2": 0.8683045774925561,
+              "n_lags": 128
+            }
+          },
+          "absolute_at_lag": {
+            "0": [
+              0.0,
+              0.021192261396208778
+            ],
+            "1": [
+              0.0,
+              0.019177450558855235
+            ],
+            "32": [
+              0.002867389202880239,
+              0.005132633630720829
+            ],
+            "33": [
+              0.0026717818223814006,
+              0.004632532520816786
+            ],
+            "64": [
+              0.0011456532195357114,
+              0.0022861841226949307
+            ],
+            "65": [
+              0.0011412848179605112,
+              0.0021581240397870152
+            ],
+            "96": [
+              2.518664410555242e-05,
+              2.9045799146453046e-05
+            ],
+            "97": [
+              2.137350774413076e-05,
+              2.451929831531238e-05
+            ],
+            "128": [
+              2.2362675166288926e-05,
+              2.533791609482286e-05
+            ]
+          },
+          "last_nonzero_lag": 128
+        },
+        "tv": {
+          "0": 1.0019204637501389e-05,
+          "1": 1.0878098919420154e-06,
+          "32": 4.595818154484732e-06,
+          "64": 1.8147915170629858e-07,
+          "96": 3.6411293979909942e-09,
+          "128": 0.0
+        },
+        "action_disagreement": {
+          "0": 0.0,
+          "1": 0.0,
+          "32": 0.0,
+          "64": 0.0,
+          "96": 0.0,
+          "128": 0.0
+        }
+      },
+      "mirror_block2": {
+        "measured": {
+          "decay": {
+            "rho": {
+              "multiplier": 0.943125967306855,
+              "r2": 0.7508486564157718,
+              "n_lags": 64
+            },
+            "delta": {
+              "multiplier": 0.9220163292120953,
+              "r2": 0.8455264541591794,
+              "n_lags": 64
+            }
+          },
+          "absolute_at_lag": {
+            "0": [
+              0.0012114992132410407,
+              0.0064882985316216946
+            ],
+            "1": [
+              0.000974481285084039,
+              0.0017562061548233032
+            ],
+            "32": [
+              0.0007926573161967099,
+              0.0005170454387553036
+            ],
+            "33": [
+              8.900463581085205e-05,
+              5.278487878968008e-05
+            ],
+            "64": [
+              1.3565023436967749e-05,
+              1.5541911125183105e-05
+            ],
+            "65": [
+              0.0,
+              0.0
+            ],
+            "96": [
+              0.0,
+              0.0
+            ],
+            "97": [
+              0.0,
+              0.0
+            ],
+            "128": [
+              0.0,
+              0.0
+            ]
+          },
+          "last_nonzero_lag": 64
+        },
+        "full_filter": {
+          "decay": {
+            "rho": {
+              "multiplier": 0.9610824698104339,
+              "r2": 0.6873932524535076,
+              "n_lags": 127
+            },
+            "delta": {
+              "multiplier": 0.9460905569440897,
+              "r2": 0.8683045774925561,
+              "n_lags": 128
+            }
+          },
+          "absolute_at_lag": {
+            "0": [
+              0.0,
+              0.021192261396208778
+            ],
+            "1": [
+              0.0,
+              0.019177450558855235
+            ],
+            "32": [
+              0.002867389202880239,
+              0.005132633630720829
+            ],
+            "33": [
+              0.0026717818223814006,
+              0.004632532520816786
+            ],
+            "64": [
+              0.0011456532195357114,
+              0.0022861841226949307
+            ],
+            "65": [
+              0.0011412848179605112,
+              0.0021581240397870152
+            ],
+            "96": [
+              2.518664410555242e-05,
+              2.9045799146453046e-05
+            ],
+            "97": [
+              2.137350774413076e-05,
+              2.451929831531238e-05
+            ],
+            "128": [
+              2.2362675166288926e-05,
+              2.533791609482286e-05
+            ]
+          },
+          "last_nonzero_lag": 128
+        },
+        "tv": {
+          "0": 7.787021786498372e-06,
+          "1": 6.831655809946824e-07,
+          "32": 6.363261036312906e-06,
+          "64": 1.4545719295711024e-07,
+          "96": 0.0,
+          "128": 0.0
+        },
+        "action_disagreement": {
+          "0": 0.0,
+          "1": 0.0,
+          "32": 0.0,
+          "64": 0.0,
+          "96": 0.0,
+          "128": 0.0
+        }
+      },
+      "mirror_block3": {
+        "measured": {
+          "decay": {
+            "rho": {
+              "multiplier": 0.9912772360280202,
+              "r2": 0.0073282940541195,
+              "n_lags": 32
+            },
+            "delta": {
+              "multiplier": 0.9983272845431391,
+              "r2": 0.0002241954208345165,
+              "n_lags": 32
+            }
+          },
+          "absolute_at_lag": {
+            "0": [
+              0.0035221923608332872,
+              0.04255663976073265
+            ],
+            "1": [
+              0.00012060006702085957,
+              0.0006022949819453061
+            ],
+            "32": [
+              0.00012129545211791992,
+              0.0010748505592346191
+            ],
+            "33": [
+              0.0,
+              0.0
+            ],
+            "64": [
+              0.0,
+              0.0
+            ],
+            "65": [
+              0.0,
+              0.0
+            ],
+            "96": [
+              0.0,
+              0.0
+            ],
+            "97": [
+              0.0,
+              0.0
+            ],
+            "128": [
+              0.0,
+              0.0
+            ]
+          },
+          "last_nonzero_lag": 32
+        },
+        "full_filter": {
+          "decay": {
+            "rho": {
+              "multiplier": 0.9610824698104339,
+              "r2": 0.6873932524535076,
+              "n_lags": 127
+            },
+            "delta": {
+              "multiplier": 0.9460905569440897,
+              "r2": 0.8683045774925561,
+              "n_lags": 128
+            }
+          },
+          "absolute_at_lag": {
+            "0": [
+              0.0,
+              0.021192261396208778
+            ],
+            "1": [
+              0.0,
+              0.019177450558855235
+            ],
+            "32": [
+              0.002867389202880239,
+              0.005132633630720829
+            ],
+            "33": [
+              0.0026717818223814006,
+              0.004632532520816786
+            ],
+            "64": [
+              0.0011456532195357114,
+              0.0022861841226949307
+            ],
+            "65": [
+              0.0011412848179605112,
+              0.0021581240397870152
+            ],
+            "96": [
+              2.518664410555242e-05,
+              2.9045799146453046e-05
+            ],
+            "97": [
+              2.137350774413076e-05,
+              2.451929831531238e-05
+            ],
+            "128": [
+              2.2362675166288926e-05,
+              2.533791609482286e-05
+            ]
+          },
+          "last_nonzero_lag": 128
+        },
+        "tv": {
+          "0": 8.818282367428765e-05,
+          "1": 1.002343537948036e-06,
+          "32": 4.024301233584993e-06,
+          "64": 0.0,
+          "96": 0.0,
+          "128": 0.0
+        },
+        "action_disagreement": {
+          "0": 0.0,
+          "1": 0.0,
+          "32": 0.0,
+          "64": 0.0,
+          "96": 0.0,
+          "128": 0.0
+        }
+      },
+      "rho_flip_block1": {
+        "measured": {
+          "decay": {
+            "rho": {
+              "multiplier": 0.9199926010190496,
+              "r2": 0.9398928017552921,
+              "n_lags": 96
+            },
+            "delta": {
+              "multiplier": 0.9322665215095871,
+              "r2": 0.8830666961143402,
+              "n_lags": 96
+            }
+          },
+          "absolute_at_lag": {
+            "0": [
+              0.2715208828449249,
+              0.3333289921283722
+            ],
+            "1": [
+              0.05487564578652382,
+              0.0956740602850914
+            ],
+            "32": [
+              0.017360234633088112,
+              0.05813199654221535
+            ],
+            "33": [
+              0.008044630289077759,
+              0.09084706753492355
+            ],
+            "64": [
+              0.0006592224235646427,
+              0.0045016855001449585
+            ],
+            "65": [
+              0.00032920637750066817,
+              0.0021885037422180176
+            ],
+            "96": [
+              5.7419142649450805e-06,
+              3.8176774978637695e-05
+            ],
+            "97": [
+              0.0,
+              0.0
+            ],
+            "128": [
+              0.0,
+              0.0
+            ]
+          },
+          "last_nonzero_lag": 96
+        },
+        "full_filter": {
+          "decay": {
+            "rho": {
+              "multiplier": 0.9288616871315796,
+              "r2": 0.9922220034451438,
+              "n_lags": 128
+            },
+            "delta": {
+              "multiplier": 0.9381240424379064,
+              "r2": 0.9628450414726039,
+              "n_lags": 128
+            }
+          },
+          "absolute_at_lag": {
+            "0": [
+              0.9592577554285526,
+              0.13356653372057717
+            ],
+            "1": [
+              0.9320430514996834,
+              0.129185526154644
+            ],
+            "32": [
+              0.12360598930207621,
+              0.05444070221934738
+            ],
+            "33": [
+              0.11012580225468416,
+              0.048939194705890705
+            ],
+            "64": [
+              0.013391608034048708,
+              0.010475442582315952
+            ],
+            "65": [
+              0.012520647021799855,
+              0.009770464628884342
+            ],
+            "96": [
+              0.0012006667431160647,
+              0.0009586819813065276
+            ],
+            "97": [
+              0.0010515057635796237,
+              0.0008247822562677374
+            ],
+            "128": [
+              8.356524508421985e-05,
+              3.970015786302843e-05
+            ]
+          },
+          "last_nonzero_lag": 128
+        },
+        "tv": {
+          "0": 0.016860559582710266,
+          "1": 0.011560914106667042,
+          "32": 0.005073321983218193,
+          "64": 0.00016194074123632163,
+          "96": 6.752723606950894e-07,
+          "128": 0.0
+        },
+        "action_disagreement": {
+          "0": 0.0,
+          "1": 0.0,
+          "32": 0.0,
+          "64": 0.0,
+          "96": 0.0,
+          "128": 0.0
+        }
+      },
+      "rho_flip_block2": {
+        "measured": {
+          "decay": {
+            "rho": {
+              "multiplier": 0.9404187633989588,
+              "r2": 0.9411283983226908,
+              "n_lags": 64
+            },
+            "delta": {
+              "multiplier": 0.9663855970507704,
+              "r2": 0.6985476978692898,
+              "n_lags": 64
+            }
+          },
+          "absolute_at_lag": {
+            "0": [
+              0.4957239627838135,
+              0.7406800389289856
+            ],
+            "1": [
+              0.11932943016290665,
+              0.10546771436929703
+            ],
+            "32": [
+              0.04252290353178978,
+              0.08338397741317749
+            ],
+            "33": [
+              0.020845800638198853,
+              0.05689350888133049
+            ],
+            "64": [
+              0.0019313892116770148,
+              0.005365858320146799
+            ],
+            "65": [
+              0.0,
+              0.0
+            ],
+            "96": [
+              0.0,
+              0.0
+            ],
+            "97": [
+              0.0,
+              0.0
+            ],
+            "128": [
+              0.0,
+              0.0
+            ]
+          },
+          "last_nonzero_lag": 64
+        },
+        "full_filter": {
+          "decay": {
+            "rho": {
+              "multiplier": 0.9288616871315796,
+              "r2": 0.9922220034451438,
+              "n_lags": 128
+            },
+            "delta": {
+              "multiplier": 0.9381240424379064,
+              "r2": 0.9628450414726039,
+              "n_lags": 128
+            }
+          },
+          "absolute_at_lag": {
+            "0": [
+              0.9592577554285526,
+              0.13356653372057717
+            ],
+            "1": [
+              0.9320430514996834,
+              0.129185526154644
+            ],
+            "32": [
+              0.12360598930207621,
+              0.05444070221934738
+            ],
+            "33": [
+              0.11012580225468416,
+              0.048939194705890705
+            ],
+            "64": [
+              0.013391608034048708,
+              0.010475442582315952
+            ],
+            "65": [
+              0.012520647021799855,
+              0.009770464628884342
+            ],
+            "96": [
+              0.0012006667431160647,
+              0.0009586819813065276
+            ],
+            "97": [
+              0.0010515057635796237,
+              0.0008247822562677374
+            ],
+            "128": [
+              8.356524508421985e-05,
+              3.970015786302843e-05
+            ]
+          },
+          "last_nonzero_lag": 128
+        },
+        "tv": {
+          "0": 0.021031558513641357,
+          "1": 0.016984283924102783,
+          "32": 0.009079956449568272,
+          "64": 0.0001761272578733042,
+          "96": 0.0,
+          "128": 0.0
+        },
+        "action_disagreement": {
+          "0": 0.0,
+          "1": 0.0,
+          "32": 0.0,
+          "64": 0.0,
+          "96": 0.0,
+          "128": 0.0
+        }
+      },
+      "rho_flip_block3": {
+        "measured": {
+          "decay": {
+            "rho": {
+              "multiplier": 0.9762638663441493,
+              "r2": 0.09544030821850036,
+              "n_lags": 32
+            },
+            "delta": {
+              "multiplier": 0.969721278580892,
+              "r2": 0.11594118998454117,
+              "n_lags": 32
+            }
+          },
+          "absolute_at_lag": {
+            "0": [
+              0.7827501893043518,
+              2.248570203781128
+            ],
+            "1": [
+              0.03328080102801323,
+              0.18968228995800018
+            ],
+            "32": [
+              0.029172802343964577,
+              0.13503721356391907
+            ],
+            "33": [
+              0.0,
+              0.0
+            ],
+            "64": [
+              0.0,
+              0.0
+            ],
+            "65": [
+              0.0,
+              0.0
+            ],
+            "96": [
+              0.0,
+              0.0
+            ],
+            "97": [
+              0.0,
+              0.0
+            ],
+            "128": [
+              0.0,
+              0.0
+            ]
+          },
+          "last_nonzero_lag": 32
+        },
+        "full_filter": {
+          "decay": {
+            "rho": {
+              "multiplier": 0.9288616871315796,
+              "r2": 0.9922220034451438,
+              "n_lags": 128
+            },
+            "delta": {
+              "multiplier": 0.9381240424379064,
+              "r2": 0.9628450414726039,
+              "n_lags": 128
+            }
+          },
+          "absolute_at_lag": {
+            "0": [
+              0.9592577554285526,
+              0.13356653372057717
+            ],
+            "1": [
+              0.9320430514996834,
+              0.129185526154644
+            ],
+            "32": [
+              0.12360598930207621,
+              0.05444070221934738
+            ],
+            "33": [
+              0.11012580225468416,
+              0.048939194705890705
+            ],
+            "64": [
+              0.013391608034048708,
+              0.010475442582315952
+            ],
+            "65": [
+              0.012520647021799855,
+              0.009770464628884342
+            ],
+            "96": [
+              0.0012006667431160647,
+              0.0009586819813065276
+            ],
+            "97": [
+              0.0010515057635796237,
+              0.0008247822562677374
+            ],
+            "128": [
+              8.356524508421985e-05,
+              3.970015786302843e-05
+            ]
+          },
+          "last_nonzero_lag": 128
+        },
+        "tv": {
+          "0": 0.023028463125228882,
+          "1": 0.006620810832828283,
+          "32": 0.006112746894359589,
+          "64": 0.0,
+          "96": 0.0,
+          "128": 0.0
+        },
+        "action_disagreement": {
+          "0": 0.0,
+          "1": 0.0,
+          "32": 0.0,
+          "64": 0.0,
+          "96": 0.0,
+          "128": 0.0
+        }
+      }
+    }
+  },
+  "adapter_provenance": {
+    "kind": "ladder",
+    "algorithm": "sac_autoalpha",
+    "training_seed": 42,
+    "run_id": "20261116T224844Z-af58a537",
+    "checkpoint_verified": {
+      "step": 2012217344,
+      "sha256": "f0591364e547520eb1813b41973c9bdc123c1e0e24daf9ed2f65e8a06873e7f9",
+      "size_bytes": 818336,
+      "bucket": "slop-bucket",
+      "key": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_sac_autoalpha_2026_11/variant_1_transformer/20261116T224844Z-af58a537/checkpoints/step_2012217344.npz",
+      "manifest_key": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_sac_autoalpha_2026_11/variant_1_transformer/20261116T224844Z-af58a537/metadata/durability_manifest.json"
+    },
+    "smoke": false,
+    "cpu_affinity": [
+      7
+    ],
+    "analysis_revision": "245ae83901e9c0b436c791236c6782b6f03ba1b2",
+    "harness_revision": "a267508fdeb523e95b3ef3fc42119102540bbe38",
+    "training_revisions": {
+      "commit": "960a8ab947b3d8ccd84686af46c541bf7eb807fa",
+      "dirty": false,
+      "experiment_repository": {
+        "commit": "960a8ab947b3d8ccd84686af46c541bf7eb807fa",
+        "dirty": false,
+        "root": "/root/work/alex-rl-experiments"
+      },
+      "library": {
+        "commit": "a267508fdeb523e95b3ef3fc42119102540bbe38",
+        "dirty": false,
+        "package": "rl-harness",
+        "root": "/root/work/rl-harness",
+        "version": "0.1.0"
+      }
+    },
+    "source_sha256": {
+      "__init__.py": "c94a50555a4d51043a4e4381d1b3490fb480dcfffb8de5d9706fa1ac92815716",
+      "analyze.py": "f8711b1f2665cbcdbc07cabd0d6b0ed71179f19ef03ca301279f597e7d6236c4",
+      "diagnose_trivial.py": "2590e9daf911ec9234d41bc79a0d51c4fc43e82b3df3dff5ac250845a8f1e228",
+      "paper_coarse.py": "a57c896b92a6682a58377db1cdb695c976eadc7a39cbc4b4f1d5ac2b86f7cbef",
+      "paper_constraints.py": "482dd5f2bbfe2f8d4876d6eb96eb2dd5db7a5fdfffadc941429f5ac4e15dfbd5",
+      "paper_probe.py": "aedfa5549bf3c4124abf977e0e243773c30d8fd757b247feba635f132a6d5ce9",
+      "paper_within.py": "6156198c17d4fc3f77e3117d182c00185a55caf625e8886a247ca773d98ce067",
+      "report.py": "586c7cf33fc5ad7d2c504308e3686f78c9bcf9d13b59ca84690e8c0b7aac6c4f",
+      "steer_core.py": "79588c291d58b5bffb4ea726e5805f78294ddec80753b4cb8b00a53096ec9968",
+      "steer_ladder.py": "cd7d50362c0201ad17a13548f31970dd164869646540021557a810f62d820d5d",
+      "steer_moving.py": "f359870b0321ee5a27b803952f07be7ad0bb383390e169baf8ec12084d25d493",
+      "steer_moving_base.py": "3acb73dc1b2a5927ba61db827a549a0ced4c7a05676b7299575fe43e653a919f",
+      "steer_prediction.py": "e1f8e08a8ef57c54e6cac6d8b7dc4793c81324f076ec2e8f5ecd81f3c2b10a5d",
+      "steer_pulse.py": "55b688ea14d8e3028a1e33f0920e374eb4c0c1535109929fc0f0547a568a2f17",
+      "steer_reference.py": "4e4f333c603f66c08a9981f2a397c47c8d5ad2ea76022135fa7094ebb1aebc70",
+      "steer_storage.py": "9f1f79bc4bd6a651f7014bbc989ad3f90cdeba5cd4ff81aad29f8d916a75012d",
+      "steering_report.py": "2da982a80f8ae3bd5b6816c1b0625c1ab1e20e43d4b4ec095941f7dcab497000",
+      "steering_run.py": "e2caf241f601b72a8bd0ca89709f8e2bae67d5b7e4e7e0fa57295405a65e8c39",
+      "steering_validate.py": "ed2defd314ab14ec6b7a669d9af27b04eababa414454311821d83617ecfdf4a3",
+      "test_analysis.py": "dcf61a8b42f8f108eb40aa8d5f9a667414caf7e9f61fef899204adf0f5fecab4",
+      "test_steering.py": "560be296c49254dad344e6a7d641f441c8dafdb29dc3135360a8b0fbe3d19706",
+      "vendor_steering.py": "81d02813142526ef8bd831d0b27bd16832795f436d09f6f91a3b8519da88618d"
+    },
+    "pinned_sources": {
+      "experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11/steering_core.py": {
+        "revision": "45517b13a67d746048a002f9db52ea55a654b219",
+        "sha256": "1d134f7ed069bc05460c100fdc6f1e8205478fa2db4bed9e4c571c2cf8d5bdce"
+      },
+      "experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11/steering_prediction.py": {
+        "revision": "45517b13a67d746048a002f9db52ea55a654b219",
+        "sha256": "dd0ee373d8b89de6c75cc7fc04dab196442e4cd6c71bd4d812b1e8336ffb3980"
+      },
+      "experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11/steering_pulse.py": {
+        "revision": "45517b13a67d746048a002f9db52ea55a654b219",
+        "sha256": "218656998cf200a54184b460b8e0a7057ca96e7dbc4a5b69a55f9bb5d4efefb2"
+      },
+      "experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11/steering_storage.py": {
+        "revision": "45517b13a67d746048a002f9db52ea55a654b219",
+        "sha256": "7192b376f8ae6baa704f98a40d5b7cfb9143ebb898ee73f3ec38ee8f0bfd494e"
+      },
+      "experiments/belief_quotient_persistent_nuisance_v2_jax_temp15_2026_11/belief_steering.py": {
+        "revision": "45517b13a67d746048a002f9db52ea55a654b219",
+        "sha256": "f238e1a4693227462b8b7323369b382c7d999b1f154a0db05acb6f6694032979"
+      },
+      "experiments/two_factor_moved_reward_steering_v2_jax_2026_11/steering.py": {
+        "revision": "3504bfb72455a411b725ef368a18ff892760555f",
+        "sha256": "c2563103857494c232389ccfc3d02825d158782f5eb80c2508fef79f4ededf95"
+      },
+      "experiments/two_factor_coupled_moving_reward_steering_v2_jax_2026_11/steering.py": {
+        "revision": "3504bfb72455a411b725ef368a18ff892760555f",
+        "sha256": "ef3c60703ed0ba1419de9f494f2815643bcd5472259573c6f87f29e05b24f4be"
+      },
+      "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/steering_reference.py": {
+        "revision": "45517b13a67d746048a002f9db52ea55a654b219",
+        "sha256": "8b1c8afa88483adfcbed6c69d47744da7074fc2a363dae25456c90b89cca75fb"
+      },
+      "adaptations": [
+        "import relocation and minimal function extraction",
+        "ladder driver excludes restoration/publication/provenance IO only",
+        "moving excludes XOR via REWARDS; replaces source study inventory only",
+        "moving base load_params supplied by strict verified adapter"
+      ]
+    },
+    "wall_seconds": 415.3832645780001,
+    "jax": "0.11.1",
+    "numpy": "2.5.1",
+    "devices": [
+      "cpu:0"
+    ]
+  }
+}

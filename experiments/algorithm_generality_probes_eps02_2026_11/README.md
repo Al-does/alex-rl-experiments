@@ -83,3 +83,12 @@ checkpoint hashes and B2 keys, CPU affinity and elapsed time. The analysis HEAD
 is the clean base before the analysis commit; source hashes identify the exact
 uncommitted adapter contents executed. CPU/GPU greedy ties can change visited
 histories relative to archived training-time probes.
+
+## Step 2: steering
+
+See [STEERING.md](STEERING.md) for the pinned ladder and moving-reward protocols,
+CPU reproduction commands and provenance. Completed results are in
+[results/steering/tables.md](results/steering/tables.md) and the interpretation in
+[results/steering/findings.md](results/steering/findings.md). These analyses use
+the same thirty final ladder actors plus ten Joint Reward actors; no XOR,
+factor-2 suppression or additional training is included.
