@@ -5,7 +5,9 @@ of the PR #234 ladder (`belief_quotient_persistent_nuisance_eps02_jax_temp15_202
 Written for the deep-beliefs reviewer request to "perturb the symmetry (e.g.,
 slightly different emission probabilities for states 1 and 2) and report which
 target the representation tracks: the approximate quotient, the full belief, or
-neither". No full training has been run; smoke outputs are not findings.
+neither". The original training results are archived on
+[`devin/approx-lumpable-quotient`](https://github.com/Al-does/alex-rl-experiments/tree/5294ea1f2c94e6d56b746b51a66e602431f5c9b8/experiments/belief_quotient_emission_asymmetry_eps02_jax_temp15_2026_11/results);
+smoke outputs are not findings.
 
 ## Process
 
@@ -77,7 +79,7 @@ uv run --group jax python -m experiments.belief_quotient_emission_asymmetry_eps0
 
 ## Offline analysis
 
-`analysis.py` takes one completed run of this study, or a PR #234
+`analysis.py` takes one completed run of this study, the PPO entropy-bonus follow-up, or a PR #234
 `variant_2_transformer` run (the `kappa = 0` anchor) or `variant_3_transformer`
 run (Full-State control), and never trains. It reads the process from
 `resolved_recipe.json`, verifies the step-0 and final checkpoints against the

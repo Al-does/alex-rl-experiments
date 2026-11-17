@@ -1,8 +1,8 @@
 """Which target does a frozen agent track: the approximate quotient, the full belief, or neither?
 
-Offline analysis of one completed JAX history run: a leaf of this study, or a
-PR #234 ``variant_2_transformer`` (exact quotient) or ``variant_3_transformer``
-(Full-State control) run. Nothing is trained. The final policy plays greedy fit
+Offline analysis of one completed JAX history run: an emission-asymmetry
+REINFORCE or PPO leaf, or a PR #234 ``variant_2_transformer`` (exact quotient)
+or ``variant_3_transformer`` (Full-State control) run. The final policy plays greedy fit
 and test episodes; the run's own step-0 encoder is replayed on the same
 observations. Targets are refiltered in float64 from tokens and executed
 actions, after the current token and before the current action:
@@ -37,6 +37,7 @@ from experiments.belief_quotient_history_jax_2026_11.reinforce import rollout
 from experiments.belief_quotient_emission_asymmetry_eps02_jax_temp15_2026_11 import (
     design, environment,
 )
+from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_ppo_2026_11 import ppo
 
 WARMUP = 128  # the four-layer, 32-position banded encoder reads 128 observations
 BUDGET = {"fit_episodes": 64, "test_episodes": 128, "behavior_episodes": 2048,
@@ -362,7 +363,9 @@ def analyze(run_dir, checkpoint_dir, *, smoke=False, allow_unverified=False):
                                reward, reward[None])
     checkpoints = verified_checkpoints(run, checkpoint_dir,
                                        allow_unverified=allow_unverified or smoke)
-    params = {name: load_params(Path(record["path"]), spec)
+    init_fn = (ppo.init_params if recipe["training"].get("algorithm") == "PPO"
+               else models.init_params)
+    params = {name: load_params(Path(record["path"]), spec, init_fn=init_fn)
               for name, record in checkpoints.items()}
     fit, test = (
         collect(spec, process, full, params, episodes=budget[f"{name}_episodes"], seed=seed,

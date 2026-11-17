@@ -74,10 +74,10 @@ def fetch_parent_checkpoint(parent: dict, parent_leaf_dir: Path, destination: Pa
     return destination
 
 
-def load_params(path: Path, spec) -> dict:
+def load_params(path: Path, spec, *, init_fn=models.init_params) -> dict:
     """Rebuild the parameter pytree saved by ``training._save`` (keystr -> array)."""
 
-    template = models.init_params(spec, jax.random.PRNGKey(0))
+    template = init_fn(spec, jax.random.PRNGKey(0))
     with np.load(path) as saved:
         arrays = {name: saved[name] for name in saved.files}
     leaves, treedef = jax.tree_util.tree_flatten_with_path(template)

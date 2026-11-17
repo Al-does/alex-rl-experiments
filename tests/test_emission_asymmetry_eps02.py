@@ -17,6 +17,7 @@ from experiments.belief_quotient_emission_asymmetry_eps02_jax_temp15_2026_11 imp
 from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 import (
     environment as source_env, shared as source,
 )
+from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_ppo_2026_11 import ppo
 
 
 def _history(seed=0, episodes=6, steps=40):
@@ -136,21 +137,25 @@ def test_action_rule_lookup_recovers_a_threshold_rule():
     assert blind == pytest.approx(0.7, abs=0.05)
 
 
-def _write_run(tmp_path, *, horizon=192, final_step=4096):
+def _write_run(tmp_path, *, horizon=192, final_step=4096, use_ppo=False):
     process = env.ladder_process(0.05)
     spec = models.architecture_spec("transformer", obs_dim=6, n_actions=3, n_tokens=3,
                                     context_len=32)
     run_dir, checkpoint_dir = tmp_path / "results" / "run", tmp_path / "checkpoints"
     run_dir.mkdir(parents=True)
     checkpoint_dir.mkdir()
+    init_fn = ppo.init_params if use_ppo else models.init_params
     for step, seed in ((0, 0), (final_step, 1)):
         _save(checkpoint_dir / f"step_{step:010d}.npz",
-              models.init_params(spec, jax.random.PRNGKey(seed)))
+              init_fn(spec, jax.random.PRNGKey(seed)))
+    training = {"episode_length": horizon}
+    if use_ppo:
+        training["algorithm"] = "PPO"
     files = {
         "resolved_recipe": {
             "study": shared.STUDY, "condition": "asym_050", "seed": 7, "framework": "jax",
             "continued_from": None, "model": asdict(spec),
-            "training": {"episode_length": horizon}, "emission_asymmetry_kappa": 0.05,
+            "training": training, "emission_asymmetry_kappa": 0.05,
             "process": {name: np.asarray(value).tolist()
                         for name, value in process._asdict().items()},
         },
@@ -182,8 +187,9 @@ def test_checkpoints_are_verified_against_the_durability_manifest(tmp_path):
         analysis.verified_checkpoints(run, checkpoint_dir)
 
 
-def test_analysis_and_report_end_to_end(tmp_path):
-    run_dir, checkpoint_dir = _write_run(tmp_path)
+@pytest.mark.parametrize("use_ppo", [False, True], ids=["reinforce", "ppo"])
+def test_analysis_and_report_end_to_end(tmp_path, use_ppo):
+    run_dir, checkpoint_dir = _write_run(tmp_path, use_ppo=use_ppo)
     result = analysis.analyze(run_dir, checkpoint_dir, smoke=True)
     json.dumps(result)
     assert result["lumpability_defect"]["emission"] == pytest.approx(0.1, abs=1e-6)
