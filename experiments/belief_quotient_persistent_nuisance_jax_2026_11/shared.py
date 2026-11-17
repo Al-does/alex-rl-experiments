@@ -56,7 +56,7 @@ def environment_metadata():
 
 def run_condition(context, *, variant, architecture, total_env_steps=TOTAL_ENV_STEPS,
                   study=STUDY, continue_from=None, entropy_schedule_points=None,
-                  temperature=1.0, environment=None, exploration_epsilon=0.0):
+                  temperature=1.0, environment=None, exploration_epsilon=0.0, training_backend=None):
     if architecture not in ARCHITECTURES:
         raise ValueError(f"architecture must be one of {ARCHITECTURES}")
     process = ladder_process(variant) if environment is None else environment.ladder_process(variant)
@@ -64,8 +64,11 @@ def run_condition(context, *, variant, architecture, total_env_steps=TOTAL_ENV_S
     if entropy_schedule_points is not None:
         config = replace(config, entropy_schedule=tuple(entropy_schedule_points))
     config = replace(config, temperature=temperature, exploration_epsilon=exploration_epsilon)
+    if training_backend is not None:
+        config = training_backend.configure(config)
     return run_study(
         context, study=study, condition=f"variant_{variant}", architecture=architecture,
+        **({"trainer": training_backend.train} if training_backend is not None else {}),
         process=process, spec=model_spec(architecture, process),
         config=config, targets=belief_targets,
         representation="embedding", continue_from=continue_from,

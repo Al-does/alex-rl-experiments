@@ -34,7 +34,7 @@ def _save(path, params):
 
 
 def run_study(context, *, study, condition, architecture, process, spec, config,
-              targets, representation, recipe_extra, continue_from=None):
+              targets, representation, recipe_extra, continue_from=None, trainer=train):
     """``continue_from`` (see ``continuation.load_parent_checkpoint``) restarts
     training from a finished run's final parameters; ``config.total_env_steps``
     is then the *additional* budget and all recorded steps are absolute."""
@@ -44,7 +44,7 @@ def run_study(context, *, study, condition, architecture, process, spec, config,
     if context.resume_from is not None:
         raise ValueError("JAX history studies always train from scratch")
     if context.smoke:
-        config = TrainConfig(**{**asdict(config), "num_envs": SMOKE_NUM_ENVS,
+        config = type(config)(**{**asdict(config), "num_envs": SMOKE_NUM_ENVS,
                                 "num_minibatches": min(config.num_minibatches, SMOKE_NUM_ENVS)})
     step_offset = int(continue_from["step_offset"]) if continue_from else 0
     outputs = RunArtifacts.from_context(context)
@@ -72,7 +72,7 @@ def run_study(context, *, study, condition, architecture, process, spec, config,
         saved[steps] = jax.device_get(params)
         _save(checkpoint_dir / f"step_{steps:010d}.npz", saved[steps])
 
-    params, curves, training = train(
+    params, curves, training = trainer(
         spec, process, config, seed=context.seed,
         checkpoint_steps=checkpoint_steps(config, step_offset), on_checkpoint=on_checkpoint,
         log=outputs.append_result,
