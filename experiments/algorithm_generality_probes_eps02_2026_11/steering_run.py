@@ -46,7 +46,7 @@ def worker(task):
 
     tag = f"{kind}_{run['algorithm']}_{'variant'+str(run['variant']) if kind == 'ladder' else 'joint_reward'}_seed{run['seed']}"
     raw = ROOT/'artifacts/steering'/('smoke' if smoke else 'full')/tag
-    output = raw/'compact.json' if smoke else ROOT/'results/steering/agents'/f'{tag}.json'
+    output = raw/'compact.json' if smoke else ROOT/'artifacts/report_details/steering/agents'/f'{tag}.json'
     if output.exists():
         raise FileExistsError(f'refusing to overwrite {output}')
     raw.mkdir(parents=True, exist_ok=True)

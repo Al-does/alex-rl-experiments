@@ -8,6 +8,7 @@ import subprocess
 
 from .analyze import REPO, ROOT, SEEDS, read, write
 from .vendor_steering import LADDER, MOVING
+from .details import DETAILS, ensure_details, records
 
 import numpy as np
 
@@ -16,7 +17,10 @@ SITES = ('Block 1', 'Block 2', 'Block 3', 'Block 4', 'Final norm')
 NAMES = {1: 'Trivial Quotient', 2: 'Reward-State Quotient', 3: 'Full-State Quotient'}
 
 
-def references():
+def references(refresh=False):
+    path = DETAILS/'steering/reinforce_reference.json'
+    if path.exists() and not refresh:
+        return read(path)
     inputs = []
 
     def load(rev, path):
@@ -37,7 +41,7 @@ def references():
                            selected=r['rewards']['moving']['strength_tuning']['selected_strength']))
     reference = load(LADDER, 'experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/results/belief_steering_reference.json')
     result = dict(inputs=inputs, ladder=ladder, moving=moving, numerical_ladder_reference=reference)
-    write(RESULTS/'reinforce_reference.json', result)
+    write(path, result)
     return result
 
 
@@ -81,15 +85,44 @@ def aggregate(reports, rows_fn):
     return dict(n=len(reports), means=means, per_seed=per_seed)
 
 
+def pulse_rows(label, runs, ref):
+    if label.startswith('REINFORCE'):
+        selected = [r for r in ref['ladder'] if NAMES[r['variant']] in label and (label.startswith('REINFORCE (15)') or r['seed'] in SEEDS)]
+    else:
+        algorithm = 'ppo' if label.startswith('PPO') else 'sac_autoalpha'
+        selected = [r for r in runs if r['adapter_provenance']['kind'] == 'ladder' and r['adapter_provenance']['algorithm'] == algorithm and NAMES[r['variant']] in label]
+    return [dict(group=label, condition=condition, n=len(selected),
+        lag0=np.mean([r['pulse']['conditions'][condition]['measured']['absolute_at_lag']['0'] for r in selected], axis=0).tolist(),
+        lag1=np.mean([r['pulse']['conditions'][condition]['measured']['absolute_at_lag']['1'] for r in selected], axis=0).tolist(),
+        last_nonzero_max=max(r['pulse']['conditions'][condition]['measured']['last_nonzero_lag'] or 0 for r in selected),
+        full_filter_lag128=np.mean([r['pulse']['conditions'][condition]['full_filter']['absolute_at_lag']['128'] for r in selected], axis=0).tolist())
+        for condition in selected[0]['pulse']['conditions']]
+
+
+def compact_summary(groups, runs, ref):
+    result = {}
+    for kind, names in (('ladder', ('occupancy', 'action_change', 'shift_norm', 'relative_shift')),
+                        ('moving', ('total_reward',))):
+        result[kind] = [dict(group=label, condition=condition, n=group['n'],
+                            **{name: value for name, value in metrics.items() if name in names})
+                        for label, group in groups[kind].items() for condition, metrics in group['means'].items()]
+    result['pulses'] = [row for label in groups['ladder'] for row in pulse_rows(label, runs, ref)]
+    result['numerical_ladder_reference'] = [dict(condition=NAMES[int(variant)],
+        **{key: values[key]['occupancy'] for key in ('intact', 'random', 'point', 'mirror', 'rho_flip', 'rho_point')})
+        for variant, values in ref.get('numerical_ladder_reference', {}).get('variants', {}).items()]
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--references-only', action='store_true')
     args = parser.parse_args()
-    ref = references()
+    ensure_details()
+    ref = references(refresh=args.references_only)
     if args.references_only:
         print('Extracted 45 ladder and 15 moving REINFORCE references, plus numerical ladder reference')
         return
-    runs = [read(p) for p in sorted((RESULTS/'agents').glob('*.json'))]
+    runs = [read(p) for p in sorted((DETAILS/'steering/agents').glob('*.json'))]
     if len(runs) != 40 or any(r['adapter_provenance']['smoke'] for r in runs):
         raise ValueError('expected exactly 30 ladder plus 10 moving full agents')
     groups = {'ladder': {}, 'moving': {}}
@@ -106,7 +139,8 @@ def main():
                     groups[kind][f'{label}: {NAMES[variant]}'] = aggregate(group, ladder_rows)
             else:
                 groups[kind][label] = aggregate(selected, lambda r: moving_rows(r.get('confirmation', r.get('rewards', {}).get('moving', {}).get('confirmation'))))
-    write(RESULTS/'summary.json', groups)
+    write(DETAILS/'aggregates/steering.json', groups)
+    records(RESULTS/'summary.json', compact_summary(groups, runs, ref))
     lines = ['# Steering algorithm generality', '', '## Ladder: full strength after block 4', '',
         'Reward-state occupancy; parentheses are action-change fractions. Intact/random are controls.', '',
         '| Algorithm / condition | Intact | Random | delta point | delta mirror | rho flip | rho point |', '|---|---:|---:|---:|---:|---:|---:|']
@@ -178,7 +212,7 @@ def main():
             continue
         for seed, values in group['per_seed'].items():
             lines.append('| '+label+' | '+seed+' | '+' | '.join(f"{values[k]['total_reward']:.4f}" for k in moving_keys)+' |')
-    lines += ['', 'Full per-seed/site/control metrics, myopic-map results and phase/component rewards are in summary.json and the compact agent reports. Pulses retain exact-filter comparisons and finite-cache cutoffs in agent reports. Numerical references are not certified optima.', '']
+    lines += ['', 'Aggregate occupancy/reward/control and pulse metrics are in summary.json. Full per-seed/site metrics, myopic-map results, phase/component rewards and agent reports are in the verified B2 archive (../details_manifest.json). Numerical references are not certified optima.', '']
     (RESULTS/'tables.md').write_text('\n'.join(lines))
     print('Assembled 30 ladder and 10 moving agents; 45/15 REINFORCE references; summary.json and tables.md')
     print('\n'.join(lines[:20]))

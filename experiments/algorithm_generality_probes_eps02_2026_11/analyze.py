@@ -136,7 +136,7 @@ def run_one(task):
     from experiments.belief_quotient_history_jax_2026_11.models import ModelSpec
     from experiments.belief_quotient_history_jax_2026_11.env import make_process
     from analysis.probes.linear import global_mse_metrics, r2_score
-    output = ROOT / ("artifacts/smoke" if smoke else "results/agents") / f"{run['algorithm']}_variant{run['variant']}_seed{run['seed']}.json"
+    output = ROOT / ("artifacts/smoke" if smoke else "artifacts/report_details/probes/agents") / f"{run['algorithm']}_variant{run['variant']}_seed{run['seed']}.json"
     if output.exists():
         cached = read(output)
         if cached["version"] != VERSION:

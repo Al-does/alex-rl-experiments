@@ -12,7 +12,7 @@ Belief-Quotient Ladder conditions. No training or paid compute.
 
 The smoke uses one PPO Reward-State Quotient agent with 960/1,920 scored rows;
 the full run uses the paper's 60,000/80,000. Checkpoints and logs belong in
-ignored `artifacts/`; compact agent scores and comparisons are in `results/`.
+ignored `artifacts/`; compact aggregate scores and comparisons are in `results/`.
 Existing completed agent JSONs are resumed; use an isolated clean output
 directory when changing the protocol rather than treating them as fresh runs.
 
@@ -66,7 +66,7 @@ from sources not available as importable modules on experiment main:
 
 The thin `within` wrapper omits the expensive perturbation controls from the
 original `temp15_analyze.py::analyze_encoder`, preserving its full/head-blind/
-logit classwise fits. `results/reinforce_reference.json` is a compact extraction
+logit classwise fits. Archived `probes/reinforce_reference.json` is an extraction
 of existing final scores from the paper's `ladder_reprobes.json` and
 `coarse_comparison.json`, plus that revision's
 `results/ladder_eps02_within_class.json`. Source paths/revisions are embedded.
@@ -83,6 +83,52 @@ checkpoint hashes and B2 keys, CPU affinity and elapsed time. The analysis HEAD
 is the clean base before the analysis commit; source hashes identify the exact
 uncommitted adapter contents executed. CPU/GPU greedy ties can change visited
 histories relative to archived training-time probes.
+
+## Slim results and verified regeneration
+
+Only `results/{summary.json,tables.md,findings.md,per_seed.csv}`, the steering
+aggregate/table/findings files, and `results/details_manifest.json` are tracked.
+Probe JSON retains cohort means, not per-agent records; the CSV retains per-seed
+probe scores. Steering JSON stores one record per cohort/condition, with only
+aggregate occupancy, action-change/write-norm, reward and pulse metrics. It
+does not contain per-episode/per-lag arrays or duplicate agent reports.
+
+Detailed report inputs live under ignored `artifacts/report_details/`:
+`probes/{agents/,reinforce_reference.json}` and
+`steering/{agents/,reinforce_reference.json}`. `baseline/` preserves the
+pre-slim aggregate outputs and `executed_sources/` preserves the exact two
+historical collectors whose output-path changes alter their source hashes.
+Numerical probe/steering sources must still match their executed hashes.
+
+The 76 indexed inputs are durable in B2. The small tracked manifest records the
+archive key, SHA-256 and byte size, and the canonical remote
+`metadata/durability_manifest.json` key. `details --publish` uses the harness
+uploader under `experiments/<study>/report-details-<archive-hash-prefix>/`,
+downloads and hashes the archive, verifies every extracted member against its
+index, then uploads and reads back the canonical manifest. Never put that
+archive, detailed JSONs, checkpoints or logs in git.
+
+To regenerate the existing reports without rerunning agents (B2 credentials
+are required when ignored inputs/checkpoints are absent):
+
+```bash
+.venv/bin/python -m experiments.algorithm_generality_probes_eps02_2026_11.details
+.venv/bin/python -m experiments.algorithm_generality_probes_eps02_2026_11.report
+.venv/bin/python -m experiments.algorithm_generality_probes_eps02_2026_11.steering_report
+.venv/bin/python -m experiments.algorithm_generality_probes_eps02_2026_11.validate
+.venv/bin/python -m experiments.algorithm_generality_probes_eps02_2026_11.steering_validate
+.venv/bin/python -m pytest -q experiments/algorithm_generality_probes_eps02_2026_11
+```
+
+Reports automatically restore missing details, and reject corrupted indexed
+inputs rather than silently accepting or replacing them. Derived full
+aggregates go to ignored `artifacts/report_details/aggregates/`; validation
+checks exact equality with archived pre-slim aggregates and checks compact
+projections. Missing checkpoints are restored from their canonical manifests;
+present checkpoints still undergo SHA-256/size verification. Collectors now
+write only ignored detailed reports. Publishing a deliberately changed input
+collection requires explicit `details --publish`; normal report regeneration
+never uploads or changes the archive manifest.
 
 ## Step 2: steering
 

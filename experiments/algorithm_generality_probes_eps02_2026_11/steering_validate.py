@@ -4,12 +4,14 @@ import hashlib
 
 from .analyze import FINAL, ROOT, SEEDS, read
 from .steering_report import ladder_rows, moving_rows
+from .details import DETAILS, ensure_details, checkpoint, source
 
 import numpy as np
 
 
 def main():
-    runs = [read(p) for p in (ROOT/'results/steering/agents').glob('*.json')]
+    ensure_details()
+    runs = [read(p) for p in (DETAILS/'steering/agents').glob('*.json')]
     assert len(runs) == 40
     inventories = set()
     controls = {}
@@ -23,10 +25,11 @@ def main():
         assert not p['smoke'] and p['training_seed'] in SEEDS
         assert all('cpu' in d.lower() for d in p['devices'])
         c = p['checkpoint_verified']
-        path = ROOT/'artifacts/checkpoints'/p['run_id']/f'step_{FINAL:010d}.npz'
-        assert path.stat().st_size == c['size_bytes']
-        assert hashlib.sha256(path.read_bytes()).hexdigest() == c['sha256']
-        for name in ('analyze.py', 'steering_run.py', 'steer_core.py', 'steer_prediction.py',
+        assert c['step'] == FINAL
+        checkpoint(p['run_id'], c)
+        for name in ('analyze.py', 'steering_run.py'):
+            source(name, p['source_sha256'][name])
+        for name in ('steer_core.py', 'steer_prediction.py',
                      'steer_pulse.py', 'steer_moving.py', 'steer_moving_base.py', 'steer_storage.py', 'steer_reference.py'):
             body = (ROOT/name).read_bytes()
             versions = (body, body+b'\n') if name.startswith('steer_') else (body,)
@@ -70,7 +73,7 @@ def main():
                 for algorithm in ('ppo', 'sac_autoalpha') for variant in ((1, 2, 3) if kind == 'ladder' else ('joint_reward',))
                 for seed in SEEDS}
     assert inventories == expected
-    ref = read(ROOT/'results/steering/reinforce_reference.json')
+    ref = read(DETAILS/'steering/reinforce_reference.json')
     for r in ref['moving']:
         value = [r['confirmation'][k]['total_reward'] for k in ('random', 'exact_belief_myopic_map', 'exact_belief_discounted_map')]
         np.testing.assert_array_equal(value, controls['moving', 'joint_reward'])

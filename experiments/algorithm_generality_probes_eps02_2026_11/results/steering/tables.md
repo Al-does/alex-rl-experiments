@@ -275,4 +275,4 @@ Mean absolute decoded-coordinate response at lags 0/1, maximum last nonzero lag 
 | SAC auto-alpha (5) | 49 | 0.9195 | 0.6021 | 0.8961 | 0.9527 | 1.0266 | 1.0919 |
 | SAC auto-alpha (5) | 52 | 0.9231 | 0.6021 | 0.9198 | 0.9690 | 1.0250 | 1.0919 |
 
-Full per-seed/site/control metrics, myopic-map results and phase/component rewards are in summary.json and the compact agent reports. Pulses retain exact-filter comparisons and finite-cache cutoffs in agent reports. Numerical references are not certified optima.
+Aggregate occupancy/reward/control and pulse metrics are in summary.json. Full per-seed/site metrics, myopic-map results, phase/component rewards and agent reports are in the verified B2 archive (../details_manifest.json). Numerical references are not certified optima.

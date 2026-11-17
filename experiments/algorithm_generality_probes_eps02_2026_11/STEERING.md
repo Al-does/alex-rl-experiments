@@ -1,7 +1,7 @@
 # Frozen-agent steering: eps02 PPO and auto-alpha SAC
 
 This is Step 2 on the same branch as the ladder probes. No actor training,
-paid compute, XOR, factor-2 suppression or uploads are involved. Forty final
+paid compute, XOR or factor-2 suppression is involved. Forty final
 actors are used: the thirty ladder actors from Step 1, plus the ten Joint
 Reward actors from the corresponding PPO/auto-alpha SAC reward-factor studies.
 The paper's moving-reward experiment does **not** include Marginal Reward.
@@ -43,7 +43,8 @@ selecting `REWARDS = ('moving',)`. The moving-reward driver calls the reused
 strict loader through an already-verified actor closure. Generic trainer,
 environment and model implementations remain imports, not copied code.
 
-Regeneration, reference extraction and source-parity tests require these git
+Vendoring, explicit reference refresh (`steering_report --references-only`)
+and source-parity tests require these git
 objects locally; fetch the two pinned revisions from origin if absent. The
 vendored numerical modules themselves do not require the original branches.
 After the completed run, a trailing space in the generated ladder report
@@ -51,6 +52,11 @@ header and terminal blank lines in generated modules were removed. Executed
 hashes are retained verbatim; the validator accepts either current bytes or
 the exact reconstruction with that one header space / one terminal newline.
 No numerical statement changed.
+
+Historical `analyze.py` and `steering_run.py` bytes are also in the verified
+detail archive, because moving output paths changes collector source hashes.
+Only these two collectors may match archived bytes; numerical modules must
+still match their executed hashes (with the normalization above).
 
 ### Ladder
 
@@ -90,17 +96,24 @@ No numerical statement changed.
 
 ## Results and interpretation boundaries
 
-Compact reports and comparisons live in `results/steering/`; raw reports,
-map arrays, checkpoints and logs stay under ignored `artifacts/`. Every
+Compact aggregate reports and comparisons live in `results/steering/`; agent
+reports, map arrays, checkpoints and logs stay under ignored `artifacts/`. Every
 actor report records training/analysis/harness revisions, source hashes,
 checkpoint hash/B2 keys, CPU affinity, versions and wall time.
 
-`steering_report.py` extracts the paper's existing REINFORCE results (same
+`steering_report.py` reads the archived paper REINFORCE results (same
 five seeds and all fifteen), preserving exact source-file hashes. It does not
 rerun those agents. `tables.md` includes full-strength ladder effects,
 tuning-selected site/null comparisons, moving-reward/site tables and per-seed
-results, norm-matched delta and pulse comparisons. `summary.json` retains all per-seed/site/control/phase metrics;
-ladder agent reports retain compact pulse comparisons.
+results, norm-matched delta and pulse comparisons. `summary.json` retains only
+cohort/condition aggregate occupancy, action-change/write-norm, reward and pulse
+metrics; per-seed rows remain in `tables.md`. Full site/control/phase metrics,
+per-agent reports and REINFORCE inputs are restored to ignored
+`artifacts/report_details/steering/` from the B2 archive indexed by
+`results/details_manifest.json`. See [README.md](README.md#slim-results-and-verified-regeneration)
+for archive verification, regeneration and validation commands. Normal report
+regeneration needs no pinned git objects and never reruns REINFORCE agents or
+uploads anything. Publishing the archive was the only upload in this cleanup.
 
 The completed CPU campaign contains 30 full ladder reports and 10 full
 moving-reward reports. Both reduced-budget smokes completed first. Ladder

@@ -92,6 +92,6 @@ Each triple is global error b/ρ/δ; within-class cells are matched-init → tra
 | SAC auto-alpha (5) | Full-State Quotient | 49 | 0.0354 / 0.0267 / 0.0499 | 0.0394 | 0.845→0.951 / 0.873→0.971 / 0.787→0.911 |
 | SAC auto-alpha (5) | Full-State Quotient | 52 | 0.0443 / 0.0435 / 0.0455 | 0.0585 | 0.810→0.946 / 0.830→0.958 / 0.766→0.919 |
 
-Head-blind and logit-only controls, all per-class scores and excluded-row counts are retained in agent JSONs; group means are in summary.json.
+Head-blind and logit-only controls, all per-class scores and excluded-row counts are retained in archived agent JSONs (details_manifest.json); group means are in summary.json.
 
 Global constrained-replacement events: 0. Raw global fits are retained in every agent JSON.

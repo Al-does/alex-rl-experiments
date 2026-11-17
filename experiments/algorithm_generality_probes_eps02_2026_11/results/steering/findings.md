@@ -78,8 +78,10 @@ null in every one of the five PPO and five SAC seeds. Joint gains are .1318
 for PPO and .1008 for SAC, versus .1366 for the same five REINFORCE agents.
 PPO closely matches the five-seed reference; SAC transfers in the same
 direction but less strongly. Both myopic and discounted maps, component and
-phase rewards, and per-factor action agreement/change are retained in
-`summary.json`, not only these headline discounted-map means.
+phase rewards, and per-factor action agreement/change are retained in the
+verified detail archive ([../details_manifest.json](../details_manifest.json)).
+`summary.json` retains aggregate reward means for both maps, not the underlying
+per-agent/phase records.
 
 All five intervention sites improve cohort means. Joint reward ranges from
 1.0063–1.0360 for PPO and .9408–1.0125 for SAC; blocks 2–4/final norm usually
@@ -107,4 +109,6 @@ Post-run report-header/terminal-blank-line normalization is documented in
 `STEERING.md` and explicitly reconstructed by the audit. Original numerical
 helper ASTs and the complete ladder numerical body are checked against the
 pinned sources. Raw reports, maps, checkpoints and logs remain ignored under
-`artifacts/`; no REINFORCE actor was rerun.
+`artifacts/`; no REINFORCE actor was rerun. The removed detailed agent/reference
+JSONs and pre-slim aggregate baselines are durable in the verified B2 archive;
+normal regeneration restores them to ignored `artifacts/report_details/`.

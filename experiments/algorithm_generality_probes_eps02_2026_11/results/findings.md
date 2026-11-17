@@ -33,8 +33,10 @@ See **[tables.md](tables.md)** for the complete side-by-side means across all
 three conditions and per-seed global, coarse and within-class b/rho/delta
 scores. **[summary.json](summary.json)** and **[per_seed.csv](per_seed.csv)**
 also include head-blind/logit controls and all 15 REINFORCE reference seeds.
-Compact agent JSONs contain per-class counts, raw global errors, checkpoint
-hashes/B2 keys, source hashes, repository revisions and wall times.
+Archived agent JSONs contain per-class counts, raw global errors, checkpoint
+hashes/B2 keys, source hashes, repository revisions and wall times. They restore
+to ignored `artifacts/report_details/` using [details_manifest.json](details_manifest.json);
+only aggregate JSON and the per-seed CSV/tables remain tracked.
 
 ## Coverage and limits
 

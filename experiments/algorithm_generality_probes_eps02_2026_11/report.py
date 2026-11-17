@@ -7,6 +7,8 @@ from pathlib import Path
 
 import numpy as np
 
+from .details import DETAILS, ensure_details, write
+
 ROOT = Path(__file__).resolve().parent
 SEEDS = (42, 44, 46, 49, 52)
 NAMES = {1: "Trivial Quotient", 2: "Reward-State Quotient", 3: "Full-State Quotient"}
@@ -24,10 +26,11 @@ def metrics(run):
 
 
 def main():
-    runs = [json.loads(p.read_text()) for p in sorted((ROOT / "results/agents").glob("*.json"))]
+    ensure_details()
+    runs = [json.loads(p.read_text()) for p in sorted((DETAILS / "probes/agents").glob("*.json"))]
     if len(runs) != 30 or len({(r['algorithm'], r['variant'], r['seed']) for r in runs}) != 30:
         raise ValueError("expected 30 unique PPO/SAC agents")
-    reference = json.loads((ROOT / "results/reinforce_reference.json").read_text())
+    reference = json.loads((DETAILS / "probes/reinforce_reference.json").read_text())
     groups = {}
     for name, source in (("REINFORCE (15)", reference["runs"]),
                          ("REINFORCE (5)", [r for r in reference["runs"] if r["seed"] in SEEDS]),
@@ -53,7 +56,8 @@ def main():
         "reference_sources": reference["sources"], "groups": groups,
         "constraint_events": [{"run_id": r["run_id"], "target": k, "raw": v["raw"]["error"], "constrained": v["error"]}
                               for r in runs for k, v in r["scalars"].items() if "constrained" in v]}
-    (ROOT / "results/summary.json").write_text(json.dumps(summary, indent=2, allow_nan=False)+"\n")
+    write(DETAILS/'aggregates/probes.json', summary)
+    write(ROOT/'results/summary.json', compact_summary(summary))
     lines = ["# Algorithm generality: eps02 ladder probes", "", "CPU-only, frozen final actors at step 2,012,217,344. Five-seed cohort: 42/44/46/49/52.", "",
         "## Global normalized probe error (1−R²)", "", "| Algorithm | Condition | b | ρ | δ | c[B] / merged target |", "|---|---|---:|---:|---:|---:|"]
     for g in groups.values():
@@ -74,7 +78,7 @@ def main():
             c=m.get("error_coarse_b",m.get("error_merged_token_rho")) if g['variant']!=1 else None
             w=" / ".join(f"{m['within_matched_init_full_h_'+t]:.3f}→{m['within_trained_full_h_'+t]:.3f}" for t in ("belief","rho","delta"))
             lines.append(f"| {g['algorithm']} | {NAMES[g['variant']]} | {seed} | {e} | {f'{c:.4f}' if c is not None else '—'} | {w} |")
-    lines += ["", "Head-blind and logit-only controls, all per-class scores and excluded-row counts are retained in agent JSONs; group means are in summary.json.", "",
+    lines += ["", "Head-blind and logit-only controls, all per-class scores and excluded-row counts are retained in archived agent JSONs (details_manifest.json); group means are in summary.json.", "",
               f"Global constrained-replacement events: {len(summary['constraint_events'])}. Raw global fits are retained in every agent JSON.", ""]
     (ROOT / "results/tables.md").write_text("\n".join(lines))
     buffer=io.StringIO(); writer=csv.writer(buffer, lineterminator="\n");writer.writerow(["algorithm","variant","seed","metric","value"])
@@ -84,6 +88,11 @@ def main():
     (ROOT / "results/per_seed.csv").write_text(buffer.getvalue())
     print("Assembled 30 agents, 45 REINFORCE references; summary.json, tables.md, per_seed.csv")
     print("\n".join(lines[:20]))
+
+
+def compact_summary(summary):
+    return {**summary, 'groups': {key: {k: v for k, v in group.items() if k != 'per_seed'}
+                                for key, group in summary['groups'].items()}}
 
 
 if __name__ == "__main__":
