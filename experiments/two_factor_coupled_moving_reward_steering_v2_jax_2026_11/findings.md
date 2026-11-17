@@ -151,6 +151,58 @@ are the reports already here. n=15; sd is across seeds; block 4, long-run map
   Their unsteered rewards are within the no-ε range. This is consistent with a
   small ε penalty on steerability, but with two ε seeds it is not established.
 
+## 15 ε=0.02-emission seeds (PR #234)
+
+PR #234 retrained the Joint Reward arm (seeds 42–56) on the same dynamics with
+one change: state 3 now emits A/B with probability ε/2 each, ε=0.02
+(`reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11/reward_both_transformer`).
+Final checkpoints (step 2,012,217,344, SHA-256 matching each run's B2 durability
+manifest) went through the unchanged protocol, except that the ε=0.02 process
+now drives the fitted belief targets, the exact-belief filter/maps and the
+rollouts (`steering.source_process(study)`; checked against each run's
+recorded process). Transitions are identical, so the Q tables are unchanged.
+n=15; sd across seeds; block 4, long-run map (`results/summary_eps02.json`,
+`results/eps02_xor_moving_steering_15_seeds.pdf`, PR #231 no-ε seeds overlaid).
+
+| Condition | XOR mean ± sd [min, max] | Moving total mean ± sd [min, max] | Moving factor 1 / factor 2 |
+|---|---|---|---|
+| Unsteered | 0.482 ± 0.005 [0.478, 0.493] | 0.901 ± 0.009 [0.883, 0.919] | 0.403 / 0.498 |
+| Uniform random | 0.182 | 0.602 | 0.098 / 0.504 |
+| Factored steering | 0.494 ± 0.014 [0.478, 0.515] | 0.999 ± 0.013 [0.986, 1.039] | 0.353 / 0.646 |
+| Joint steering | **0.502 ± 0.012** [0.480, 0.516] | **1.042 ± 0.020** [0.996, 1.069] | 0.378 / 0.664 |
+| Exact belief | 0.563 | 1.092 | 0.414 / 0.678 |
+| Null, factored | 0.478 ± 0.006 | 0.908 ± 0.015 | |
+| Null, joint | 0.472 ± 0.014 | 0.899 ± 0.037 | |
+
+| Gap closed (unsteered → exact), mean ± sd | XOR | Moving | no-ε (PR #231) XOR / moving |
+|---|---|---|---|
+| Factored steering | 15% ± 15% | 51% ± 7% | 66% / 65% |
+| Joint steering | 24% ± 14% | 74% ± 10% | 46% / 84% |
+
+- Moving reward still works: 15/15 agents improve under both steering types,
+  joint > factored in 14/15. In phases paying states 1/2, factor-2 reward goes
+  0.591 → 0.953 (joint), exact 0.973. Factor-1 cost: joint −0.025, factored
+  −0.050 (no ε: −0.012 / −0.041).
+- XOR steering mostly fails. Tuning on 64 episodes found no helpful strength
+  (λ=0 selected) for 5/15 agents with factored steering and 3/15 with joint
+  steering. Gains elsewhere are 0.001–0.034. Steering barely changes
+  exact-belief-map agreement (unsteered 0.68 / 0.68, factored 0.70 / 0.68,
+  joint 0.69 / 0.70 for factor 1 / factor 2; no ε went 0.57 → 0.71–0.75).
+  The factored > joint ordering of no ε does not hold: joint > factored in 9/15.
+- The headroom shrinks: the exact-belief map's XOR edge over unsteered falls
+  from 0.120 to 0.081 (and moving from 0.212 to 0.191), because state 3 can no
+  longer be confirmed from one observation.
+- Decoding is worse: final joint-belief 1−R² is 0.131 on average (no ε: 0.099).
+  Pearson r with steered reward: XOR joint −0.78 (p<0.001), XOR factored −0.28
+  (p=0.32), moving joint −0.44 (p=0.10), moving factored 0.04 (p=0.89).
+- Held-out decoder R² of the steering maps (`results/eps02_probe_r2.json`,
+  `probe_r2.py`: same fit rollout, 80,000 test rows at seed 43), block 4:
+  factored 0.89–0.93, joint 0.84–0.90 (no-ε four agents: 0.91–0.93 / 0.87–0.91).
+- Nulls are flat except joint nulls at large tuned λ: seed 55 moving (λ=3.0,
+  0.778) and seeds 52/56 XOR (drops of 0.03–0.05).
+- Reports record `experiment.dirty = true` on `569c2183` (merge of `main` into
+  the PR #233 branch); `steering.py` is committed unchanged from the run.
+
 ## Caveats
 
 - The 4-agent tables above use two training seeds per arm; the 15-seed section
@@ -182,3 +234,23 @@ About 40 minutes on 8 CPU cores with the four agents in parallel (`--only`); the
 `--only ctx32_2026_11/reward_both_transformer/seed44`. Checkpoints come from each
 run's B2 prefix, `checkpoints/step_2012217344.npz`, renamed to the
 `checkpoint_path` pattern in the PR #226 study.
+
+Decoder R² for the PR #234 agents (a few minutes per agent):
+
+```bash
+uv run --group jax python -m experiments.two_factor_coupled_moving_reward_steering_v2_jax_2026_11.probe_r2 \
+  --study reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11 \
+  --checkpoints experiments/two_factor_coupled_moving_reward_steering_v2_jax_2026_11/artifacts/checkpoints \
+  --output experiments/two_factor_coupled_moving_reward_steering_v2_jax_2026_11/results/eps02_probe_r2.json
+```
+
+PR #234 agents (~90 min, 8 in parallel; checkpoints named
+`eps02_ctx32_2026_11__<leaf>__seed<seed>__<run_id>__step_*.npz`):
+
+```bash
+uv run --group jax python -m experiments.two_factor_coupled_moving_reward_steering_v2_jax_2026_11.steering \
+  --checkpoints experiments/two_factor_coupled_moving_reward_steering_v2_jax_2026_11/artifacts/checkpoints \
+  --only eps02_jax_temp15_ctx32_2026_11/reward_both_transformer/seed42
+uv run --group jax python -m experiments.two_factor_coupled_moving_reward_steering_v2_jax_2026_11.summarize \
+  --pattern 'eps02_ctx32*__seed*.json' --output summary_eps02.json
+```

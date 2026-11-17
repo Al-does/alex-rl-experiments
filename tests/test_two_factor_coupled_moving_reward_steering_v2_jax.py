@@ -48,3 +48,23 @@ def test_belief_target_respects_steered_factors():
     assert np.allclose(full.sum(1).max(1), 1, atol=1e-6)
     both = s.belief_target(decoded, "marginal", q, anchors, (True, True))
     assert set(np.round(np.asarray(both), 6).ravel().tolist()) <= {0.0, 1.0}
+
+
+def test_eps02_source_process_changes_only_state_3_emission():
+    v2 = s.source_process("reward_factors_persistent_nuisance_v2_jax_temp15_ctx32_2026_11")
+    eps02 = s.source_process("reward_factors_persistent_nuisance_eps02_jax_temp15_ctx32_2026_11")
+    np.testing.assert_array_equal(np.asarray(v2.transitions), np.asarray(eps02.transitions))
+    np.testing.assert_array_equal(np.asarray(v2.reward), np.asarray(eps02.reward))
+    emission = np.asarray(eps02.emission).reshape(3, 3, 3, 3)
+    np.testing.assert_allclose(emission[2, 2, 2, 2], 0.98 ** 2, rtol=1e-6)
+    assert np.asarray(v2.emission).reshape(3, 3, 3, 3)[2, 2, 2, 2] == 1
+    assert s.joint_transitions().shape == (9, 9, 9)
+
+
+def test_source_runs_tag_eps02_checkpoints(tmp_path):
+    runs = [r for r in s.source_runs() if "eps02" in r["study"] and r["leaf"] == "reward_both_transformer"]
+    assert sorted(r["seed"] for r in runs) == list(range(42, 57))
+    run = runs[0]
+    name = f"eps02_ctx32_2026_11__{run['leaf']}__seed{run['seed']}__{run['run_id']}__step_1.npz"
+    (tmp_path / name).touch()
+    assert s.checkpoint_path(run, tmp_path).name == name
