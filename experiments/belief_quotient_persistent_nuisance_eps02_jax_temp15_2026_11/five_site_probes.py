@@ -37,7 +37,7 @@ def git_text(revision, path):
     available = subprocess.run(["git", "cat-file", "-e", f"{revision}^{{commit}}"],
                                cwd=ROOT, capture_output=True)
     if available.returncode:
-        command = ["git", "fetch", "--no-tags", "--depth=1", "origin", revision]
+        command = ["git", "fetch", "--no-write-fetch-head", "--no-tags", "--depth=1", "origin", revision]
         try:
             subprocess.run(command, cwd=ROOT, check=True, capture_output=True)
         except subprocess.CalledProcessError as exc:

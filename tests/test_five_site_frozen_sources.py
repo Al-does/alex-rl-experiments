@@ -66,11 +66,27 @@ def test_existing_revision_never_fetches_even_for_missing_path(shallow_source, m
         assert probe.git_text(revision, path) == source
 
 
+@pytest.mark.parametrize("existing", [False, True])
+def test_fetch_preserves_fetch_head(shallow_source, monkeypatch, existing):
+    _, clone, revision, source = shallow_source
+    fetch_head = clone / git(clone, "rev-parse", "--git-path", "FETCH_HEAD")
+    if existing:
+        fetch_head.write_bytes(b"developer's FETCH_HEAD\n")
+    else:
+        fetch_head.unlink(missing_ok=True)
+    monkeypatch.setattr(probe, "ROOT", clone)
+    assert probe.git_text(revision, "frozen.py") == source
+    if existing:
+        assert fetch_head.read_bytes() == b"developer's FETCH_HEAD\n"
+    else:
+        assert not fetch_head.exists()
+
+
 def test_missing_revision_fetch_failure_has_recovery_command(shallow_source, monkeypatch):
     _, clone, revision, _ = shallow_source
     git(clone, "remote", "remove", "origin")
     monkeypatch.setattr(probe, "ROOT", clone)
     with pytest.raises(RuntimeError, match="could not be fetched from origin") as error:
         probe.frozen_module(revision, "frozen.py")
-    assert f"git fetch --no-tags --depth=1 origin {revision}" in str(error.value)
+    assert f"git fetch --no-write-fetch-head --no-tags --depth=1 origin {revision}" in str(error.value)
     assert str(clone) in str(error.value)
