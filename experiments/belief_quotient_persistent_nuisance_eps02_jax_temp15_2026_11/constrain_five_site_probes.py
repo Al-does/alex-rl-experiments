@@ -1,36 +1,33 @@
 """Constrain only error>1 five-site predictions; preserve original reports."""
 from __future__ import annotations
 
-import ast
 from copy import deepcopy
 import csv
-import hashlib
 import io
 import json
 from pathlib import Path
 
 from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 import five_site_probes as probe
 from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 import five_site_probes_stage2 as stage2
+from experiments.algorithm_generality_probes_eps02_2026_11.paper_constraints import constrain_predictions
 from analysis.probes.linear import fit_affine_probe, global_mse_metrics, r2_score
 
 import numpy as np
 
 OUTPUT = stage2.OUTPUT
 REMEDY = probe.ROOT.parent / "deep-beliefs/experiments/persistent_nuisance_v2/constrain_degenerate.py"
+REMEDY_SOURCE_SHA256 = "809466500dda8c42f5f6155c42cb8025ab483bef8e182f6452a2fda8ef39d55f"
 TARGETS = ("b", "c", "rho", "delta")
 PAIRS = ((2, "b"), (2, "c"), (2, "delta"), (3, "b"), (3, "delta"))
 
 
 def projector():
-    source = REMEDY.read_text()
-    tree = ast.parse(source)
-    functions = [n for n in tree.body if isinstance(n, ast.FunctionDef)
-                 and n.name == "constrain_predictions"]
-    if len(functions) != 1:
-        raise ValueError("missing established projection function")
-    namespace = {"np": np}
-    exec(compile(ast.Module(body=functions, type_ignores=[]), str(REMEDY), "exec"), namespace)
-    return namespace["constrain_predictions"], hashlib.sha256(source.encode()).hexdigest()
+    """Return the in-repo projection and its historical upstream-source digest.
+
+    REMEDY identifies the original source in archived reports; it is not read.
+    The function extract in paper_constraints is unchanged from that source.
+    """
+    return constrain_predictions, REMEDY_SOURCE_SHA256
 
 
 def metrics(prediction, target):

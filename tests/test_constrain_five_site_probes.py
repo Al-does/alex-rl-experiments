@@ -1,9 +1,45 @@
 from copy import deepcopy
+import subprocess
+import sys
 
 import numpy as np
 import pytest
 
 from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 import constrain_five_site_probes as correction
+
+
+def test_correction_sets_thread_limits_before_importing_numpy():
+    subprocess.run([sys.executable, "-c", """
+import builtins
+import os
+
+names = ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS')
+for name in names:
+    os.environ[name] = '2'
+original_import = builtins.__import__
+
+def checked_import(name, *args, **kwargs):
+    if name == 'numpy':
+        assert all(os.environ[key] == '1' for key in names)
+    return original_import(name, *args, **kwargs)
+
+builtins.__import__ = checked_import
+from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 import constrain_five_site_probes
+"""], check=True)
+
+
+def test_projector_does_not_read_a_sibling_checkout(tmp_path, monkeypatch):
+    monkeypatch.setattr(correction, "REMEDY", tmp_path / "absent-deep-beliefs.py")
+
+    def reject_read(*args, **kwargs):
+        raise AssertionError("projection must not read external source files")
+
+    with monkeypatch.context() as reads:
+        reads.setattr(type(tmp_path), "read_text", reject_read)
+        project, digest = correction.projector()
+        actual = project([[2., -1., 0.]], "belief")
+    assert digest == "809466500dda8c42f5f6155c42cb8025ab483bef8e182f6452a2fda8ef39d55f"
+    np.testing.assert_array_equal(actual, [[1., 0., 0.]])
 
 
 def test_established_simplex_projection_and_coarse_simplex():
