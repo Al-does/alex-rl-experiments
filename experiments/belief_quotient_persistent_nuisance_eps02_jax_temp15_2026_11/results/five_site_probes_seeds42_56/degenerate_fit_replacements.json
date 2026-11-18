@@ -1,0 +1,1351 @@
+{
+  "selection_rule": "all original error > 1, across all 90 reports and all sites/targets",
+  "selection_warning": "retrospective test-error screening; selected scores are constrained but others remain raw",
+  "protocol": {
+    "fit_rows": 60000,
+    "test_rows": 80000,
+    "episode_length": 1024,
+    "warmup": 64,
+    "key": "split(fold_in(PRNGKey(42), 2))",
+    "policy": "own-checkpoint greedy",
+    "ridge": 1e-06,
+    "matmul_precision": "highest",
+    "sites": [
+      "block_1",
+      "block_2",
+      "block_3",
+      "block_4",
+      "post_final_norm"
+    ]
+  },
+  "projector_source": "/home/ubuntu/repos/deep-beliefs/experiments/persistent_nuisance_v2/constrain_degenerate.py",
+  "projector_source_sha256": "809466500dda8c42f5f6155c42cb8025ab483bef8e182f6452a2fda8ef39d55f",
+  "replacements": [
+    {
+      "variant": 1,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_1",
+      "target": "b",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 77.41165541560524,
+        "target_variance": 0.11279933899641037,
+        "global_mse_ratio": 686.2775624781694,
+        "error": 686.277551381446,
+        "r_squared": -685.277551381446
+      },
+      "ridge_reproduced": {
+        "mse": 77.41165541560524,
+        "target_variance": 0.11279933899641037,
+        "global_mse_ratio": 686.2775624781694,
+        "r_squared": -685.277551381446,
+        "error": 686.277551381446
+      },
+      "new": {
+        "mse": 0.027278121045316104,
+        "target_variance": 0.11279933899641037,
+        "global_mse_ratio": 0.24182873133843613,
+        "r_squared": 0.758171272571799,
+        "error": 0.24182872742820105
+      },
+      "method": "Euclidean projection of original b predictions onto 3-state simplex"
+    },
+    {
+      "variant": 1,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_1",
+      "target": "c",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 0.0001373548890582536,
+        "target_variance": 3.2961949416734264e-06,
+        "global_mse_ratio": 41.67074201883238,
+        "error": 41.67074201883238,
+        "r_squared": -40.67074201883238
+      },
+      "ridge_reproduced": {
+        "mse": 0.0001373548890582536,
+        "target_variance": 3.2961949416734264e-06,
+        "global_mse_ratio": 41.67074201883238,
+        "r_squared": -40.67074201883238,
+        "error": 41.67074201883238
+      },
+      "new": {
+        "mse": 0.0001306170525088391,
+        "target_variance": 3.2961949416734264e-06,
+        "global_mse_ratio": 39.62661639257503,
+        "r_squared": -38.62661639257504,
+        "error": 39.62661639257504
+      },
+      "method": "Euclidean projection of (1-c,c) onto its own 2-state simplex; score reward coordinate"
+    },
+    {
+      "variant": 1,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_1",
+      "target": "rho",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 0.00017296733659616598,
+        "target_variance": 3.3349090244882973e-06,
+        "global_mse_ratio": 51.86568368913925,
+        "error": 51.86568512059134,
+        "r_squared": -50.86568512059134
+      },
+      "ridge_reproduced": {
+        "mse": 0.00017296733659616598,
+        "target_variance": 3.3349090244882973e-06,
+        "global_mse_ratio": 51.86568368913925,
+        "r_squared": -50.86568512059134,
+        "error": 51.86568512059134
+      },
+      "new": {
+        "mse": 2.2274620228860684e-06,
+        "target_variance": 3.3349090244882973e-06,
+        "global_mse_ratio": 0.6679228748160068,
+        "r_squared": 0.33207710674984714,
+        "error": 0.6679228932501529
+      },
+      "method": "derive rho from projected b (not independent scalar clipping)"
+    },
+    {
+      "variant": 1,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_1",
+      "target": "delta",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 464.4694136015863,
+        "target_variance": 0.6767860054969788,
+        "global_mse_ratio": 686.2869649033541,
+        "error": 686.286934827717,
+        "r_squared": -685.286934827717
+      },
+      "ridge_reproduced": {
+        "mse": 464.4694136015863,
+        "target_variance": 0.6767860054969788,
+        "global_mse_ratio": 686.2869649033541,
+        "r_squared": -685.286934827717,
+        "error": 686.286934827717
+      },
+      "new": {
+        "mse": 0.16366204388845082,
+        "target_variance": 0.6767860054969788,
+        "global_mse_ratio": 0.24182244100669636,
+        "r_squared": 0.7581775695908588,
+        "error": 0.2418224304091412
+      },
+      "method": "derive delta from projected b (not independent scalar clipping)"
+    },
+    {
+      "variant": 1,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_2",
+      "target": "b",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 1.4139531969790835,
+        "target_variance": 0.11279933899641037,
+        "global_mse_ratio": 12.535119527819928,
+        "error": 12.535119325134069,
+        "r_squared": -11.535119325134069
+      },
+      "ridge_reproduced": {
+        "mse": 1.4139531969790835,
+        "target_variance": 0.11279933899641037,
+        "global_mse_ratio": 12.535119527819928,
+        "r_squared": -11.535119325134069,
+        "error": 12.535119325134069
+      },
+      "new": {
+        "mse": 0.017278747387780194,
+        "target_variance": 0.11279933899641037,
+        "global_mse_ratio": 0.15318128227976635,
+        "r_squared": 0.8468187201970891,
+        "error": 0.15318127980291085
+      },
+      "method": "Euclidean projection of original b predictions onto 3-state simplex"
+    },
+    {
+      "variant": 1,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_2",
+      "target": "c",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 0.00020155745474256613,
+        "target_variance": 3.2961949416734264e-06,
+        "global_mse_ratio": 61.148523770332154,
+        "error": 61.148523770332154,
+        "r_squared": -60.148523770332154
+      },
+      "ridge_reproduced": {
+        "mse": 0.00020155745474256613,
+        "target_variance": 3.2961949416734264e-06,
+        "global_mse_ratio": 61.148523770332154,
+        "r_squared": -60.148523770332154,
+        "error": 61.148523770332154
+      },
+      "new": {
+        "mse": 1.9584020906106963e-06,
+        "target_variance": 3.2961949416734264e-06,
+        "global_mse_ratio": 0.5941402511880703,
+        "r_squared": 0.40585974881192977,
+        "error": 0.5941402511880702
+      },
+      "method": "Euclidean projection of (1-c,c) onto its own 2-state simplex; score reward coordinate"
+    },
+    {
+      "variant": 1,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_2",
+      "target": "rho",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 0.0002087211005140836,
+        "target_variance": 3.3349090244882973e-06,
+        "global_mse_ratio": 62.58674494009905,
+        "error": 62.586746667444,
+        "r_squared": -61.586746667444
+      },
+      "ridge_reproduced": {
+        "mse": 0.0002087211005140836,
+        "target_variance": 3.3349090244882973e-06,
+        "global_mse_ratio": 62.58674494009905,
+        "r_squared": -61.586746667444,
+        "error": 62.586746667444
+      },
+      "new": {
+        "mse": 2.3792404816316835e-06,
+        "target_variance": 3.3349090244882973e-06,
+        "global_mse_ratio": 0.7134348985717084,
+        "r_squared": 0.2865650817380494,
+        "error": 0.7134349182619506
+      },
+      "method": "derive rho from projected b (not independent scalar clipping)"
+    },
+    {
+      "variant": 1,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_2",
+      "target": "delta",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 8.48309299621698,
+        "target_variance": 0.6767860054969788,
+        "global_mse_ratio": 12.534380036401107,
+        "error": 12.534379487098139,
+        "r_squared": -11.534379487098139
+      },
+      "ridge_reproduced": {
+        "mse": 8.48309299621698,
+        "target_variance": 0.6767860054969788,
+        "global_mse_ratio": 12.534380036401107,
+        "r_squared": -11.534379487098139,
+        "error": 12.534379487098139
+      },
+      "new": {
+        "mse": 0.10366534661691741,
+        "target_variance": 0.6767860054969788,
+        "global_mse_ratio": 0.15317300561023522,
+        "r_squared": 0.8468270011023733,
+        "error": 0.1531729988976267
+      },
+      "method": "derive delta from projected b (not independent scalar clipping)"
+    },
+    {
+      "variant": 1,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_3",
+      "target": "b",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 0.19924136031213907,
+        "target_variance": 0.11279933899641037,
+        "global_mse_ratio": 1.7663344668932817,
+        "error": 1.7663344383326434,
+        "r_squared": -0.7663344383326434
+      },
+      "ridge_reproduced": {
+        "mse": 0.19924136031213907,
+        "target_variance": 0.11279933899641037,
+        "global_mse_ratio": 1.7663344668932817,
+        "r_squared": -0.7663344383326434,
+        "error": 1.7663344383326434
+      },
+      "new": {
+        "mse": 0.011283959138435891,
+        "target_variance": 0.11279933899641037,
+        "global_mse_ratio": 0.10003568495020154,
+        "r_squared": 0.8999643166673195,
+        "error": 0.10003568333268054
+      },
+      "method": "Euclidean projection of original b predictions onto 3-state simplex"
+    },
+    {
+      "variant": 1,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_3",
+      "target": "c",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 1.6780551852334004e-05,
+        "target_variance": 3.2961949416734264e-06,
+        "global_mse_ratio": 5.09088574834557,
+        "error": 5.09088574834557,
+        "r_squared": -4.09088574834557
+      },
+      "ridge_reproduced": {
+        "mse": 1.6780551852334004e-05,
+        "target_variance": 3.2961949416734264e-06,
+        "global_mse_ratio": 5.09088574834557,
+        "r_squared": -4.09088574834557,
+        "error": 5.09088574834557
+      },
+      "new": {
+        "mse": 1.3834144929565685e-06,
+        "target_variance": 3.2961949416734264e-06,
+        "global_mse_ratio": 0.41970044776970344,
+        "r_squared": 0.5802995522302965,
+        "error": 0.4197004477697035
+      },
+      "method": "Euclidean projection of (1-c,c) onto its own 2-state simplex; score reward coordinate"
+    },
+    {
+      "variant": 1,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_3",
+      "target": "rho",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 1.7513266851130277e-05,
+        "target_variance": 3.3349090244882973e-06,
+        "global_mse_ratio": 5.251497633827502,
+        "error": 5.251497778764707,
+        "r_squared": -4.251497778764707
+      },
+      "ridge_reproduced": {
+        "mse": 1.7513266851130277e-05,
+        "target_variance": 3.3349090244882973e-06,
+        "global_mse_ratio": 5.251497633827502,
+        "r_squared": -4.251497778764707,
+        "error": 5.251497778764707
+      },
+      "new": {
+        "mse": 1.8361495896521075e-06,
+        "target_variance": 3.3349090244882973e-06,
+        "global_mse_ratio": 0.55058461150491,
+        "r_squared": 0.44941537329938774,
+        "error": 0.5505846267006123
+      },
+      "method": "derive rho from projected b (not independent scalar clipping)"
+    },
+    {
+      "variant": 1,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_3",
+      "target": "delta",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 1.1953956182562728,
+        "target_variance": 0.6767860054969788,
+        "global_mse_ratio": 1.766283003116277,
+        "error": 1.7662829257112125,
+        "r_squared": -0.7662829257112125
+      },
+      "ridge_reproduced": {
+        "mse": 1.1953956182562728,
+        "target_variance": 0.6767860054969788,
+        "global_mse_ratio": 1.766283003116277,
+        "r_squared": -0.7662829257112125,
+        "error": 1.7662829257112125
+      },
+      "new": {
+        "mse": 0.06769824638825557,
+        "target_variance": 0.6767860054969788,
+        "global_mse_ratio": 0.1000290281394682,
+        "r_squared": 0.8999709762441743,
+        "error": 0.10002902375582567
+      },
+      "method": "derive delta from projected b (not independent scalar clipping)"
+    },
+    {
+      "variant": 1,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_4",
+      "target": "c",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 6.743281462836315e-06,
+        "target_variance": 3.2961949416734264e-06,
+        "global_mse_ratio": 2.0457775047166527,
+        "error": 2.0457775047166527,
+        "r_squared": -1.0457775047166527
+      },
+      "ridge_reproduced": {
+        "mse": 6.743281462836315e-06,
+        "target_variance": 3.2961949416734264e-06,
+        "global_mse_ratio": 2.0457775047166527,
+        "r_squared": -1.0457775047166527,
+        "error": 2.0457775047166527
+      },
+      "new": {
+        "mse": 1.4357580951360521e-06,
+        "target_variance": 3.2961949416734264e-06,
+        "global_mse_ratio": 0.4355804558110086,
+        "r_squared": 0.5644195441889913,
+        "error": 0.4355804558110087
+      },
+      "method": "Euclidean projection of (1-c,c) onto its own 2-state simplex; score reward coordinate"
+    },
+    {
+      "variant": 1,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_4",
+      "target": "rho",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 6.4707228113974655e-06,
+        "target_variance": 3.3349090244882973e-06,
+        "global_mse_ratio": 1.940299649520521,
+        "error": 1.9402997030712652,
+        "r_squared": -0.9402997030712652
+      },
+      "ridge_reproduced": {
+        "mse": 6.4707228113974655e-06,
+        "target_variance": 3.3349090244882973e-06,
+        "global_mse_ratio": 1.940299649520521,
+        "r_squared": -0.9402997030712652,
+        "error": 1.9402997030712652
+      },
+      "new": {
+        "mse": 1.8910938246859565e-06,
+        "target_variance": 3.3349090244882973e-06,
+        "global_mse_ratio": 0.5670600939334838,
+        "r_squared": 0.4329398904161036,
+        "error": 0.5670601095838964
+      },
+      "method": "derive rho from projected b (not independent scalar clipping)"
+    },
+    {
+      "variant": 1,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "post_final_norm",
+      "target": "c",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 8.956477120678253e-06,
+        "target_variance": 3.2961949416734264e-06,
+        "global_mse_ratio": 2.7172170575964754,
+        "error": 2.7172170575964754,
+        "r_squared": -1.7172170575964754
+      },
+      "ridge_reproduced": {
+        "mse": 8.956477120678253e-06,
+        "target_variance": 3.2961949416734264e-06,
+        "global_mse_ratio": 2.7172170575964754,
+        "r_squared": -1.7172170575964754,
+        "error": 2.7172170575964754
+      },
+      "new": {
+        "mse": 1.423500073717562e-06,
+        "target_variance": 3.2961949416734264e-06,
+        "global_mse_ratio": 0.4318616158651325,
+        "r_squared": 0.5681383841348675,
+        "error": 0.4318616158651325
+      },
+      "method": "Euclidean projection of (1-c,c) onto its own 2-state simplex; score reward coordinate"
+    },
+    {
+      "variant": 1,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "post_final_norm",
+      "target": "rho",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 8.721380284453961e-06,
+        "target_variance": 3.3349090244882973e-06,
+        "global_mse_ratio": 2.6151778715439336,
+        "error": 2.615177943720786,
+        "r_squared": -1.615177943720786
+      },
+      "ridge_reproduced": {
+        "mse": 8.721380284453961e-06,
+        "target_variance": 3.3349090244882973e-06,
+        "global_mse_ratio": 2.6151778715439336,
+        "r_squared": -1.615177943720786,
+        "error": 2.615177943720786
+      },
+      "new": {
+        "mse": 1.8660820839848369e-06,
+        "target_variance": 3.3349090244882973e-06,
+        "global_mse_ratio": 0.5595601170173347,
+        "r_squared": 0.44043986753924624,
+        "error": 0.5595601324607538
+      },
+      "method": "derive rho from projected b (not independent scalar clipping)"
+    },
+    {
+      "variant": 2,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_1",
+      "target": "b",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 77.41184173275983,
+        "target_variance": 0.11279940605163574,
+        "global_mse_ratio": 686.2788062671475,
+        "error": 686.2788070407762,
+        "r_squared": -685.2788070407762
+      },
+      "ridge_reproduced": {
+        "mse": 77.41184173275983,
+        "target_variance": 0.11279940605163574,
+        "global_mse_ratio": 686.2788062671475,
+        "r_squared": -685.2788070407762,
+        "error": 686.2788070407762
+      },
+      "new": {
+        "mse": 0.027278108768423872,
+        "target_variance": 0.11279940605163574,
+        "global_mse_ratio": 0.24182847874160684,
+        "r_squared": 0.7581715209857847,
+        "error": 0.24182847901421534
+      },
+      "method": "Euclidean projection of original b predictions onto 3-state simplex"
+    },
+    {
+      "variant": 2,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_1",
+      "target": "c",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 0.0001373308764404115,
+        "target_variance": 3.2961532109587627e-06,
+        "global_mse_ratio": 41.663984545325675,
+        "error": 41.66398454532568,
+        "r_squared": -40.66398454532568
+      },
+      "ridge_reproduced": {
+        "mse": 0.0001373308764404115,
+        "target_variance": 3.2961532109587627e-06,
+        "global_mse_ratio": 41.663984545325675,
+        "r_squared": -40.66398454532568,
+        "error": 41.66398454532568
+      },
+      "new": {
+        "mse": 0.00013058830551392937,
+        "target_variance": 3.2961532109587627e-06,
+        "global_mse_ratio": 39.61839670551744,
+        "r_squared": -38.61839670551744,
+        "error": 39.61839670551744
+      },
+      "method": "Euclidean projection of (1-c,c) onto its own 2-state simplex; score reward coordinate"
+    },
+    {
+      "variant": 2,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_1",
+      "target": "rho",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 0.00017295273506281555,
+        "target_variance": 3.3348460419801995e-06,
+        "global_mse_ratio": 51.86228476086347,
+        "error": 51.862285801870954,
+        "r_squared": -50.862285801870954
+      },
+      "ridge_reproduced": {
+        "mse": 0.00017295273506281555,
+        "target_variance": 3.3348460419801995e-06,
+        "global_mse_ratio": 51.86228476086347,
+        "r_squared": -50.862285801870954,
+        "error": 51.862285801870954
+      },
+      "new": {
+        "mse": 2.2273992732060275e-06,
+        "target_variance": 3.3348460419801995e-06,
+        "global_mse_ratio": 0.6679166729638347,
+        "r_squared": 0.3320833136293849,
+        "error": 0.6679166863706151
+      },
+      "method": "derive rho from projected b (not independent scalar clipping)"
+    },
+    {
+      "variant": 2,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_1",
+      "target": "delta",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 464.470531699064,
+        "target_variance": 0.6767864227294922,
+        "global_mse_ratio": 686.2881938822675,
+        "error": 686.2881907876645,
+        "r_squared": -685.2881907876645
+      },
+      "ridge_reproduced": {
+        "mse": 464.470531699064,
+        "target_variance": 0.6767864227294922,
+        "global_mse_ratio": 686.2881938822675,
+        "r_squared": -685.2881907876645,
+        "error": 686.2881907876645
+      },
+      "new": {
+        "mse": 0.1636619704086123,
+        "target_variance": 0.6767864227294922,
+        "global_mse_ratio": 0.2418221833537389,
+        "r_squared": 0.758177817736683,
+        "error": 0.24182218226331698
+      },
+      "method": "derive delta from projected b (not independent scalar clipping)"
+    },
+    {
+      "variant": 2,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_2",
+      "target": "b",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 1.4139536558732948,
+        "target_variance": 0.11279940605163574,
+        "global_mse_ratio": 12.535116144370784,
+        "error": 12.535116158501378,
+        "r_squared": -11.535116158501378
+      },
+      "ridge_reproduced": {
+        "mse": 1.4139536558732948,
+        "target_variance": 0.11279940605163574,
+        "global_mse_ratio": 12.535116144370784,
+        "r_squared": -11.535116158501378,
+        "error": 12.535116158501378
+      },
+      "new": {
+        "mse": 0.017278725172962778,
+        "target_variance": 0.11279940605163574,
+        "global_mse_ratio": 0.15318099427804757,
+        "r_squared": 0.8468190055492745,
+        "error": 0.15318099445072553
+      },
+      "method": "Euclidean projection of original b predictions onto 3-state simplex"
+    },
+    {
+      "variant": 2,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_2",
+      "target": "c",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 0.00020154859415410126,
+        "target_variance": 3.2961532109587627e-06,
+        "global_mse_ratio": 61.14660977651466,
+        "error": 61.146609776514666,
+        "r_squared": -60.146609776514666
+      },
+      "ridge_reproduced": {
+        "mse": 0.00020154859415410126,
+        "target_variance": 3.2961532109587627e-06,
+        "global_mse_ratio": 61.14660977651466,
+        "r_squared": -60.146609776514666,
+        "error": 61.146609776514666
+      },
+      "new": {
+        "mse": 1.9581090310253345e-06,
+        "target_variance": 3.2961532109587627e-06,
+        "global_mse_ratio": 0.5940588636824237,
+        "r_squared": 0.40594113631757633,
+        "error": 0.5940588636824237
+      },
+      "method": "Euclidean projection of (1-c,c) onto its own 2-state simplex; score reward coordinate"
+    },
+    {
+      "variant": 2,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_2",
+      "target": "rho",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 0.00020871554753878842,
+        "target_variance": 3.3348460419801995e-06,
+        "global_mse_ratio": 62.586261827803945,
+        "error": 62.586263084068825,
+        "r_squared": -61.586263084068825
+      },
+      "ridge_reproduced": {
+        "mse": 0.00020871554753878842,
+        "target_variance": 3.3348460419801995e-06,
+        "global_mse_ratio": 62.586261827803945,
+        "r_squared": -61.586263084068825,
+        "error": 62.586263084068825
+      },
+      "new": {
+        "mse": 2.3791803373731847e-06,
+        "target_variance": 3.3348460419801995e-06,
+        "global_mse_ratio": 0.7134303375397955,
+        "r_squared": 0.28656964813984964,
+        "error": 0.7134303518601504
+      },
+      "method": "derive rho from projected b (not independent scalar clipping)"
+    },
+    {
+      "variant": 2,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_2",
+      "target": "delta",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 8.483095767634108,
+        "target_variance": 0.6767864227294922,
+        "global_mse_ratio": 12.534376404038404,
+        "error": 12.534376347518533,
+        "r_squared": -11.534376347518533
+      },
+      "ridge_reproduced": {
+        "mse": 8.483095767634108,
+        "target_variance": 0.6767864227294922,
+        "global_mse_ratio": 12.534376404038404,
+        "r_squared": -11.534376347518533,
+        "error": 12.534376347518533
+      },
+      "new": {
+        "mse": 0.10366521350269117,
+        "target_variance": 0.6767864227294922,
+        "global_mse_ratio": 0.1531727144947847,
+        "r_squared": 0.8468272861959,
+        "error": 0.15317271380410002
+      },
+      "method": "derive delta from projected b (not independent scalar clipping)"
+    },
+    {
+      "variant": 2,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_3",
+      "target": "b",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 0.19921925527075257,
+        "target_variance": 0.11279940605163574,
+        "global_mse_ratio": 1.7661374491595883,
+        "error": 1.7661374511505208,
+        "r_squared": -0.7661374511505208
+      },
+      "ridge_reproduced": {
+        "mse": 0.19921925527075257,
+        "target_variance": 0.11279940605163574,
+        "global_mse_ratio": 1.7661374491595883,
+        "r_squared": -0.7661374511505208,
+        "error": 1.7661374511505208
+      },
+      "new": {
+        "mse": 0.011283947992527844,
+        "target_variance": 0.11279940605163574,
+        "global_mse_ratio": 0.10003552667079146,
+        "r_squared": 0.8999644732164405,
+        "error": 0.10003552678355954
+      },
+      "method": "Euclidean projection of original b predictions onto 3-state simplex"
+    },
+    {
+      "variant": 2,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_3",
+      "target": "c",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 1.6759255347724593e-05,
+        "target_variance": 3.2961532109587627e-06,
+        "global_mse_ratio": 5.084489183331916,
+        "error": 5.084489183331917,
+        "r_squared": -4.084489183331917
+      },
+      "ridge_reproduced": {
+        "mse": 1.6759255347724593e-05,
+        "target_variance": 3.2961532109587627e-06,
+        "global_mse_ratio": 5.084489183331916,
+        "r_squared": -4.084489183331917,
+        "error": 5.084489183331917
+      },
+      "new": {
+        "mse": 1.3835128765419544e-06,
+        "target_variance": 3.2961532109587627e-06,
+        "global_mse_ratio": 0.4197356093588646,
+        "r_squared": 0.5802643906411353,
+        "error": 0.41973560935886467
+      },
+      "method": "Euclidean projection of (1-c,c) onto its own 2-state simplex; score reward coordinate"
+    },
+    {
+      "variant": 2,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_3",
+      "target": "rho",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 1.7501667781562683e-05,
+        "target_variance": 3.3348460419801995e-06,
+        "global_mse_ratio": 5.248118672120276,
+        "error": 5.248118777463318,
+        "r_squared": -4.248118777463318
+      },
+      "ridge_reproduced": {
+        "mse": 1.7501667781562683e-05,
+        "target_variance": 3.3348460419801995e-06,
+        "global_mse_ratio": 5.248118672120276,
+        "r_squared": -4.248118777463318,
+        "error": 5.248118777463318
+      },
+      "new": {
+        "mse": 1.8361029733197566e-06,
+        "target_variance": 3.3348460419801995e-06,
+        "global_mse_ratio": 0.5505810313898318,
+        "r_squared": 0.4494189575586116,
+        "error": 0.5505810424413884
+      },
+      "method": "derive rho from projected b (not independent scalar clipping)"
+    },
+    {
+      "variant": 2,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_3",
+      "target": "delta",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 1.1952630251216363,
+        "target_variance": 0.6767864227294922,
+        "global_mse_ratio": 1.7660859984470705,
+        "error": 1.7660859904834552,
+        "r_squared": -0.7660859904834552
+      },
+      "ridge_reproduced": {
+        "mse": 1.1952630251216363,
+        "target_variance": 0.6767864227294922,
+        "global_mse_ratio": 1.7660859984470705,
+        "r_squared": -0.7660859904834552,
+        "error": 1.7660859904834552
+      },
+      "new": {
+        "mse": 0.06769817965370406,
+        "target_variance": 0.6767864227294922,
+        "global_mse_ratio": 0.10002886786746704,
+        "r_squared": 0.899971132583582,
+        "error": 0.10002886741641803
+      },
+      "method": "derive delta from projected b (not independent scalar clipping)"
+    },
+    {
+      "variant": 2,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_4",
+      "target": "c",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 6.73912515510159e-06,
+        "target_variance": 3.2961532109587627e-06,
+        "global_mse_ratio": 2.044542448056096,
+        "error": 2.044542448056096,
+        "r_squared": -1.044542448056096
+      },
+      "ridge_reproduced": {
+        "mse": 6.73912515510159e-06,
+        "target_variance": 3.2961532109587627e-06,
+        "global_mse_ratio": 2.044542448056096,
+        "r_squared": -1.044542448056096,
+        "error": 2.044542448056096
+      },
+      "new": {
+        "mse": 1.4356443063873008e-06,
+        "target_variance": 3.2961532109587627e-06,
+        "global_mse_ratio": 0.435551448765851,
+        "r_squared": 0.564448551234149,
+        "error": 0.43555144876585095
+      },
+      "method": "Euclidean projection of (1-c,c) onto its own 2-state simplex; score reward coordinate"
+    },
+    {
+      "variant": 2,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_4",
+      "target": "rho",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 6.468459219809119e-06,
+        "target_variance": 3.3348460419801995e-06,
+        "global_mse_ratio": 1.9396575249297596,
+        "error": 1.9396575638636018,
+        "r_squared": -0.9396575638636018
+      },
+      "ridge_reproduced": {
+        "mse": 6.468459219809119e-06,
+        "target_variance": 3.3348460419801995e-06,
+        "global_mse_ratio": 1.9396575249297596,
+        "r_squared": -0.9396575638636018,
+        "error": 1.9396575638636018
+      },
+      "new": {
+        "mse": 1.8910069249218148e-06,
+        "target_variance": 3.3348460419801995e-06,
+        "global_mse_ratio": 0.567044745429673,
+        "r_squared": 0.4329552431883019,
+        "error": 0.5670447568116981
+      },
+      "method": "derive rho from projected b (not independent scalar clipping)"
+    },
+    {
+      "variant": 2,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "post_final_norm",
+      "target": "c",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 8.952815405563603e-06,
+        "target_variance": 3.2961532109587627e-06,
+        "global_mse_ratio": 2.7161405531144798,
+        "error": 2.71614055311448,
+        "r_squared": -1.7161405531144802
+      },
+      "ridge_reproduced": {
+        "mse": 8.952815405563603e-06,
+        "target_variance": 3.2961532109587627e-06,
+        "global_mse_ratio": 2.7161405531144798,
+        "r_squared": -1.7161405531144802,
+        "error": 2.71614055311448
+      },
+      "new": {
+        "mse": 1.4233941900190522e-06,
+        "target_variance": 3.2961532109587627e-06,
+        "global_mse_ratio": 0.43183496000327753,
+        "r_squared": 0.5681650399967224,
+        "error": 0.4318349600032776
+      },
+      "method": "Euclidean projection of (1-c,c) onto its own 2-state simplex; score reward coordinate"
+    },
+    {
+      "variant": 2,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "post_final_norm",
+      "target": "rho",
+      "checkpoint_sha256": "22edcdf29c7528d35c61dba226c83d5be21ab9fe2f1781bf21e8c7c5e263a35c",
+      "old": {
+        "mse": 8.71935015469698e-06,
+        "target_variance": 3.3348460419801995e-06,
+        "global_mse_ratio": 2.614618499605311,
+        "error": 2.6146185520873306,
+        "r_squared": -1.6146185520873306
+      },
+      "ridge_reproduced": {
+        "mse": 8.71935015469698e-06,
+        "target_variance": 3.3348460419801995e-06,
+        "global_mse_ratio": 2.614618499605311,
+        "r_squared": -1.6146185520873306,
+        "error": 2.6146185520873306
+      },
+      "new": {
+        "mse": 1.8660095166541466e-06,
+        "target_variance": 3.3348460419801995e-06,
+        "global_mse_ratio": 0.5595489246472464,
+        "r_squared": 0.4404510641211886,
+        "error": 0.5595489358788114
+      },
+      "method": "derive rho from projected b (not independent scalar clipping)"
+    }
+  ],
+  "diagnostics": [
+    {
+      "variant": 1,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_1",
+      "singular_values": [
+        217.39413396432278,
+        133.8497016327251,
+        30.586725735709532,
+        22.567930802647673,
+        2.005487914702005,
+        1.6955355593769363,
+        1.4056153678935768,
+        1.1642974780611932,
+        0.7996542706592635,
+        0.45771658012625177,
+        0.20044444686317334,
+        0.15061054992837053,
+        0.1012984870021207,
+        0.05061885453284487,
+        0.03976364430522329,
+        0.023880985513844957,
+        0.020304856187606947,
+        0.013137301100166069,
+        0.01157074949076099,
+        0.010734847826282087,
+        0.008177851521565953,
+        0.007545494852053347,
+        0.006786851056157047,
+        0.003794556589288396,
+        0.0029937758850368287,
+        0.0024824629644196006,
+        0.001499025747875014,
+        0.001209722618322602,
+        0.0010335797826062458,
+        0.0006283280263208334,
+        0.0005602954007731932,
+        0.0004906414602171734,
+        0.0004012604760763767,
+        0.00035630344866091303,
+        0.0002758349816567369,
+        0.000187978747831637,
+        0.00017479741780828425,
+        0.00013951108785251531,
+        0.00012864515655785496,
+        8.266849815482189e-05,
+        6.360846679707047e-05,
+        5.0157742358567286e-05,
+        4.167968902616912e-05,
+        3.9463514930474526e-05,
+        3.38717966974792e-05,
+        3.0451749528314757e-05,
+        2.6486981169289272e-05,
+        2.5960791180252297e-05,
+        2.4454810039564078e-05,
+        2.3518984573145856e-05,
+        2.284359852656245e-05,
+        2.190674986588106e-05,
+        2.1702128877424137e-05,
+        2.0680480171162318e-05,
+        2.031185394939547e-05,
+        2.0010835397706625e-05,
+        1.9432887021233367e-05,
+        1.9046020626681194e-05,
+        1.8426387028221615e-05,
+        1.833463495152725e-05,
+        1.7484591035790616e-05,
+        1.7187395986043706e-05,
+        1.64076161576991e-05,
+        1.5696405045284355e-05
+      ],
+      "condition_number": 13849931.45482278,
+      "ridge": 1e-06,
+      "weight_norm": 9141.331452476725,
+      "max_abs_prediction": 3040.2354069465755,
+      "fraction_rows_outside_simplex": 0.1959,
+      "worst_10_rows_fraction_squared_error": 0.9972051178064743,
+      "largest_direction_test_contribution": {
+        "direction_index": 26,
+        "singular_value": 0.001499025747875014,
+        "coefficient_norm": 7440.703693540487,
+        "train_max_abs_coordinate": 0.00015787260731535562,
+        "test_max_abs_coordinate": 0.2650683551397909,
+        "test_to_train_max_ratio": 1679.001567449306
+      },
+      "train_target_variance": 0.11527476459741592,
+      "test_target_variance": 0.11279904842376709
+    },
+    {
+      "variant": 2,
+      "seed": 51,
+      "checkpoint_step": 0,
+      "site": "block_1",
+      "singular_values": [
+        217.39413396432278,
+        133.8497016327251,
+        30.586725735709532,
+        22.567930802647673,
+        2.005487914702005,
+        1.6955355593769363,
+        1.4056153678935768,
+        1.1642974780611932,
+        0.7996542706592635,
+        0.45771658012625177,
+        0.20044444686317334,
+        0.15061054992837053,
+        0.1012984870021207,
+        0.05061885453284487,
+        0.03976364430522329,
+        0.023880985513844957,
+        0.020304856187606947,
+        0.013137301100166069,
+        0.01157074949076099,
+        0.010734847826282087,
+        0.008177851521565953,
+        0.007545494852053347,
+        0.006786851056157047,
+        0.003794556589288396,
+        0.0029937758850368287,
+        0.0024824629644196006,
+        0.001499025747875014,
+        0.001209722618322602,
+        0.0010335797826062458,
+        0.0006283280263208334,
+        0.0005602954007731932,
+        0.0004906414602171734,
+        0.0004012604760763767,
+        0.00035630344866091303,
+        0.0002758349816567369,
+        0.000187978747831637,
+        0.00017479741780828425,
+        0.00013951108785251531,
+        0.00012864515655785496,
+        8.266849815482189e-05,
+        6.360846679707047e-05,
+        5.0157742358567286e-05,
+        4.167968902616912e-05,
+        3.9463514930474526e-05,
+        3.38717966974792e-05,
+        3.0451749528314757e-05,
+        2.6486981169289272e-05,
+        2.5960791180252297e-05,
+        2.4454810039564078e-05,
+        2.3518984573145856e-05,
+        2.284359852656245e-05,
+        2.190674986588106e-05,
+        2.1702128877424137e-05,
+        2.0680480171162318e-05,
+        2.031185394939547e-05,
+        2.0010835397706625e-05,
+        1.9432887021233367e-05,
+        1.9046020626681194e-05,
+        1.8426387028221615e-05,
+        1.833463495152725e-05,
+        1.7484591035790616e-05,
+        1.7187395986043706e-05,
+        1.64076161576991e-05,
+        1.5696405045284355e-05
+      ],
+      "condition_number": 13849931.45482278,
+      "ridge": 1e-06,
+      "weight_norm": 9141.3464362472,
+      "max_abs_prediction": 3040.2388936155025,
+      "fraction_rows_outside_simplex": 0.1959,
+      "worst_10_rows_fraction_squared_error": 0.9972050294929952,
+      "largest_direction_test_contribution": {
+        "direction_index": 26,
+        "singular_value": 0.001499025747875014,
+        "coefficient_norm": 7440.716468112216,
+        "train_max_abs_coordinate": 0.00015787260731535562,
+        "test_max_abs_coordinate": 0.2650683551397909,
+        "test_to_train_max_ratio": 1679.001567449306
+      },
+      "train_target_variance": 0.1152748167514801,
+      "test_target_variance": 0.11279910057783127
+    },
+    {
+      "variant": 2,
+      "seed": 50,
+      "checkpoint_step": 0,
+      "site": "block_1",
+      "singular_values": [
+        191.57016532717478,
+        122.47173016284245,
+        26.846203900465746,
+        17.791544534942282,
+        1.59015126251567,
+        0.7624911356317291,
+        0.6892115029408363,
+        0.38965606932376723,
+        0.21429692029149958,
+        0.10079171368594562,
+        0.06015756092737446,
+        0.04475630298069133,
+        0.036321631037111654,
+        0.015221154789623008,
+        0.007342150297055075,
+        0.004793781634550762,
+        0.0035799098263608643,
+        0.002693376927009378,
+        0.0015050757477308393,
+        0.000993536804287287,
+        0.0005672229848455385,
+        0.0005394684030374424,
+        0.0003282341723712433,
+        0.00030266932404827155,
+        0.00019496732382974619,
+        0.00014129526916554762,
+        8.919330062548719e-05,
+        7.413928672727639e-05,
+        6.377617403176394e-05,
+        4.31670849785759e-05,
+        4.181229749380197e-05,
+        3.595130746711296e-05,
+        3.5738269051872404e-05,
+        3.3645588214718294e-05,
+        3.0057369424134797e-05,
+        2.8380200275180957e-05,
+        2.7200295747522904e-05,
+        2.6235037859577857e-05,
+        2.5375578139122086e-05,
+        2.4007018467185133e-05,
+        2.3876977660831367e-05,
+        2.3389102842135706e-05,
+        2.2921399937385072e-05,
+        2.1687449938210585e-05,
+        2.0943343462186558e-05,
+        2.0845128807975714e-05,
+        2.022244220737075e-05,
+        1.9590160889452298e-05,
+        1.937175422474271e-05,
+        1.8600009633401754e-05,
+        1.8509186280900565e-05,
+        1.803671375874602e-05,
+        1.7841411833046253e-05,
+        1.7549645226821778e-05,
+        1.7441925566089552e-05,
+        1.6451119238086363e-05,
+        1.6257681950365458e-05,
+        1.580263727420812e-05,
+        1.5608238019999337e-05,
+        1.5498875008567562e-05,
+        1.488388416046161e-05,
+        1.456037789810603e-05,
+        1.4343736950861842e-05,
+        1.3840513154550282e-05
+      ],
+      "condition_number": 13841261.750052463,
+      "ridge": 1e-06,
+      "weight_norm": 4916.031420078981,
+      "max_abs_prediction": 1.1990041937906426,
+      "fraction_rows_outside_simplex": 0.0672,
+      "worst_10_rows_fraction_squared_error": 0.0022242309228627686,
+      "largest_direction_test_contribution": {
+        "direction_index": 3,
+        "singular_value": 17.791544534942282,
+        "coefficient_norm": 4.159837999411935,
+        "train_max_abs_coordinate": 0.37341900756987073,
+        "test_max_abs_coordinate": 0.4438831257266394,
+        "test_to_train_max_ratio": 1.1886998699271731
+      },
+      "train_target_variance": 0.05424344912171364,
+      "test_target_variance": 0.05473753809928894
+    }
+  ],
+  "diagnostic_control": "Reward-State initialization seed 50, block 1; not replaced",
+  "raw_input_sha256": {
+    "variant_3_seed44_step2012217344.json": "6a63cfe0b3a0f886b7b9e97ce23a239cd3a1e354e6a7eb9ad93e42f069c21e93",
+    "variant_3_seed50_step0000000000.json": "f95e15711ef622187ebb24a4c459e822822ef5561931ac68f03506e9a5d11ccf",
+    "variant_2_seed43_step0000000000.json": "8c56a6bc55de794fe3f5b3ef095d13f7967ad29cf2d99453fd8b3d82a2d008b2",
+    "variant_1_seed42_step0000000000.json": "18c950d193834d84db5b08bf3c9e62221e1dc0376eee9ba3ccd97a646e566bd2",
+    "variant_3_seed43_step2012217344.json": "3e0005f5b037cbb25e7ed0e4f3cc32d307e2aca4871c605e04933ca69c64adae",
+    "variant_2_seed50_step2012217344.json": "a567eefe8c68b651f93bc469bc51c88fbf0172b6e8bb4bc4fd718b06b613131d",
+    "variant_2_seed52_step2012217344.json": "2f755def1972ed8cccc761fc85c30517632c8877fd4895f250c6462ceaad3356",
+    "variant_2_seed53_step2012217344.json": "25e1cb960569915fa776745be4e081812a5eb22384fbaeb7ccf0d436204d060e",
+    "variant_1_seed44_step2012217344.json": "df0f7e2f8b0b48d7f0b11d0da2aea4ede1ae93edfd6c439ee663a9ec691dd124",
+    "variant_1_seed50_step0000000000.json": "a654451b0a6d555f47fa66110da5fff5b2b26352c46a5cd9df1d8e79a92b63ad",
+    "variant_1_seed52_step2012217344.json": "08b6eb3f71d079efc22e783a6be7e9f0242659fb2a0f7c727a4071481c399ec0",
+    "variant_1_seed53_step0000000000.json": "2d2877c7ebd6107a509ffe266c774089ae732e0f6606914fcc65ae14fe7c1795",
+    "variant_3_seed42_step2012217344.json": "75d57a0f0109ddc7f24db775649dd3601e652ed7ea9df747aac0830a457a6f54",
+    "variant_3_seed52_step0000000000.json": "71ea227bc0b87e4df32adec352f2ea658a6823e52feee8fee48b0a5a60b184f9",
+    "variant_1_seed49_step0000000000.json": "11660d5d5949eae9b4c12ab796a9664599df467556c8bf7757585ce693561d4b",
+    "variant_1_seed54_step0000000000.json": "2aafb090cf77eab763e1b484cb812c1afb4a370715c4661a715583e31e8ce292",
+    "variant_2_seed53_step0000000000.json": "3f323344c8c8bca78d048dec73808b1b0f15606ddf16242b3b2ccedd55f800be",
+    "variant_3_seed46_step0000000000.json": "087e21b4502c9116dc82ca4b1d78d773d7dcf31b1b8775d29e1aecd16a6ac0f8",
+    "variant_3_seed45_step0000000000.json": "5b1a894a3516c33586170aecbc2bb524b7d3879902c5d629d52e3db423b77efc",
+    "variant_3_seed43_step0000000000.json": "d303936fd6b312f334a1640d35d59835f6d2d5cc5e77e6ea7839427ea0f397a2",
+    "variant_2_seed54_step2012217344.json": "4bc74f9d5b2e81db1e7c0e0675a23e4844c197d6342f4e32ada8c07e5711ae78",
+    "variant_1_seed54_step2012217344.json": "8840ccd27a47102ba8272187ff2edbabc983be55f2035e33d05504f19bb5227e",
+    "variant_2_seed44_step0000000000.json": "f1bf1fd0ca582e2a6a6f51b855ac8856f9b058015fa108a11b946795a413f604",
+    "reward_state_paired.csv": "c6d4836989bee74b1d7454725b1f0f33ac2767ea1e92a00009a56519b5df79e2",
+    "variant_1_seed56_step2012217344.json": "bc39cc0f6cfb0016d36c3ec0061dedb001b15885039f203a39461bc714bd8350",
+    "variant_2_seed55_step2012217344.json": "d05b0eeb7bc9cdd89df09422cf82286396c070352dc2359581454d5bdda7259a",
+    "variant_1_seed55_step2012217344.json": "b8eeb9e368aae4fd3fbb06a95980304346ff3a80e04365aac89823c95e062574",
+    "variant_1_seed53_step2012217344.json": "f73a9b2b0153f2672e576a0523adf5537a8c484f9dac68ea5bbe0e37cf7d53ef",
+    "variant_2_seed52_step0000000000.json": "bb4345eefc4e66bb6ac3f72309b4f2b838369e4bdadada686f49706fe9395cec",
+    "variant_2_seed42_step2012217344.json": "ff7f02210189ef34809c2eee1e1fdb5838c054838b76e13209f076410a8b0790",
+    "hashes.json": "70bdc54b6bf0093b8bf52a9e1cf8c18976eb81198996c0155ad3b35dd3048fcb",
+    "stage1_snapshot.json": "36c3346c9dbcfe749d4a99c859a6acf96c26e48839a54ff469198774950da262",
+    "variant_2_seed56_step0000000000.json": "fca56e0b93ca00d9c1e58e8a8f9cb09714c8c79261a9c9fc9a80e77eb4b28fbf",
+    "variant_3_seed53_step2012217344.json": "89a30a191c1746012200802b8633fe53c22a7222a75cce3e335c37f07aaf1880",
+    "variant_2_seed44_step2012217344.json": "8762fdf026aea91b98441528b4e7cbf19daa4bc0c6b233dd39ca0f711b768468",
+    "variant_1_seed51_step0000000000.json": "54e2c705007841c94b8fefe796531108fba4cadc1fdde6a5f3b2b4a4dfaee28e",
+    "variant_1_seed48_step2012217344.json": "589b275e9c3cfa60503cb12b3559a260f348c502ac1062dd7096d8a4b2c5210e",
+    "variant_1_seed48_step0000000000.json": "271b27a0e0a67df012564fa3b13aa413097a9b87c87bcac130ab98c57e77430e",
+    "variant_1_seed49_step2012217344.json": "733e6598f9505053885d6e413f7aee1c678834d15acc4d597485fef2202d211a",
+    "variant_2_seed45_step0000000000.json": "1f7c962fff17610a3a63456e984baedb68a9880de19dd23588f59fddf53c0e50",
+    "summary.json": "9994e82924bf18e2ec1b328a24a19c578a88b97427cb1f5cd1f7b45704658745",
+    "variant_1_seed50_step2012217344.json": "f824979534bab2f894ad91c889a047e80af4cd44a629ae764879dcfd8b6e3898",
+    "variant_2_seed50_step0000000000.json": "81da82fc3477e36e06ae5ff2c1e8b6ce2104e421c5bed5230906a3afb3bf5fec",
+    "variant_1_seed45_step0000000000.json": "619bb05f407024a91df2752ab7990984d09b16227b1c3af3cb7d6e55cf018e3f",
+    "variant_2_seed49_step2012217344.json": "a48f62f628c678b12f0afe7d42f67da784c4aeca34e65a6dbe482cd158f52330",
+    "variant_3_seed44_step0000000000.json": "91daec28a14ab03a5d84dec4cbd5d2c39d06fd4f276462f87545fae0b2aae5b2",
+    "variant_3_seed42_step0000000000.json": "cacf2af5d07a9f40294debf3c3a6407ecab7bcbd48dc57aec50edd308f0a586f",
+    "variant_3_seed48_step0000000000.json": "b1fc3981a9099e05b6f2c4d37f7f612a2618b93837cfe055f59c3ba646511da2",
+    "variant_3_seed54_step0000000000.json": "7e5a2b70a240af7e0c38fc79ff2f2d6d4311c684a8d2a87c0fcc2ff7862f4c62",
+    "variant_1_seed43_step2012217344.json": "5863131773c66c318f6e73b575f5db97180e8da999ca42cccec0af957c702614",
+    "variant_1_seed45_step2012217344.json": "24d88e30d7954e8cf477065099db8945e8658b8e34edf229b3efa94108a6de6e",
+    "variant_2_seed47_step2012217344.json": "01375a0c76e165dca49366c9e3ec146de386adba5cf2fdd0be6772a19d66229e",
+    "variant_2_seed46_step0000000000.json": "c0a5f68081db675be385cd8875cccce4dedc2b74b92c7f92c294c630e84df5b2",
+    "variant_1_seed51_step2012217344.json": "ccabd2425780978c573f8bfe3b369854f1640baf420978985d4764580833482f",
+    "variant_3_seed49_step0000000000.json": "0f74ff184da29267c7cec125420ad891c6c6431bab6049cff420997b1757f79d",
+    "variant_3_seed49_step2012217344.json": "a18c7d153248dfbff17afe62be56af6c1976e0225c0f2cc1897474afde81963c",
+    "variant_3_seed45_step2012217344.json": "0b733cef3f331bff9e7e01100b7c80f54ffa792bc200e498fb6062964ad2b94f",
+    "variant_3_seed51_step0000000000.json": "b826c6c09a49d76abc3ba18d7273cbb1580dd32fbafe5ced6a7945ba8515b729",
+    "variant_2_seed54_step0000000000.json": "39de961943e8001afb1c93aeedeb90de07ba039cfc4053217280c5e5c230f1d5",
+    "variant_3_seed52_step2012217344.json": "9c47d28ee94310ee5d596c7d2e457a39f8b0526dfb0febdcb1931285f7a8664b",
+    "README.md": "b6923ca25c8cdd2b4ac58aeb2647980e41d15becdb0fd1ef1192a2f817ada8e2",
+    "variant_2_seed47_step0000000000.json": "e576a637cad167f0e035d90221de3e4ae9c34228c22bc11519eaeea8ab93c778",
+    "variant_1_seed42_step2012217344.json": "e0c0c142c0d34fa444a3e71ae2c8b7dd7c4a6c304e8d66e545d33e482311898a",
+    "variant_1_seed55_step0000000000.json": "c2ea413054f0c332205dd8db7a7f125bcc9e9c8e3daca500bab3c7c4de8da414",
+    "variant_2_seed56_step2012217344.json": "f490905fef120e9d92bcf07c2bb1f12fc0c53644dfed428248afb03e2d9ae5a7",
+    "variant_3_seed53_step0000000000.json": "bc7296fc4d60916613bbb5d22f69ec4eb733c439996527224898e6104d1aa92e",
+    "variant_2_seed43_step2012217344.json": "59042ea5c3b58104b45d85657990000e52ab37ae9951fc95eda2fc0515d9114a",
+    "variant_2_seed48_step2012217344.json": "760c3d7e08e4f5d62947093eeb6eb1ac3391fe754993cb959bbd7d4bd656e8e8",
+    "variant_3_seed56_step2012217344.json": "880199efe0e3017a03cefbee2d1f3e82244e9f09de98051d3fa6a6a3972749bb",
+    "variant_3_seed54_step2012217344.json": "58c97c7a65ab702a9570a098f25d8fc8a2a9276f2aeff63f974f57176be739a9",
+    "variant_2_seed51_step0000000000.json": "fe4aea9da3bfd112c471dc57092abcc0bd3b5fa6cf557c15559b4cd8e713464a",
+    "variant_2_seed51_step2012217344.json": "ba5d5eb423a289cf445f88bcdec4c2396cd0b5172d3a678c6582ee1b532e366d",
+    "variant_3_seed47_step2012217344.json": "aa711cecae211508a39359a31ae04b9cb0cf3979a5971767fa13f8f85c48a28a",
+    "variant_2_seed48_step0000000000.json": "6b0c1846e8161ffee795657cd397095de5e941cc9e4cc937f2212ae2b27ed8f2",
+    "variant_3_seed48_step2012217344.json": "59b9687d079469c57c499b22e5eaa61cf3727ae4ad9685bb2911e240613b1af0",
+    "variant_3_seed46_step2012217344.json": "93bc10276a36f676a5f5b98cc93281faff8334ca6ac448a1f3433cfd026b98da",
+    "per_seed.csv": "9215ff1a9c934df68b4d1a27b3f35c9d06a6c09a5ce79d3e74a01498f6c8b869",
+    "variant_1_seed46_step2012217344.json": "653cb5635eba3f998137d9ab0cfeb74e7770a96c548dcd02faac401312c696e2",
+    "variant_2_seed42_step0000000000.json": "feaee0f73d9828114e5b4828b828d9aa5ad7f977ca55e6adf890f067fcdb9bd7",
+    "variant_3_seed55_step2012217344.json": "85fa06c708cd00ae93f925d61cbd155513b336bf8a6e65a31632be15572570dd",
+    "variant_1_seed56_step0000000000.json": "f8df3d673a818f9af2dc160e76c5e485a2a76654d944e51bb876f10341d20578",
+    "tables.md": "87cdcd4826b7a368dae0df3eb0d12d6aa808f1b2e867bc60b56be8109cfb7180",
+    "variant_1_seed46_step0000000000.json": "89d26ae4f09612cdc6a9f70c2409b146da59277a670109e849b207aad737faed",
+    "variant_3_seed51_step2012217344.json": "cfdb690be5816ac96c6bca7dc4165f33afa35401ff61db8a4dbab89eceb35606",
+    "variant_3_seed47_step0000000000.json": "db7c919dbb49b18bd51a6bc29d4992d60d2117d73b307d9fe7faf973c0adc7a1",
+    "variant_1_seed47_step2012217344.json": "1593709b5f3e8f837d59cd1a1719cec9311c6ec7654a8d45f1db2ca8fd7f2597",
+    "variant_2_seed46_step2012217344.json": "fabf3231d9d43c3dbf9715433e6e7695bafcb2fc9ec8b41fefb558de4096c701",
+    "variant_1_seed47_step0000000000.json": "7bb893085ead70746470d8fa89fa3112f467396b6ff48d353cb7035860eb37bd",
+    "variant_1_seed52_step0000000000.json": "9f1bf712e02984eaf03faf72ef8b3802c6fda877d97e0e3e4fde9be1a27c9dd2",
+    "variant_3_seed56_step0000000000.json": "72c88e3d8475cfffc3ead119ea7c658cc88873a9ab60411d78975170a1941d81",
+    "variant_3_seed50_step2012217344.json": "10cac743751090a1fd78660c0c3ca25e08a0f59f688dbb8e169b1d86b5c151b0",
+    "variant_1_seed44_step0000000000.json": "b9ad07453eaa01889fac4b133e8b2b86d91f090b8232f686a933cad36a3d5979",
+    "variant_1_seed43_step0000000000.json": "410d6a1f757a2b8d21f4fa3e013697b625eaeebf1ec336b13946904045fc08ef",
+    "variant_2_seed45_step2012217344.json": "baadfc9b7f4d87f1cf996df5203b95c28d9dcecf9838f35cb89020dd1af6c38a",
+    "variant_2_seed55_step0000000000.json": "f428a8f76abf8dd8622ae18216962fad475432c24bea8890dabdce8d02020919",
+    "variant_2_seed49_step0000000000.json": "e9c84adab9246a0f4d08c8df392de3064fe7018579fb0704010dced921bb4f09",
+    "variant_3_seed55_step0000000000.json": "449b8c45324eba0224b63bdaac87289bc765e4bed5c5dd65ac3bbfb9927f3dd8"
+  }
+}
