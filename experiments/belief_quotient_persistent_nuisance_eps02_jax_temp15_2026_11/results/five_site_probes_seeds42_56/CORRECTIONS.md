@@ -10,6 +10,14 @@ and `corrected_paired.csv` for the corrected view. The auditable overlay is
 score, method, checkpoint hash, raw-input hashes, and diagnostics.
 `corrected_hashes.json` hashes reports, correction outputs and the adapter.
 
+The adjacent `source_revisions.json` files record the Git revision for each
+source digest in both raw bundles' `hashes.json` and `corrected_hashes.json`:
+the archived adapters are from `60fffae92a1682420117b6731084918c2d9a0f87`.
+Verify source hashes with `git show <rev>:<path>` (repository-relative path),
+not against the subsequently revised working-tree adapters; verify data-file
+hashes against the files on disk. The archived digests are unchanged.
+New manifests record source revisions and require source files to match HEAD.
+
 Exactly 32 of 1,800 scores meet the original error > 1 selection rule, all at
 initialization seed 51 in Trivial Quotient or Reward-State Quotient. The other
 1,768 scores are unchanged. Final checkpoints and Full-State Quotient need no

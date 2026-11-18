@@ -1,10 +1,11 @@
 """Validate and summarize the three-seed, two-checkpoint five-site reports."""
 import csv
-import hashlib
 import io
 import json
 from pathlib import Path
 from statistics import mean
+
+from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 import five_site_hashes
 
 STUDY = Path(__file__).resolve().parent
 OUTPUT = STUDY / "results/five_site_probes_stage1_seeds42_44"
@@ -71,8 +72,7 @@ def main():
     outputs[1].write_text("\n".join(text) + "\n")
     outputs[2].write_text(buffer.getvalue())
     sources = paths + outputs[:3] + [STUDY / "five_site_probes.py", Path(__file__)]
-    outputs[3].write_text(json.dumps({str(p.relative_to(STUDY)): hashlib.sha256(p.read_bytes()).hexdigest()
-                                     for p in sources}, indent=2) + "\n")
+    five_site_hashes.write_manifest(outputs[3], sources, STUDY)
     print("Validated 18 reports, 360 site/target scores, 36 final-norm comparisons; all exact.")
     print(outputs[1].read_text())
 

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 import five_site_probes as probe
 from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 import five_site_probes_stage2 as stage2
+from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 import five_site_hashes
 from experiments.algorithm_generality_probes_eps02_2026_11.paper_constraints import constrain_predictions
 from analysis.probes.linear import fit_affine_probe, global_mse_metrics, r2_score
 
@@ -244,8 +245,7 @@ def main():
     summarize(reports, replacements)
     assert all(stage2.digest(OUTPUT / name) == h for name,h in raw_hashes.items())
     sources = paths + [OUTPUT / n for n in names[:-1]] + [Path(__file__)]
-    (OUTPUT / names[-1]).write_text(json.dumps({str(p.relative_to(probe.STUDY)): stage2.digest(p)
-                                               for p in sources}, indent=2) + "\n")
+    five_site_hashes.write_manifest(OUTPUT / names[-1], sources)
     print(f"Validated {len(replacements['replacements'])} replacements; all original scores reproduced; all raw files unchanged.")
 
 

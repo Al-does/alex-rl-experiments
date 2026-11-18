@@ -6,6 +6,7 @@ from statistics import mean, median
 import math
 
 from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 import five_site_probes_stage2 as stage2
+from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 import five_site_hashes
 
 OUTPUT = stage2.OUTPUT
 TARGETS = ("b", "c", "rho", "delta")
@@ -41,11 +42,8 @@ def main():
     if "sensitivity_excluding_seed51" in summary:
         raise FileExistsError("robust statistics already added")
     manifest_path = OUTPUT / "corrected_hashes.json"
-    manifest = json.loads(manifest_path.read_text())
     study = OUTPUT.parent.parent
-    for name, digest in manifest.items():
-        if stage2.digest(study / name) != digest:
-            raise ValueError(f"saved hash differs: {name}")
+    five_site_hashes.verify_manifest(manifest_path, study)
     with (OUTPUT / "corrected_per_seed.csv").open() as handle:
         medians, sensitivity = robust_statistics(list(csv.DictReader(handle)))
     for cell in summary["aggregates"]:
@@ -68,9 +66,7 @@ def main():
     summary_path.write_text(json.dumps(summary, indent=2) + "\n")
     table_path = OUTPUT / "corrected_tables.md"
     table_path.write_text(table_path.read_text() + "\n".join(text) + "\n")
-    for path in (summary_path, table_path, Path(__file__)):
-        manifest[str(path.relative_to(study))] = stage2.digest(path)
-    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+    five_site_hashes.write_manifest(manifest_path, (summary_path, table_path, Path(__file__)), study)
     print("Added 120 medians and two 14-seed sensitivity means; primary means/CIs and per-seed data unchanged.")
     print("\n".join(text))
 

@@ -10,6 +10,7 @@ from pathlib import Path
 import shutil
 
 from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 import five_site_probes as probe
+from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 import five_site_hashes
 
 import numpy as np
 
@@ -26,7 +27,8 @@ def digest(path):
 
 
 def stage1_hashes():
-    return {p.name: digest(p) for p in sorted(probe.OUTPUT.iterdir()) if p.is_file()}
+    return {p.name: digest(p) for p in sorted(probe.OUTPUT.iterdir())
+            if p.is_file() and p.name != five_site_hashes.SOURCE_REVISIONS}
 
 
 def run():
@@ -149,8 +151,7 @@ def summarize():
         writer.writerows(data)
         path.write_text(buffer.getvalue())
     sources = paths + outputs[:4] + [OUTPUT / "stage1_snapshot.json", Path(__file__), Path(probe.__file__)]
-    outputs[4].write_text(json.dumps({str(p.relative_to(probe.STUDY)): digest(p)
-                                     for p in sources}, indent=2) + "\n")
+    five_site_hashes.write_manifest(outputs[4], sources)
     print("Validated 90 CPU reports, 1,800 scores, 180 exact final-norm comparisons; Stage 1 unchanged.")
     print(outputs[1].read_text())
 
