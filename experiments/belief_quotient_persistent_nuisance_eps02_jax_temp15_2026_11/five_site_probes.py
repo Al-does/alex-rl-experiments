@@ -34,6 +34,18 @@ OUTPUT = STUDY / "results/five_site_probes_stage1_seeds42_44"
 
 
 def git_text(revision, path):
+    available = subprocess.run(["git", "cat-file", "-e", f"{revision}^{{commit}}"],
+                               cwd=ROOT, capture_output=True)
+    if available.returncode:
+        command = ["git", "fetch", "--no-tags", "--depth=1", "origin", revision]
+        try:
+            subprocess.run(command, cwd=ROOT, check=True, capture_output=True)
+        except subprocess.CalledProcessError as exc:
+            raise RuntimeError(
+                f"Pinned Git revision {revision} is unavailable locally and could not be "
+                f"fetched from origin. Check network access and origin permissions, then "
+                f"run `{' '.join(command)}` in {ROOT}."
+            ) from exc
     return subprocess.check_output(["git", "show", f"{revision}:{path}"], cwd=ROOT).decode()
 
 
