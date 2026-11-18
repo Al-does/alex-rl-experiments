@@ -8,3 +8,8 @@ The effect size scales the existing destination-state-2 log-odds tilt directions
 The reward-factor study uses two independent variant-3 factors with Kronecker
 transitions/emissions and uniform joint initialization.
 No historical analytic optima are asserted for this emission matrix.
+
+Added later: `{reward_both,reward_factor_1}_{memoryless,gru128,gru92}` use the
+same recipe with the source model specs (`base.model_spec`). `CONTEXT_LEN = 32`
+is set on every spec but only the transformer reads it; GRUs keep 32-step BPTT
+chunks and memoryless reads only the current joint token.

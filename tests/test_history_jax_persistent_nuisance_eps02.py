@@ -1,5 +1,5 @@
 import importlib
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from unittest.mock import patch
 
 import numpy as np
@@ -70,3 +70,26 @@ def test_leaves(study, original, leaf):
         with pytest.raises(ValueError):
             study.run_condition(context, architecture="invalid",
                 **({"variant": 1} if study is ladder else {"condition": "reward_both"}))
+
+
+@pytest.mark.parametrize("leaf", [f"{c}_{a}" for c in ("reward_both", "reward_factor_1")
+                                  for a in ("memoryless", "gru128", "gru92")])
+def test_factor_non_transformer_leaves(leaf):
+    condition, architecture = leaf.rsplit("_", 1)
+    module = importlib.import_module(f"experiments.{factors.STUDY}.{leaf}.experiment")
+    transformer = importlib.import_module(
+        f"experiments.{factors.STUDY}.{condition}_transformer.experiment")
+    for smoke in (False, True):
+        context = type("Context", (), {"smoke": smoke})()
+        with patch.object(factors.base, "run_study", side_effect=lambda *a, **kw: kw):
+            result = module.run(context)
+            reference = transformer.run(context)
+        assert result["architecture"] == architecture
+        assert result["condition"] == condition and result["study"] == factors.STUDY
+        assert asdict(result["config"]) == asdict(reference["config"])
+        assert result["spec"] == replace(factors.base.model_spec(architecture, result["process"]),
+                                         context_len=factors.CONTEXT_LEN)
+        assert result["spec"].kind != "transformer"
+        for key in ("initial", "transitions", "emission", "reward", "reward_components"):
+            np.testing.assert_array_equal(getattr(result["process"], key),
+                                          getattr(reference["process"], key))
