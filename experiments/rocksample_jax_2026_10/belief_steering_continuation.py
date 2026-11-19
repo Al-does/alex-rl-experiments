@@ -156,6 +156,8 @@ def main():
         for mapping in agents:
             load(mapping, 316)
         return
+    if args.smoke:
+        agents = agents[:1]
     if args.output.exists() and not args.resume:
         raise FileExistsError(args.output)
     args.output.mkdir(parents=True, exist_ok=True)
@@ -173,7 +175,7 @@ def main():
     if args.resume and path.exists() and read(path) != manifest:
         raise ValueError("resume configuration or execution sources changed")
     write(path, manifest)
-    for mapping in agents[:1] if args.smoke else agents:
+    for mapping in agents:
         for update in (29, 316):
             run_checkpoint(mapping, update, args.output, smoke=args.smoke, resume=args.resume)
 

@@ -1,4 +1,5 @@
 import json
+import sys
 
 import pytest
 
@@ -61,3 +62,28 @@ def test_loader_rejects_noncanonical_layout_before_checkpoint(tmp_path, monkeypa
     monkeypatch.setattr(cont.bs.bp, "checkpoint", lambda *a, **kw: pytest.fail("must not unpickle"))
     with pytest.raises(ValueError, match="canonical durability"):
         cont.load(dict(continuation_run="continued", seed=2), 316)
+
+
+@pytest.mark.parametrize("smoke", [False, True])
+def test_manifest_records_only_evaluated_agents(tmp_path, monkeypatch, smoke):
+    agents = [dict(source_run=f"original{i}", seed=i) for i in range(3)]
+    output = tmp_path/"comparison"
+    calls = []
+
+    def run_checkpoint(mapping, update, directory, **kwargs):
+        calls.append((mapping, update))
+        cont.write(directory/f"{mapping['source_run']}_seed{mapping['seed']}_update{update}.json", {})
+
+    monkeypatch.setattr(cont, "mappings", lambda: agents)
+    monkeypatch.setattr(cont, "run_checkpoint", run_checkpoint)
+    monkeypatch.setattr(cont.bs.bp, "revision", lambda _: "revision")
+    monkeypatch.setattr(sys, "argv", ["continuation", "--output", str(output)] +
+                        (["--smoke"] if smoke else []))
+    cont.main()
+    expected = agents[:1] if smoke else agents
+    manifest = cont.read(output/"manifest.json")
+    assert manifest["mappings"] == expected
+    assert calls == [(mapping, update) for mapping in expected for update in (29, 316)]
+    for mapping in manifest["mappings"]:
+        for update in (29, 316):
+            assert (output/f"{mapping['source_run']}_seed{mapping['seed']}_update{update}.json").is_file()
