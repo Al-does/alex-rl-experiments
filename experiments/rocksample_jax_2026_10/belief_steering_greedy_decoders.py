@@ -176,17 +176,17 @@ def run(output, smoke=False, updates=(29, 316)):
             path = output/f"{mapping['source_run']}_seed{mapping['seed']}_update{update}.json"
             state = cont.read(path) if path.exists() else dict(mapping=mapping, update=update,
                 checkpoint=provenance, modes={})
-            old = cont.read(HISTORICAL/path.name)
+            old = None if smoke else cont.read(HISTORICAL/path.name)
             for mode in ('sampled', 'greedy'):
                 greedy = mode == 'greedy'
                 part = state['modes'].setdefault(mode, dict(v4={}, v5={}))
                 if any(len(part['v4'].get(v, {})) < 4 for v in VARIANTS):
                     fitted, diagnostics = fit_decoders(spec, env, params, fit, greedy)
                     part['decoder_diagnostics'] = diagnostics
-                    if greedy:
+                    if greedy or smoke:
                         baseline = paper.evaluate(spec, env, params, fitted['plain'][:4], 'marginal',
                             episodes, frozen.CONFIRM_SEED, 0, dict.fromkeys(paper.DIRECTIONS, 0.),
-                            conditions=('intact',), greedy=True)
+                            conditions=('intact',), greedy=greedy)
                     else:
                         baseline = old['v4']['sites']['0']
                     for variant in VARIANTS:
@@ -199,27 +199,27 @@ def run(output, smoke=False, updates=(29, 316)):
                                 variant == 'plain' and not smoke else
                                 evaluate(spec, env, params, fitted[variant], episodes, site, greedy, baseline))
                             cont.write(path, state)
-                if greedy and any(len(part['v5'].get(rep, {})) < 4 for rep in paper.REPRESENTATIONS):
-                    fitted, r2, diagnostics = paper.fit_maps(spec, env, params, fit, greedy=True)
+                if (greedy or smoke) and any(len(part['v5'].get(rep, {})) < 4 for rep in paper.REPRESENTATIONS):
+                    fitted, r2, diagnostics = paper.fit_maps(spec, env, params, fit, greedy=greedy)
                     part['paper_r2'], part['paper_diagnostics'] = r2, diagnostics
                     if 'tuning' not in part:
-                        part['tuning'] = paper.tune(spec, env, params, fitted, tune, greedy=True)
+                        part['tuning'] = paper.tune(spec, env, params, fitted, tune, greedy=greedy)
                         cont.write(path, state)
                     baseline = paper.evaluate(spec, env, params, fitted['marginal'], 'marginal',
                         episodes, paper.CONFIRM_SEED, 2, dict.fromkeys(paper.DIRECTIONS, 0.),
-                        conditions=('intact', 'random'), greedy=True)
+                        conditions=('intact', 'random'), greedy=greedy)
                     for representation in paper.REPRESENTATIONS:
                         cells = part['v5'].setdefault(representation, {})
                         selected = cont.strengths(part['tuning'], representation)
                         for site in range(4):
                             if str(site) in cells:
                                 continue
-                            print(f"u{update} seed{mapping['seed']} greedy v5 {representation} site{site} λ={selected}", flush=True)
+                            print(f"u{update} seed{mapping['seed']} {mode} v5 {representation} site{site} λ={selected}", flush=True)
                             cells[str(site)] = paper.evaluate(spec, env, params, fitted[representation],
                                 representation, episodes, paper.CONFIRM_SEED, site, selected,
-                                baselines=baseline, greedy=True)
+                                baselines=baseline, greedy=greedy)
                             cont.write(path, state)
-                elif not greedy:
+                elif not greedy and not smoke:
                     part['v5'] = old['v5']['representations']
                     part['tuning'], part['paper_r2'] = old['v5']['tuning'], old['v5']['r2']
                     cont.write(path, state)

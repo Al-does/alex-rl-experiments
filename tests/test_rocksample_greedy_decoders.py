@@ -116,3 +116,86 @@ def test_selective_success_uses_unrounded_boundaries():
     metrics['Bad→Good']['steered']['target'] = .5
     metrics['Good→Bad']['steered']['nontarget_good'] = .899999
     assert not report.selective(metrics)
+
+
+@pytest.mark.parametrize('smoke', [False, True])
+def test_run_keeps_all_condition_budgets_consistent(tmp_path, monkeypatch, smoke):
+    episodes = 8 if smoke else 1024
+    agents = [dict(source_run=f'original{i}', seed=i) for i in range(3)]
+    gd.cont.write(tmp_path/'sanity.json', dict(checkpoints=[{}]*(2 if smoke else 6)))
+    read = gd.cont.read
+    fits, tunes = [], []
+
+    def cells(budget, conditions, origin):
+        return [{d: {c: dict(episodes=budget, origin=origin) for c in conditions}
+                 for d in gd.paper.DIRECTIONS} for _ in range(7)]
+
+    def tuning():
+        return dict(representations={rep: {d: dict(strength=1.) for d in gd.paper.DIRECTIONS}
+                                     for rep in gd.paper.REPRESENTATIONS})
+
+    def historical(path):
+        if path.parent != gd.HISTORICAL:
+            return read(path)
+        assert not smoke, 'smoke must not read historical full-budget cells'
+        sites = {str(s): cells(1024, ('intact', 'steered', 'control'), 'historical')
+                 for s in range(4)}
+        return dict(v4=dict(sites=sites), v5=dict(representations={
+            rep: {str(s): cells(1024, ('intact', 'steered', 'control', 'random'), 'historical')
+                  for s in range(4)} for rep in gd.paper.REPRESENTATIONS}, tuning=tuning(), r2={}))
+
+    def fit_decoders(spec, env, params, budget, greedy):
+        fits.append((budget, greedy))
+        return {v: (None,)*10 for v in gd.VARIANTS}, {}
+
+    def fit_paper(spec, env, params, budget, *, greedy):
+        fits.append((budget, greedy))
+        return {rep: (None,)*4 for rep in gd.paper.REPRESENTATIONS}, {}, {}
+
+    def tune(spec, env, params, fitted, budget, *, greedy):
+        tunes.append((budget, greedy))
+        return tuning()
+
+    def check_baseline(baseline, budget):
+        for rock in baseline:
+            for direction in rock.values():
+                assert all(c['episodes'] == budget for c in direction.values())
+
+    def evaluate(spec, env, params, fitted, budget, site, greedy, baseline):
+        check_baseline(baseline, budget)
+        return cells(budget, ('intact', 'steered', 'control'), 'evaluated')
+
+    def evaluate_paper(spec, env, params, fitted, rep, budget, seed, site, strengths,
+                       *, conditions=('intact', 'steered', 'control', 'random'),
+                       baselines=None, greedy=False):
+        if baselines is not None:
+            check_baseline(baselines, budget)
+        return cells(budget, conditions, 'evaluated')
+
+    monkeypatch.setattr(gd.cont, 'read', historical)
+    monkeypatch.setattr(gd.cont, 'mappings', lambda: agents)
+    monkeypatch.setattr(gd.cont, 'load', lambda m, u: (None, None, None, dict(update=u)))
+    monkeypatch.setattr(gd, 'fit_decoders', fit_decoders)
+    monkeypatch.setattr(gd, 'evaluate', evaluate)
+    monkeypatch.setattr(gd.paper, 'fit_maps', fit_paper)
+    monkeypatch.setattr(gd.paper, 'tune', tune)
+    monkeypatch.setattr(gd.paper, 'evaluate', evaluate_paper)
+    monkeypatch.setattr(gd.jax, 'clear_caches', lambda: None)
+    gd.run(tmp_path, smoke=smoke)
+    assert all(budget == (8 if smoke else 256) for budget, _ in fits)
+    assert all(budget == (8 if smoke else 128) for budget, _ in tunes)
+    assert {greedy for _, greedy in tunes} == ({False, True} if smoke else {True})
+    paths = list(tmp_path.glob('*update*.json'))
+    assert len(paths) == (2 if smoke else 6)
+    for path in paths:
+        for mode, part in read(path)['modes'].items():
+            for protocol in ('v4', 'v5'):
+                assert len(part[protocol]) == (3 if protocol == 'v4' else 2)
+                for variant, sites in part[protocol].items():
+                    assert len(sites) == 4
+                    for rows in sites.values():
+                        check_baseline(rows, episodes)
+                        origin = ('historical' if not smoke and mode == 'sampled' and
+                                  (protocol == 'v5' or variant == 'plain') else 'evaluated')
+                        assert all(c['origin'] == origin for rock in rows
+                                   for direction in rock.values() for c in direction.values())
