@@ -36,7 +36,8 @@ def factor_process(condition, environment=None):
 
 def run_condition(context, *, condition, architecture, total_env_steps=TOTAL_ENV_STEPS,
                   study=STUDY, entropy_schedule_points=None, temperature=1.0, environment=None,
-                  exploration_epsilon=0.0, context_len=None, training_backend=None):
+                  exploration_epsilon=0.0, context_len=None, training_backend=None,
+                  continue_from=None):
     if condition not in CONDITIONS or architecture not in ARCHITECTURES:
         raise ValueError("unknown condition or architecture")
     process = factor_process(condition, environment)
@@ -54,6 +55,7 @@ def run_condition(context, *, condition, architecture, total_env_steps=TOTAL_ENV
         **({"trainer": training_backend.train} if training_backend is not None else {}),
         process=process, spec=spec,
         config=config, targets=factor_targets, representation="residual",
+        continue_from=continue_from,
         recipe_extra={**(environment_metadata() if environment is None else environment.environment_metadata()), "source_study": SOURCE_STUDY,
                       "action_pairs": ACTION_PAIRS,
                       "condition_name": source.CONDITION_NAMES[condition],
