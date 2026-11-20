@@ -139,6 +139,7 @@ def test_action_basis_and_behavioural_write():
 def test_seed_campaign_smokes_before_full(monkeypatch):
     from experiments.reward_factors_causal_decoding_2026_11 import seed_campaign
     commands = []
+    monkeypatch.setattr(seed_campaign, "prepare_archives", lambda: None)
     monkeypatch.setattr("sys.argv", ["seed_campaign", "--seed", "43"])
     monkeypatch.setattr(seed_campaign.subprocess, "run", lambda command, **kwargs: commands.append(command))
     seed_campaign.main()
