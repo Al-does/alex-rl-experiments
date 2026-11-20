@@ -12,16 +12,21 @@ def main():
     p.add_argument("--run-prefix", required=True)
     p.add_argument("run_args", nargs=argparse.REMAINDER, help="run overrides after -- (e.g. -- --smoke --updates 10)")
     args = p.parse_args()
-    plans = [(LADDER, f"variant_{v}") for v in (1, 2, 3)] + [(RR, c) for c in ("reward_both", "reward_factor_1")]
-    selected = plans if args.box == 6 else [plans[args.box-1]]
-    for study, condition in selected:
-        mode = "control" if args.box == 6 else "policy"
+    ladder = [(LADDER, f"variant_{v}") for v in (1, 2, 3)]
+    rr = [(RR, c) for c in ("reward_both", "reward_factor_1")]
+    # Balanced plan: ladder boxes run policy then control; box 6 runs both
+    # Reward Relevance controls with a single head width.
+    boxes = {i + 1: [(*plan, "policy", []), (*plan, "control", [])] for i, plan in enumerate(ladder)}
+    boxes.update({4: [(*rr[0], "policy", [])], 5: [(*rr[1], "policy", [])],
+                  6: [(*plan, "control", ["--widths", "128"]) for plan in rr]})
+    extra = args.run_args[1:] if args.run_args[:1] == ["--"] else args.run_args
+    for study, condition, mode, defaults in boxes[args.box]:
         command = [sys.executable, "-m", f"experiments.{study}.analysis_gbs.run",
                    "--condition", condition, "--seeds", "42", "43", "44",
-                   "--run-name", f"{args.run_prefix}-{condition}-{mode}"]
-        if args.box == 6:
+                   "--run-name", f"{args.run_prefix}-{condition}-{mode}", *defaults]
+        if mode == "control":
             command.append("--control")
-        command.extend(args.run_args[1:] if args.run_args[:1] == ["--"] else args.run_args)
+        command.extend(extra)
         subprocess.run(command, check=True)
 
 
