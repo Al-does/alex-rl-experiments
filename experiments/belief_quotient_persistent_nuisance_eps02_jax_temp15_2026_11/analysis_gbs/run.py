@@ -20,8 +20,11 @@ from . import compare, core, data
 
 
 def write(path, value):
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    Path(path).write_text(json.dumps(value, indent=2, allow_nan=False) + "\n")
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name("." + path.name + ".tmp")
+    temporary.write_text(json.dumps(value, indent=2, allow_nan=False) + "\n")
+    temporary.replace(path)
 
 
 def parser(study):
@@ -35,7 +38,8 @@ def parser(study):
     p.add_argument("--widths", nargs="+", type=int, default=[32, 128])
     p.add_argument("--lrs", nargs="+", type=float, default=[.001, .003])
     p.add_argument("--inits", type=int, default=3)
-    p.add_argument("--updates", type=int, default=2000)
+    p.add_argument("--updates", type=int, default=20000)
+    p.add_argument("--val-interval", type=int, default=1000)
     p.add_argument("--batch", type=int, default=32)
     p.add_argument("--rollout-batch", type=int, default=32)
     p.add_argument("--train-episodes", type=int, default=2048)
@@ -46,23 +50,16 @@ def parser(study):
     p.add_argument("--run-name", default=None)
     p.add_argument("--smoke", action="store_true", help="ignored output location, not a scientific result")
     p.add_argument("--no-upload", action="store_true")
-    p.add_argument("--publish-and-destroy", action="store_true", help="only on a user-provisioned Vast box, after durable success")
     return p
 
 
 def main(study=data.LADDER):
     args = parser(study).parse_args()
     if min(args.train_episodes, args.val_episodes, args.test_episodes, args.inits,
-           args.updates, args.batch, args.rollout_batch, args.probe_updates) < 1:
+           args.updates, args.val_interval, args.batch, args.rollout_batch, args.probe_updates) < 1:
         raise ValueError("counts must be positive")
     if min(args.ks) < 0 or min(args.widths) < 1 or min(args.lrs) <= 0 or args.tolerance < 0:
         raise ValueError("invalid sweep grid")
-    if args.publish_and_destroy and (args.no_upload or args.smoke):
-        raise ValueError("publication/destruction requires nonsmoke durable results")
-    if args.publish_and_destroy:
-        from devops.vast.self_destruct import resolve_publish_branch
-        if resolve_publish_branch() in ("main", "master"):
-            raise ValueError("set VAST_PUBLISH_BRANCH to the feature launch branch; refusing main/master publication")
     here = data.ROOT / study / "analysis_gbs"
     name = args.run_name or f"{args.condition}-{'control' if args.control else 'policy'}-{new_run_id()}"
     if Path(name).name != name:
@@ -104,19 +101,26 @@ def main(study=data.LADDER):
             for kind, k in itertools.product(args.classes, args.ks):
                 best = None
                 candidates = []
-                for width, lr, init_seed in itertools.product(args.widths, args.lrs, range(args.inits)):
+                for width in args.widths:
                     spec = core.Spec(kind, k, process.n_tokens, process.n_actions, outputs, width, groups)
                     try:
-                        fitted, metric = core.fit(spec, splits["train"]["x"], splits["train"][target],
-                                                  splits["val"]["x"], splits["val"][target], seed=init_seed,
-                                                  lr=lr, updates=args.updates, batch=args.batch)
+                        group = core.fit_many(spec, splits["train"]["x"], splits["train"][target],
+                                              splits["val"]["x"], splits["val"][target], seeds=tuple(range(args.inits)),
+                                              lrs=tuple(args.lrs), updates=args.updates,
+                                              val_interval=args.val_interval, batch=args.batch)
                     except FloatingPointError as error:
-                        candidates.append({"seed": init_seed, "width": width, "lr": lr, "error": str(error)})
+                        failed = {"width": width, "error": str(error)}
+                        candidates.append(failed)
+                        write(results / f"candidates_seed{seed}_{kind}_k{k}_width{width}.json", failed)
                         continue
-                    metric["width"] = width
-                    candidates.append(metric)
-                    if best is None or metric["val_kl"] < best[2]["val_kl"]:
-                        best = spec, fitted, metric
+                    for fitted, metric in group:
+                        metric["width"] = width
+                        candidates.append(metric)
+                        if fitted is not None and (best is None or metric["val_kl"] < best[2]["val_kl"]):
+                            best = spec, fitted, metric
+                    write(results / f"candidates_seed{seed}_{kind}_k{k}_width{width}.json",
+                          {"condition": args.condition, "seed": seed, "class": kind, "k": k,
+                           "width": width, "candidates": [metric for _, metric in group]})
                 if best is None:
                     write(results / f"seed{seed}_{kind}_k{k}_failed.json", {"candidates": candidates})
                     raise FloatingPointError(f"all candidates failed for {kind}, k={k}")
@@ -124,21 +128,24 @@ def main(study=data.LADDER):
                 with (artifacts / f"seed{seed}_{kind}_k{k}.pkl").open("wb") as f:
                     pickle.dump({"spec": asdict(spec), "params": jax.tree.map(np.asarray, fitted)}, f)
                 test_kl = float(core.loss(spec, fitted, splits["test"]["x"], splits["test"][target]))
+                row = {"condition": args.condition, "seed": seed, "control": args.control,
+                       "class": kind, "k": k, "test_kl": test_kl, "selected": selected,
+                       "candidates": candidates, "checkpoint": provenance, "status": "fitted"}
+                output = results / f"seed{seed}_{kind}_k{k}.json"
+                write(output, row)
                 train_g = np.asarray(core.states(spec, fitted, splits["train"]["x"]))
                 test_g = np.asarray(core.states(spec, fitted, splits["test"]["x"]))
                 ladder = study == data.LADDER
                 train_truth = {key[6:]: value for key, value in splits["train"].items() if key.startswith("truth_")}
                 test_truth = {key[6:]: value for key, value in splits["test"].items() if key.startswith("truth_")}
-                row = {"condition": args.condition, "seed": seed, "control": args.control,
-                       "class": kind, "k": k, "test_kl": test_kl, "selected": selected,
-                       "candidates": candidates, "checkpoint": provenance,
+                row.update({"status": "completed",
                        "geometry": compare.geometry(train_g, test_g, train_truth, test_truth, mlp_updates=args.probe_updates),
                        "commutation": compare.commutation(spec, fitted, train_g, test_g, splits["train"]["belief"],
                                                           splits["test"]["belief"], splits["test"]["x"], process),
-                       "hmm_matrices": compare.matrix_error(spec, fitted, process, ladder)}
+                       "hmm_matrices": compare.matrix_error(spec, fitted, process, ladder)})
                 rows.append(row)
-                write(results / f"seed{seed}_{kind}_k{k}.json", row)
-                print(f"fit condition={args.condition} seed={seed} class={kind} k={k} val_kl={selected['val_kl']:.8g} test_kl={test_kl:.8g} step_seconds={selected['step_seconds']:.6f}", flush=True)
+                write(output, row)
+                print(f"fit condition={args.condition} seed={seed} class={kind} k={k} val_kl={selected['val_kl']:.8g} test_kl={test_kl:.8g} vmapped_step_seconds={selected['vmapped_step_seconds']:.6f} parallel_candidates={selected['parallel_candidates']}", flush=True)
         elbows = []
         for seed, kind in itertools.product(args.seeds, args.classes):
             subset = [r for r in rows if r["seed"] == seed and r["class"] == kind]
@@ -156,11 +163,6 @@ def main(study=data.LADDER):
             manifest["remote_artifacts"] = upload_run_artifacts(context, experiment_module=f"experiments.{study}.analysis_gbs.run")
             write(results / "run_manifest.json", manifest)
         print(f"completed results={results} fits={len(rows)}", flush=True)
-        if args.publish_and_destroy:
-            if manifest.get("remote_artifacts", {}).get("status") != "completed":
-                raise RuntimeError("refusing publication/destruction without B2 durability")
-            from devops.vast.self_destruct import push_results_and_destroy
-            push_results_and_destroy()
     except Exception as e:
         manifest.update(status="failed", error=repr(e))
         write(results / "run_manifest.json", manifest)

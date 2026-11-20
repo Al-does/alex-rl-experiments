@@ -97,46 +97,79 @@ def loss(spec, p, x, target):
                             target * log_predictions(spec, p, x), -1))
 
 
-def fit(spec, train_x, train_target, val_x, val_target, *, seed=0, lr=.003,
-        updates=2000, batch=32):
-    """Whole-episode minibatches; validation selects the best saved iterate."""
-    if len(train_x) == 0 or len(val_x) == 0 or updates < 1 or batch < 1:
+def train_steps(spec):
+    """Independent Adam states and clipping, with a candidate-axis vmap."""
+    optimizer = optax.chain(optax.clip_by_global_norm(1.), optax.adam(1.))
+
+    def step(p, opt, x, y, lr):
+        value, grad = jax.value_and_grad(loss, 1)(spec, p, x, y)
+        delta, opt = optimizer.update(grad, opt, p)
+        delta = jax.tree.map(lambda d: d*lr, delta)
+        return optax.apply_updates(p, delta), opt, value
+
+    return optimizer, jax.jit(step), jax.jit(jax.vmap(step))
+
+
+def fit_many(spec, train_x, train_target, val_x, val_target, *, seeds=(0, 1, 2),
+             lrs=(.001, .003), updates=20000, val_interval=1000, batch=32):
+    """Train every init × rate concurrently, retaining each candidate's best."""
+    if len(train_x) == 0 or len(val_x) == 0 or min(updates, val_interval, batch) < 1:
         raise ValueError("nonempty train/validation and positive updates/batch required")
+    if not seeds or not lrs or min(lrs) <= 0:
+        raise ValueError("nonempty seeds and positive learning rates required")
     for x, y in ((train_x, train_target), (val_x, val_target)):
         if x.shape != y.shape[:2] or np.prod(y.shape[2:]) != spec.outputs:
             raise ValueError("symbol/target shapes differ")
         if not np.isfinite(y).all() or (y < 0).any() or not np.allclose(y.sum(-1), 1, atol=1e-5):
             raise ValueError("targets must be distributions")
-    p = init(spec, seed)
-    optimizer = optax.chain(optax.clip_by_global_norm(1.), optax.adam(lr))
-    opt = optimizer.init(p)
-
-    @jax.jit
-    def step(p, opt, x, y):
-        value, grad = jax.value_and_grad(loss, 1)(spec, p, x, y)
-        delta, opt = optimizer.update(grad, opt, p)
-        return optax.apply_updates(p, delta), opt, value
-
+    grid = [(seed, lr) for lr in lrs for seed in seeds]
+    p = jax.vmap(lambda seed: init(spec, seed))(jnp.asarray([s for s, _ in grid]))
+    optimizer, _, step = train_steps(spec)
+    opt = jax.vmap(optimizer.init)(p)
+    rates = jnp.asarray([lr for _, lr in grid])
+    validate = jax.jit(jax.vmap(lambda p, x, y: loss(spec, p, x, y), in_axes=(0, None, None)))
+    val_x, val_target = jnp.asarray(val_x), jnp.asarray(val_target)
     x, y = jnp.asarray(train_x), jnp.asarray(train_target)
-    rng = np.random.default_rng(seed)
-    best, best_p, best_i = float("inf"), None, None
+    rngs = [np.random.default_rng(seed) for seed, _ in grid]
+    best, best_i = np.full(len(grid), np.inf), np.zeros(len(grid), dtype=int)
+    best_p = p
     start = time.perf_counter()
     for i in range(updates):
-        ix = rng.integers(len(x), size=batch)
-        p, opt, value = step(p, opt, x[ix], y[ix])
-        if (i+1) % max(1, updates//10) == 0 or i == updates-1:
-            v = float(loss(spec, p, val_x, val_target))
-            if np.isfinite(v) and v < best:
-                best, best_p, best_i = v, p, i+1
-    if best_p is None:
+        ix = np.stack([rng.integers(len(x), size=batch) for rng in rngs])
+        p, opt, value = step(p, opt, x[ix], y[ix], rates)
+        if (i+1) % val_interval == 0 or i == updates-1:
+            values = np.asarray(validate(p, val_x, val_target))
+            improved = np.isfinite(values) & (values < best)
+            best = np.where(improved, values, best)
+            best_i = np.where(improved, i+1, best_i)
+            best_p = jax.tree.map(lambda old, new: jnp.where(
+                jnp.asarray(improved).reshape((-1,) + (1,)*(new.ndim-1)), new, old), best_p, p)
+    if not np.isfinite(best).any():
         raise FloatingPointError("all validation losses nonfinite")
     jax.block_until_ready(value)
     seconds = time.perf_counter()-start
     xb, yb = x[ix], y[ix]
     jax.block_until_ready((xb, yb))
     t = time.perf_counter()
-    p, opt, value = step(p, opt, xb, yb)
+    p, opt, value = step(p, opt, xb, yb, rates)
     jax.block_until_ready(value)
     step_seconds = time.perf_counter()-t
-    return best_p, {"val_kl": best, "selected_update": best_i, "seconds": seconds,
-                    "step_seconds": step_seconds, "seed": seed, "lr": lr}
+    results = []
+    for i, (seed, lr) in enumerate(grid):
+        metric = {"seed": seed, "lr": lr, "group_seconds": seconds,
+                  "vmapped_step_seconds": step_seconds, "parallel_candidates": len(grid),
+                  "updates": updates, "val_interval": val_interval}
+        if np.isfinite(best[i]):
+            metric.update(val_kl=float(best[i]), selected_update=int(best_i[i]))
+            results.append((jax.tree.map(lambda a: a[i], best_p), metric))
+        else:
+            metric["error"] = "all validation losses nonfinite"
+            results.append((None, metric))
+    return results
+
+
+def fit(spec, train_x, train_target, val_x, val_target, *, seed=0, lr=.003,
+        updates=20000, val_interval=1000, batch=32):
+    """Single-candidate convenience wrapper for focused identification tests."""
+    return fit_many(spec, train_x, train_target, val_x, val_target, seeds=(seed,),
+                    lrs=(lr,), updates=updates, val_interval=val_interval, batch=batch)[0]

@@ -3,6 +3,8 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
+import json
+from types import SimpleNamespace
 
 from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11.analysis_gbs import core, compare, data
 
@@ -148,3 +150,47 @@ def test_rollout_symbols_reset_policy_and_predictive_targets():
     np.testing.assert_allclose(result["predictive"], chosen, atol=1e-6)
     prior = np.asarray(process.initial)*np.asarray(process.emission)[:, result["token"][:, 0]].T
     np.testing.assert_allclose(result["belief"][:, 0], prior/prior.sum(-1, keepdims=True), atol=1e-6)
+
+
+@pytest.mark.parametrize("kind", ["affine", "gru", "tanh", "hmm"])
+def test_vmapped_step_matches_independent_sequential_adam(kind):
+    spec = core.Spec(kind, 2, 3, 1, 3)
+    params = jax.vmap(lambda seed: core.init(spec, seed))(jnp.array([0, 1, 0, 1]))
+    optimizer, single, parallel = core.train_steps(spec)
+    opt = jax.vmap(optimizer.init)(params)
+    x, y, _ = synthetic(2, 4, 4)
+    xs, ys = np.stack([x]*4), np.stack([y]*4)
+    rates = jnp.array([.001, .001, .003, .003])
+    actual_p, actual_opt, values = parallel(params, opt, xs, ys, rates)
+    for i in range(4):
+        expected_p, expected_opt, value = single(jax.tree.map(lambda a: a[i], params),
+                                                jax.tree.map(lambda a: a[i], opt), x, y, rates[i])
+        for a, b in zip(jax.tree.leaves((actual_p, actual_opt)), jax.tree.leaves((expected_p, expected_opt))):
+            np.testing.assert_allclose(a[i], b, atol=2e-6, rtol=2e-5)
+        np.testing.assert_allclose(values[i], value, atol=1e-6)
+
+
+def test_group_fit_keeps_independent_validation_best():
+    x, y, _ = synthetic(4, 5, 4)
+    spec = core.Spec("tanh", 2, 3, 1, 3)
+    results = core.fit_many(spec, x, y, x, y, seeds=(0, 1), lrs=(.001, .003),
+                            updates=11, val_interval=5, batch=2)
+    assert len(results) == 4
+    for p, metric in results:
+        assert metric["selected_update"] in (5, 10, 11)
+        assert metric["parallel_candidates"] == 4
+        np.testing.assert_allclose(float(core.loss(spec, p, x, y)), metric["val_kl"], atol=1e-6)
+
+
+def test_harness_pending_manifest_durability_contract(tmp_path, monkeypatch):
+    from devops.vast import self_destruct
+    relative = "experiments/study/analysis_gbs/results/run/run_manifest.json"
+    manifest = tmp_path/relative
+    manifest.parent.mkdir(parents=True)
+    monkeypatch.setattr(self_destruct, "_run", lambda *a, **kw: SimpleNamespace(returncode=0, stdout=f"?? {relative}\0"))
+    manifest.write_text(json.dumps({"status": "running"}))
+    assert not self_destruct.required_durability_completed(tmp_path, log=lambda _: None)
+    manifest.write_text(json.dumps({"status": "completed", "remote_artifacts": {"status": "completed"}}))
+    assert not self_destruct.required_durability_completed(tmp_path, log=lambda _: None)
+    manifest.with_name("remote_artifacts.json").write_text("{}")
+    assert self_destruct.required_durability_completed(tmp_path, log=lambda _: None)
