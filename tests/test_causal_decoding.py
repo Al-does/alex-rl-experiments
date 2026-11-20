@@ -5,6 +5,35 @@ import numpy as np
 import pytest
 
 from experiments.belief_quotient_causal_decoding_2026_11 import decoders as d
+from experiments.reward_factors_causal_decoding_2026_11.campaign_report import collect, mean_sd, SEEDS
+from experiments.reward_factors_causal_decoding_2026_11.run import METHODS, TESTS
+
+
+def test_campaign_report_requires_complete_confirmation_budget(tmp_path):
+    assert mean_sd([1., 2., 3.]) == {"mean": 2., "sd": 1.}
+    with pytest.raises(FileNotFoundError):
+        collect(tmp_path)
+    first = None
+    for test in TESTS:
+        study = "belief_quotient" if test.startswith("ladder") else "reward_factors"
+        folder = tmp_path / f"experiments/{study}_causal_decoding_2026_11/results"
+        folder.mkdir(parents=True, exist_ok=True)
+        for seed in SEEDS:
+            for method in METHODS:
+                row = dict(test=test, seed=seed, method=method, campaign=True, smoke=False, pilot=False,
+                           fit_episodes=24, tuning_episodes=16, confirmation_episodes=32, horizon=1024,
+                           checkpoint={"sha256": f"{test}-{seed}"})
+                path = folder / f"campaign_{test}_seed{seed}_{method}.json"
+                path.write_text(json.dumps(row))
+                if first is None:
+                    first = path
+    data, manifest = collect(tmp_path)
+    assert len(data) == len(manifest) == 255
+    bad = json.loads(first.read_text())
+    bad["smoke"] = True
+    first.write_text(json.dumps(bad))
+    with pytest.raises(ValueError, match="expected smoke=False"):
+        collect(tmp_path)
 
 
 def test_affine_band_and_errors():
