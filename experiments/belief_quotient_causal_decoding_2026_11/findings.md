@@ -1,5 +1,8 @@
 # Ladder causal-decoding pilot
 
+Stage 2: [diagnosis and calibration](../reward_factors_causal_decoding_2026_11/stage2_findings.md)
+and [eight-episode ladder tables](../reward_factors_causal_decoding_2026_11/stage2_tables.md).
+
 The shared [findings and protocol](../reward_factors_causal_decoding_2026_11/findings.md)
 and [tables](../reward_factors_causal_decoding_2026_11/tables.md) cover both
 Reward-State and Full-State seed-42 checkpoints. Ladder-specific compact

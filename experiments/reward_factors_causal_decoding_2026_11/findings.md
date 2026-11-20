@@ -1,5 +1,8 @@
 # Causal decoding: seed-42 CPU pilot
 
+Stage 2: [diagnosis, calibration and contextual donors](stage2_findings.md), with
+[updated eight-episode ladder/moving tables and timings](stage2_tables.md).
+
 **This is a feasibility pilot, not a three-seed replication or a demonstrated
 steering improvement.** All four requested tests, plus Full-State as a positive
 control, ran against the pinned final temperature-1.5 REINFORCE checkpoints.

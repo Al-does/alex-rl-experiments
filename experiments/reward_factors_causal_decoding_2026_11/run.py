@@ -9,12 +9,13 @@ import subprocess
 import time
 
 ROOT = Path(__file__).resolve().parent
-METHODS = ("eq4", "eq4_joint", "policy", "das", "band", "mlp", "null", "norm_null", "intact", "map")
+METHODS = ("eq4", "eq4_joint", "policy", "das", "band", "mlp", "null", "norm_null", "intact", "map",
+           "context_exact", "context_policy", "context_exact_full", "context_policy_full")
 TESTS = ("ladder", "ladder_full", "moving", "xor_eps02", "xor_v2")
 
 
 def worker(job):
-    test, seed, method, pilot, cpus, beta, write_mode = job
+    test, seed, method, pilot, cpus, beta, write_mode, stage2, diagnose = job
     os.sched_setaffinity(0, set(cpus))
     import jax
     import jax.numpy as jnp
@@ -39,9 +40,16 @@ def worker(job):
     variant = 3 if test == "ladder_full" else 2
     folder = ROOT if not ladder else ROOT.parent / "belief_quotient_causal_decoding_2026_11"
     suffix = "" if beta == 1. and write_mode == "auto" else f"_beta{beta}_{write_mode}"
-    output = folder / "results" / f"{'pilot' if pilot else 'full'}_{test}_seed{seed}_{method}{suffix}.json"
+    prefix = "diagnosis" if diagnose else "stage2" if stage2 else "pilot" if pilot else "full"
+    output = folder / "results" / f"{prefix}_{test}_seed{seed}_{method}{suffix}.json"
     if output.exists():
-        raise FileExistsError(output)
+        existing = json.loads(output.read_text())
+        expected_config = dict(test=test, seed=seed, method=method, pilot=pilot, beta=beta,
+                               write=write_mode, stage2=stage2)
+        if any(existing.get(key) != value for key, value in expected_config.items()):
+            raise ValueError(f"incompatible result: {output}")
+        print(f"SKIP {output}", flush=True)
+        return
     if ladder:
         archived, archive_source = lrun.archive(f"variant_{variant}_transformer/results/belief_steering_v2_seed{seed}_stable.json")
         path = Path("experiments", lrun.STUDY, f"variant_{variant}_transformer", "results", archived["checkpoint"]["run_id"])
@@ -77,6 +85,8 @@ def worker(job):
         non_target = lambda p: p[:, jnp.asarray(rr.INVERSE)].sum(-1)
         non_logits = (lambda h: jax.scipy.special.logsumexp(jax.nn.log_softmax(policy_logits(h) / 1.5)[jnp.asarray(rr.INVERSE)], -1)) if test == "moving" else lambda h: jnp.zeros(1)
     nfit, ntest = (2, 2) if pilot else (24, 12)
+    if stage2 and test in ("ladder", "moving"):
+        nfit = ntest = 8
     length, warmup = 1024, 8 if ladder else 64
     def records(random_seed, count):
         if ladder:
@@ -98,7 +108,7 @@ def worker(job):
     bandt = flatten(d.band_features(held["sites"][:, :, 3]))
     band_probe = d.affine(band, y)
     probe = d.mlp(h, y) if method == "mlp" else affine
-    implied = d.policy_implied(b, np.asarray(policy_logits(jnp.asarray(h)))) if method == "policy" else None
+    implied = d.policy_implied(b, np.asarray(policy_logits(jnp.asarray(h)))) if method == "policy" or method.startswith("context_policy") else None
     def simplex(raw):
         raw = jnp.clip(raw.reshape(-1, *b.shape[1:]), 0., 1.)
         return raw / jnp.maximum(raw.sum(-1, keepdims=True), 1e-7)
@@ -117,6 +127,16 @@ def worker(job):
                                               (bt[:, f, 0] - bt[:, f, 1])[:, None]) for f in range(bt.shape[1])]
     if implied is not None:
         decoded = np.asarray(implied(policy_logits(jnp.asarray(ht))))
+        actual = policy(jnp.asarray(ht))
+        mapped = implied.policy_map(jnp.asarray(bt))
+        diagnostics["policy_map_test_kl"] = float(d.kl(actual, mapped).mean())
+        diagnostics["policy_map_test_tv"] = float((.5 * jnp.abs(actual - mapped).sum(-1)).mean())
+        diagnostics["policy_map_episode_kl"] = np.asarray(d.kl(actual, mapped).reshape(ntest, -1).mean(-1)).tolist()
+        diagnostics["policy_map_episode_tv"] = np.asarray((.5 * jnp.abs(actual - mapped).sum(-1)).reshape(ntest, -1).mean(-1)).tolist()
+        train_policy = policy(jnp.asarray(h))
+        diagnostics["policy_map_train_kl"] = float(d.kl(train_policy, implied.policy_map(jnp.asarray(b))).mean())
+        diagnostics["policy_mean_test_kl"] = float(d.kl(actual, train_policy.mean(0)).mean())
+        diagnostics["inverse_policy_test_kl"] = float(d.kl(actual, implied.policy_map(jnp.asarray(decoded))).mean())
         diagnostics["policy_implied_mae_per_factor"] = np.abs(decoded - bt).mean((0, 2)).tolist()
         diagnostics["policy_implied_rho_mae"] = np.abs(decoded[..., 2] - bt[..., 2]).mean(0).tolist()
         diagnostics["policy_implied_delta_mae"] = np.abs((decoded[..., 0] - decoded[..., 1]) - (bt[..., 0] - bt[..., 1])).mean(0).tolist()
@@ -126,6 +146,15 @@ def worker(job):
                                               non_target, beta=beta if test == "moving" else 0.,
                                               frames=(1, 2, 3) if test.startswith("xor") else (2,))
     bank_h, bank_b = jnp.asarray(h[::4]), jnp.asarray(affine(h[::4]))
+    if method.startswith("context_"):
+        bank_b = (implied(policy_logits(bank_h)).reshape(len(bank_h), -1)
+                  if implied is not None else jnp.asarray(y[::4]))
+        readout = np.asarray(jax.jacrev(affine)(jnp.zeros(spec.width)))
+        readout = readout if ladder or test.startswith("xor") else readout[3:]
+        _, singular, axes = np.linalg.svd(readout, full_matrices=False)
+        basis = jnp.asarray(axes[singular > singular.max() * d.RCOND].T)
+        diagnostics["context_subspace_rank"] = int(basis.shape[1])
+    context_scale = jnp.maximum(jnp.asarray(h.std(0)), .01)
     if method in ("policy", "mlp", "band") and write_mode == "donor":
         bank_b = (implied(policy_logits(bank_h)).reshape(len(bank_h), -1) if method == "policy" else
                   band_probe(band[::4]) if method == "band" else probe(bank_h))
@@ -146,6 +175,28 @@ def worker(job):
         q, schedule = map(jnp.asarray, transfer.task_tables("moving" if test == "moving" else "xor", process))
     else:
         q, schedule = None, None
+    if method in ("band", "mlp"):
+        sample, past = jnp.asarray(ht[:128]), jnp.asarray(bandt[:128, spec.width:])
+        raw = decode(sample, past)
+        current = simplex(raw)
+        if ladder:
+            target = ladder_old.target(current[:, 0], 2).reshape(raw.shape)
+        else:
+            joint = (current[:, 0, :, None] * current[:, 1, None, :]).reshape(-1, 9)
+            request = jnp.asarray(rr.ACTION)[(joint @ q[0]).argmax(-1)]
+            anchors = maps["marginal"]["anchors"][jnp.arange(2), request]
+            target = jax.nn.one_hot(anchors, 3).reshape(raw.shape)
+        dec = lambda a: decode(a, past)
+        diagnostics["gradient_checks"] = {}
+        for steps in (20, 60, 200):
+            delta = jax.jit(lambda a: d.gradient_write(a, target, dec, policy, non_target,
+                                                     beta=0., steps=steps))(sample)
+            diagnostics["gradient_checks"][str(steps)] = dict(
+                initial_mse=float(jnp.mean((raw - target) ** 2)),
+                final_mse=float(jnp.mean((dec(sample + delta) - target) ** 2)),
+                shift_norm=float(jnp.linalg.norm(delta, axis=-1).mean()),
+                policy_tv=float((.5 * jnp.abs(policy(sample + delta) - policy(sample)).sum(-1)).mean()),
+                actions_changed=float((policy(sample + delta).argmax(-1) != policy(sample).argmax(-1)).mean()))
     print(f"FIT {test} {method} {time.monotonic()-start:.1f}s", flush=True)
 
     def rollout(random_seed, episodes, strength, mode, random_actions=False):
@@ -166,7 +217,8 @@ def worker(job):
             z, sites, _ = base.forward(spec, params, cache, obs, t)
             activation = sites[:, 3]
             past = jnp.concatenate((history[:, -1], history[:, -4], history[:, -8]), -1)
-            raw = decode(activation, past)
+            raw = (factor_beliefs(belief).reshape(episodes, -1)
+                   if method.startswith("context_exact") else decode(activation, past))
             current = simplex(raw)
             if ladder:
                 goal = ladder_old.target(current[:, 0], mode)[:, None]
@@ -188,10 +240,15 @@ def worker(job):
                     legacy_goal = moving_old.belief_target(legacy_raw, name, q[t], mapping["anchors"], (test != "moving", True))
                     delta = (legacy_goal - legacy_raw) @ mapping["embedding"]
             use_write = write_mode if write_mode != "auto" else ("donor" if method == "das" else "gradient" if method in ("mlp", "band", "policy") else "null" if method == "null" else "eq4")
-            if use_write == "gradient":
+            supported = jnp.zeros(episodes, bool)
+            if method.startswith("context_"):
+                preserve = jnp.zeros(y.shape[-1]) if ladder or test.startswith("xor") else jnp.array([1., 1., 1., 0., 0., 0.])
+                delta, supported = d.contextual_donor(activation, goal_flat, raw, bank_h, bank_b,
+                                                     basis, preserve, context_scale, full=method.endswith("_full"))
+            elif use_write == "gradient":
                 decoder = lambda a: decode(a, past)
                 delta = d.gradient_write(activation, goal_flat, decoder, policy, non_target,
-                                         beta=0. if ladder or test.startswith("xor") else beta, steps=20 if pilot else 60)
+                                         beta=0. if ladder or test.startswith("xor") else beta, steps=60 if stage2 else 20 if pilot else 60)
             elif use_write == "donor":
                 preserve = jnp.zeros(y.shape[-1]) if ladder or test.startswith("xor") else jnp.array([1., 1., 1., 0., 0., 0.])
                 delta, _ = d.donor_write(activation, goal_flat, raw, bank_h, bank_b, basis, preserve)
@@ -222,11 +279,13 @@ def worker(job):
                 changed = factors[action, 0] != factors[z.argmax(-1), 0]
             belief = jax.vmap(env.belief_update, (None, 0, 0, 0))(process, belief, action, nxt.token)
             history = jnp.concatenate((history[:, 1:], activation[:, None]), 1)
-            return (nxt, belief, cache, history, stream), jnp.stack((score, factor1, changed), -1)
+            return (nxt, belief, cache, history, stream), jnp.stack((score, factor1, changed, supported), -1)
         _, result = jax.lax.scan(body, (state, belief, cache, history, stream), jnp.arange(length))
         return result.mean((0, 1))
     episodes = 2 if pilot else (32 if ladder else 256)
     tune_episodes = 2 if pilot else (16 if ladder else 64)
+    if stage2 and test in ("ladder", "moving"):
+        episodes = tune_episodes = 8
     result = {}
     for mode in ((2, 1) if ladder else (0,)):
         evaluate = jax.jit(lambda strength, random_seed: rollout(random_seed, episodes, strength, mode))
@@ -256,31 +315,41 @@ def worker(job):
                 strength = min(grid, key=lambda s: -curve[str(s)])
         values = np.asarray(evaluate(jnp.float32(strength), jnp.int32(confirm_seed)))
         result[str(mode)] = dict(strength=strength, tuning=curve, reward=float(values[0]),
-                                factor1_reward=float(values[1]), actions_changed=float(values[2]))
+                                factor1_reward=float(values[1]), actions_changed=float(values[2]), donor_coverage=float(values[3]))
     report = dict(test=test, method=method, seed=seed, pilot=pilot, beta=beta, write=write_mode, checkpoint=checkpoint,
                   archive=archive_source, diagnostics=diagnostics, metrics=result,
                   wall_seconds=time.monotonic()-start, cpus=cpus, fit_episodes=nfit,
                   confirmation_episodes=episodes, horizon=length,
+                  tuning_episodes=tune_episodes, stage2=stage2,
                   revision=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip())
-    write(output, report)
+    partial = output.with_suffix(".partial")
+    write(partial, report)
+    partial.replace(output)
     print(f"DONE {test} {method} {report['wall_seconds']:.1f}s {json.dumps(result)}", flush=True)
 
 
 def main():
     parser = argparse.ArgumentParser(__doc__)
     parser.add_argument("--test", nargs="+", choices=TESTS, default=TESTS)
-    parser.add_argument("--method", nargs="+", choices=METHODS, default=METHODS)
+    parser.add_argument("--method", nargs="+", choices=(*METHODS, "all"), default=("all",))
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--pilot", action="store_true")
+    parser.add_argument("--stage2", action="store_true")
+    parser.add_argument("--diagnose", action="store_true")
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--beta", type=float, default=1.)
     parser.add_argument("--write", choices=("auto", "donor", "gradient", "null"), default="auto")
     args = parser.parse_args()
+    if args.stage2:
+        args.pilot = True
+    if args.workers < 1:
+        parser.error("--workers must be positive")
     os.environ.update(OPENBLAS_NUM_THREADS="1", OMP_NUM_THREADS="1", MKL_NUM_THREADS="1")
     cpus = sorted(os.sched_getaffinity(0))[:8]
     workers = min(args.workers, len(cpus))
-    jobs = [(t, args.seed, m, args.pilot, cpus[i % workers::workers], args.beta, args.write)
-            for i, (t, m) in enumerate((t, m) for t in args.test for m in args.method)]
+    methods = METHODS if "all" in args.method else tuple(dict.fromkeys(args.method))
+    jobs = [(t, args.seed, m, args.pilot, cpus[i % workers::workers], args.beta, args.write, args.stage2, args.diagnose)
+            for i, (t, m) in enumerate((t, m) for t in args.test for m in methods)]
     with ProcessPoolExecutor(max_workers=workers) as pool:
         list(pool.map(worker, jobs))
 

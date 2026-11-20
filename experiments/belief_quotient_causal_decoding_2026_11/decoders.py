@@ -119,3 +119,23 @@ def null_write(h, direction, non_target_logits):
     jacobian = jax.vmap(jax.jacrev(non_target_logits))(h)
     inverse = jnp.linalg.pinv(jacobian, rtol=RCOND)
     return direction - jnp.einsum("bij,bjk,bk->bi", inverse, jacobian, direction)
+
+
+def contextual_donor(h, target, current, bank_h, bank_b, basis, preserve,
+                     scale, tolerance=.15, full=False):
+    if tolerance < 0:
+        raise ValueError("tolerance must be nonnegative")
+    if not len(bank_h):
+        return jnp.zeros_like(h), jnp.zeros(len(h), bool)
+    target_error = jnp.max(jnp.abs((bank_b[None] - target[:, None]) * (1 - preserve)), -1)
+    preserve_error = jnp.max(jnp.abs((bank_b[None] - current[:, None]) * preserve), -1)
+    valid = (target_error <= tolerance) & (preserve_error <= tolerance)
+    difference = bank_h[None] - h[:, None]
+    complement = difference - (difference @ basis) @ basis.T
+    context = jnp.mean((complement / scale) ** 2, -1) + preserve_error ** 2
+    index = jnp.argmin(jnp.where(valid, context, jnp.inf), -1)
+    supported = valid.any(-1)
+    delta = bank_h[index] - h
+    if not full:
+        delta = (delta @ basis) @ basis.T
+    return jnp.where(supported[:, None], delta, 0.), supported
