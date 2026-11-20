@@ -114,3 +114,35 @@ def test_all_method_cli_and_resume(monkeypatch, tmp_path, capsys):
     output.write_text(json.dumps(config))
     with pytest.raises(ValueError, match="incompatible result"):
         run.worker(job)
+
+
+def test_action_basis_and_behavioural_write():
+    h = jnp.zeros((8, 3))
+    logits = lambda x: jnp.array([2 * x[0], x[1]])
+    basis, singular = d.action_basis(h, logits, 2)
+    np.testing.assert_allclose(basis.T @ basis, jnp.eye(2), atol=1e-6)
+    np.testing.assert_allclose(basis[2], 0., atol=1e-6)
+    projected, _ = d.action_basis(h, logits, 2, exclude=np.array([[1.], [0.], [0.]]))
+    assert projected.shape == (3, 1)
+    np.testing.assert_allclose(projected[0], 0., atol=1e-6)
+    policy = lambda a: jax.nn.softmax(a[:, :2], -1)
+    target = jnp.broadcast_to(jnp.array([.9, .1]), (8, 2))
+    delta = d.behavioural_write(h, target, policy, basis, beta=0., steps=100)
+    assert float(d.kl(target, policy(h + delta)).mean()) < .01
+    np.testing.assert_allclose(delta[:, 2], 0.)
+    with pytest.raises(ValueError):
+        d.action_basis(h[:0], logits, 1)
+    with pytest.raises(ValueError):
+        d.action_basis(h, lambda a: jnp.zeros(2), 1)
+
+
+def test_seed_campaign_smokes_before_full(monkeypatch):
+    from experiments.reward_factors_causal_decoding_2026_11 import seed_campaign
+    commands = []
+    monkeypatch.setattr("sys.argv", ["seed_campaign", "--seed", "43"])
+    monkeypatch.setattr(seed_campaign.subprocess, "run", lambda command, **kwargs: commands.append(command))
+    seed_campaign.main()
+    assert len(commands) == 2
+    assert commands[0] == [*commands[1], "--smoke"]
+    assert commands[1][commands[1].index("--seed") + 1] == "43"
+    assert "--campaign" in commands[1]

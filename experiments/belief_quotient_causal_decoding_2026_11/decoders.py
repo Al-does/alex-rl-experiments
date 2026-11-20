@@ -139,3 +139,31 @@ def contextual_donor(h, target, current, bank_h, bank_b, basis, preserve,
     if not full:
         delta = (delta @ basis) @ basis.T
     return jnp.where(supported[:, None], delta, 0.), supported
+
+
+def action_basis(h, logits, max_rank, exclude=None):
+    if not len(h) or max_rank < 1:
+        raise ValueError("nonempty bank and positive rank required")
+    jacobian = np.asarray(jax.vmap(jax.jacrev(logits))(jnp.asarray(h)))
+    matrix = jacobian.reshape(-1, h.shape[-1])
+    if exclude is not None:
+        matrix = matrix - (matrix @ exclude) @ exclude.T
+    _, singular, axes = np.linalg.svd(matrix, full_matrices=False)
+    rank = min(max_rank, int(np.sum(singular > singular[0] * RCOND)))
+    if not rank:
+        raise ValueError("policy Jacobian has no supported directions")
+    return jnp.asarray(axes[:rank].T), singular.tolist()
+
+
+def behavioural_write(h, target_policy, policy, basis, targeted=lambda p: p,
+                      non_target=lambda p: p, beta=1., gamma=.01, steps=60):
+    intact = non_target(policy(h))
+    target = targeted(target_policy)
+    def loss(coordinates):
+        delta = coordinates @ basis.T
+        written = policy(h + delta)
+        return (kl(target, targeted(written)).mean()
+                + beta * kl(intact, non_target(written)).mean()
+                + gamma * jnp.mean(delta ** 2))
+    coordinates, _ = optimize(loss, jnp.zeros((len(h), basis.shape[1])), steps, .03)
+    return coordinates @ basis.T

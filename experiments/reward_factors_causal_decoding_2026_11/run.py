@@ -10,12 +10,13 @@ import time
 
 ROOT = Path(__file__).resolve().parent
 METHODS = ("eq4", "eq4_joint", "policy", "das", "band", "mlp", "null", "norm_null", "intact", "map",
-           "context_exact", "context_policy", "context_exact_full", "context_policy_full")
+           "context_exact", "context_policy", "context_exact_full", "context_policy_full",
+           "action", "behavioural", "behavioural_action")
 TESTS = ("ladder", "ladder_full", "moving", "xor_eps02", "xor_v2")
 
 
 def worker(job):
-    test, seed, method, pilot, cpus, beta, write_mode, stage2, diagnose = job
+    test, seed, method, pilot, cpus, beta, write_mode, stage3, campaign, smoke, stage2, diagnose = job
     os.sched_setaffinity(0, set(cpus))
     import jax
     import jax.numpy as jnp
@@ -40,7 +41,7 @@ def worker(job):
     variant = 3 if test == "ladder_full" else 2
     folder = ROOT if not ladder else ROOT.parent / "belief_quotient_causal_decoding_2026_11"
     suffix = "" if beta == 1. and write_mode == "auto" else f"_beta{beta}_{write_mode}"
-    prefix = "diagnosis" if diagnose else "stage2" if stage2 else "pilot" if pilot else "full"
+    prefix = "smoke" if smoke else "campaign" if campaign else "stage3" if stage3 else "diagnosis" if diagnose else "stage2" if stage2 else "pilot" if pilot else "full"
     output = folder / "results" / f"{prefix}_{test}_seed{seed}_{method}{suffix}.json"
     if output.exists():
         existing = json.loads(output.read_text())
@@ -87,6 +88,8 @@ def worker(job):
     nfit, ntest = (2, 2) if pilot else (24, 12)
     if stage2 and test in ("ladder", "moving"):
         nfit = ntest = 8
+    if smoke:
+        nfit = ntest = 1
     length, warmup = 1024, 8 if ladder else 64
     def records(random_seed, count):
         if ladder:
@@ -108,7 +111,45 @@ def worker(job):
     bandt = flatten(d.band_features(held["sites"][:, :, 3]))
     band_probe = d.affine(band, y)
     probe = d.mlp(h, y) if method == "mlp" else affine
-    implied = d.policy_implied(b, np.asarray(policy_logits(jnp.asarray(h)))) if method == "policy" or method.startswith("context_policy") else None
+    implied = d.policy_implied(b, np.asarray(policy_logits(jnp.asarray(h)))) if method == "policy" or method.startswith(("context_policy", "behavioural")) else None
+    targeted = (lambda p: p[:, jnp.asarray(rr.INVERSE)].sum(-2)) if test == "moving" else lambda p: p
+    action_u = jnp.eye(spec.width)
+    action_diagnostics = None
+    if method in ("action", "behavioural_action"):
+        def factor_logits(factor):
+            def apply(a):
+                z = policy_logits(a)
+                return jax.scipy.special.logsumexp(z[jnp.asarray(rr.INVERSE)], axis=1-factor)
+            return apply
+        if ladder:
+            action_u, singular = d.action_basis(h[::16], policy_logits, spec.n_actions)
+        else:
+            u1, s1 = d.action_basis(h[::16], factor_logits(0), 3)
+            u2, s2 = d.action_basis(h[::16], factor_logits(1), 3,
+                                    exclude=np.asarray(u1) if test == "moving" else None)
+            if test == "moving":
+                action_u, singular = u2, s2
+            else:
+                action_u, _ = d.action_basis(h[::16], lambda a: jnp.concatenate((factor_logits(0)(a), factor_logits(1)(a))), 6)
+                singular = dict(factor1=s1, factor2=s2)
+        selection = records(43, ntest)
+        hs = flatten(selection["sites"][:, :, 3])
+        ys = np.asarray(factor_beliefs(flatten(selection["belief"]))).reshape(len(hs), -1)
+        ranks, best = {}, None
+        for rank in range(1, action_u.shape[1] + 1):
+            u = action_u[:, :rank]
+            decoder = d.affine(h @ u, y)
+            score = float(base.r_squared(decoder(hs @ u), ys))
+            ranks[str(rank)] = dict(selection_r2=score, test_r2=float(base.r_squared(decoder(ht @ u), yt)))
+            if best is None or score > best[0]:
+                best = score, rank, u, decoder
+        _, rank, action_u, decoder = best
+        action_diagnostics = dict(ranks=ranks, selected_rank=rank, singular_values=singular,
+                                  full_test_r2=float(base.r_squared(affine(ht), yt)))
+        if method == "action":
+            probe = lambda a: decoder(a @ action_u)
+            restricted_inverse = d.affine(y, h @ action_u)
+            encoder = jax.jacrev(restricted_inverse)(jnp.zeros(y.shape[-1])).T @ action_u.T
     def simplex(raw):
         raw = jnp.clip(raw.reshape(-1, *b.shape[1:]), 0., 1.)
         return raw / jnp.maximum(raw.sum(-1, keepdims=True), 1e-7)
@@ -121,6 +162,8 @@ def worker(job):
     diagnostics = {"affine_r2": base.r_squared(affine(ht), yt),
                    "band_r2": base.r_squared(band_probe(bandt), yt),
                    "decoder_r2": base.r_squared(band_probe(bandt) if method == "band" else probe(ht), yt)}
+    if action_diagnostics is not None:
+        diagnostics["action_subspace"] = action_diagnostics
     pred = np.asarray(band_probe(bandt) if method == "band" else probe(ht)).reshape(bt.shape)
     diagnostics["rho_r2"] = [base.r_squared(pred[:, f, 2:3], bt[:, f, 2:3]) for f in range(bt.shape[1])]
     diagnostics["delta_r2"] = [base.r_squared((pred[:, f, 0] - pred[:, f, 1])[:, None],
@@ -218,7 +261,7 @@ def worker(job):
             activation = sites[:, 3]
             past = jnp.concatenate((history[:, -1], history[:, -4], history[:, -8]), -1)
             raw = (factor_beliefs(belief).reshape(episodes, -1)
-                   if method.startswith("context_exact") else decode(activation, past))
+                   if method.startswith(("context_exact", "behavioural")) else decode(activation, past))
             current = simplex(raw)
             if ladder:
                 goal = ladder_old.target(current[:, 0], mode)[:, None]
@@ -241,7 +284,10 @@ def worker(job):
                     delta = (legacy_goal - legacy_raw) @ mapping["embedding"]
             use_write = write_mode if write_mode != "auto" else ("donor" if method == "das" else "gradient" if method in ("mlp", "band", "policy") else "null" if method == "null" else "eq4")
             supported = jnp.zeros(episodes, bool)
-            if method.startswith("context_"):
+            if method.startswith("behavioural"):
+                delta = d.behavioural_write(activation, implied.policy_map(goal), policy, action_u,
+                                             targeted, non_target, beta=beta if test == "moving" else 0.)
+            elif method.startswith("context_"):
                 preserve = jnp.zeros(y.shape[-1]) if ladder or test.startswith("xor") else jnp.array([1., 1., 1., 0., 0., 0.])
                 delta, supported = d.contextual_donor(activation, goal_flat, raw, bank_h, bank_b,
                                                      basis, preserve, context_scale, full=method.endswith("_full"))
@@ -286,6 +332,10 @@ def worker(job):
     tune_episodes = 2 if pilot else (16 if ladder else 64)
     if stage2 and test in ("ladder", "moving"):
         episodes = tune_episodes = 8
+    if campaign:
+        episodes, tune_episodes = 32, 16
+    if smoke:
+        episodes = tune_episodes = 1
     result = {}
     for mode in ((2, 1) if ladder else (0,)):
         evaluate = jax.jit(lambda strength, random_seed: rollout(random_seed, episodes, strength, mode))
@@ -293,6 +343,8 @@ def worker(job):
         confirm_seed = 2042 if ladder else archived["confirm_seed"]
         tune = jax.jit(lambda strength: rollout(tune_seed, tune_episodes, strength, mode))
         grid = ladder_old.LAMBDAS if ladder else base.STRENGTHS
+        if smoke:
+            grid = (0., 1.)
         if ladder and mode == 1:
             strength, curve = 1., {}
         elif method in ("intact", "map"):
@@ -321,6 +373,9 @@ def worker(job):
                   wall_seconds=time.monotonic()-start, cpus=cpus, fit_episodes=nfit,
                   confirmation_episodes=episodes, horizon=length,
                   tuning_episodes=tune_episodes, stage2=stage2,
+                  stage3=stage3, campaign=campaign,
+                  smoke=smoke,
+                  upper_bound_style_reference=method.startswith("behavioural"),
                   revision=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip())
     partial = output.with_suffix(".partial")
     write(partial, report)
@@ -335,20 +390,28 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--pilot", action="store_true")
     parser.add_argument("--stage2", action="store_true")
+    parser.add_argument("--stage3", action="store_true")
+    parser.add_argument("--campaign", action="store_true")
+    parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--diagnose", action="store_true")
     parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--max-cpus", type=int, default=8)
     parser.add_argument("--beta", type=float, default=1.)
     parser.add_argument("--write", choices=("auto", "donor", "gradient", "null"), default="auto")
     args = parser.parse_args()
+    if args.stage3:
+        args.stage2 = True
     if args.stage2:
         args.pilot = True
+    if args.campaign and args.pilot:
+        parser.error("--campaign cannot be combined with pilot stages")
     if args.workers < 1:
         parser.error("--workers must be positive")
     os.environ.update(OPENBLAS_NUM_THREADS="1", OMP_NUM_THREADS="1", MKL_NUM_THREADS="1")
-    cpus = sorted(os.sched_getaffinity(0))[:8]
+    cpus = sorted(os.sched_getaffinity(0))[:args.max_cpus]
     workers = min(args.workers, len(cpus))
     methods = METHODS if "all" in args.method else tuple(dict.fromkeys(args.method))
-    jobs = [(t, args.seed, m, args.pilot, cpus[i % workers::workers], args.beta, args.write, args.stage2, args.diagnose)
+    jobs = [(t, args.seed, m, args.pilot, cpus[i % workers::workers], args.beta, args.write, args.stage3, args.campaign, args.smoke, args.stage2, args.diagnose)
             for i, (t, m) in enumerate((t, m) for t in args.test for m in methods)]
     with ProcessPoolExecutor(max_workers=workers) as pool:
         list(pool.map(worker, jobs))

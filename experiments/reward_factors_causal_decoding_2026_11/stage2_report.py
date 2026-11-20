@@ -6,6 +6,8 @@ from pathlib import Path
 
 from .run import METHODS, TESTS
 
+METHODS = tuple(method for method in METHODS if method not in ("action", "behavioural", "behavioural_action"))
+
 ROOT = Path(__file__).resolve().parent
 LADDER = ROOT.parent / "belief_quotient_causal_decoding_2026_11"
 
