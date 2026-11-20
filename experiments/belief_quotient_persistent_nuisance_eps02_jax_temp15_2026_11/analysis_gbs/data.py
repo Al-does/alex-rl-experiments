@@ -63,13 +63,37 @@ def collect_batch(spec, process, params, key, count):
             "all_predictive": all_predictive}
 
 
-def collect(spec, process, params, *, episodes, seed, batch=32):
+def exact_targets(records, process):
+    """Re-filter complete histories in float64, independently of GPU matmuls."""
+    source = process if isinstance(process, dict) else process._asdict()
+    initial, T, E = (np.asarray(source[key], dtype=np.float64) for key in ("initial", "transitions", "emission"))
+    initial = initial/initial.sum()
+    T, E = T/T.sum(-1, keepdims=True), E/E.sum(-1, keepdims=True)
+    tokens, previous = records["token"], records["previous_action"]
+    b = np.broadcast_to(initial, (len(tokens), len(initial))).copy()
+    beliefs = np.empty((*tokens.shape, len(initial)), dtype=np.float64)
+    predictions = np.empty((*tokens.shape, len(T), E.shape[-1]), dtype=np.float64)
+    for t in range(tokens.shape[1]):
+        if t:
+            b = np.einsum("bi,bij->bj", b, T[previous[:, t]])
+        b *= E[:, tokens[:, t]].T
+        b /= b.sum(-1, keepdims=True)
+        beliefs[:, t] = b
+        predictive = np.einsum("bi,aij,jy->bay", b, T, E)
+        predictions[:, t] = predictive/predictive.sum(-1, keepdims=True)
+    selected = np.take_along_axis(predictions, records["action"][..., None, None], axis=2)[..., 0, :]
+    return {"belief": beliefs, "all_predictive": predictions, "predictive": selected}
+
+
+def collect(spec, process, params, *, episodes, seed, batch=32, truth_process=None):
     if episodes < 1 or batch < 1:
         raise ValueError("positive episode count and rollout batch required")
     chunks = []
     for i in range(0, episodes, batch):
         key = jax.random.fold_in(jax.random.PRNGKey(seed), i)
-        chunks.append(jax.tree.map(np.asarray, collect_batch(spec, process, params, key, min(batch, episodes-i))))
+        records = jax.tree.map(np.asarray, collect_batch(spec, process, params, key, min(batch, episodes-i)))
+        records.update(exact_targets(records, process if truth_process is None else truth_process))
+        chunks.append(records)
     return {name: np.concatenate([c[name] for c in chunks]) for name in chunks[0]}
 
 

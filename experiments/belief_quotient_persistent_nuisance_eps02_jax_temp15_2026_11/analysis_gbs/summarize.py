@@ -30,12 +30,13 @@ def main():
                 elbow, = [e for e in summary["elbows"] if e["seed"] == fit["seed"] and e["class"] == fit["class"]]
                 row = {k: fit[k] for k in ("condition", "seed", "control", "class", "k", "test_kl")}
                 row.update(val_kl=fit["selected"]["val_kl"], elbow_k=elbow["elbow_k"],
-                           commutation_mse=fit["commutation"]["mse"],
-                           commutation_baseline=fit["commutation"]["constant_decoder_mse"])
-                for target, metrics in fit["geometry"].items():
+                           commutation_mse=(fit.get("commutation") or {}).get("mse"),
+                           commutation_baseline=(fit.get("commutation") or {}).get("constant_decoder_mse"))
+                for target, metrics in (fit.get("geometry") or {}).items():
                     for metric, value in metrics.items():
                         row[f"{target}_{metric}"] = value
-                row["hmm_matrix_error"] = (fit["hmm_matrices"] or {}).get("combined_mse")
+                row["hmm_matrix_error"] = (fit.get("hmm_matrices") or {}).get("combined_mse")
+                row.update({key: value for key, value in fit.items() if key.endswith("_error")})
                 rows.append(row)
     if not rows:
         raise ValueError("no completed fits found")

@@ -23,8 +23,27 @@ def write(path, value):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name("." + path.name + ".tmp")
-    temporary.write_text(json.dumps(value, indent=2, allow_nan=False) + "\n")
+    temporary.write_text(json.dumps(compare.finite_metrics(value), indent=2, allow_nan=False) + "\n")
     temporary.replace(path)
+
+
+def probe_fit(spec, fitted, splits, process, ladder, updates):
+    train_g = np.asarray(core.states(spec, fitted, splits["train"]["x"]))
+    test_g = np.asarray(core.states(spec, fitted, splits["test"]["x"]))
+    train_truth = {key[6:]: value for key, value in splits["train"].items() if key.startswith("truth_")}
+    test_truth = {key[6:]: value for key, value in splits["test"].items() if key.startswith("truth_")}
+    report = {}
+    probes = {"geometry": lambda: compare.geometry(train_g, test_g, train_truth, test_truth, mlp_updates=updates),
+              "commutation": lambda: compare.commutation(spec, fitted, train_g, test_g, splits["train"]["belief"],
+                                                         splits["test"]["belief"], splits["test"]["x"], process),
+              "hmm_matrices": lambda: compare.matrix_error(spec, fitted, process, ladder)}
+    for name, probe in probes.items():
+        try:
+            report[name] = compare.finite_metrics(probe())
+        except Exception as error:
+            report[name] = None
+            report[name+"_error"] = f"{type(error).__name__}: {error}"
+    return report
 
 
 def parser(study):
@@ -40,7 +59,8 @@ def parser(study):
     p.add_argument("--inits", type=int, default=3)
     p.add_argument("--updates", type=int, default=20000)
     p.add_argument("--val-interval", type=int, default=1000)
-    p.add_argument("--batch", type=int, default=32)
+    p.add_argument("--chunk-length", type=int, default=256, help="TBPTT window; 0 for full-episode BPTT")
+    p.add_argument("--batch", type=int, default=128)
     p.add_argument("--rollout-batch", type=int, default=32)
     p.add_argument("--train-episodes", type=int, default=2048)
     p.add_argument("--val-episodes", type=int, default=128)
@@ -88,7 +108,8 @@ def main(study=data.LADDER):
             splits = {}
             for i, (split, count) in enumerate((("train", args.train_episodes), ("val", args.val_episodes), ("test", args.test_episodes))):
                 splits[split] = data.collect(agent_spec, process, params, episodes=count,
-                                            seed=seed*100+i+10000, batch=args.rollout_batch)
+                                            seed=seed*100+i+10000, batch=args.rollout_batch,
+                                            truth_process=recipe["process"])
                 truth = data.truth_targets(splits[split], process, study == data.LADDER)
                 splits[split].update({f"truth_{key}": value for key, value in truth.items()})
                 np.savez_compressed(artifacts / f"seed{seed}_{split}.npz", **splits[split])
@@ -107,7 +128,8 @@ def main(study=data.LADDER):
                         group = core.fit_many(spec, splits["train"]["x"], splits["train"][target],
                                               splits["val"]["x"], splits["val"][target], seeds=tuple(range(args.inits)),
                                               lrs=tuple(args.lrs), updates=args.updates,
-                                              val_interval=args.val_interval, batch=args.batch)
+                                              val_interval=args.val_interval, batch=args.batch,
+                                              chunk_length=args.chunk_length)
                     except FloatingPointError as error:
                         failed = {"width": width, "error": str(error)}
                         candidates.append(failed)
@@ -133,16 +155,11 @@ def main(study=data.LADDER):
                        "candidates": candidates, "checkpoint": provenance, "status": "fitted"}
                 output = results / f"seed{seed}_{kind}_k{k}.json"
                 write(output, row)
-                train_g = np.asarray(core.states(spec, fitted, splits["train"]["x"]))
-                test_g = np.asarray(core.states(spec, fitted, splits["test"]["x"]))
-                ladder = study == data.LADDER
-                train_truth = {key[6:]: value for key, value in splits["train"].items() if key.startswith("truth_")}
-                test_truth = {key[6:]: value for key, value in splits["test"].items() if key.startswith("truth_")}
-                row.update({"status": "completed",
-                       "geometry": compare.geometry(train_g, test_g, train_truth, test_truth, mlp_updates=args.probe_updates),
-                       "commutation": compare.commutation(spec, fitted, train_g, test_g, splits["train"]["belief"],
-                                                          splits["test"]["belief"], splits["test"]["x"], process),
-                       "hmm_matrices": compare.matrix_error(spec, fitted, process, ladder)})
+                try:
+                    row.update(probe_fit(spec, fitted, splits, process, study == data.LADDER, args.probe_updates))
+                except Exception as error:
+                    row.update(probe_error=f"{type(error).__name__}: {error}")
+                row["status"] = "completed"
                 rows.append(row)
                 write(output, row)
                 print(f"fit condition={args.condition} seed={seed} class={kind} k={k} val_kl={selected['val_kl']:.8g} test_kl={test_kl:.8g} vmapped_step_seconds={selected['vmapped_step_seconds']:.6f} parallel_candidates={selected['parallel_candidates']}", flush=True)

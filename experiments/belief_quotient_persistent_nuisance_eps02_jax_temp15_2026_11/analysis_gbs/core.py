@@ -59,36 +59,43 @@ def update(spec, p, g, x, reset=False):
     if spec.kind == "hmm":
         b = jnp.concatenate((g, 1-g.sum(-1, keepdims=True)), -1)
         T, E = jax.nn.softmax(p["T"], -1), jax.nn.softmax(p["E"], -1)
-        b = jnp.where(reset, b, jnp.einsum("...i,...ij->...j", b, T[x // spec.tokens]))
+        b = jnp.where(reset, b, (b[..., :, None]*T[x // spec.tokens]).sum(-2))
         b = b * jnp.moveaxis(E[:, x % spec.tokens], 0, -1)
         return (b / b.sum(-1, keepdims=True))[..., :-1]
     if spec.kind == "affine":
-        return jnp.einsum("...i,...ij->...j", g, p["A"][x]) + p["b"][x]
+        return (g[..., :, None]*p["A"][x]).sum(-2) + p["b"][x]
     if spec.kind == "tanh":
-        return jnp.tanh(g @ p["R"] + p["W"][x] + p["bias"])
+        return jnp.tanh((g[..., :, None]*p["R"]).sum(-2) + p["W"][x] + p["bias"])
     xz, xr, xn = jnp.split(p["W"][x] + p["bias"], 3, -1)
-    hz, hr, hn = jnp.split(g @ p["R"], 3, -1)
+    hz, hr, hn = jnp.split((g[..., :, None]*p["R"]).sum(-2), 3, -1)
     z, r = jax.nn.sigmoid(xz+hz), jax.nn.sigmoid(xr+hr)
     return z*g + (1-z)*jnp.tanh(xn+r*hn)
 
 
-@partial(jax.jit, static_argnums=0)
-def states(spec, p, x):
+def scan_states(spec, p, x, carry, start):
     def body(g, row):
         t, symbol = row
-        g = update(spec, p, g, symbol, t == 0)
+        g = update(spec, p, g, symbol, t+start == 0)
         return g, g
-    g = jnp.broadcast_to(initial(spec, p), (x.shape[0], spec.k))
+    g = jnp.where(start == 0, jnp.broadcast_to(initial(spec, p), (x.shape[0], spec.k)), carry)
     _, gs = jax.lax.scan(body, g, (jnp.arange(x.shape[1]), x.T))
     return jnp.swapaxes(gs, 0, 1)
 
 
-def log_predictions(spec, p, x):
-    g = states(spec, p, x)
+@partial(jax.jit, static_argnums=0)
+def states(spec, p, x):
+    return scan_states(spec, p, x, jnp.zeros((x.shape[0], spec.k)), 0)
+
+
+def head(spec, p, g):
     logits = jnp.tanh(g @ p["h"] + p["hb"]) @ p["o"] + p["ob"]
     if spec.output_groups > 1:
         logits = logits.reshape(*logits.shape[:-1], spec.output_groups, -1)
     return jax.nn.log_softmax(logits, -1)
+
+
+def log_predictions(spec, p, x):
+    return head(spec, p, states(spec, p, x))
 
 
 @partial(jax.jit, static_argnums=0)
@@ -110,8 +117,33 @@ def train_steps(spec):
     return optimizer, jax.jit(step), jax.jit(jax.vmap(step))
 
 
+def chunk_block(spec, optimizer):
+    """A compiled block of TBPTT updates, carrying state through the episode."""
+    def objective(p, x, y, carry, start):
+        g = scan_states(spec, p, x, carry, start)
+        kl = jnp.mean(jnp.sum(jax.scipy.special.xlogy(y, y)-y*head(spec, p, g), -1))
+        return kl, g[:, -1]
+
+    def step(p, opt, x, y, carry, start, lr):
+        (value, carry), grad = jax.value_and_grad(objective, has_aux=True)(p, x, y, carry, start)
+        delta, opt = optimizer.update(grad, opt, p)
+        return optax.apply_updates(p, jax.tree.map(lambda d: d*lr, delta)), opt, carry, value
+
+    parallel = jax.vmap(step, in_axes=(0, 0, 0, 0, 0, None, 0))
+    @jax.jit
+    def block(p, opt, carry, xs, ys, starts, rates):
+        def body(state, inputs):
+            p, opt, carry = state
+            x, y, start = inputs
+            p, opt, carry, value = parallel(p, opt, x, y, carry, start, rates)
+            return (p, opt, jax.lax.stop_gradient(carry)), value
+        (p, opt, carry), values = jax.lax.scan(body, (p, opt, carry), (xs, ys, starts))
+        return p, opt, carry, values
+    return block
+
+
 def fit_many(spec, train_x, train_target, val_x, val_target, *, seeds=(0, 1, 2),
-             lrs=(.001, .003), updates=20000, val_interval=1000, batch=32):
+             lrs=(.001, .003), updates=20000, val_interval=1000, batch=128, chunk_length=256):
     """Train every init × rate concurrently, retaining each candidate's best."""
     if len(train_x) == 0 or len(val_x) == 0 or min(updates, val_interval, batch) < 1:
         raise ValueError("nonempty train/validation and positive updates/batch required")
@@ -133,32 +165,57 @@ def fit_many(spec, train_x, train_target, val_x, val_target, *, seeds=(0, 1, 2),
     rngs = [np.random.default_rng(seed) for seed, _ in grid]
     best, best_i = np.full(len(grid), np.inf), np.zeros(len(grid), dtype=int)
     best_p = p
+    length = train_x.shape[1]
+    chunk = min(chunk_length, length) if chunk_length else length
+    if chunk < 1 or length % chunk:
+        raise ValueError("chunk length must divide the complete training episode")
+    truncated = chunk < length
+    block = chunk_block(spec, optimizer) if truncated else None
+    carry = jnp.zeros((len(grid), batch, spec.k))
+    offset, i = 0, 0
     start = time.perf_counter()
-    for i in range(updates):
-        ix = np.stack([rng.integers(len(x), size=batch) for rng in rngs])
-        p, opt, value = step(p, opt, x[ix], y[ix], rates)
-        if (i+1) % val_interval == 0 or i == updates-1:
+    while i < updates:
+        if offset == 0:
+            ix = np.stack([rng.integers(len(x), size=batch) for rng in rngs])
+            xb, yb = x[ix], y[ix]
+        if truncated:
+            count = min((length-offset)//chunk, val_interval-i % val_interval, updates-i)
+            def chunks(a):
+                a = a[:, :, offset:offset+count*chunk]
+                return jnp.moveaxis(a.reshape(*a.shape[:2], count, chunk, *a.shape[3:]), 2, 0)
+            xs, ys = chunks(xb), chunks(yb)
+            starts = jnp.arange(count)*chunk+offset
+            p, opt, carry, value = block(p, opt, carry, xs, ys, starts, rates)
+            offset = (offset+count*chunk) % length
+        else:
+            count = 1
+            p, opt, value = step(p, opt, xb, yb, rates)
+        i += count
+        if i % val_interval == 0 or i == updates:
             values = np.asarray(validate(p, val_x, val_target))
             improved = np.isfinite(values) & (values < best)
             best = np.where(improved, values, best)
-            best_i = np.where(improved, i+1, best_i)
+            best_i = np.where(improved, i, best_i)
             best_p = jax.tree.map(lambda old, new: jnp.where(
                 jnp.asarray(improved).reshape((-1,) + (1,)*(new.ndim-1)), new, old), best_p, p)
     if not np.isfinite(best).any():
         raise FloatingPointError("all validation losses nonfinite")
     jax.block_until_ready(value)
     seconds = time.perf_counter()-start
-    xb, yb = x[ix], y[ix]
     jax.block_until_ready((xb, yb))
     t = time.perf_counter()
-    p, opt, value = step(p, opt, xb, yb, rates)
+    if truncated:
+        p, opt, carry, value = block(p, opt, carry, xs, ys, starts, rates)
+    else:
+        p, opt, value = step(p, opt, xb, yb, rates)
     jax.block_until_ready(value)
-    step_seconds = time.perf_counter()-t
+    step_seconds = (time.perf_counter()-t)/count
     results = []
     for i, (seed, lr) in enumerate(grid):
         metric = {"seed": seed, "lr": lr, "group_seconds": seconds,
                   "vmapped_step_seconds": step_seconds, "parallel_candidates": len(grid),
                   "updates": updates, "val_interval": val_interval}
+        metric.update(chunk_length=chunk, truncated_bptt=truncated)
         if np.isfinite(best[i]):
             metric.update(val_kl=float(best[i]), selected_update=int(best_i[i]))
             results.append((jax.tree.map(lambda a: a[i], best_p), metric))
@@ -169,7 +226,7 @@ def fit_many(spec, train_x, train_target, val_x, val_target, *, seeds=(0, 1, 2),
 
 
 def fit(spec, train_x, train_target, val_x, val_target, *, seed=0, lr=.003,
-        updates=20000, val_interval=1000, batch=32):
+        updates=20000, val_interval=1000, batch=128, chunk_length=256):
     """Single-candidate convenience wrapper for focused identification tests."""
     return fit_many(spec, train_x, train_target, val_x, val_target, seeds=(seed,),
-                    lrs=(lr,), updates=updates, val_interval=val_interval, batch=batch)[0]
+                    lrs=(lr,), updates=updates, val_interval=val_interval, batch=batch, chunk_length=chunk_length)[0]

@@ -24,7 +24,7 @@ There is no fabricated executed action before reset.
 
 Truth-free fitting (`core.py`) receives only integer histories and predictive
 distributions. It never receives beliefs, environment matrices, rewards,
-quotients, or probe targets. Learned initial states and the entire episode are
+quotients, or probe targets. Learned initial states and recurrent updates are
 differentiated with `lax.scan`; all positions have equal weight. Updates are
 symbol-specific affine, GRU, tanh RNN, or action-conditioned HMM Bayes filters
 with row-softmax transitions/emissions. HMM state has `k+1` probabilities and
@@ -34,10 +34,25 @@ by validation KL; validation runs every 1,000 updates and at the final update,
 retaining each candidate's best parameters independently.
 Nonfinite candidates are recorded; an entirely failed grid fails closed.
 Minibatches contain entire episodes, sampled with replacement from training.
+By default, training traverses each sampled episode in consecutive 256-position
+TBPTT windows, carrying state (with stopped gradients) through all 1,024 positions
+before sampling new episodes. Each window is one Adam update; there are still
+20,000 updates per candidate. The batch increases from 32 to 128 episodes, so
+each update still uses 32,768 positions and total training exposure is unchanged.
+A compiled outer scan executes up to four updates per dispatch. Validation
+boundaries preserve both carry and optimizer state. Initial-state gradients are
+learned at reset, not at artificial window boundaries. Validation, test KL,
+state extraction, and geometry always use complete episodes from reset.
+Use `--chunk-length 0` for full-episode BPTT; positive chunk lengths must divide
+the episode length. Recurrence scans are not unrolled; tiny recurrent matrix
+products use explicit multiply/reduce operations rather than small GEMMs.
 For each class/dimension/width, all initializations × learning rates train in a
 single vmapped, jitted step with independent Adam moments, gradient clipping,
 minibatch RNG streams, and validation-best snapshots. Widths run sequentially.
 The six default candidates share shapes; the data and updates stay on-device.
+An unroll-16 affine k=6 GPU probe compiled in 5.83 seconds but did not finish its
+first update within five minutes. Removing unroll completed compilation in
+2.59 seconds and the first four-update block in 0.024 seconds on Box 6's 4090.
 
 The positive control must condition on the *current* action, which is not in
 `h_t`. Regressing the randomly action-conditioned target onto `g(h_t)` alone
@@ -47,6 +62,11 @@ actions. `g` still receives only past token/action symbols. The stored dataset
 includes both the requested executed-action predictive distribution and all
 action-conditional distributions. This stronger, explicitly action-conditioned
 control predicts tokens, not actions; the output tensor is `(action, token)`.
+Beliefs and control targets are recomputed from complete token/action histories
+on CPU in NumPy float64, using the source recipe's matrices. Priors, transition
+rows, emission rows, posteriors, and final predictive rows are normalized. This
+avoids GPU reduced-precision matrix-product drift without weakening the fit's
+distribution validation. Fit arrays are transferred to JAX's usual float32.
 
 After selection, `compare.py` alone opens truth arrays. It reports affine and
 32-unit tanh-MLP held-out R² in both directions for full beliefs, the Reward-State
@@ -66,6 +86,10 @@ nonfinite rates are explicit. HMM matrices are compared jointly up to an
 compared after merging learned A/B emission columns with the exact Reward-State
 Quotient matrices from manuscript Appendix “Exact Reward-State quotient POMDP”.
 Matrix agreement is descriptive, not an identifiability theorem with an MLP head.
+Undefined, near-constant, or nonfinite R² values are JSON null with a reason.
+Probe exceptions are recorded per comparison and do not discard the fitted model
+or stop the remaining fits. The JSON writer also replaces any residual nonfinite
+metric with null and records its path; the summarizer accepts missing probes.
 
 The elbow is the smallest **swept** `k` whose test KL is within an absolute
 0.001 nats of the best swept test KL in its agent/class (configurable tolerance).
@@ -82,9 +106,11 @@ locked in the existing repository configuration; no configuration changes needed
 The default sweep is 2,048/128/256 train/validation/test episodes, `k=0..6`
 (ladder) or `0..10` (Reward Relevance), all four classes, widths 32/128, learning
 rates 0.001/0.003, three initializations, 20,000 updates per candidate, validation
-every 1,000 updates, minibatches of 32 episodes per candidate.
+every 1,000 updates, minibatches of 128 episodes per candidate, 256-position
+carried-state TBPTT windows.
 Every grid/count is CLI-configurable; see `run --help`.
-In particular, use `--updates` and `--val-interval` to change the fit budget.
+In particular, use `--updates`, `--val-interval`, and `--chunk-length` to change
+the fit budget and gradient horizon.
 
 ```sh
 uv run --group jax python -m experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11.analysis_gbs.run \
@@ -115,7 +141,7 @@ an uncommitted `results/<run>/run_manifest.json` with terminal `status`, a
 `remote_artifacts.status` of `completed`, and the uploader's sibling
 `remote_artifacts.json`. These satisfy `pending_run_manifests` and
 `required_durability_completed` in required durability mode. The harness checks
-all pending manifests (including all five control runs), publishes to the launch
+all pending manifests, publishes to the launch
 branch, and destroys only after successful publication and durability checks.
 A failed command leaves the box up unless teardown-on-error was explicitly
 enabled. Partial JSON remains available on disk; partial artifacts are not
@@ -141,22 +167,43 @@ uv sync --group jax-cuda && python -m experiments.belief_quotient_persistent_nui
 uv sync --group jax-cuda && python -m experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11.analysis_gbs.launch --box 6 --run-prefix gbs-v2
 ```
 
-Boxes 1–3 run Trivial, Reward-State, and Full-State Quotient; boxes 4–5 run Joint
-Reward and Marginal Reward; box 6 runs all five positive controls sequentially,
-returning successfully to the harness only after the fifth succeeds. Each uses seeds 42–44.
-No process rents a box. The control box has substantially more work than the
-other boxes: this intentionally follows the requested six-box allocation.
+Boxes 1–3 run policy then control for Trivial, Reward-State, and Full-State
+Quotient respectively; boxes 4–5 run Joint Reward and Marginal Reward policy.
+Box 6 runs both Reward Relevance controls sequentially with width 128 only,
+returning successfully to the harness after both succeed. Each uses seeds 42–44.
+No process rents a box. This is the user's revised six-box allocation.
 
 Expected optimizer budgets (validation/probing excluded):
 
 | Boxes | Independent fits | Updates per fit | Candidate updates | Vmapped step calls |
 |---|---:|---:|---:|---:|
-| 1, 2, or 3 | 1,008 | 20,000 | 20,160,000 | 3,360,000 |
+| 1, 2, or 3 | 2,016 | 20,000 | 40,320,000 | 6,720,000 |
 | 4 or 5 | 1,584 | 20,000 | 31,680,000 | 5,280,000 |
-| 6 | 6,192 | 20,000 | 123,840,000 | 20,640,000 |
+| 6 | 1,584 | 20,000 | 31,680,000 | 5,280,000 |
 
-Each vmapped step advances six independent fits. Step timing uses one extra
-discarded update per width group, not included in those optimization budgets.
+Each vmapped update advances six independent fits. TBPTT batches up to four such
+updates per compiled call. Step timing uses one extra discarded block per width
+group, not included in those optimization budgets.
+
+4090 repair measurements and eight real 500-update GPU smoke fits are in
+[`results/gpu_repair_4090_rolled/profile.json`](results/gpu_repair_4090_rolled/profile.json).
+All class/k timing probes compiled in under six seconds. At 20,000 updates,
+conservative training/validation/compile projections are 13.34 hours for each
+ladder policy+control box, 11.35 hours for each Reward Relevance policy box, and
+13.08 hours for both width-128 Reward Relevance controls. Applying width-128
+timings to both widths and the largest measured k cost to every dimension is
+conservative, not a complete campaign measurement. A planning allowance of 20%
+plus one hour for collection/probes/upload gives 17.0, 14.6, and 16.7 hours
+respectively. Full-size probe and publication overhead was not measured.
+
+Reproduce one class/dimension timing probe (policy and control) with a hard
+five-minute timeout; repeat for each class and `ladder2`, `ladder6`, `rr10`:
+
+```sh
+timeout -k 10s 300s python -m experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11.analysis_gbs.profile \
+  --baseline-ref 2322c49 --modes after_chunk --cases ladder6 --classes affine
+```
+
 For a CPU launch-command smoke, append overrides after `--`:
 
 ```sh

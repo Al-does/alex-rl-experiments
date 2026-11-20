@@ -25,11 +25,42 @@ def predict(x, w):
 
 
 def r2(y, prediction):
-    denominator = np.square(y-y.mean(0)).sum()
-    return None if denominator < 1e-12 else float(1-np.square(y-prediction).sum()/denominator)
+    y, prediction = np.asarray(y, dtype=np.float64), np.asarray(prediction, dtype=np.float64)
+    if not y.size or not np.isfinite(y).all() or not np.isfinite(prediction).all():
+        return None
+    with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+        denominator = np.square(y-y.mean(0)).mean()
+        scale = max(1., float(np.square(y).mean()))
+        if not np.isfinite(denominator) or denominator <= 1e-12*scale:
+            return None
+        value = float(1-np.square(y-prediction).mean()/denominator)
+    return value if np.isfinite(value) else None
+
+
+def finite_metrics(value):
+    reasons = {}
+    def clean(item, path):
+        if isinstance(item, dict):
+            return {key: clean(v, f"{path}.{key}" if path else key) for key, v in item.items()}
+        if isinstance(item, (list, tuple)):
+            return [clean(v, f"{path}[{i}]") for i, v in enumerate(item)]
+        if isinstance(item, np.generic):
+            item = item.item()
+        if isinstance(item, float) and not np.isfinite(item):
+            reasons[path] = "non-finite metric"
+            return None
+        return item
+    result = clean(value, "")
+    if reasons and isinstance(result, dict):
+        result["nonfinite_metrics"] = reasons
+    return result
 
 
 def mlp_score(x, y, test_x, test_y, *, updates=300):
+    if not all(np.isfinite(a).all() for a in (x, y, test_x, test_y)):
+        return None
+    if not x.size or np.all(np.std(x, axis=0) <= 1e-12):
+        return r2(test_y, np.broadcast_to(y.mean(0), test_y.shape))
     mean, scale = x.mean(0), np.maximum(x.std(0), 1e-4)
     x, test_x = (x-mean)/scale, (test_x-mean)/scale
     key1, key2 = jax.random.split(jax.random.PRNGKey(515))
@@ -61,6 +92,9 @@ def geometry(train_g, test_g, train_truth, test_truth, *, mlp_updates=300):
                         "mlp_r2": mlp_score(x, y, tx, ty, updates=mlp_updates),
                         "reverse_affine_r2": r2(tx, predict(ty, reverse)),
                         "reverse_mlp_r2": mlp_score(y, x, ty, tx, updates=mlp_updates) if x.shape[-1] else None}
+        for metric, value in list(report[name].items()):
+            if value is None:
+                report[name][metric+"_reason"] = "empty, non-finite, or near-constant target/prediction"
     return report
 
 
