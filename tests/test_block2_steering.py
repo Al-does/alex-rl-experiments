@@ -11,6 +11,7 @@ from experiments.belief_quotient_causal_decoding_2026_11 import decoders as d
 from experiments.belief_quotient_history_jax_2026_11 import models
 from experiments.reward_factors_block2_steering_2026_11.encoder_run import choose_strength, result_path
 from experiments.reward_factors_block2_steering_2026_11 import report
+from experiments.reward_factors_block2_steering_2026_11 import seed_pilot
 
 
 @pytest.fixture
@@ -154,3 +155,19 @@ def test_report_rejects_empty_wrong_site_and_smoke(tmp_path):
         first.write_text(json.dumps(dict(original, **{key: value})))
         with pytest.raises(ValueError):
             report.aggregate(tmp_path)
+
+
+def test_pilot_wrapper_keeps_seed_and_budgets_with_runtime_workers(monkeypatch):
+    calls = []
+    monkeypatch.setattr(seed_pilot.sys, "argv", ["seed_pilot", "--workers", "8", "--max-cpus", "32"])
+    monkeypatch.setattr(seed_pilot, "prepare_archives", lambda: None)
+    monkeypatch.setattr(seed_pilot.subprocess, "run", lambda args, **kwargs: calls.append(args))
+    seed_pilot.main()
+    assert len(calls) == 5
+    for command in calls[:4]:
+        assert command[command.index("--seed")+1] == "42"
+        assert command[command.index("--workers")+1] == "8"
+    assert "--smoke" in calls[0] and "--smoke" not in calls[1]
+    monkeypatch.setattr(seed_pilot.sys, "argv", ["seed_pilot", "--workers", "0"])
+    with pytest.raises(SystemExit):
+        seed_pilot.main()
