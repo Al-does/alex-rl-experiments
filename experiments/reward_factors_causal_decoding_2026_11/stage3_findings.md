@@ -81,3 +81,10 @@ CPU RAM. This harness revision does not expose `--min-cpu-ram`; the equivalent
 minimum is enforced in SDK search (`cpu_ram>=64`, search uses GB) and checked
 against returned MB values before pinning machine IDs. Max age is disabled
 (`--max-age 0`) as explicitly requested; only owned instance IDs may be destroyed.
+
+## Completed campaign
+
+All 255 full-budget reports are published and all owned instances are gone.
+See [campaign_tables.md](campaign_tables.md) for the complete mean ± sample SD
+table and [campaign_findings.md](campaign_findings.md) for interpretation,
+historical comparability limits, publication evidence and the two failed boots.
