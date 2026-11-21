@@ -1,0 +1,49 @@
+{
+  "jax_version": "0.11.1",
+  "model": {
+    "compute_dtype": "float32",
+    "context_length": 32,
+    "d_mlp": 512,
+    "d_model": 128,
+    "init_std": 0.02,
+    "n_heads": 4,
+    "n_layers": 4,
+    "norm_eps": 1e-05,
+    "rope_base": 10000.0,
+    "vocab": 3
+  },
+  "parameter_snapshot_only": true,
+  "process": "MRRXOR eps=0.05, jump before emit, stationary reset",
+  "seed": 42,
+  "training": {
+    "aux_coeff": 1.0,
+    "checkpoint_every": 1000,
+    "clip_param": 0.2,
+    "entropy_schedule": [
+      [
+        0,
+        0.01
+      ]
+    ],
+    "gae_lambda": 0.0,
+    "gamma": 0.0,
+    "heldout_sequences": 4096,
+    "lr_schedule": [
+      [
+        0,
+        0.0003
+      ]
+    ],
+    "minibatch_episodes": 32,
+    "next_token_aux": false,
+    "num_envs": 128,
+    "num_epochs": 4,
+    "rollout_chunks": 1,
+    "sequence_length": 32,
+    "total_env_steps": 100000000,
+    "train_sequences": 16384,
+    "vf_clip": 10.0,
+    "vf_coeff": 0.25,
+    "weight_decay": 1.0
+  }
+}
