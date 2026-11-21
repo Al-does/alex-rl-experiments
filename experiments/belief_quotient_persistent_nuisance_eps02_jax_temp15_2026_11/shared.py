@@ -8,9 +8,9 @@ from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11 im
 STUDY = "belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11"
 
 
-def run_condition(context, *, variant, architecture):
+def run_condition(context, *, variant, architecture, study=STUDY, training_backend=None):
     return base.run_condition(
-        context, variant=variant, architecture=architecture, study=STUDY,
+        context, variant=variant, architecture=architecture, study=study,
         total_env_steps=TOTAL_ENV_STEPS, entropy_schedule_points=ENTROPY_SCHEDULE,
-        temperature=TEMPERATURE, environment=environment,
+        temperature=TEMPERATURE, environment=environment, training_backend=training_backend,
     )

@@ -19,6 +19,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
+import math
 from typing import NamedTuple
 
 import jax
@@ -46,10 +47,13 @@ class PPOConfig:
     kl_coeff: float = 0.2
     kl_target: float = 0.01
     use_kl_loss: bool = True
+    covariance_weight: float = 0.0
 
     def __post_init__(self) -> None:
         if self.num_envs % self.num_minibatches:
             raise ValueError("num_envs must be divisible by num_minibatches")
+        if not math.isfinite(self.covariance_weight) or self.covariance_weight < 0:
+            raise ValueError("covariance_weight must be finite and nonnegative")
 
     @property
     def batch_size(self) -> int:
@@ -264,7 +268,8 @@ def _loss(config, spec, objective, params, kl_coeff, meta, batch):
     seq_obs, seq_episode, action, old_log_prob, old_logits, advantages, targets = batch
     lookback = spec.lookback
     embedding = jax.vmap(partial(tm.encode_window, spec, params))(seq_obs, seq_episode)
-    logits, values = tm.heads(params, embedding[:, lookback:])
+    decision_embedding = embedding[:, lookback:]
+    logits, values = tm.heads(params, decision_embedding)
     log_probs = jax.nn.log_softmax(logits)
     log_prob = jnp.take_along_axis(log_probs, action[..., None], axis=-1)[..., 0]
     ratio = jnp.exp(log_prob - old_log_prob)
@@ -278,13 +283,21 @@ def _loss(config, spec, objective, params, kl_coeff, meta, batch):
     total = policy_loss + config.vf_coeff * vf_loss - entropy_coeff * entropy
     if config.use_kl_loss:
         total = total + kl_coeff * kl
-    return total, {
+    metrics = {
         "policy_loss": policy_loss,
         "vf_loss": vf_loss,
         "entropy": entropy,
         "kl": kl,
         "entropy_coeff": entropy_coeff,
     }
+    if config.covariance_weight:
+        from losses.jax_covariance import off_diagonal_covariance_loss
+
+        covariance = off_diagonal_covariance_loss(decision_embedding)
+        weighted = config.covariance_weight * covariance
+        total = total + weighted
+        metrics.update(covariance_loss=covariance, weighted_covariance_loss=weighted)
+    return total, metrics
 
 
 def _old_logits(config, spec, params, seq_obs, seq_episode):

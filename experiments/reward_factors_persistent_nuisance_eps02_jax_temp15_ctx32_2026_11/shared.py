@@ -13,7 +13,7 @@ EXPLORATION_EPSILON = 0.0
 
 
 def run_condition(context, *, condition, architecture=ARCHITECTURE, study=STUDY,
-                  exploration_epsilon=EXPLORATION_EPSILON):
+                  exploration_epsilon=EXPLORATION_EPSILON, training_backend=None):
     if architecture != ARCHITECTURE:
         raise ValueError(f"architecture must be {ARCHITECTURE!r}")
     return base.run_condition(
@@ -21,4 +21,5 @@ def run_condition(context, *, condition, architecture=ARCHITECTURE, study=STUDY,
         total_env_steps=TOTAL_ENV_STEPS, entropy_schedule_points=ENTROPY_SCHEDULE,
         temperature=TEMPERATURE, environment=environment,
         exploration_epsilon=exploration_epsilon, context_len=CONTEXT_LEN,
+        training_backend=training_backend,
     )

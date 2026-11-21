@@ -95,6 +95,8 @@ class SweepRecipe:
     upload_checkpoints: bool = False
     """Upload each intermediate checkpoint's seed directory to B2 as soon as it
     is saved (when the run uploads artifacts), not only at the end of the run."""
+    resumable_checkpoint_at: tuple[int, ...] = ()
+    """Keep rollout state at these intermediate checkpoints."""
 
     def checkpoint_schedule(self, num_updates: int) -> tuple[int, ...]:
         if self.checkpoint_at is None:
@@ -204,9 +206,11 @@ def run(context, recipe: SweepRecipe):
             "instance": [N, K],
             "env_steps_per_seed": budget,
             "num_seeds": recipe.num_seeds,
+            "num_keys": recipe.num_keys,
             "first_seed": recipe.first_seed,
             "num_checkpoints": recipe.num_checkpoints,
             "checkpoint_at": recipe.checkpoint_at,
+            "resumable_checkpoint_at": recipe.resumable_checkpoint_at,
             "checkpoint_updates": {
                 arm.name: recipe.checkpoint_schedule(arm.num_updates(budget))
                 for arm in recipe.arms
@@ -261,6 +265,9 @@ def run(context, recipe: SweepRecipe):
                         "seconds": time.perf_counter() - start,
                     }
                     row.update({name: metrics[name] for name in CURVE_METRICS})
+                    if arm.ppo.covariance_weight:
+                        row.update(covariance_loss=metrics["covariance_loss"],
+                                   weighted_covariance_loss=metrics["weighted_covariance_loss"])
                     outputs.append_jsonl("training_curves.jsonl", row)
                     returns.append(metrics["episode_return_mean"])
                     print(
@@ -272,7 +279,7 @@ def run(context, recipe: SweepRecipe):
                     )
                     if update + 1 in ckpt_updates and update + 1 < updates:
                         path = outputs.artifacts_dir / arm.name / f"seed{seed_index}" / f"update{update + 1:03d}.pkl"
-                        save_state(path, state, with_rollout=False)
+                        save_state(path, state, with_rollout=update + 1 in recipe.resumable_checkpoint_at)
                         checkpoints.append({
                             "update": update + 1,
                             "env_steps": row["env_steps"],
