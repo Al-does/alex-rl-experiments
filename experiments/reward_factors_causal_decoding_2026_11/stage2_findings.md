@@ -80,6 +80,21 @@ subspace versus full-block-4 patching:
 - `context_exact_full`, `context_policy_full`: replace the entire latest block-4
   activation at lambda one; other strengths interpolate/extrapolate.
 
+The full variants are **retrieval/lookup controller references, not belief
+writes or better decoders**. `contextual_donor(full=True)` returns
+`bank_h[index] - h` for a supported donor, and `run.py` applies it at site 3.
+The archived agents have four blocks: `steer_moving_base.forward` adds this
+shift after the final block's attention and MLP, leaving only the final layer
+norm and policy head. At lambda one, the written activation is exactly the
+donor activation, so its action distribution is the donor moment's distribution
+at the same temperature, up to floating-point roundoff. The greedy rollout
+therefore uses the donor's argmax. No downstream attention integrates the donor
+with the recipient history at that decision, and no donor KV cache is copied.
+Unsupported matches abstain. Non-unit strengths mix/extrapolate entire
+activations and need not reproduce the donor distribution. Full variants belong
+beside the exact-belief map as controller references, not evidence of a
+successful belief write.
+
 The target subspace is the numerical row-space of the fitted affine belief
 readout (the Eq. (4)-style readout-complement option), with `rcond=1e-6`. Moving
 uses only factor 2; XOR uses both factors; ladder uses the full three-state
@@ -136,9 +151,10 @@ uv run --group jax python -m experiments.reward_factors_causal_decoding_2026_11.
   select lambda zero, even with complete exact-label bank support.
 - Moving joint Eq. (4): 1.0144 reward, .741 gap closed, .3353 factor-1 reward,
   .0747 factor-1 actions changed. Policy-implied full donor: 1.0347, .822, .3866,
-  .0641 respectively, with .688 eligible-donor coverage. This is the most promising
-  contextual variant in this pilot, but .0203 reward difference on eight episodes
-  from one agent seed is not an established gain. Policy-implied gradient also
+  .0641 respectively, with .688 eligible-donor coverage. This is a retrieval-based
+  controller comparison, not evidence of improved decoding or belief writing;
+  the .0203 reward difference on eight episodes from one agent seed is also
+  not an established controller gain. Policy-implied gradient steering
   reaches 1.0188 with .0258 factor-1 action changes.
 - v2: DAS remains .7021 versus joint Eq. (4) .6924; exact-context full donor is
   .6753. eps02: no contextual variant exceeds factored Eq. (4) .6406. Its .7104
@@ -147,6 +163,17 @@ uv run --group jax python -m experiments.reward_factors_causal_decoding_2026_11.
   Band selects lambda zero, MLP selects .25; their mirror action-change rates are
   only .00012. At v2 band still selects zero with 60 steps. The diagnosis therefore
   survives both more optimization and, for ladder, more fit/evaluation episodes.
+
+The full-donor results do not rescue the correlational belief write: the
+contextual subspace variants use the same donor bank and matching rule but
+patch only readout coordinates, and remain at or near intact across tests.
+Band/MLP gradient diagnostics likewise nearly meet their decoded targets with
+little policy effect. The evidence is that probe-readable belief coordinates
+are not what the policy reads at this site. The later campaign's useful
+geometry-sensitive steering results are action-subspace writes for ladder
+spillover and policy-implied gradient writes for moving-transfer specificity;
+see [campaign_findings.md](campaign_findings.md). Full-donor gains instead
+measure retrieval-controller performance.
 
 Policy-map held-out KL/TV are .10180/.08767 for Reward-State, .07390/.07335 for
 Full-State, .29738/.25054 for moving, .35028/.27706 for eps02 XOR, and
