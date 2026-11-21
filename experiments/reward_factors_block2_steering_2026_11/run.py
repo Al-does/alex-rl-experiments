@@ -69,8 +69,9 @@ def worker(job):
                                write=write_mode, stage2=stage2)
         if any(existing.get(key) != value for key, value in expected_config.items()):
             raise ValueError(f"incompatible result: {output}")
-        print(f"SKIP {output}", flush=True)
-        return
+        if existing.get("action_change_reference") == "intact_same_executed_history":
+            print(f"SKIP {output}", flush=True)
+            return
     if ladder:
         archived, archive_source = lrun.archive(f"variant_{variant}_transformer/results/belief_steering_v2_seed{seed}_stable.json")
         path = Path("experiments", lrun.STUDY, f"variant_{variant}_transformer", "results", archived["checkpoint"]["run_id"])
@@ -284,10 +285,11 @@ def worker(job):
         cache = models.init_carry(spec, episodes)
         history = jnp.zeros((episodes, 8, spec.width))
         def body(carry, t):
-            state, belief, cache, history, stream = carry
+            state, belief, cache, shadow_cache, history, stream = carry
             stream, ak, ek = jax.random.split(stream, 3)
             obs = jax.vmap(env.observe, (None, 0))(process, state)
             z, sites, _ = base.forward(spec, params, cache, obs, t)
+            shadow, _, shadow_cache = base.forward(spec, params, shadow_cache, obs, t)
             activation = sites[:, site]
             live_logits = lambda a: c.logits(spec, params, a, cache, t, site)
             live_policy = lambda a: jax.nn.softmax(live_logits(a) / 1.5)
@@ -361,19 +363,21 @@ def worker(job):
             if ladder:
                 score = (state.state == 2).astype(float)
                 factor1 = jnp.zeros_like(score)
-                changed = action != z.argmax(-1)
+                changed = action != shadow.argmax(-1)
+                local_changed = action != z.argmax(-1)
             else:
                 score = schedule[t, :, state.state].sum(-1)
                 factors = jnp.asarray(rr.ACTION)
                 # Factor reward uses the pre-transition hidden joint state.
                 factor1 = (state.state // 3 == 2).astype(float)
-                changed = factors[action, 0] != factors[z.argmax(-1), 0]
+                changed = factors[action, 0] != factors[shadow.argmax(-1), 0]
+                local_changed = factors[action, 0] != factors[z.argmax(-1), 0]
             belief = jax.vmap(env.belief_update, (None, 0, 0, 0))(process, belief, action, nxt.token)
             history = jnp.concatenate((history[:, 1:], activation[:, None]), 1)
-            return (nxt, belief, cache, history, stream), jnp.stack((score, factor1, changed, supported,
+            return (nxt, belief, cache, shadow_cache, history, stream), jnp.stack((score, factor1, changed, supported,
                                                                    unit_donor_tv * supported,
-                                                                   selected_donor_tv * supported), -1)
-        _, result = jax.lax.scan(body, (state, belief, cache, history, stream), jnp.arange(length))
+                                                                   selected_donor_tv * supported, local_changed), -1)
+        _, result = jax.lax.scan(body, (state, belief, cache, cache, history, stream), jnp.arange(length))
         return result.mean((0, 1))
     episodes = 2 if pilot else (32 if ladder else 256)
     tune_episodes = 2 if pilot else (16 if ladder else 64)
@@ -405,11 +409,13 @@ def worker(job):
                 strength = min(grid, key=lambda s: -curve[str(s)])
         values = np.asarray(evaluate(jnp.float32(strength), jnp.int32(confirm_seed)))
         result[str(mode)] = dict(strength=strength, tuning=curve, reward=float(values[0]),
-                                factor1_reward=float(values[1]), actions_changed=float(values[2]), donor_coverage=float(values[3]))
+                                factor1_reward=float(values[1]), actions_changed=float(values[2]), donor_coverage=float(values[3]),
+                                local_actions_changed=float(values[6]))
         if method.endswith("_full"):
             result[str(mode)].update(donor_tv_unit=float(values[4] / values[3]) if values[3] else None,
                                      donor_tv_selected=float(values[5] / values[3]) if values[3] else None)
-    report = dict(test=test, method=method, seed=seed, site=site, positions="latest_every_step", pilot=pilot, beta=beta, write=write_mode, checkpoint=checkpoint,
+    report = dict(test=test, method=method, seed=seed, site=site, positions="latest_every_step",
+                  action_change_reference="intact_same_executed_history", pilot=pilot, beta=beta, write=write_mode, checkpoint=checkpoint,
                   archive=archive_source, diagnostics=diagnostics, metrics=result,
                   wall_seconds=time.monotonic()-start, cpus=cpus, fit_episodes=nfit,
                   confirmation_episodes=episodes, horizon=length,

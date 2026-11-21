@@ -141,6 +141,7 @@ def test_report_rejects_empty_wrong_site_and_smoke(tmp_path):
                 metric = dict(reward=value, actions_changed=.1)
                 row = dict(test=test, seed=42, site=site, smoke=False, tuning_episodes=16,
                            confirmation_episodes=32, horizon=1024, positions="latest_every_step",
+                           action_change_reference="intact_same_executed_history",
                            metrics={"0": metric, "1": metric, "2": metric})
                 file.write_text(json.dumps(row))
                 if first is None:
@@ -149,7 +150,7 @@ def test_report_rejects_empty_wrong_site_and_smoke(tmp_path):
     assert len(result["per_seed"]) == 52
     assert result["aggregate"]["1:eq4"]["moving_gap"] == {"mean": .5, "sd": None}
     original = json.loads(first.read_text())
-    for key, value in (("site", 3), ("smoke", True), ("confirmation_episodes", 2)):
+    for key, value in (("site", 3), ("smoke", True), ("confirmation_episodes", 2), ("action_change_reference", "local")):
         first.write_text(json.dumps(dict(original, **{key: value})))
         with pytest.raises(ValueError):
             report.aggregate(tmp_path)

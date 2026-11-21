@@ -5,6 +5,13 @@ residual after block 2; site 3 is the residual after block 4. Writes affect the
 latest position **every decision**. The keys/values of later blocks retain past
 writes; no past residual band or donor KV history is directly transplanted.
 
+Action-change metrics compare against an independent intact shadow cache on
+the **same executed observations/actions**, so they include the effects of
+past B2 writes. `local_actions_changed` additionally saves the immediate write
+effect holding the recipient's already-intervened cache fixed. These coincide
+at B4 but need not at B2. Archived factor-task B2 action-change numbers used
+the local definition, whereas archived ladder used the intact shadow.
+
 Every B2 decoder, encoder, donor activation bank, readout complement, Jacobian,
 action basis and DAS basis is fitted at B2. Policy-implied forward maps are
 refitted on the fitting streams' beliefs and actual final-head logits. Gradients

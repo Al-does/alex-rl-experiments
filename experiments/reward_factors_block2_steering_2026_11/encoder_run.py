@@ -59,7 +59,9 @@ def worker(job):
     start = time.monotonic()
     ladder = test.startswith("ladder")
     representations = ("marginal",) if ladder else ("marginal", "joint")
-    if all(result_path(test, seed, r, k, s, site, smoke).exists() for r in representations for k, s in ARMS):
+    if all((p := result_path(test, seed, r, k, s, site, smoke)).exists()
+           and json.loads(p.read_text()).get("action_change_reference") == "intact_same_executed_history"
+           for r in representations for k, s in ARMS):
         print(f"SKIP {test} seed{seed}", flush=True)
         return
     variant = 3 if test == "ladder_full" else 2
@@ -130,7 +132,7 @@ def worker(job):
         decoded, decodedv, decodedt = (np.asarray(jnp.asarray(a) @ decoder + bias) for a in (h, hv, ht))
         for kind, source in ARMS:
             output = result_path(test, seed, representation, kind, source, site, smoke)
-            if output.exists():
+            if output.exists() and json.loads(output.read_text()).get("action_change_reference") == "intact_same_executed_history":
                 print(f"SKIP {output.name}", flush=True)
                 continue
             arm_start = time.monotonic()
@@ -153,10 +155,11 @@ def worker(job):
                 cache = models.init_carry(spec, episodes)
 
                 def body(carry, t):
-                    state, cache, stream = carry
+                    state, cache, shadow_cache, stream = carry
                     stream, ak, ek = jax.random.split(stream, 3)
                     obs = jax.vmap(env.observe, (None, 0))(process, state)
                     intact, sites, _ = base.forward(spec, params, cache, obs, t)
+                    shadow, _, shadow_cache = base.forward(spec, params, shadow_cache, obs, t)
                     current = sites[:, site] @ decoder + bias
                     if ladder:
                         belief = jnp.concatenate((current, 1-current.sum(-1, keepdims=True)), -1)
@@ -172,9 +175,10 @@ def worker(job):
                         process, jax.random.split(ek if ladder else jax.random.fold_in(step_key, t), episodes), state, action)
                     score = (state.state == 2).astype(float) if ladder else schedule[t, :, state.state].sum(-1)
                     factor1 = jnp.zeros_like(score) if ladder else (state.state // 3 == 2).astype(float)
-                    changed = action != intact.argmax(-1) if ladder else jnp.asarray(rr.ACTION)[action, 0] != jnp.asarray(rr.ACTION)[intact.argmax(-1), 0]
-                    return (nxt, cache, stream), jnp.stack((score, factor1, changed), -1)
-                _, values = jax.lax.scan(body, (state, cache, stream), jnp.arange(1024))
+                    changed = action != shadow.argmax(-1) if ladder else jnp.asarray(rr.ACTION)[action, 0] != jnp.asarray(rr.ACTION)[shadow.argmax(-1), 0]
+                    local_changed = action != intact.argmax(-1) if ladder else jnp.asarray(rr.ACTION)[action, 0] != jnp.asarray(rr.ACTION)[intact.argmax(-1), 0]
+                    return (nxt, cache, shadow_cache, stream), jnp.stack((score, factor1, changed, local_changed), -1)
+                _, values = jax.lax.scan(body, (state, cache, cache, stream), jnp.arange(1024))
                 return values.mean((0, 1))
 
             tuning_episodes, confirmation_episodes = (1, 1) if smoke else (16, 32)
@@ -193,7 +197,8 @@ def worker(job):
 
                 def summarize(strength):
                     values = np.asarray(confirm(jnp.float32(strength)))
-                    return dict(strength=strength, reward=float(values[0]), factor1_reward=float(values[1]), actions_changed=float(values[2]))
+                    return dict(strength=strength, reward=float(values[0]), factor1_reward=float(values[1]), actions_changed=float(values[2]),
+                                local_actions_changed=float(values[3]))
 
                 matched_metrics[str(mode)] = summarize(fixed)
                 metrics[str(mode)] = dict(matched_metrics[str(mode)] if selected == fixed else summarize(selected),
@@ -201,7 +206,7 @@ def worker(job):
             report = dict(test=test, seed=seed, representation=representation, encoder=kind, source=source,
                           historical_encoder_source="exact", write_current_source="probe_decoded_unclipped",
                           pilot=pilot, checkpoint=checkpoint, archive=archive_source, site=site, smoke=smoke,
-                          positions="latest_every_step",
+                          positions="latest_every_step", action_change_reference="intact_same_executed_history",
                           train_rows=len(h), validation_rows=len(hv), test_rows=len(ht),
                           data_seeds=dict(fit=42, validation=43, test=44, tuning=tune_seed, confirmation=confirm_seed),
                           fit_episodes=count if ladder or smoke else None, held_episodes=held_count,

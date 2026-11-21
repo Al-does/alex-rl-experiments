@@ -31,7 +31,7 @@ def load(root, test, seed, method, site):
     row = json.loads(file.read_text())
     expected = dict(test=test, seed=seed, smoke=False, tuning_episodes=16, confirmation_episodes=32, horizon=1024)
     if not archived:
-        expected.update(site=site, positions="latest_every_step")
+        expected.update(site=site, positions="latest_every_step", action_change_reference="intact_same_executed_history")
     for key, value in expected.items():
         if row.get(key, False if key == "smoke" else None) != value:
             raise ValueError(f"{file}: expected {key}={value}, got {row.get(key)}")
