@@ -1,0 +1,199 @@
+{
+  "test": "ladder",
+  "seed": 42,
+  "representation": "marginal",
+  "encoder": "mlp",
+  "source": "decoded",
+  "historical_encoder_source": "exact",
+  "write_current_source": "probe_decoded_unclipped",
+  "pilot": false,
+  "checkpoint": {
+    "step": 2012217344,
+    "sha256": "6036a76c1f0c40b2a13481bf52787803e9cef390fd5fae07d7248e0b1966ce6a",
+    "size_bytes": 818336,
+    "bucket": "slop-bucket",
+    "key": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261115T194341Z-aeb93b50/checkpoints/step_2012217344.npz",
+    "manifest_key": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261115T194341Z-aeb93b50/metadata/durability_manifest.json"
+  },
+  "archive": {
+    "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/belief_steering_v2_seed42_stable.json",
+    "revision": "45517b13a67d746048a002f9db52ea55a654b219",
+    "sha256": "649b4a9b7bfeceef29370ec191ba084d79c60d048f81d007f87767050956d830"
+  },
+  "site": 3,
+  "train_rows": 12000,
+  "validation_rows": 12192,
+  "test_rows": 12192,
+  "data_seeds": {
+    "fit": 42,
+    "validation": 43,
+    "test": 44,
+    "tuning": 1042,
+    "confirmation": 2042
+  },
+  "fit_episodes": 24,
+  "held_episodes": 12,
+  "tuning_episodes": 16,
+  "confirmation_episodes": 32,
+  "horizon": 1024,
+  "diagnostics": {
+    "architecture": "Linear-tanh-Linear",
+    "hidden_width": 128,
+    "weight_decay": 0.0001,
+    "learning_rate": 0.001,
+    "seed": 42,
+    "batch_size": 1024,
+    "max_epochs": 200,
+    "patience": 15,
+    "min_delta": 1e-05,
+    "best_epoch": 200,
+    "stopped_epoch": 200,
+    "initial_validation_loss": 1.3607914447784424,
+    "best_validation_loss": 0.27067381143569946,
+    "validation_curve": [
+      [
+        1,
+        0.7644376158714294
+      ],
+      [
+        10,
+        0.46228012442588806
+      ],
+      [
+        20,
+        0.41860413551330566
+      ],
+      [
+        30,
+        0.3843613564968109
+      ],
+      [
+        40,
+        0.3539634644985199
+      ],
+      [
+        50,
+        0.3340458571910858
+      ],
+      [
+        60,
+        0.320234090089798
+      ],
+      [
+        70,
+        0.3101218342781067
+      ],
+      [
+        80,
+        0.3031551241874695
+      ],
+      [
+        90,
+        0.29746413230895996
+      ],
+      [
+        100,
+        0.2934317886829376
+      ],
+      [
+        110,
+        0.2901422679424286
+      ],
+      [
+        120,
+        0.2864494025707245
+      ],
+      [
+        130,
+        0.2836155593395233
+      ],
+      [
+        140,
+        0.2811165452003479
+      ],
+      [
+        150,
+        0.27887779474258423
+      ],
+      [
+        160,
+        0.27667245268821716
+      ],
+      [
+        170,
+        0.27502864599227905
+      ],
+      [
+        180,
+        0.27348873019218445
+      ],
+      [
+        190,
+        0.2718694508075714
+      ],
+      [
+        200,
+        0.27067381143569946
+      ]
+    ],
+    "train_rows": 12000,
+    "validation_rows": 12192,
+    "test_r2": 0.8661687970161438,
+    "validation_r2": 0.8716786503791809
+  },
+  "metrics": {
+    "2": {
+      "strength": 1.0,
+      "reward": 0.13189697265625,
+      "factor1_reward": 0.0,
+      "actions_changed": 0.318572998046875,
+      "tuning": {
+        "0.0": 0.4393310546875,
+        "0.25": 0.3931884765625,
+        "0.4": 0.36566162109375,
+        "0.45": 0.344970703125,
+        "0.5": 0.30029296875,
+        "0.55": 0.251953125,
+        "0.6": 0.24444580078125,
+        "0.75": 0.1480712890625,
+        "0.9": 0.14874267578125,
+        "1.0": 0.10394287109375
+      },
+      "random_floor": 0.0821533203125
+    },
+    "1": {
+      "strength": 1.0,
+      "reward": 0.4508056640625,
+      "factor1_reward": 0.0,
+      "actions_changed": 0.028045654296875,
+      "tuning": {},
+      "random_floor": null
+    }
+  },
+  "matched_lambda_metrics": {
+    "2": {
+      "strength": 1.0,
+      "reward": 0.13189697265625,
+      "factor1_reward": 0.0,
+      "actions_changed": 0.318572998046875
+    },
+    "1": {
+      "strength": 1.0,
+      "reward": 0.4508056640625,
+      "factor1_reward": 0.0,
+      "actions_changed": 0.028045654296875
+    }
+  },
+  "fit_seconds": 2.8645318519993452,
+  "arm_seconds": 26.43581278900092,
+  "worker_seconds": 112.98434024499875,
+  "cpus": [
+    0,
+    4
+  ],
+  "revision": "bee8e6d63829e21fd4498ce16f72cbeb09fc8a35",
+  "code_hashes": {
+    "run.py": "b62880d9a06aef7a840f11ae4a3ac041032cca31f82ab7c7c005edbfe64b8caf",
+    "encoders.py": "b2112c2dac0fb59e0a3a88c42f31432e00b842c3126fe158d287f43e296f3e8f"
+  }
+}

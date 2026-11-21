@@ -1,0 +1,199 @@
+{
+  "test": "ladder",
+  "seed": 43,
+  "representation": "marginal",
+  "encoder": "mlp",
+  "source": "exact",
+  "historical_encoder_source": "exact",
+  "write_current_source": "probe_decoded_unclipped",
+  "pilot": false,
+  "checkpoint": {
+    "step": 2012217344,
+    "sha256": "f773b84e0d9c357eaf2514a7ab0d0e740b240a6355fdf05797e7ffffbad334ac",
+    "size_bytes": 818336,
+    "bucket": "slop-bucket",
+    "key": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261116T191626Z-fbed243d/checkpoints/step_2012217344.npz",
+    "manifest_key": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261116T191626Z-fbed243d/metadata/durability_manifest.json"
+  },
+  "archive": {
+    "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/belief_steering_v2_seed43_stable.json",
+    "revision": "45517b13a67d746048a002f9db52ea55a654b219",
+    "sha256": "c60d14e13d76485dce8a00e00d25c12cc4dfad419911af4625d71131aef8ace6"
+  },
+  "site": 3,
+  "train_rows": 12000,
+  "validation_rows": 12192,
+  "test_rows": 12192,
+  "data_seeds": {
+    "fit": 42,
+    "validation": 43,
+    "test": 44,
+    "tuning": 1042,
+    "confirmation": 2042
+  },
+  "fit_episodes": 24,
+  "held_episodes": 12,
+  "tuning_episodes": 16,
+  "confirmation_episodes": 32,
+  "horizon": 1024,
+  "diagnostics": {
+    "architecture": "Linear-tanh-Linear",
+    "hidden_width": 128,
+    "weight_decay": 0.0001,
+    "learning_rate": 0.001,
+    "seed": 42,
+    "batch_size": 1024,
+    "max_epochs": 200,
+    "patience": 15,
+    "min_delta": 1e-05,
+    "best_epoch": 200,
+    "stopped_epoch": 200,
+    "initial_validation_loss": 1.3998260498046875,
+    "best_validation_loss": 0.2549166977405548,
+    "validation_curve": [
+      [
+        1,
+        0.7921468019485474
+      ],
+      [
+        10,
+        0.4545626938343048
+      ],
+      [
+        20,
+        0.4095049202442169
+      ],
+      [
+        30,
+        0.3766031861305237
+      ],
+      [
+        40,
+        0.3488515615463257
+      ],
+      [
+        50,
+        0.33211225271224976
+      ],
+      [
+        60,
+        0.32254621386528015
+      ],
+      [
+        70,
+        0.31427285075187683
+      ],
+      [
+        80,
+        0.3066282868385315
+      ],
+      [
+        90,
+        0.2992072105407715
+      ],
+      [
+        100,
+        0.2931582033634186
+      ],
+      [
+        110,
+        0.2875184118747711
+      ],
+      [
+        120,
+        0.28161078691482544
+      ],
+      [
+        130,
+        0.2766468822956085
+      ],
+      [
+        140,
+        0.27257221937179565
+      ],
+      [
+        150,
+        0.26875630021095276
+      ],
+      [
+        160,
+        0.26536673307418823
+      ],
+      [
+        170,
+        0.26217085123062134
+      ],
+      [
+        180,
+        0.25998353958129883
+      ],
+      [
+        190,
+        0.25713202357292175
+      ],
+      [
+        200,
+        0.2549166977405548
+      ]
+    ],
+    "train_rows": 12000,
+    "validation_rows": 12192,
+    "test_r2": 0.814302384853363,
+    "validation_r2": 0.8167138695716858
+  },
+  "metrics": {
+    "2": {
+      "strength": 1.0,
+      "reward": 0.134796142578125,
+      "factor1_reward": 0.0,
+      "actions_changed": 0.451995849609375,
+      "tuning": {
+        "0.0": 0.3858642578125,
+        "0.25": 0.37591552734375,
+        "0.4": 0.35101318359375,
+        "0.45": 0.3428955078125,
+        "0.5": 0.236328125,
+        "0.55": 0.19940185546875,
+        "0.6": 0.183837890625,
+        "0.75": 0.14788818359375,
+        "0.9": 0.14300537109375,
+        "1.0": 0.12689208984375
+      },
+      "random_floor": 0.0821533203125
+    },
+    "1": {
+      "strength": 1.0,
+      "reward": 0.401336669921875,
+      "factor1_reward": 0.0,
+      "actions_changed": 0.00469970703125,
+      "tuning": {},
+      "random_floor": null
+    }
+  },
+  "matched_lambda_metrics": {
+    "2": {
+      "strength": 0.9,
+      "reward": 0.13421630859375,
+      "factor1_reward": 0.0,
+      "actions_changed": 0.43524169921875
+    },
+    "1": {
+      "strength": 1.0,
+      "reward": 0.401336669921875,
+      "factor1_reward": 0.0,
+      "actions_changed": 0.00469970703125
+    }
+  },
+  "fit_seconds": 3.0532272300042678,
+  "arm_seconds": 30.610620168001333,
+  "worker_seconds": 96.00571108800068,
+  "cpus": [
+    1,
+    5
+  ],
+  "revision": "bee8e6d63829e21fd4498ce16f72cbeb09fc8a35",
+  "code_hashes": {
+    "run.py": "b62880d9a06aef7a840f11ae4a3ac041032cca31f82ab7c7c005edbfe64b8caf",
+    "encoders.py": "b2112c2dac0fb59e0a3a88c42f31432e00b842c3126fe158d287f43e296f3e8f"
+  }
+}

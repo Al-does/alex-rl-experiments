@@ -1,0 +1,199 @@
+{
+  "test": "ladder",
+  "seed": 42,
+  "representation": "marginal",
+  "encoder": "mlp",
+  "source": "exact",
+  "historical_encoder_source": "exact",
+  "write_current_source": "probe_decoded_unclipped",
+  "pilot": false,
+  "checkpoint": {
+    "step": 2012217344,
+    "sha256": "6036a76c1f0c40b2a13481bf52787803e9cef390fd5fae07d7248e0b1966ce6a",
+    "size_bytes": 818336,
+    "bucket": "slop-bucket",
+    "key": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261115T194341Z-aeb93b50/checkpoints/step_2012217344.npz",
+    "manifest_key": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/20261115T194341Z-aeb93b50/metadata/durability_manifest.json"
+  },
+  "archive": {
+    "path": "experiments/belief_quotient_persistent_nuisance_eps02_jax_temp15_2026_11/variant_2_transformer/results/belief_steering_v2_seed42_stable.json",
+    "revision": "45517b13a67d746048a002f9db52ea55a654b219",
+    "sha256": "649b4a9b7bfeceef29370ec191ba084d79c60d048f81d007f87767050956d830"
+  },
+  "site": 3,
+  "train_rows": 12000,
+  "validation_rows": 12192,
+  "test_rows": 12192,
+  "data_seeds": {
+    "fit": 42,
+    "validation": 43,
+    "test": 44,
+    "tuning": 1042,
+    "confirmation": 2042
+  },
+  "fit_episodes": 24,
+  "held_episodes": 12,
+  "tuning_episodes": 16,
+  "confirmation_episodes": 32,
+  "horizon": 1024,
+  "diagnostics": {
+    "architecture": "Linear-tanh-Linear",
+    "hidden_width": 128,
+    "weight_decay": 0.0001,
+    "learning_rate": 0.001,
+    "seed": 42,
+    "batch_size": 1024,
+    "max_epochs": 200,
+    "patience": 15,
+    "min_delta": 1e-05,
+    "best_epoch": 199,
+    "stopped_epoch": 200,
+    "initial_validation_loss": 1.3666270971298218,
+    "best_validation_loss": 0.2804751992225647,
+    "validation_curve": [
+      [
+        1,
+        0.7936810851097107
+      ],
+      [
+        10,
+        0.4753173589706421
+      ],
+      [
+        20,
+        0.433565229177475
+      ],
+      [
+        30,
+        0.40390366315841675
+      ],
+      [
+        40,
+        0.37460699677467346
+      ],
+      [
+        50,
+        0.3547297716140747
+      ],
+      [
+        60,
+        0.34149742126464844
+      ],
+      [
+        70,
+        0.33102986216545105
+      ],
+      [
+        80,
+        0.3225463330745697
+      ],
+      [
+        90,
+        0.31514421105384827
+      ],
+      [
+        100,
+        0.3094422221183777
+      ],
+      [
+        110,
+        0.30497679114341736
+      ],
+      [
+        120,
+        0.30079394578933716
+      ],
+      [
+        130,
+        0.2971764802932739
+      ],
+      [
+        140,
+        0.2938118278980255
+      ],
+      [
+        150,
+        0.2909770905971527
+      ],
+      [
+        160,
+        0.28854918479919434
+      ],
+      [
+        170,
+        0.2862839698791504
+      ],
+      [
+        180,
+        0.28415560722351074
+      ],
+      [
+        190,
+        0.2819844186306
+      ],
+      [
+        200,
+        0.28059834241867065
+      ]
+    ],
+    "train_rows": 12000,
+    "validation_rows": 12192,
+    "test_r2": 0.8638756275177002,
+    "validation_r2": 0.8638760447502136
+  },
+  "metrics": {
+    "2": {
+      "strength": 1.0,
+      "reward": 0.148590087890625,
+      "factor1_reward": 0.0,
+      "actions_changed": 0.327545166015625,
+      "tuning": {
+        "0.0": 0.4393310546875,
+        "0.25": 0.3985595703125,
+        "0.4": 0.3638916015625,
+        "0.45": 0.341796875,
+        "0.5": 0.29498291015625,
+        "0.55": 0.27203369140625,
+        "0.6": 0.26171875,
+        "0.75": 0.17828369140625,
+        "0.9": 0.1187744140625,
+        "1.0": 0.10662841796875
+      },
+      "random_floor": 0.0821533203125
+    },
+    "1": {
+      "strength": 1.0,
+      "reward": 0.435333251953125,
+      "factor1_reward": 0.0,
+      "actions_changed": 0.012939453125,
+      "tuning": {},
+      "random_floor": null
+    }
+  },
+  "matched_lambda_metrics": {
+    "2": {
+      "strength": 1.0,
+      "reward": 0.148590087890625,
+      "factor1_reward": 0.0,
+      "actions_changed": 0.327545166015625
+    },
+    "1": {
+      "strength": 1.0,
+      "reward": 0.435333251953125,
+      "factor1_reward": 0.0,
+      "actions_changed": 0.012939453125
+    }
+  },
+  "fit_seconds": 2.9194849419945967,
+  "arm_seconds": 27.850962268996227,
+  "worker_seconds": 86.49394943199877,
+  "cpus": [
+    0,
+    4
+  ],
+  "revision": "bee8e6d63829e21fd4498ce16f72cbeb09fc8a35",
+  "code_hashes": {
+    "run.py": "b62880d9a06aef7a840f11ae4a3ac041032cca31f82ab7c7c005edbfe64b8caf",
+    "encoders.py": "b2112c2dac0fb59e0a3a88c42f31432e00b842c3126fe158d287f43e296f3e8f"
+  }
+}
