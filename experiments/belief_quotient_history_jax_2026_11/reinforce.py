@@ -147,8 +147,10 @@ def standardized_advantages(rewards, gamma):
     return (returns - returns.mean()) / jnp.maximum(1e-4, returns.std())
 
 
-def surrogate_loss(spec, config, params, batch, entropy_coeff):
-    logits, _, _ = models.sequence(spec, params, batch["obs"], batch.get("chunk_starts"))
+def surrogate_loss(spec, config, params, batch, entropy_coeff, *, activation_loss=None):
+    logits, residual, embedding = models.sequence(
+        spec, params, batch["obs"], batch.get("chunk_starts")
+    )
     log_probs = jax.nn.log_softmax(logits / config.temperature)
     behaviour = behaviour_log_probs(logits, config.temperature, config.exploration_epsilon)
     logp = jnp.take_along_axis(behaviour, batch["action"][..., None], -1)[..., 0]
@@ -158,7 +160,12 @@ def surrogate_loss(spec, config, params, batch, entropy_coeff):
     surrogate = jnp.minimum(advantages * ratio, advantages * clipped)
     entropy = -(jnp.exp(log_probs) * log_probs).sum(-1)
     loss = jnp.mean(-surrogate - entropy_coeff * entropy)
-    return loss, {"policy_loss": -surrogate.mean(), "entropy": entropy.mean()}
+    metrics = {"policy_loss": -surrogate.mean(), "entropy": entropy.mean()}
+    if activation_loss is not None:
+        penalty, penalty_metrics = activation_loss(residual, embedding)
+        loss = loss + penalty
+        metrics.update(penalty_metrics)
+    return loss, metrics
 
 
 def make_iteration(spec, process, config: TrainConfig, optimizer, *,

@@ -180,15 +180,17 @@ def evaluate(spec, params, *, process, reward: str, episodes: int, seed: int, po
 
 
 def analyze(run: dict, checkpoint: Path, *, tune_episodes: int, confirm_episodes: int,
-            seed: int) -> dict:
+            seed: int, load_actor=None, fit_rows: int | None = None, process=None) -> dict:
     recipe = json.loads((run["results"] / "resolved_recipe.json").read_text())
     spec = models.ModelSpec(**recipe["model"])
-    process = source_process(run["study"], run["condition"])
+    if process is None:
+        process = source_process(run["study"], run["condition"])
     for name, value in process._asdict().items():
         if not np.allclose(np.asarray(value), np.asarray(recipe["process"][name]), atol=1e-6):
             raise ValueError(f"{run['run_id']}: recorded process {name} differs")
-    params = base.load_params(checkpoint, spec)
-    fit = base.collect_rows(spec, params, process, rows=base.FIT_ROWS, seed=seed)
+    params = (load_actor or base.load_params)(checkpoint, spec)
+    fit_rows = base.FIT_ROWS if fit_rows is None else fit_rows
+    fit = base.collect_rows(spec, params, process, rows=fit_rows, seed=seed)
     learned = base.learned_action_map(fit)
     anchors = np.stack([base.anchor_states(np.asarray(learned[f"factor_{f}"])) for f in (1, 2)])
     fit_targets = base.map_targets(fit["belief"])
@@ -254,7 +256,7 @@ def analyze(run: dict, checkpoint: Path, *, tune_episodes: int, confirm_episodes
         "checkpoint_sha256": hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
         "model": recipe["model"], "policy_mode": "greedy", "episode_horizon": HORIZON,
         "moving_reward_period": PERIOD, "gamma": GAMMA,
-        "fit_seed": seed, "fit_rows": base.FIT_ROWS, "warmup": base.WARMUP,
+        "fit_seed": seed, "fit_rows": fit_rows, "warmup": base.WARMUP,
         "tune_seed": tune_seed, "tune_episodes": tune_episodes,
         "confirm_seed": confirm_seed, "confirm_episodes": confirm_episodes,
         "anchor_state_by_factor_action_noop_x_y": anchors.tolist(),
