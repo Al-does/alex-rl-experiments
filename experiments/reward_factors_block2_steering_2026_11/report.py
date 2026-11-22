@@ -64,6 +64,9 @@ def measures(rows, method):
 
 
 def aggregate(root, seeds=(42,)):
+    seeds = tuple(seeds)
+    if not seeds or len(set(seeds)) != len(seeds):
+        raise ValueError("nonempty, unique agent seeds required")
     manifest, data, summary, checkpoints = {}, {}, {}, {}
     encoder_r2, donor_tv, controls = {}, {}, {}
     sources = set()
@@ -111,9 +114,13 @@ def aggregate(root, seeds=(42,)):
 
 
 def comparison(result):
-    lines = ["# Block-2 pilot versus block 4", "", "16 selection / 32 confirmation episodes × 1,024 steps; seed 42 only.",
+    campaign = len(result["seeds"]) > 1
+    title = "# Three-seed block-2 versus block-4 campaign" if campaign else "# Block-2 pilot versus block 4"
+    seed_label = ", ".join(map(str, result["seeds"]))
+    uncertainty = "Mean ± sample SD across agent seeds, not standard error." if campaign else "No across-agent uncertainty estimate from one seed."
+    lines = [title, "", f"16 selection / 32 confirmation episodes × 1,024 steps; agent seeds {seed_label}.",
              "Every cell is **B2 ; B4**. Ladder/Full-State cells are occupancy / mirror actions changed; other main-table cells are reward/step.",
-             "No across-agent uncertainty estimate from one seed. Ladder joint encoder entries repeat its single representation.", ""]
+             uncertainty + " Ladder joint encoder entries repeat its single representation.", ""]
     def f(site, method, key):
         row = result["aggregate"][f"{site}:{method}"][key]
         return f"{row['mean']:.4f}" + (f"±{row['sd']:.4f}" if row["sd"] is not None else "")
