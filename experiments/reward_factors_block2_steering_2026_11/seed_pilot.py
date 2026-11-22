@@ -25,7 +25,7 @@ def main():
     subprocess.run(command, check=True)
     subprocess.run([sys.executable, "-m", "experiments.reward_factors_block2_steering_2026_11.encoder_run", "--seed", "42",
                     "--site", "1", "--workers", str(args.workers)], check=True)
-    subprocess.run([*command, "--site", "3", "--method", "random", "action", "das", "map"], check=True)
+    subprocess.run([*command, "--site", "3", "--method", "eq4", "eq4_joint", "random", "action", "das", "map"], check=True)
     subprocess.run([sys.executable, "-m", "experiments.reward_factors_block2_steering_2026_11.report"], check=True)
     print("SEED-42 PILOT COMPLETE; STOPPING BEFORE THREE-SEED CAMPAIGN", flush=True)
 

@@ -139,10 +139,11 @@ def test_report_rejects_empty_wrong_site_and_smoke(tmp_path):
                 file = report.path(tmp_path, test, 42, actual, site)
                 file.parent.mkdir(parents=True, exist_ok=True)
                 value = 2. if method == "map" else 1. if method == "intact" else 1.5
-                metric = dict(reward=value, actions_changed=.1)
+                metric = dict(reward=value, actions_changed=.1, strength=.5, donor_coverage=.8, donor_tv_unit=.04, donor_tv_selected=.05)
                 row = dict(test=test, seed=42, site=site, smoke=False, tuning_episodes=16,
                            confirmation_episodes=32, horizon=1024, positions="latest_every_step",
                            action_change_reference="intact_same_executed_history",
+                           code_hashes=report.source_hashes(actual), checkpoint={"sha256": "a"*64}, diagnostics={"test_r2": .5},
                            metrics={"0": metric, "1": metric, "2": metric})
                 file.write_text(json.dumps(row))
                 if first is None:
@@ -150,8 +151,20 @@ def test_report_rejects_empty_wrong_site_and_smoke(tmp_path):
     result = report.aggregate(tmp_path)
     assert len(result["per_seed"]) == 52
     assert result["aggregate"]["1:eq4"]["moving_gap"] == {"mean": .5, "sd": None}
+    assert len(result["encoder_r2"]) == 64
+    assert "**B2 ; B4**" in "\n".join(report.comparison(result))
+    assert all(row["exact_match"] for row in result["baseline_consistency"].values())
+    control_file = report.path(tmp_path, "moving", 42, "marginal_affine_exact", 3)
+    control = json.loads(control_file.read_text())
+    changed = json.loads(control_file.read_text())
+    changed["metrics"]["0"]["reward"] = 1.6
+    control_file.write_text(json.dumps(changed))
+    audit = report.aggregate(tmp_path)["baseline_consistency"]["42:3:moving:marginal"]
+    assert audit == dict(exact_match=False, differences=[dict(mode="0", field="reward", eq4=1.5, affine_exact=1.6)])
+    control_file.write_text(json.dumps(control))
     original = json.loads(first.read_text())
-    for key, value in (("site", 3), ("smoke", True), ("confirmation_episodes", 2), ("action_change_reference", "local")):
+    for key, value in (("site", 3), ("smoke", True), ("confirmation_episodes", 2), ("action_change_reference", "local"),
+                       ("code_hashes", {}), ("checkpoint", {"sha256": "b"*64})):
         first.write_text(json.dumps(dict(original, **{key: value})))
         with pytest.raises(ValueError):
             report.aggregate(tmp_path)
@@ -168,6 +181,7 @@ def test_pilot_wrapper_keeps_seed_and_budgets_with_runtime_workers(monkeypatch):
         assert command[command.index("--seed")+1] == "42"
         assert command[command.index("--workers")+1] == "8"
     assert "--smoke" in calls[0] and "--smoke" not in calls[1]
+    assert "eq4" in calls[3] and "eq4_joint" in calls[3]
     monkeypatch.setattr(seed_pilot.sys, "argv", ["seed_pilot", "--workers", "0"])
     with pytest.raises(SystemExit):
         seed_pilot.main()
