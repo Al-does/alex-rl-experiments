@@ -11,8 +11,10 @@ actions). Factor 1 uses the Reward-State action dynamics and factor 2 the Trivia
 `1[s1 = 2] + 1[s2 = 2]`. gamma = 0.99.
 
 - **Control is 1-D.** Full-simplex value iteration (301 × 101 grid per factor, residual < 1e-9) gives factor-2 argmax
-  action 1 on 100% of beliefs, with a minimum Q gap of 0.26. The factor-1 action depends only on
-  `rho_1 = P(s1 = 2)`, with a switch at rho_1 = 0.18 for every value of the within-{0,1} imbalance coordinate.
+  action 1 on 100% of beliefs, with a minimum Q gap of 0.26. The factor-1 action is a threshold on
+  `rho_1 = P(s1 = 2)`. The threshold moves only from rho_1 = 0.1791 to 0.1798 across the within-{0,1} imbalance
+  coordinate, which is smaller than the 1/300 grid spacing (interpolated 1e-5 scan; on grid points it is 0.18 for
+  every imbalance value). Control is therefore 1-D up to a < 0.001-wide band.
   A policy that thresholds rho_1 and plays a2 = 1 reaches 1.409 ± 0.009 reward/step. The full Bayes policy reaches
   1.409 ± 0.009 on the same seeds and 1.419 ± 0.007 on 512 episodes.
 - **Value is 2-D.** The 9-state Bellman residual of V1 + V2 is 0.0015, so value is additive. On visited beliefs the

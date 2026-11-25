@@ -208,6 +208,10 @@ def verify(episodes=512, seed=0):
     for j in range(GRID_U):
         col = a1_grid[:, j]
         switch_by_u.append(rho_grid[1:][np.diff(col) != 0].tolist())
+    # Off-grid scan of the factor-1 switch (grid points round it to multiples of 1/300).
+    fine_rho, fine_u = np.linspace(0.17, 0.19, 2001), np.linspace(-1, 1, 201)
+    fine_a1 = factor_q(0, from_coords(*np.meshgrid(fine_rho, fine_u, indexing="ij"))).argmax(-1)
+    fine_switch = np.concatenate([fine_rho[1:][np.diff(fine_a1[:, j]) != 0] for j in range(len(fine_u))])
     # Trivial factor fully observed MDP: action 1 optimal in every state?
     mdp_value = np.zeros(3)
     for _ in range(20_000):
@@ -352,8 +356,10 @@ def verify(episodes=512, seed=0):
             "factor_2_min_q_gap": float((q2_sorted[-1] - q2_sorted[-2]).min()),
             "factor_2_fully_observed_mdp_argmax_by_state": mdp_q.argmax(0).tolist(),
             "factor_1_argmax_fraction_full_simplex": {str(a): float((a1_grid == a).mean()) for a in range(3)},
-            "factor_1_rho_rows_where_argmax_varies_with_u": len(rows_varying),
-            "factor_1_switch_rho_range_over_u": [
+            "factor_1_grid_rho_rows_where_argmax_varies_with_u": len(rows_varying),
+            "factor_1_switch_rho_range_over_u_interpolated_scan": [float(fine_switch.min()), float(fine_switch.max())],
+            "factor_1_switch_scan_resolution": float(fine_rho[1] - fine_rho[0]),
+            "factor_1_grid_switch_rho_range_over_u": [
                 float(min(min(s) for s in switch_by_u if s)), float(max(max(s) for s in switch_by_u if s))],
             "factor_1_switch_rho_at_u0": switch_by_u[GRID_U // 2],
         },
