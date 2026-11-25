@@ -1,6 +1,6 @@
 from dataclasses import replace
 import importlib
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import jax
 import jax.numpy as jnp
@@ -10,7 +10,7 @@ import pytest
 from experiments.belief_quotient_history_jax_2026_11 import models
 from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_ppo_2026_11 import ppo
 from experiments.belief_quotient_persistent_nuisance_jax_2026_11 import shared as base
-from experiments.belief_quotient_ppo_separate_trunk_2026_11 import reference, shared, split_ppo
+from experiments.belief_quotient_ppo_separate_trunk_2026_11 import preflight, reference, shared, split_ppo
 from experiments.belief_quotient_ppo_separate_trunk_2026_11.seed_queue import LEAVES
 
 
@@ -80,3 +80,21 @@ def test_value_probe_targets_respect_terminal_and_decision_time():
     result = reference.value_target(grid, belief, divisions=16)[0, :, 0]
     next_reward = np.einsum("s,ast,t->a", belief[0, 0], process.transitions, process.reward)
     np.testing.assert_allclose(result, [.3125 + .99 * next_reward.max(), .6875], atol=1e-7)
+
+
+@pytest.mark.parametrize("arm", ("separate", "shared_wide"))
+def test_preflight_keeps_full_rollout_shape(arm, monkeypatch):
+    process, config, spec, _ = shared.recipe(3, arm, False)
+    monkeypatch.setattr("sys.argv", ["preflight", arm, "--seed", "42"])
+    train = Mock(return_value=({}, [], {}))
+    with (
+        patch.object(jax, "default_backend", return_value="gpu"),
+        patch.object(jax, "devices") as devices,
+        patch.object(preflight, "recipe") as recipe,
+    ):
+        devices.return_value[0].memory_stats.return_value = {"peak_bytes_in_use": 123}
+        recipe.return_value = process, config, spec, train
+        preflight.main()
+    recipe.assert_called_once_with(3, arm, False)
+    assert train.call_args.args[2] == replace(config, total_env_steps=2 * config.batch_steps)
+    assert train.call_args.kwargs["seed"] == 42

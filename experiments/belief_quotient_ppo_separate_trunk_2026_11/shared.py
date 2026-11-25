@@ -16,24 +16,29 @@ from . import probes, reference, split_ppo
 STUDY = "belief_quotient_ppo_separate_trunk_2026_11"
 
 
-def run_condition(context, *, variant, arm):
-    if not context.smoke and jax.default_backend() != "gpu":
-        raise RuntimeError("full PPO ladder runs require a JAX GPU backend")
+def recipe(variant, arm, smoke):
     process = environment.ladder_process(variant)
     config = ppo.configure(replace(
-        ladder.train_config(context.smoke, TOTAL_ENV_STEPS),
+        ladder.train_config(smoke, TOTAL_ENV_STEPS),
         entropy_schedule=ENTROPY_SCHEDULE, temperature=TEMPERATURE,
     ))
     spec = ladder.model_spec("transformer", process)
     if arm == "shared_wide":
         spec = replace(spec, width=90)
+    return process, config, spec, split_ppo.train if arm == "separate" else ppo.train
+
+
+def run_condition(context, *, variant, arm):
+    if not context.smoke and jax.default_backend() != "gpu":
+        raise RuntimeError("full PPO ladder runs require a JAX GPU backend")
+    process, config, spec, trainer = recipe(variant, arm, context.smoke)
     divisions = 16 if context.smoke else 160
     reward_reference = reference.REWARD_REFERENCES[variant]
     values = reference.value_grid(process, config.gamma, config.episode_length, divisions)
     return training.run_study(
         context, study=STUDY, condition=f"variant_{variant}", architecture="transformer",
         process=process, spec=spec, config=config, targets=probes.belief_targets,
-        representation="embedding", trainer=split_ppo.train if arm == "separate" else ppo.train,
+        representation="embedding", trainer=trainer,
         analyze_checkpoint=partial(probes.probe_checkpoint, values=values, divisions=divisions,
                                    reward_reference=reward_reference),
         recipe_extra={

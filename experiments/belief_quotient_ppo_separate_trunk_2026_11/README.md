@@ -102,3 +102,7 @@ held-out reward and trunk/target errors, and harness manifest in `results/`;
 the full parameter checkpoints stay in `artifacts/` and upload to B2.
 Use one on-demand Vast instance per seed with required durability and a finite
 lifetime backstop; verify each manifest and teardown before closing the run.
+On the first box, run `python -m experiments.belief_quotient_ppo_separate_trunk_2026_11.preflight ARM --seed 42`
+once each for `separate` and `shared_wide` before committing the remaining
+boxes. Each pilot uses two real research-size batches and logs timings and
+allocator statistics; neither pilot writes results nor alters queue initialization.
