@@ -105,7 +105,8 @@ def main(argv=None):
                 "sampled_reward": _stats([r["reward_per_step"] for r in sampled]),
                 "factor_2_action_1_fraction": _stats([r["factor_2_action_fractions"][1] for r in sampled]),
                 "probes_residual": {t: _stats([r["probes"][t]["residual"] for r in sampled]) for t in sampled[0]["probes"]},
-                "probes_context_32_window_filter": {t: _stats([r["probes"][t]["context_32_window_filter"] for r in sampled]) for t in sampled[0]["probes"]},
+                **{f"probes_{ref}": {t: _stats([r["probes"][t][ref] for r in sampled]) for t in sampled[0]["probes"]}
+                   for ref in ("window_33_filter", "window_129_filter", "window_33_obs_linear")},
                 "log_policy_affine_r_squared": {k: _stats([r["log_policy_affine_r_squared"][k] for r in sampled]) for k in sampled[0]["log_policy_affine_r_squared"]},
                 "steering_tv": {f: {d: _stats([np.mean([r["steering_one_visited_std"][f][f"{d}_plus"]["mean_tv_tempered_policy"],
                                                          r["steering_one_visited_std"][f][f"{d}_minus"]["mean_tv_tempered_policy"]]) for r in sampled])

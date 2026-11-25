@@ -4,9 +4,12 @@ For each (arm, seed) checkpoint this measures, on fresh rollouts of the
 trained policy (temperature 1.5 sampling, the training behaviour, and greedy):
 
 - held-out affine probes of rho_f, delta_f and V* from the pre-final-LayerNorm
-  residual, plus context-32 ceilings: the same probes fit to the exact filter
-  restarted from the uniform prior on the last 32 decisions only, and to the
-  one-hot window of the last 32 observations (linear-in-input ceiling);
+  residual, plus finite-window references: the same probes fit to the exact
+  filter restarted from the uniform prior on the last 33 decisions (one
+  attention layer's band, keys i-32..i) and on the last 129 decisions (the
+  4-layer stack's full receptive field), and to the one-hot window of the last
+  33 observations (linear-in-input reference). These are affine readouts of
+  uniform-prior window filters, not certified ceilings;
 - value readouts: the critic head (shared/separate) against V* and its affine
   dependence on (rho_1, rho_2);
 - control geometry: how much of the tempered log-policy is affinely explained
@@ -48,6 +51,8 @@ from experiments.reward_factors_rs_trivial_eps02_jax_temp15_ctx32_2026_11.shared
 TEMPERATURE = 1.5
 RIDGE = 1e-6
 WARMUP = 64
+LAYER_WINDOW = CONTEXT_LEN + 1  # banded attention: query i sees keys i-32..i
+RECEPTIVE_FIELD = 4 * CONTEXT_LEN + 1  # four stacked layers
 PROBE_TARGETS = ("rho_1", "rho_2", "delta_1", "delta_2", "value_star")
 FACTOR_ACTION = np.asarray(ACTION_PAIRS)  # (9, 2): joint action -> per-factor action
 
@@ -114,12 +119,13 @@ def collect(spec, process, params, key, episodes, greedy, value_fn):
     prev_actions = np.where(prev.sum(-1) > 0, prev.argmax(-1), 0)
     out = {"residual": records["residual"], "belief": records["belief"], "action": records["action"],
            "reward": records["reward"], "components": records["components"],
-           "window_belief": window_beliefs(process, tokens, prev_actions)}
+           "window_33": window_beliefs(process, tokens, prev_actions, LAYER_WINDOW),
+           "window_129": window_beliefs(process, tokens, prev_actions, RECEPTIVE_FIELD)}
     if value_fn is not None:
         out["value_head"] = np.asarray(value_fn(params, records["obs"]))
     sl = slice(WARMUP, None)
     out = {k: np.asarray(v)[:, sl].reshape(-1, *np.asarray(v).shape[2:]) for k, v in out.items()}
-    out["obs_window"] = obs_windows(obs)[:, sl].reshape(-1, obs.shape[-1] * CONTEXT_LEN)
+    out["obs_window"] = obs_windows(obs, LAYER_WINDOW)[:, sl].reshape(-1, obs.shape[-1] * LAYER_WINDOW)
     return out
 
 
@@ -162,8 +168,8 @@ def analyse(arm, spec, process, params, *, episodes, seed, greedy):
         "factor_2_action_fractions": np.bincount(factor_actions[:, 1], minlength=3).__truediv__(len(factor_actions)).tolist(),
         "probes": {},
     }
-    feats = {"residual": "residual", "context_32_window_filter": "window_belief",
-             "context_32_obs_window_linear": "obs_window"}
+    feats = {"residual": "residual", "window_33_filter": "window_33",
+             "window_129_filter": "window_129", "window_33_obs_linear": "obs_window"}
     for name in PROBE_TARGETS:
         report["probes"][name] = {
             label: _affine_r2(train[f], t_tr[name], test[f], t_te[name]) for label, f in feats.items()}
