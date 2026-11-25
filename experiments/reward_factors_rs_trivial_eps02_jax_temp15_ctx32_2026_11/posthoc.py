@@ -230,7 +230,8 @@ def fetch_checkpoint(arm, seed, step, cache):
     path = Path(cache) / run / f"step_{step:010d}.npz"
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
-        boto3.client("s3", endpoint_url=os.environ["B2_ENDPOINT"],
+        from harness.storage.b2 import normalize_b2_endpoint
+        boto3.client("s3", endpoint_url=normalize_b2_endpoint(os.environ["B2_ENDPOINT"]),
                      aws_access_key_id=os.environ["B2_APPLICATION_KEY_ID"],
                      aws_secret_access_key=os.environ["B2_APPLICATION_KEY"]).download_file(
             os.environ["B2_BUCKET"], key, str(path))
@@ -247,6 +248,8 @@ def main(argv=None):
     parser.add_argument("--checkpoint", help="local checkpoint (single arm/seed/step)")
     parser.add_argument("--output", required=True)
     args = parser.parse_args(argv)
+    if args.checkpoint and len(args.arms) * len(args.seeds) * len(args.steps) != 1:
+        parser.error("--checkpoint requires exactly one --arms, --seeds and --steps value")
     spec, process = spec_and_process()
     out = Path(args.output)
     reports = json.loads(out.read_text()) if out.exists() else {}
