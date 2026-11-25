@@ -34,7 +34,8 @@ def _save(path, params):
 
 
 def run_study(context, *, study, condition, architecture, process, spec, config,
-              targets, representation, recipe_extra, continue_from=None, trainer=train):
+              targets, representation, recipe_extra, continue_from=None, trainer=train,
+              analyze_checkpoint=probe_checkpoint):
     """``continue_from`` (see ``continuation.load_parent_checkpoint``) restarts
     training from a finished run's final parameters; ``config.total_env_steps``
     is then the *additional* budget and all recorded steps are absolute."""
@@ -85,7 +86,7 @@ def run_study(context, *, study, condition, architecture, process, spec, config,
     reports = []
     for steps, checkpoint in sorted(saved.items()):
         # Same probe streams at every checkpoint: changes reflect parameters only.
-        report = probe_checkpoint(
+        report = analyze_checkpoint(
             spec, process, checkpoint, probe_root, smoke=context.smoke,
             episode_length=config.episode_length, representation=representation,
             targets=targets,

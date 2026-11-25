@@ -44,12 +44,17 @@ def scaled_value_loss(predictions, targets, gamma):
     return jnp.mean((predictions - (1 - gamma) * targets) ** 2)
 
 
-def prepare_batch(spec, config, params, records):
+def forward(spec, params, obs):
+    logits, _, embedding = models.sequence(spec, params, obs)
+    return logits, models._dense(params["value"], embedding)[..., 0]
+
+
+def prepare_batch(spec, config, params, records, *, forward_fn=forward):
     obs = records["obs"]
 
     def predict(observations):
-        _, _, embedding = models.sequence(spec, params, observations)
-        return models._dense(params["value"], embedding)[..., 0] / (1 - config.gamma)
+        _, predictions = forward_fn(spec, params, observations)
+        return predictions / (1 - config.gamma)
 
     chunks = obs.reshape(config.num_minibatches, -1, *obs.shape[1:])
     values = jax.lax.map(predict, chunks).reshape(obs.shape[:2])
@@ -61,8 +66,8 @@ def prepare_batch(spec, config, params, records):
     })
 
 
-def loss(spec, config, params, batch, entropy_coeff):
-    logits, _, embedding = models.sequence(spec, params, batch["obs"])
+def loss(spec, config, params, batch, entropy_coeff, *, forward_fn=forward):
+    logits, predictions = forward_fn(spec, params, batch["obs"])
     behaviour = reinforce.behaviour_log_probs(
         logits, config.temperature, config.exploration_epsilon)
     logp = jnp.take_along_axis(behaviour, batch["action"][..., None], -1)[..., 0]
@@ -72,7 +77,6 @@ def loss(spec, config, params, batch, entropy_coeff):
                                batch["advantages"] * clipped).mean()
     log_probs = jax.nn.log_softmax(logits / config.temperature)
     entropy = -(jnp.exp(log_probs) * log_probs).sum(-1).mean()
-    predictions = models._dense(params["value"], embedding)[..., 0]
     vf_loss = scaled_value_loss(predictions, batch["value_targets"], config.gamma)
     targets = batch["value_targets"]
     variance = jnp.var(targets)
@@ -85,9 +89,10 @@ def loss(spec, config, params, batch, entropy_coeff):
     }
 
 
-def make_iteration(spec, process, config, optimizer):
+def make_iteration(spec, process, config, optimizer, *, forward_fn=forward):
     return reinforce.make_iteration(
-        spec, process, config, optimizer, loss_fn=loss, prepare_batch=prepare_batch)
+        spec, process, config, optimizer, loss_fn=partial(loss, forward_fn=forward_fn),
+        prepare_batch=partial(prepare_batch, forward_fn=forward_fn))
 
 
 train = partial(reinforce.train, init_fn=init_params, iteration_fn=make_iteration)
