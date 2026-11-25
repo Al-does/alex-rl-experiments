@@ -13,6 +13,7 @@ from experiments.belief_quotient_persistent_nuisance_eps02_jax_temp15_ppo_2026_1
 from experiments.belief_quotient_persistent_nuisance_jax_2026_11 import shared as base
 from experiments.belief_quotient_ppo_separate_trunk_2026_11 import preflight, reference, shared, split_ppo
 from experiments.belief_quotient_ppo_separate_trunk_2026_11 import report
+from experiments.belief_quotient_ppo_separate_trunk_2026_11.projection import PROJECTION, project
 from experiments.belief_quotient_ppo_separate_trunk_2026_11.seed_queue import LEAVES
 
 
@@ -130,8 +131,16 @@ def test_report_accepts_realized_checkpoint_schedule(tmp_path, monkeypatch):
                 "status": "completed", "runtime": {"seed": seed, "smoke": False},
                 "run_id": str(seed),
             }))
+    full_runs = report.load_runs(tmp_path)
+    curves = [{"env_steps": step, "reward_per_step": .39} for step in sorted(steps) if step]
+    for leaf, by_seed in full_runs.items():
+        for seed, (_, full_summary) in by_seed.items():
+            path = tmp_path / leaf / "results" / str(seed)
+            (path / PROJECTION).write_text(project(full_summary, curves))
+            (path / "condition_summary.json").unlink()
     runs = report.load_runs(tmp_path)
     rows = list(report.endpoint_rows(runs))
+    assert rows == list(report.endpoint_rows(full_runs))
     assert len(rows) == 32
     assert rows[0]["gap_to_upper"] == pytest.approx(.541335636)
     assert rows[-1]["gap_to_attainable"] == pytest.approx(.020969)
@@ -142,7 +151,9 @@ def test_report_accepts_realized_checkpoint_schedule(tmp_path, monkeypatch):
     assert (output / "learning_curves.pdf").read_bytes().startswith(b"%PDF")
     csv_bytes = (output / "final_by_seed.csv").read_bytes()
     assert b"\r" not in csv_bytes and len(csv_bytes.splitlines()) == 33
-    summary["checkpoint_reports"].pop(1)
-    (path / "condition_summary.json").write_text(json.dumps(summary))
+    projection = path / PROJECTION
+    lines = projection.read_text().splitlines(keepends=True)
+    lines.pop(2)
+    projection.write_text("".join(lines))
     with pytest.raises(ValueError, match="incomplete training trajectory"):
         report.load_runs(tmp_path)

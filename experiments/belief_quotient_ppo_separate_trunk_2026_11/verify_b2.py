@@ -1,13 +1,26 @@
-"""Check compact run manifests against B2 indexes and hash final checkpoints."""
+"""Verify B2 archives and check or materialize their report projections."""
+import argparse
 from hashlib import sha256
 import json
 
 from harness.storage.b2 import B2StorageConfig
 
+from .projection import PROJECTION, project
 from .report import FINAL, SEEDS, STUDY_DIR, TOTAL_CHECKPOINTS, load_runs
 
+ARCHIVE = "b2_full_results.jsonl"
+FULL_RESULTS = ("condition_summary.json", "training_curves.jsonl")
 
-def verify_run(client, manifest, summary_dir):
+
+def read_verified_object(client, bucket, file):
+    with client.get_object(Bucket=bucket, Key=file["key"])["Body"] as body:
+        contents = body.read()
+    if len(contents) != file["size_bytes"] or sha256(contents).hexdigest() != file["sha256"]:
+        raise ValueError(f"B2 object size or SHA-256 mismatch: {file['key']}")
+    return contents
+
+
+def verify_run(client, manifest, summary_dir, *, write_projections=False):
     remote = manifest["remote_artifacts"]
     bucket, prefix = remote["bucket"], remote["prefix"]
     manifest_key = remote["canonical_manifest_key"]
@@ -32,30 +45,69 @@ def verify_run(client, manifest, summary_dir):
     batch = FINAL // (TOTAL_CHECKPOINTS - 1)
     if checkpoints != {f"checkpoints/step_{i * batch:010d}.npz" for i in range(TOTAL_CHECKPOINTS)}:
         raise ValueError(f"incorrect checkpoint set: {manifest['run_id']}")
-    for name in ("condition_summary.json", "training_curves.jsonl", "resolved_recipe.json"):
-        if sha256((summary_dir / name).read_bytes()).hexdigest() != files[f"results/{name}"]["sha256"]:
-            raise ValueError(f"compact results differ from B2 index: {manifest['run_id']}/{name}")
-    final = files[f"checkpoints/step_{FINAL:010d}.npz"]
-    with client.get_object(Bucket=bucket, Key=final["key"])["Body"] as body:
-        digest = sha256(body.read()).hexdigest()
-    if digest != final["sha256"]:
-        raise ValueError(f"final checkpoint SHA-256 mismatch: {manifest['run_id']}")
-    return len(expected), sum(expected.values()), digest
+    recipe = "resolved_recipe.json"
+    if sha256((summary_dir / recipe).read_bytes()).hexdigest() != files[f"results/{recipe}"]["sha256"]:
+        raise ValueError(f"resolved recipe differs from B2 index: {manifest['run_id']}")
+    archive, full = [], {}
+    for name in FULL_RESULTS:
+        file = files[f"results/{name}"]
+        full[name] = read_verified_object(client, bucket, file)
+        local = summary_dir / name
+        if write_projections and local.read_bytes() != full[name]:
+            raise ValueError(f"tracked full result differs from B2: {local}")
+        archive.append({
+            "path": local.relative_to(STUDY_DIR).as_posix(),
+            "b2_uri": f"s3://{bucket}/{file['key']}",
+            "bytes": file["size_bytes"],
+            "sha256": file["sha256"],
+        })
+    summary = json.loads(full["condition_summary.json"])
+    curves = [json.loads(line) for line in full["training_curves.jsonl"].splitlines()]
+    projected = project(summary, curves)
+    if not write_projections and (summary_dir / PROJECTION).read_bytes() != projected.encode():
+        raise ValueError(f"projection differs from B2: {summary_dir / PROJECTION}")
+    read_verified_object(client, bucket, files[f"checkpoints/step_{FINAL:010d}.npz"])
+    return len(expected), sum(expected.values()), archive, projected
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--write-projections", action="store_true",
+                        help="materialize projections only after matching tracked full results against B2")
+    args = parser.parse_args()
     config = B2StorageConfig.from_env()
     if config is None:
         raise RuntimeError("B2 is not configured")
     client = config.s3_client()
     runs = load_runs(STUDY_DIR)
+    archive, projected = [], {}
+    total_objects = total_bytes = 0
     for leaf, by_seed in runs.items():
         for seed in SEEDS:
             manifest, _ = by_seed[seed]
             path = STUDY_DIR / leaf / "results" / manifest["run_id"]
-            n, size, digest = verify_run(client, manifest, path)
+            n, size, files, projection = verify_run(
+                client, manifest, path, write_projections=args.write_projections,
+            )
+            total_objects += n
+            total_bytes += size
+            archive.extend(files)
+            projected[path / PROJECTION] = projection
             print(f"{leaf}: seed={seed} run={manifest['run_id']} objects={n} bytes={size} "
-                  f"final_sha256={digest}", flush=True)
+                  "full_results=2 final_checkpoint_sha256=verified", flush=True)
+    archive_text = "".join(json.dumps(row, separators=(",", ":")) + "\n"
+                           for row in sorted(archive, key=lambda row: row["path"]))
+    archive_path = STUDY_DIR / "results" / ARCHIVE
+    if args.write_projections:
+        for path, projection in projected.items():
+            path.write_text(projection)
+        archive_path.write_text(archive_text)
+    elif archive_path.read_bytes() != archive_text.encode():
+        raise ValueError(f"full-results manifest differs from B2: {archive_path}")
+    print(f"{len(projected)} projections; {len(archive)} full files SHA-256 verified "
+          f"({sum(file['bytes'] for file in archive)} bytes); "
+          f"{total_objects} indexed objects ({total_bytes} bytes); "
+          f"{len(projected)} final checkpoint hashes verified")
 
 
 if __name__ == "__main__":

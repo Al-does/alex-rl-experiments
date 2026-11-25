@@ -7,6 +7,7 @@ import json
 
 import numpy as np
 
+from .projection import PROJECTION, TARGETS, load_projection
 from .reference import REWARD_REFERENCES
 from .seed_queue import LEAVES
 
@@ -31,7 +32,9 @@ def load_runs(root):
             seed = manifest["runtime"]["seed"]
             if seed not in SEEDS or manifest["runtime"]["smoke"]:
                 continue
-            summary = json.loads(path.with_name("condition_summary.json").read_text())
+            projection = path.with_name(PROJECTION)
+            summary = (load_projection(projection) if projection.exists()
+                       else json.loads(path.with_name("condition_summary.json").read_text()))
             reports = summary["checkpoint_reports"]
             batch = summary["training"]["batch_steps"]
             steps = [row["checkpoint_step"] for row in reports]
@@ -66,7 +69,7 @@ def endpoint_rows(runs):
                     attainable=attainable, bayes_upper=ref,
                     gap_to_attainable=attainable - policy["full_episode_reward_per_step"],
                     gap_to_upper=ref - policy["full_episode_reward_per_step"],
-                    **{key: errors[key]["error"] for key in ("rho", "delta", "v_star")},
+                    **{key: errors[key]["error"] for key in TARGETS},
                 )
                 rows.append(row)
                 yield dict(condition=condition, arm=arm, trunk=trunk, seed=seed,

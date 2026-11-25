@@ -106,3 +106,25 @@ On the first box, run `python -m experiments.belief_quotient_ppo_separate_trunk_
 once each for `separate` and `shared_wide` before committing the remaining
 boxes. Each pilot uses two real research-size batches and logs timings and
 allocator statistics; neither pilot writes results nor alters queue initialization.
+
+## Published results
+
+The Git snapshot retains each run's manifest and resolved recipe, plus
+`checkpoint_projection.jsonl`. Its header records the seed, step budget, and
+trunk order. Each subsequent row records the environment step, sampled
+training reward (null at initialization), complete-episode greedy reward and
+its episode SE, then one `[rho, delta, v_star]` error triple per trunk. The
+report and figure can be rebuilt offline from these projections.
+
+The full `condition_summary.json` and `training_curves.jsonl` files remain
+in B2 at the paths in [the full-results manifest](results/b2_full_results.jsonl).
+Each entry has the original path relative to this study, B2 URI, byte count,
+and SHA-256. With the configured B2 client, run:
+
+```bash
+uv run --no-sync python -m experiments.belief_quotient_ppo_separate_trunk_2026_11.verify_b2
+```
+
+This re-downloads and hashes the full files, checks the Git projections
+against their contents, and verifies the final checkpoint hashes and full
+object inventory against the run manifests.
