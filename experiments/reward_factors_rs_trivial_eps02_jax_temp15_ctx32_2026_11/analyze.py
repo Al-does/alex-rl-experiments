@@ -68,6 +68,39 @@ def per_run(arm, seed, bayes):
     }
 
 
+FINAL = "step2012217344"
+COLORS = {"actor_only": "tab:blue", "shared_critic": "tab:orange", "separate_critic": "tab:green"}
+
+
+def _plot(runs, bayes, seeds):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+    for arm, by_seed in runs.items():
+        for seed in seeds:
+            if seed not in by_seed:
+                continue
+            _, curves = _load(arm, seed)
+            label = arm if seed == min(by_seed) else None
+            axes[0].plot([c["env_steps"] for c in curves], [c["reward_per_step"] for c in curves],
+                         color=COLORS[arm], alpha=0.7, label=label)
+            trajectory = by_seed[seed]["probe_trajectory"]
+            for ax, target in ((axes[1], "rho_2"), (axes[2], "rho_1")):
+                ax.plot([max(r["step"], 1) for r in trajectory], [r[target] for r in trajectory],
+                        color=COLORS[arm], alpha=0.7, marker=".", label=label)
+    axes[0].axhline(bayes, color="k", ls="--", lw=1, label="Bayes-optimal")
+    axes[0].axhline(REWARD_GATE * bayes, color="gray", ls=":", lw=1, label="95% gate")
+    axes[0].set(xlabel="environment steps", ylabel="training reward / step (temperature 1.5)", ylim=(0.2, 1.5))
+    for ax, target in ((axes[1], "rho_2"), (axes[2], "rho_1")):
+        ax.set(xscale="log", xlabel="environment steps (checkpoint; 0 plotted at 1)",
+               ylabel=f"training-time probe R² {target} (residual)", ylim=(0, 1))
+    axes[0].legend(fontsize=8)
+    axes[1].legend(fontsize=8)
+    fig.tight_layout()
+    fig.savefig(ROOT / "results" / "curves.png", dpi=110)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--seeds", nargs="+", type=int, default=[42, 43, 44])
@@ -99,6 +132,7 @@ def main(argv=None):
                 final_steps.setdefault(step, {})[seed] = report
         entry["posthoc"] = {}
         for step, by_seed in final_steps.items():
+            by_seed = dict(sorted(by_seed.items()))
             sampled = [r["sampled"] for r in by_seed.values()]
             block = {
                 "seeds": sorted(by_seed),
@@ -120,6 +154,18 @@ def main(argv=None):
                     [r["value_head"]["coefficients_rho_1_rho_2"][1] / r["value_head"]["coefficients_rho_1_rho_2"][0] for r in sampled])
             entry["posthoc"][step] = block
         aggregate[arm] = entry
+    for arm in aggregate:
+        if arm == "actor_only" or "actor_only" not in aggregate:
+            continue
+        mine, base = aggregate[arm]["posthoc"].get(FINAL), aggregate["actor_only"]["posthoc"].get(FINAL)
+        if mine and base:
+            paired = {}
+            for target in ("rho_2", "delta_2", "value_star"):
+                a_vals = dict(zip(mine["seeds"], mine["probes_residual"][target]["values"]))
+                b_vals = dict(zip(base["seeds"], base["probes_residual"][target]["values"]))
+                paired[target] = _stats([a_vals[s] - b_vals[s] for s in a_vals if s in b_vals])
+            aggregate[arm]["posthoc_paired_residual_r_squared_minus_actor_only"] = paired
+    _plot(runs, bayes, args.seeds)
     out = {"bayes_reward_per_step": bayes, "reward_gate": REWARD_GATE * bayes, "runs": runs, "aggregate": aggregate}
     (ROOT / "results" / "summary.json").write_text(json.dumps(out, indent=1))
     fmt = lambda s: "n/a" if s is None else (f"{s['mean']:.3f}" + (f" ± {s['se']:.3f}" if s["se"] is not None else ""))
